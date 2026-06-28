@@ -1,0 +1,123 @@
+name: Unity Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    name: Validate Release Tag
+    # runs-on: [self-hosted, linux, x64]
+    runs-on: ubuntu-latest
+    outputs:
+      tag: ${{ steps.metadata.outputs.tag }}
+      version: ${{ steps.metadata.outputs.version }}
+      is_prerelease: ${{ steps.metadata.outputs.is_prerelease }}
+      release_name: ${{ steps.metadata.outputs.release_name }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Validate tag format and main ancestry
+        id: metadata
+        run: |
+          TAG="${GITHUB_REF_NAME}"
+          REGEX='^v([0-9]+)\.([0-9]+)\.([0-9]+)(-(preview)\.([0-9]+))?$'
+
+          if [[ ! "$TAG" =~ $REGEX ]]; then
+            echo "::error::Tag '$TAG' must match vMAJOR.MINOR.PATCH or vMAJOR.MINOR.PATCH-preview.N."
+            exit 1
+          fi
+
+          git fetch origin main:refs/remotes/origin/main --force
+          git fetch origin demo:refs/remotes/origin/demo --force || true
+
+          if ! git merge-base --is-ancestor "$GITHUB_SHA" origin/main && \
+             ! git merge-base --is-ancestor "$GITHUB_SHA" origin/demo; then
+            echo "::error::Tag '$TAG' points to commit '$GITHUB_SHA', which is not contained in origin/main or origin/demo."
+            exit 1
+          fi
+
+          VERSION="${TAG#v}"
+          IS_PRERELEASE=false
+          RELEASE_NAME="Drilling ${TAG}"
+
+          if [[ "$TAG" == *"-preview."* ]]; then
+            IS_PRERELEASE=true
+            RELEASE_NAME="Drilling ${TAG} (Preview)"
+          fi
+
+          echo "tag=${TAG}" >> "$GITHUB_OUTPUT"
+          echo "version=${VERSION}" >> "$GITHUB_OUTPUT"
+          echo "is_prerelease=${IS_PRERELEASE}" >> "$GITHUB_OUTPUT"
+          echo "release_name=${RELEASE_NAME}" >> "$GITHUB_OUTPUT"
+
+  build-and-release:
+    name: Build & Release (Windows)
+    needs:
+      - validate
+    # runs-on: [self-hosted, linux, x64]
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    permissions:
+      contents: write
+    env:
+      HAS_UNITY_SECRETS: ${{ secrets.UNITY_LICENSE != '' && secrets.UNITY_EMAIL != '' && secrets.UNITY_PASSWORD != '' }}
+    steps:
+      - name: Validate Unity secrets
+        if: env.HAS_UNITY_SECRETS != 'true'
+        run: |
+          echo "::error::UNITY_LICENSE, UNITY_EMAIL, and UNITY_PASSWORD must be configured for release workflows."
+          exit 1
+
+      - name: Free disk space
+        run: |
+          sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc /opt/hostedtoolcache/CodeQL
+          sudo docker image prune --all --force
+
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          lfs: true
+
+      - name: Cache Library
+        uses: actions/cache@v4
+        with:
+          path: Drilling/Library
+          key: Library-${{ hashFiles('Drilling/Assets/**', 'Drilling/Packages/manifest.json', 'Drilling/ProjectSettings/**') }}
+          restore-keys: |
+            Library-
+
+      - name: Build Unity project
+        uses: game-ci/unity-builder@v4
+        env:
+          UNITY_LICENSE: ${{ secrets.UNITY_LICENSE }}
+          UNITY_EMAIL: ${{ secrets.UNITY_EMAIL }}
+          UNITY_PASSWORD: ${{ secrets.UNITY_PASSWORD }}
+        with:
+          projectPath: Drilling
+          targetPlatform: StandaloneWindows64
+          unityVersion: auto
+          buildName: Drilling
+          versioning: Custom
+          version: ${{ needs.validate.outputs.version }}
+
+      - name: Zip build artifacts
+        run: |
+          cd build/StandaloneWindows64
+          zip -r "../../Drilling-${{ needs.validate.outputs.version }}-Windows.zip" .
+          cd ../..
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          name: ${{ needs.validate.outputs.release_name }}
+          prerelease: ${{ needs.validate.outputs.is_prerelease }}
+          generate_release_notes: true
+          files: Drilling-${{ needs.validate.outputs.version }}-Windows.zip
