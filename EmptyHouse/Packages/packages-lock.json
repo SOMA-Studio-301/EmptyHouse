@@ -1,5 +1,14 @@
 {
   "dependencies": {
+    "com.borderjung.unity-modules": {
+      "version": "https://github.com/BorderJung/unity-modules.git",
+      "depth": 0,
+      "source": "git",
+      "dependencies": {
+        "com.unity.ugui": "1.0.0"
+      },
+      "hash": "dc9ce9e9ac6c639554db1a993928848cd97ea00d"
+    },
     "com.unity.ai.navigation": {
       "version": "2.0.13",
       "depth": 0,
