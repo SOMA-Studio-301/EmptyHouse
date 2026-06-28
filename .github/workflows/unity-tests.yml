@@ -35,8 +35,8 @@ jobs:
       - name: Cache Library
         uses: actions/cache@v4
         with:
-          path: Drilling/Library
-          key: Library-${{ hashFiles('Drilling/Assets/**', 'Drilling/Packages/manifest.json', 'Drilling/ProjectSettings/**') }}
+          path: EmptyHouse/Library
+          key: Library-${{ hashFiles('EmptyHouse/Assets/**', 'EmptyHouse/Packages/manifest.json', 'EmptyHouse/ProjectSettings/**') }}
           restore-keys: |
             Library-
 
@@ -48,7 +48,7 @@ jobs:
           UNITY_EMAIL: ${{ secrets.UNITY_EMAIL }}
           UNITY_PASSWORD: ${{ secrets.UNITY_PASSWORD }}
         with:
-          projectPath: Drilling
+          projectPath: EmptyHouse
           testMode: EditMode
           unityVersion: auto
           githubToken: ${{ secrets.GITHUB_TOKEN }}
@@ -72,7 +72,7 @@ jobs:
           UNITY_EMAIL: ${{ secrets.UNITY_EMAIL }}
           UNITY_PASSWORD: ${{ secrets.UNITY_PASSWORD }}
         with:
-          projectPath: Drilling
+          projectPath: EmptyHouse
           testMode: PlayMode
           unityVersion: auto
           githubToken: ${{ secrets.GITHUB_TOKEN }}
