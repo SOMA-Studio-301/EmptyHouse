@@ -11,22 +11,28 @@ using Unity.Services.Lobbies.Models;
 
 public class LobbyManager : MonoBehaviour
 {
+    [Header("NAVIGATION UI")]
+    [SerializeField] private GameObject createPanel;          // 방 만들기 입력 팝업/패널
+    [SerializeField] private Button openCreatePanelButton;    // Lobby화면에서 Create창을 여는 버튼
+    [SerializeField] private Button backButton;               // Create창에서 Lobby화면으로 돌아가는 버튼
+    
+    [Header("Join Password Popup UI")]
+    [SerializeField] private GameObject privateJoinContent;      // 팝업 창 전체 패널 (이미지의 회색 창)
+    [SerializeField] private InputField popupPasswordInput;       // 팝업 내부의 비밀번호 입력창
+    [SerializeField] private Button popupConfirmJoinButton;      // 팝업 내부의 Join 버튼
+    [SerializeField] private Button popupCancelJoinButton;       // 팝업 내부의 Back 버튼
+    [SerializeField] private GameObject passwordWarningLabel;    // 비밀번호가 틀렸을 때 켜질 경고 메시지 오브젝트
+
     [Header("JOIN Tab UI")]
     [SerializeField] private Transform lobbyListContainer;
     [SerializeField] private GameObject lobbyListCellPrefab;
-    [SerializeField] private InputField joinLobbyNameInput;
     [SerializeField] private InputField joinLobbyPasswordInput;
-    [SerializeField] private Button joinButton;
-    [SerializeField] private Button reconnectButton;
-    [SerializeField] private Text playerNameText;
-    [SerializeField] private Button renameButton;
-    [SerializeField] private GameObject renamePanel;
-    [SerializeField] private InputField renameInput;
 
     [Header("CREATE Tab UI")]
     [SerializeField] private InputField createLobbyNameInput;
     [SerializeField] private InputField createLobbyPasswordInput;
-    [SerializeField] private Button createButton;
+    [SerializeField] private Toggle passwordToggle;
+    [SerializeField] private Button createButton;             // 최종 방 생성 확정 버튼
 
     [Header("Settings")]
     [SerializeField] private int maxPlayersPerLobby = 4;
@@ -35,30 +41,43 @@ public class LobbyManager : MonoBehaviour
     [Header("Room Manager")]
     [SerializeField] private RoomManager roomManager;
 
-    private string _playerName = "Player";
-    private Lobby _currentLobby;
-    private List<Lobby> _availableLobbies = new List<Lobby>();
-    private float _nextRefreshTime;
-    private bool _isRefreshing = false;
+    private string playerName = "Player";
+    private Lobby currentLobby;
+    private List<Lobby> availableLobbies = new List<Lobby>();
+    private float nextRefreshTime;
+    private bool isRefreshing = false;
+    private string selectedLobbyIdForPopup; // 팝업창 제어 시 선택된 로비 ID 임시 저장용
     
     private async void Start()
     {
         await InitializeUnityServices();
         SetupUI();
-        UpdatePlayerNameDisplay();
+        
+        if (passwordToggle != null && createLobbyPasswordInput != null)
+        {
+            passwordToggle.onValueChanged.RemoveAllListeners();
+            passwordToggle.onValueChanged.AddListener(OnPasswordToggleChanged);
+            createLobbyPasswordInput.gameObject.SetActive(passwordToggle.isOn);
+        }
+    }
+    
+    private void OnPasswordToggleChanged(bool isOn)
+    {
+        if (createLobbyPasswordInput != null)
+        {
+            createLobbyPasswordInput.gameObject.SetActive(isOn);
+            Debug.Log($"[LOBBY] 비밀번호 방 설정 토글 변경: {isOn}");
+        }
     }
 
     private void Update()
     {
-        // 유니티 서비스 인증(로그인)이 완료되지 않았다면 리턴
         if (UnityServices.State != ServicesInitializationState.Initialized || !AuthenticationService.Instance.IsSignedIn) 
             return;
 
-        // 현재 로비 갱신 중(_isRefreshing)이 아닐 때만 타이머 체크
-        if (Time.time >= _nextRefreshTime && _currentLobby == null && !_isRefreshing)
+        if (Time.time >= nextRefreshTime && currentLobby == null && !isRefreshing)
         {
-            // 호출하기 직전에 타이머를 먼저 밀어주어 중복 호출 방지
-            _nextRefreshTime = Time.time + lobbyRefreshInterval;
+            nextRefreshTime = Time.time + lobbyRefreshInterval;
             _ = RefreshLobbyList();
         }
     }
@@ -84,49 +103,108 @@ public class LobbyManager : MonoBehaviour
                 Debug.Log($"[INIT] Already signed in as: {AuthenticationService.Instance.PlayerId}");
             }
             
-            // 유니티 로그인이 끝난 후 스팀이 켜져 있다면 스팀 닉네임으로 덮어쓰기
             if (SteamManager.Initialized)
             {
-                _playerName = Steamworks.SteamFriends.GetPersonaName();
-                UpdatePlayerNameDisplay(); // UI 텍스트 컴포넌트 갱신
-                Debug.Log($"[STEAM] 스팀 닉네임 적용 완료: {_playerName}");
+                playerName = SteamFriends.GetPersonaName();
+                Debug.Log($"[STEAM] 스팀 닉네임 적용 완료: {playerName}");
             }
             
-            // 초기 로비 목록 로드
             Debug.Log("[INIT] Loading initial lobby list...");
             await RefreshLobbyList();
             
-            _nextRefreshTime = Time.time + lobbyRefreshInterval;
+            nextRefreshTime = Time.time + lobbyRefreshInterval;
         }
         catch (Exception e)
         {
             Debug.LogError($"[ERROR] Failed to initialize Unity Services: {e.Message}");
-            Debug.LogError($"[ERROR] Stack trace: {e.StackTrace}");
         }
     }
 
     #endregion
 
-    #region UI Setup
+    #region UI Setup & Navigation
 
     private void SetupUI()
     {
-        // JOIN Tab
-        joinButton.onClick.AddListener(() => _ = JoinLobbyByName());
-        reconnectButton.onClick.AddListener(() => _ = RefreshLobbyList());
+        // 1. 패널 내비게이션 리스너 등록
+        if (openCreatePanelButton != null)
+        {
+            openCreatePanelButton.onClick.RemoveAllListeners();
+            openCreatePanelButton.onClick.AddListener(ShowCreatePanel);
+        }
 
-        // CREATE Tab
-        createButton.onClick.AddListener(() => _ = CreateLobby());
+        if (backButton != null)
+        {
+            backButton.onClick.RemoveAllListeners();
+            backButton.onClick.AddListener(HideCreatePanel);
+        }
+
+        // 2. 최종 방 생성 버튼 리스너 등록
+        if (createButton != null)
+        {
+            createButton.onClick.RemoveAllListeners();
+            createButton.onClick.AddListener(() => _ = CreateLobby());
+        }
+
+        // 3. 비밀번호 입력 팝업 (Join / Back) 버튼 리스너 등록 (★추가)
+        if (popupConfirmJoinButton != null)
+        {
+            popupConfirmJoinButton.onClick.RemoveAllListeners();
+            popupConfirmJoinButton.onClick.AddListener(OnPopupConfirmJoinClicked);
+        }
+
+        if (popupCancelJoinButton != null)
+        {
+            popupCancelJoinButton.onClick.RemoveAllListeners();
+            popupCancelJoinButton.onClick.AddListener(OnPopupCancelClicked);
+        }
+
+        // 초기 상태 패널 상태 비활성화 정돈
+        HideCreatePanel();
+        if (privateJoinContent != null) privateJoinContent.SetActive(false);
+        if (passwordWarningLabel != null) passwordWarningLabel.SetActive(false);
     }
 
-    #endregion
-
-    #region Nickname Management
-
-    private void UpdatePlayerNameDisplay()
+    public void ShowCreatePanel()
     {
-        if (playerNameText != null)
-            playerNameText.text = _playerName;
+        if (createPanel != null)
+        {
+            createPanel.SetActive(true);
+        }
+    }
+
+    public void HideCreatePanel()
+    {
+        if (createPanel != null)
+        {
+            createPanel.SetActive(false);
+        }
+    }
+
+    // ★ [수정] 팝업 내부의 Back(취소) 버튼을 눌렀을 때의 처리
+    private void OnPopupCancelClicked()
+    {
+        selectedLobbyIdForPopup = "";
+        if (popupPasswordInput != null) popupPasswordInput.text = "";
+        if (passwordWarningLabel != null) passwordWarningLabel.SetActive(false);
+        if (privateJoinContent != null) privateJoinContent.SetActive(false);
+        Debug.Log("[JOIN] 비밀번호 입력창을 닫았습니다.");
+    }
+
+    // 방에서 나가거나 초기화될 때 UI 상태를 깔끔하게 청소하는 헬퍼 함수
+    public void ResetLobbyUI()
+    {
+        if (createLobbyNameInput != null) createLobbyNameInput.text = "";
+        if (createLobbyPasswordInput != null) createLobbyPasswordInput.text = "";
+        if (passwordToggle != null) passwordToggle.isOn = false;
+        
+        HideCreatePanel();
+
+        // ★ [추가] 패스워드 관련 UI 컴포넌트 데이터도 함께 청소
+        selectedLobbyIdForPopup = "";
+        if (popupPasswordInput != null) popupPasswordInput.text = "";
+        if (passwordWarningLabel != null) passwordWarningLabel.SetActive(false);
+        if (privateJoinContent != null) privateJoinContent.SetActive(false);
     }
 
     #endregion
@@ -135,21 +213,19 @@ public class LobbyManager : MonoBehaviour
 
     public async Task RefreshLobbyList()
     {
-        // 방어 코드: 로그인 상태가 아니거나 "이미 로비를 불러오는 중"이면 취소
-        if (!AuthenticationService.Instance.IsSignedIn || _isRefreshing)
+        if (!AuthenticationService.Instance.IsSignedIn || isRefreshing)
         {
             return;
         }
 
-        // 갱신 시작 플래그 ON
-        _isRefreshing = true;
+        isRefreshing = true;
 
         try
         {
             Debug.Log("[REFRESH] Querying lobbies...");
             QueryResponse queryResponse = await LobbyService.Instance.QueryLobbiesAsync();
-            _availableLobbies = queryResponse.Results;
-            Debug.Log($"[REFRESH] Found {_availableLobbies.Count} lobbies");
+            availableLobbies = queryResponse.Results;
+            Debug.Log($"[REFRESH] Found {availableLobbies.Count} lobbies");
 
             UpdateLobbyListUI();
         }
@@ -159,33 +235,16 @@ public class LobbyManager : MonoBehaviour
         }
         finally
         {
-            // [중요] 성공하든 실패하든 처리가 끝나면 플래그를 꺼서 다음 요청이 가능하게 함
-            _isRefreshing = false;
+            isRefreshing = false;
         }
     }
 
     private void UpdateLobbyListUI()
     {
-        Debug.Log($"[UI] Updating lobby list UI. Container: {(lobbyListContainer != null ? "OK" : "NULL")}, Prefab: {(lobbyListCellPrefab != null ? "OK" : "NULL")}");
+        if (lobbyListContainer == null || lobbyListCellPrefab == null) return;
 
-        if (lobbyListContainer == null)
-        {
-            Debug.LogError("[UI] Lobby list container is NULL! Please assign it in the Inspector.");
-            return;
-        }
-
-        if (lobbyListCellPrefab == null)
-        {
-            Debug.LogError("[UI] Lobby list cell prefab is NULL! Please assign it in the Inspector.");
-            return;
-        }
-
-        // 기존 목록 제거
-        int childCount = lobbyListContainer.childCount;
-        Debug.Log($"[UI] Removing {childCount} existing lobby cells");
         foreach (Transform child in lobbyListContainer)
         {
-            //에디터 오류 해결용 코드 (DestroyImmediate를 쓰면 에디터에서 Destroy를 써도 오류가 나지 않습니다.)
             if (Application.isPlaying)
             {
                 Destroy(child.gameObject);
@@ -196,9 +255,7 @@ public class LobbyManager : MonoBehaviour
             }
         }
 
-        // 새로운 목록 생성
-        Debug.Log($"[UI] Creating {_availableLobbies.Count} lobby cells");
-        foreach (Lobby lobby in _availableLobbies)
+        foreach (Lobby lobby in availableLobbies)
         {
             GameObject cellObj = Instantiate(lobbyListCellPrefab, lobbyListContainer);
             LobbyListCell cell = cellObj.GetComponent<LobbyListCell>();
@@ -206,20 +263,38 @@ public class LobbyManager : MonoBehaviour
             if (cell != null)
             {
                 cell.SetLobbyInfo(lobby, OnLobbyListJoinClicked);
-                Debug.Log($"[UI] Created cell for lobby: {lobby.Name}");
-            }
-            else
-            {
-                Debug.LogError($"[UI] LobbyListCell component not found on prefab!");
             }
         }
-        Debug.Log("[UI] Lobby list UI update complete");
     }
 
-    private async void OnLobbyListJoinClicked(Lobby lobby)
+    // ★ [구조 변경] 리스트 내부 셀의 Join 버튼을 클릭했을 때의 분기 처리
+    private void OnLobbyListJoinClicked(Lobby lobby)
     {
-        string inputPassword = joinLobbyPasswordInput != null ? joinLobbyPasswordInput.text.Trim() : "";
-        await JoinLobbyById(lobby.Id, inputPassword);
+        // 로비에 비밀번호가 설정되어 있는 경우
+        if (lobby.Data != null && lobby.Data.ContainsKey("Password"))
+        {
+            Debug.Log($"[JOIN] '{lobby.Name}' 방은 비밀번호 방입니다. 입력 팝업창을 엽니다.");
+            selectedLobbyIdForPopup = lobby.Id; // 대상 방 ID 보관
+            
+            if (popupPasswordInput != null) popupPasswordInput.text = "";
+            if (passwordWarningLabel != null) passwordWarningLabel.SetActive(false); // 경고 레이블은 일단 숨김
+            if (privateJoinContent != null) privateJoinContent.SetActive(true);      // 팝업 패널 활성화
+        }
+        else
+        {
+            // 비밀번호가 없는 일반 공개 방인 경우 -> 패스워드 없이 다이렉트 조인 시도
+            Debug.Log($"[JOIN] '{lobby.Name}' 방은 공개 방입니다. 즉시 입장을 시도합니다.");
+            _ = JoinLobbyById(lobby.Id, "");
+        }
+    }
+
+    // ★ [추가] 팝업 내부의 Join 버튼을 눌렀을 때의 리스너 이벤트
+    private async void OnPopupConfirmJoinClicked()
+    {
+        if (string.IsNullOrEmpty(selectedLobbyIdForPopup)) return;
+
+        string enteredPassword = popupPasswordInput != null ? popupPasswordInput.text.Trim() : "";
+        await JoinLobbyById(selectedLobbyIdForPopup, enteredPassword);
     }
 
     #endregion
@@ -241,19 +316,18 @@ public class LobbyManager : MonoBehaviour
         {
             CreateLobbyOptions options = new CreateLobbyOptions
             {
-                IsPrivate = false, // 모든 방을 Public으로 설정하여 Query에 표시
+                IsPrivate = false, 
                 Player = new Player
                 {
                     Data = new Dictionary<string, PlayerDataObject>
                     {
-                        { "PlayerName", new PlayerDataObject(PlayerDataObject.VisibilityOptions.Member, _playerName) },
-                        { "SteamID", new PlayerDataObject(PlayerDataObject.VisibilityOptions.Member, Steamworks.SteamUser.GetSteamID().ToString())}
+                        { "PlayerName", new PlayerDataObject(PlayerDataObject.VisibilityOptions.Member, playerName) },
+                        { "SteamID", new PlayerDataObject(PlayerDataObject.VisibilityOptions.Member, SteamUser.GetSteamID().ToString())}
                     }
                 },
                 Data = new Dictionary<string, DataObject>()
             };
 
-            // 비밀번호 확인
             if (!string.IsNullOrEmpty(password))
             {
                 options.Data.Add("Password", new DataObject(
@@ -262,27 +336,17 @@ public class LobbyManager : MonoBehaviour
                     DataObject.IndexOptions.S1));
             }
 
-            _currentLobby = await LobbyService.Instance.CreateLobbyAsync(lobbyName, maxPlayersPerLobby, options);
+            currentLobby = await LobbyService.Instance.CreateLobbyAsync(lobbyName, maxPlayersPerLobby, options);
 
-            Debug.Log($"[CREATE] Created lobby: {_currentLobby.Name} (ID: {_currentLobby.Id})");
-            Debug.Log($"[CREATE] Lobby Code: {_currentLobby.LobbyCode}");
-            Debug.Log($"[CREATE] IsPrivate: {_currentLobby.IsPrivate}");
+            Debug.Log($"[CREATE] Created lobby: {currentLobby.Name} (ID: {currentLobby.Id})");
 
-            // 생성 후 입력 필드 초기화
-            createLobbyNameInput.text = "";
-            createLobbyPasswordInput.text = "";
+            ResetLobbyUI();
 
-            // 로비 하트비트 시작 (로비가 자동으로 제거되지 않도록)
             InvokeRepeating(nameof(SendLobbyHeartbeat), 15f, 15f);
 
-            // RoomManager로 방 입장
             if (roomManager != null)
             {
-                roomManager.EnterRoom(_currentLobby);
-            }
-            else
-            {
-                Debug.LogError("[CREATE] RoomManager is not assigned!");
+                roomManager.EnterRoom(currentLobby);
             }
         }
         catch (Exception e)
@@ -293,8 +357,7 @@ public class LobbyManager : MonoBehaviour
 
     private async void SendLobbyHeartbeat()
     {
-        // 1. 로비가 없거나 로그아웃 상태면 타이머 정지
-        if (_currentLobby == null || !AuthenticationService.Instance.IsSignedIn)
+        if (currentLobby == null || !AuthenticationService.Instance.IsSignedIn)
         {
             CancelInvoke(nameof(SendLobbyHeartbeat));
             return;
@@ -302,33 +365,24 @@ public class LobbyManager : MonoBehaviour
 
         try
         {
-            await LobbyService.Instance.SendHeartbeatPingAsync(_currentLobby.Id);
+            await LobbyService.Instance.SendHeartbeatPingAsync(currentLobby.Id);
         }
         catch (LobbyServiceException e)
         {
-            // UGS 서비스 예외 처리 (404: 방 삭제 / 403, 400: 권한 상실)
             if (e.ErrorCode == 404 || e.ErrorCode == 403 || e.ErrorCode == 400 || 
                 e.Message.ToLower().Contains("not found") || e.Message.ToLower().Contains("host"))
             {
-                Debug.LogWarning($"[HEARTBEAT] 방장 권한 위임 또는 방 삭제 감지. 하트비트를 정지합니다. ({e.Message})");
                 CancelInvoke(nameof(SendLobbyHeartbeat));
                 return;
             }
-        
-            Debug.LogError($"[HEARTBEAT] UGS 서비스 에러: {e.Message}");
         }
         catch (Exception e)
         {
-            // ★ [핵심 수정] 일반 예외 블록 (330번째 줄 부근)
-            // 위임 도중 타이밍 이슈로 서버 텍스트 에러가 이쪽으로 튕겨 들어올 때의 방어 코드
             if (e.Message.ToLower().Contains("host") || e.Message.ToLower().Contains("not found"))
             {
-                Debug.LogWarning($"[HEARTBEAT] 레이스 컨디션으로 인한 권한 상실 감지. 타이머를 정지합니다.");
                 CancelInvoke(nameof(SendLobbyHeartbeat));
                 return;
             }
-            
-            Debug.LogError($"Failed to send heartbeat: {e.Message}");
         }
     }
 
@@ -336,62 +390,22 @@ public class LobbyManager : MonoBehaviour
 
     #region Join Lobby
 
-    private async Task JoinLobbyByName()
-    {
-        string lobbyName = joinLobbyNameInput.text.Trim();
-        string password = joinLobbyPasswordInput.text.Trim();
-
-        if (string.IsNullOrEmpty(lobbyName))
-        {
-            Debug.LogWarning("Lobby name cannot be empty!");
-            return;
-        }
-
-        try
-        {
-            // 이름으로 로비 찾기
-            QueryResponse queryResponse = await LobbyService.Instance.QueryLobbiesAsync();
-            Lobby targetLobby = queryResponse.Results.Find(l => l.Name == lobbyName);
-
-            if (targetLobby == null)
-            {
-                Debug.LogWarning($"Lobby '{lobbyName}' not found!");
-                return;
-            }
-
-            // 비밀번호 확인
-            if (targetLobby.Data != null && targetLobby.Data.ContainsKey("Password"))
-            {
-                string lobbyPassword = targetLobby.Data["Password"].Value;
-                if (lobbyPassword != password)
-                {
-                    Debug.LogWarning("Incorrect password!");
-                    return;
-                }
-            }
-
-            await JoinLobbyById(targetLobby.Id, password);
-        }
-        catch (Exception e)
-        {
-            Debug.LogError($"Failed to join lobby: {e.Message}");
-        }
-    }
-
     private async Task JoinLobbyById(string lobbyId, string password = "")
     {
         try
         {
-            // 먼저 로비 정보를 조회하여 비밀번호 확인
             Lobby targetLobby = await LobbyService.Instance.GetLobbyAsync(lobbyId);
 
-            // 비밀번호 확인
+            // 비밀번호가 존재하는 방인 경우 1차 문자열 일치성 검증 수행
             if (targetLobby.Data != null && targetLobby.Data.ContainsKey("Password"))
             {
                 string lobbyPassword = targetLobby.Data["Password"].Value;
                 if (string.IsNullOrEmpty(password) || lobbyPassword != password)
                 {
-                    Debug.LogWarning("[JOIN] 비밀번호가 필요한 방입니다!");
+                    Debug.LogWarning("[JOIN] 비밀번호가 일치하지 않습니다!");
+                    
+                    // ★ [핵심 구현] 비밀번호 오기입 경고 메시지 활성화 (창은 닫지 않음)
+                    if (passwordWarningLabel != null) passwordWarningLabel.SetActive(true);
                     return;
                 }
             }
@@ -402,34 +416,32 @@ public class LobbyManager : MonoBehaviour
                 {
                     Data = new Dictionary<string, PlayerDataObject>
                     {
-                        { "PlayerName", new PlayerDataObject(PlayerDataObject.VisibilityOptions.Member, _playerName) },
-                        {"SteamID", new PlayerDataObject(PlayerDataObject.VisibilityOptions.Member, Steamworks.SteamUser.GetSteamID().ToString())}
+                        { "PlayerName", new PlayerDataObject(PlayerDataObject.VisibilityOptions.Member, playerName) },
+                        { "SteamID", new PlayerDataObject(PlayerDataObject.VisibilityOptions.Member, SteamUser.GetSteamID().ToString())}
                     }
                 }
             };
 
-            _currentLobby = await LobbyService.Instance.JoinLobbyByIdAsync(lobbyId, options);
+            currentLobby = await LobbyService.Instance.JoinLobbyByIdAsync(lobbyId, options);
+            
+            if (joinLobbyPasswordInput != null) joinLobbyPasswordInput.text = "";
 
-            Debug.Log($"[JOIN] Joined lobby: {_currentLobby.Name} (ID: {_currentLobby.Id})");
-            Debug.Log($"[JOIN] Players in lobby: {_currentLobby.Players.Count}/{_currentLobby.MaxPlayers}");
+            // ★ [추가] 입장 완벽 성공 시 패스워드 입력창 및 경고 UI 완전 초기화 오프
+            if (privateJoinContent != null) privateJoinContent.SetActive(false);
+            if (passwordWarningLabel != null) passwordWarningLabel.SetActive(false);
+            selectedLobbyIdForPopup = "";
 
-            // 입력 필드 초기화
-            joinLobbyNameInput.text = "";
-            joinLobbyPasswordInput.text = "";
-
-            // RoomManager로 방 입장
             if (roomManager != null)
             {
-                roomManager.EnterRoom(_currentLobby);
-            }
-            else
-            {
-                Debug.LogError("[JOIN] RoomManager is not assigned!");
+                roomManager.EnterRoom(currentLobby);
             }
         }
         catch (Exception e)
         {
             Debug.LogError($"Failed to join lobby by ID: {e.Message}");
+            
+            // 네트워크 오류나 방 폭파 등 일반 API 예외 차원에서도 에러 텍스트 표기 방어
+            if (passwordWarningLabel != null) passwordWarningLabel.SetActive(true);
         }
     }
 
@@ -439,35 +451,30 @@ public class LobbyManager : MonoBehaviour
 
     public async Task LeaveLobby()
     {
-        if (_currentLobby == null) return;
+        if (currentLobby == null) return;
 
         CancelInvoke(nameof(SendLobbyHeartbeat)); 
 
         try
         {
-            string lobbyId = _currentLobby.Id;
+            string lobbyId = currentLobby.Id;
             string playerId = AuthenticationService.Instance.PlayerId;
 
-            // 서버에 퇴장 요청 (여기서 잠깐 멈춤)
             await LobbyService.Instance.RemovePlayerAsync(lobbyId, playerId);
 
-            // ★ [핵심 추가] await 통신이 끝난 직후, 이미 유니티 에디터가 꺼져서 이 오브젝트가 파괴되었는지 검사
             if (this == null) return; 
-
-            Debug.Log($"Left lobby: {_currentLobby.Name}");
+            Debug.Log($"Left lobby: {currentLobby.Name}");
         }
         catch (Exception e)
         {
-            // ★ 예외 처리 블록 내부에서도 로그를 찍기 전에 오브젝트 생존 여부 검사
             if (this == null) return; 
-        
             Debug.LogError($"Failed to leave lobby: {e.Message}");
         }
     
-        // ★ 최종적으로 오브젝트가 살아있을 때만 변수 초기화 수행
         if (this != null)
         {
-            _currentLobby = null;
+            currentLobby = null;
+            ResetLobbyUI(); 
         }
     }
 
@@ -475,7 +482,12 @@ public class LobbyManager : MonoBehaviour
 
     private void OnDestroy()
     {
-        if (_currentLobby != null)
+        // RoomManager를 찾아서 현재 게임 시작 중인지 확인합니다.
+        RoomManager roomManager = FindFirstObjectByType<RoomManager>();
+        bool isStarting = roomManager != null && roomManager.IsStartingGame;
+
+        // 게임 시작 중이 아닐 때만 방에서 나갑니다.
+        if (currentLobby != null && !isStarting)
         {
             _ = LeaveLobby();
         }
@@ -483,10 +495,7 @@ public class LobbyManager : MonoBehaviour
     
     public void StartHeartbeatInstance()
     {
-        // 이미 돌고 있다면 중복 방지를 위해 끄고 시작
         CancelInvoke(nameof(SendLobbyHeartbeat));
-    
-        // 15초 주기로 하트비트 가동
         InvokeRepeating(nameof(SendLobbyHeartbeat), 15f, 15f);
         Debug.Log("[HEARTBEAT] 새 방장 권한을 위임받아 하트비트 타이머를 가동합니다.");
     }

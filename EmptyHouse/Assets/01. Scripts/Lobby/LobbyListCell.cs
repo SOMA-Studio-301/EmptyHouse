@@ -35,19 +35,12 @@ public class LobbyListCell : MonoBehaviour
             passwordIcon.SetActive(hasPassword);
         }
     
-        // 1. 방이 꽉 찬 경우
+        // 방이 꽉 찬 경우
         if (lobby.Players.Count >= lobby.MaxPlayers)
         {
             if (joinButton != null) joinButton.interactable = false;
             if (joinText != null) joinText.text = "Full";
         }
-        // 2. 비밀번호가 걸려있는 방인 경우
-        else if (hasPassword)
-        {
-            if (joinButton != null) joinButton.interactable = false; // ★ 버튼을 못 누르게 만듭니다.
-            if (joinText != null) joinText.text = "Join";            // ★ 텍스트는 "Join" 그대로 유지합니다.
-        }
-        // 3. 아무 제약 없는 일반 방인 경우
         else
         {
             if (joinButton != null) joinButton.interactable = true;
