@@ -1,0 +1,24 @@
+{
+    "name": "Border.Input",
+    "rootNamespace": "Border.Input",
+    "references": [
+        "Unity.InputSystem"
+    ],
+    "includePlatforms": [],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [
+        "BORDER_INPUTSYSTEM"
+    ],
+    "versionDefines": [
+        {
+            "name": "com.unity.inputsystem",
+            "expression": "",
+            "define": "BORDER_INPUTSYSTEM"
+        }
+    ],
+    "noEngineReferences": false
+}

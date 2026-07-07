@@ -1,0 +1,115 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 46e76559e46b0ab439975c2acac431b2, type: 3}
+  m_Name: LocalizationTable
+  m_EditorClassIdentifier: 
+  entries:
+  - key: UI_PAUSE_RESUME
+    translations:
+    - languageCode: en
+      value: Resume
+    - languageCode: ja
+      value: "\u518D\u958B"
+    - languageCode: ko
+      value: "\uACC4\uC18D\uD558\uAE30"
+    - languageCode: zh
+      value: "\u7EE7\u7EED"
+  - key: UI_SETTINGS_BGM
+    translations:
+    - languageCode: en
+      value: BGM
+    - languageCode: ja
+      value: BGM
+    - languageCode: ko
+      value: "\uBC30\uACBD\uC74C"
+    - languageCode: zh
+      value: "\u80CC\u666F\u97F3\u4E50"
+  - key: UI_SETTINGS_CAMERASHAKE
+    translations:
+    - languageCode: en
+      value: Camera Shake
+    - languageCode: ja
+      value: "\u753B\u9762\u63FA\u308C"
+    - languageCode: ko
+      value: "\uD654\uBA74 \uD754\uB4E4\uB9BC"
+    - languageCode: zh
+      value: "\u955C\u5934\u6643\u52A8"
+  - key: UI_SETTINGS_LANGUAGE
+    translations:
+    - languageCode: en
+      value: Language
+    - languageCode: ja
+      value: "\u8A00\u8A9E"
+    - languageCode: ko
+      value: "\uC5B8\uC5B4"
+    - languageCode: zh
+      value: "\u8BED\u8A00"
+  - key: UI_SETTINGS_MASTER
+    translations:
+    - languageCode: en
+      value: Master
+    - languageCode: ja
+      value: "\u30DE\u30B9\u30BF\u30FC\u30DC\u30EA\u30E5\u30FC\u30E0"
+    - languageCode: ko
+      value: "\uC804\uCCB4\uC74C"
+    - languageCode: zh
+      value: "\u4E3B\u97F3\u91CF"
+  - key: UI_SETTINGS_RESET
+    translations:
+    - languageCode: en
+      value: Reset
+    - languageCode: ja
+      value: "\u521D\u671F\u5316"
+    - languageCode: ko
+      value: "\uCD08\uAE30\uD654"
+    - languageCode: zh
+      value: "\u521D\u59CB\u5316"
+  - key: UI_SETTINGS_RESOLUTION
+    translations:
+    - languageCode: en
+      value: Resolution
+    - languageCode: ja
+      value: "\u89E3\u50CF\u5EA6"
+    - languageCode: ko
+      value: "\uD574\uC0C1\uB3C4"
+    - languageCode: zh
+      value: "\u5206\u8FA8\u7387"
+  - key: UI_SETTINGS_SCREEN
+    translations:
+    - languageCode: en
+      value: Window Mode
+    - languageCode: ja
+      value: "\u30A6\u30A3\u30F3\u30C9\u30A6\u30E2\u30FC\u30C9"
+    - languageCode: ko
+      value: "\uCC3D\uBAA8\uB4DC"
+    - languageCode: zh
+      value: "\u7A97\u53E3\u6A21\u5F0F"
+  - key: UI_SETTINGS_SFX
+    translations:
+    - languageCode: en
+      value: SFX
+    - languageCode: ja
+      value: "\u52B9\u679C\u97F3"
+    - languageCode: ko
+      value: "\uD6A8\uACFC\uC74C"
+    - languageCode: zh
+      value: "\u97F3\u6548"
+  - key: UI_SETTINGS_TITLE
+    translations:
+    - languageCode: en
+      value: SETTINGS
+    - languageCode: ja
+      value: "\u8A2D\u5B9A"
+    - languageCode: ko
+      value: "\uC124\uC815"
+    - languageCode: zh
+      value: "\u8BBE\u7F6E"
