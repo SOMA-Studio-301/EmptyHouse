@@ -1,3 +1,4 @@
+using System;
 using Unity.Netcode;
 using UnityEngine;
 using UnityEngine.InputSystem; // ★ [추가] 신형 인풋 시스템 네임스페이스
@@ -6,6 +7,18 @@ public class PlayerMovement : NetworkBehaviour
 {
     [Header("Movement Settings")]
     [SerializeField] private float moveSpeed = 5f;
+
+    [SerializeField] private INputRaeder inputReader;
+
+    private void OnEnable()
+    {
+        inputReader.MoveAction += Move;
+    }
+    
+    private void OnDisable()
+    {
+        inputReader.MoveAction -= Move;
+    }
 
     private void Update()
     {
