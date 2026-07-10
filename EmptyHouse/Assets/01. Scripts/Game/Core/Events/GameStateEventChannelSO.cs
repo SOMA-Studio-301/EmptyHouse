@@ -24,15 +24,16 @@ public class GameStateEventChannelSO : ScriptableObject
     /// </summary>
     private void OnEnable()
     {
-        // TODO(impl): CurrentState = GameState.Menu;
         Log.D("[GameStateEventChannelSO] OnEnable");
+        CurrentState = GameState.Menu;
     }
 
     /// <summary>새 게임 상태를 CurrentState 에 기록하고 모든 구독자에게 방송한다.</summary>
     /// <param name="state">전환할 게임 상태.</param>
     public void RaiseEvent(GameState state)
     {
-        // TODO(impl): CurrentState = state; → OnEventRaised.Invoke(state);
         Log.D($"[GameStateEventChannelSO] RaiseEvent {state}");
+        CurrentState = state;
+        OnEventRaised.Invoke(state);
     }
 }

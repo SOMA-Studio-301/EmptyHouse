@@ -8,7 +8,7 @@ using UnityEngine.InputSystem;
 /// ScriptableObject 라 프로세스 전역 단일 인스턴스로 동작하므로, 구독자는 자신이 입력 주체일 때만 구독해야 한다.
 /// </summary>
 [CreateAssetMenu(fileName = "InputReader", menuName = "Game/Input Reader")]
-public class InputReader : ScriptableObject, GameInput.IGameplayActions
+public class InputReader : ScriptableObject, GameInput.IGameplayActions, GameInput.IUIActions
 {
     /// <summary>이동 입력값이 갱신될 때 발행된다. 입력이 없어지면 Vector2.zero 로 한 번 발행된다.</summary>
     public event UnityAction<Vector2> MoveEvent = delegate { };
@@ -22,24 +22,36 @@ public class InputReader : ScriptableObject, GameInput.IGameplayActions
     /// <summary>공격 버튼에서 손을 뗐을 때 발행된다.</summary>
     public event UnityAction AttackCanceledEvent = delegate { };
 
+    /// <summary>상호작용 버튼을 누르기 시작했을 때 발행된다. Tap형 Interactable은 즉시 실행, Hold형은 홀드 진행 시작 신호로 쓰인다.</summary>
+    public event UnityAction InteractPressedEvent = delegate { };
+
+    /// <summary>상호작용 버튼에서 손을 뗐을 때 발행된다. 홀드 진행 중이었다면 취소 신호로 쓰인다.</summary>
+    public event UnityAction InteractCanceledEvent = delegate { };
+
     /// <summary>점프 버튼이 눌렸을 때 발행된다.</summary>
     public event UnityAction JumpEvent = delegate { };
 
     /// <summary>일시정지 버튼이 눌렸을 때 발행된다.</summary>
     public event UnityAction PauseEvent = delegate { };
 
-    private GameInput _gameInput;
+    /// <summary>UI 맵의 Cancel(Esc) 이 눌렸을 때 발행된다. Pause 상태에서 게임으로 복귀하는 경로다.</summary>
+    public event UnityAction CancelEvent = delegate { };
+
+    private GameInput gameInput;
 
     /// <summary>
-    /// SO 활성화 시 GameInput 을 1회 생성하고 Gameplay 액션맵의 콜백 수신자로 자신을 등록한다.
-    /// 액션맵 Enable 은 하지 않는다 — 활성화 시점은 소유자(EnableGameplayInput)가 결정한다.
+    /// SO 활성화 시 GameInput 을 1회 생성하고 Gameplay/UI 두 액션맵의 콜백 수신자로 자신을 등록한다.
+    /// UI 맵에서 실제로 중계하는 것은 Cancel 뿐이다 — 나머지 UI 액션은 UGUI 입력 모듈 몫이라 빈 스텁으로 둔다.
+    /// 등록 직후 Gameplay 맵을 활성화해 기본 입력 상태로 진입한다.
     /// </summary>
     private void OnEnable()
     {
-        if (_gameInput == null)
+        if (gameInput == null)
         {
-            _gameInput = new GameInput();
-            _gameInput.Gameplay.SetCallbacks(this);
+            gameInput = new GameInput();
+            gameInput.Gameplay.SetCallbacks(this);
+            gameInput.UI.SetCallbacks(this);
+            EnableGameplayInput();
         }
     }
 
@@ -49,16 +61,24 @@ public class InputReader : ScriptableObject, GameInput.IGameplayActions
         DisableAllInput();
     }
 
-    /// <summary>Gameplay 액션맵을 활성화해 입력 수신을 시작한다.</summary>
+    /// <summary>Gameplay 액션맵을 활성화하고 UI 액션맵을 비활성화한다. Game 상태에서 사용한다.</summary>
     public void EnableGameplayInput()
     {
-        _gameInput.Gameplay.Enable();
+        gameInput.UI.Disable();
+        gameInput.Gameplay.Enable();
+    }
+
+    /// <summary>UI 액션맵을 활성화하고 Gameplay 액션맵을 비활성화한다. Menu/Pause 상태에서 사용한다.</summary>
+    public void EnableUIInput()
+    {
+        gameInput.Gameplay.Disable();
+        gameInput.UI.Enable();
     }
 
     /// <summary>모든 액션맵을 비활성화해 입력 수신을 중단한다.</summary>
     public void DisableAllInput()
     {
-        _gameInput.Gameplay.Disable();
+        gameInput.Disable();
     }
 
     // ── Value 액션 ──────────────────────────────────────────────
@@ -130,15 +150,22 @@ public class InputReader : ScriptableObject, GameInput.IGameplayActions
         }
     }
 
-    // ── 미사용 액션 ─────────────────────────────────────────────
-    // Gameplay 맵에 남아 있는 템플릿 잔재. 인터페이스 구현을 위해 스텁만 둔다.
-
-    /// <summary>Interact 액션 콜백. 아직 사용하지 않는다.</summary>
+    /// <summary>Interact 액션 콜백. Started phase에 <see cref="InteractPressedEvent"/>, Canceled phase에 <see cref="InteractCanceledEvent"/> 로 중계한다.</summary>
     /// <param name="context">Input System 이 전달하는 콜백 컨텍스트.</param>
     public void OnInteract(InputAction.CallbackContext context)
     {
-        Log.D($"[InputReader] Interact {context.phase}");
+        if (context.phase == InputActionPhase.Performed)
+        {
+            InteractPressedEvent.Invoke();
+        }
+        else if (context.phase == InputActionPhase.Canceled)
+        {
+            InteractCanceledEvent.Invoke();
+        }
     }
+
+    // ── 미사용 액션 ─────────────────────────────────────────────
+    // Gameplay 맵에 남아 있는 템플릿 잔재. 인터페이스 구현을 위해 스텁만 둔다.
 
     /// <summary>Crouch 액션 콜백. 아직 사용하지 않는다.</summary>
     /// <param name="context">Input System 이 전달하는 콜백 컨텍스트.</param>
@@ -167,4 +194,57 @@ public class InputReader : ScriptableObject, GameInput.IGameplayActions
     {
         Log.D($"[InputReader] Sprint {context.phase}");
     }
+
+    // ── UI 액션 ─────────────────────────────────────────────────
+    // Cancel 만 게임 로직으로 중계한다. 나머지는 UGUI 입력 모듈(InputSystemUIInputModule)이
+    // 액션을 직접 읽어 처리하므로 여기서는 인터페이스 충족용 빈 스텁으로 둔다.
+    // Navigate/Point/ScrollWheel 은 포인터가 움직이는 매 프레임 들어오므로 로그를 남기지 않는다.
+
+    /// <summary>UI/Cancel 액션 콜백. 눌림을 <see cref="CancelEvent"/> 로 발행한다.</summary>
+    /// <param name="context">Input System 이 전달하는 콜백 컨텍스트.</param>
+    public void OnCancel(InputAction.CallbackContext context)
+    {
+        Log.D($"[InputReader] Cancel {context.phase}");
+
+        if (context.phase == InputActionPhase.Performed)
+        {
+            CancelEvent.Invoke();
+        }
+    }
+
+    /// <summary>UI/Navigate 액션 콜백. UGUI 입력 모듈이 처리하므로 중계하지 않는다.</summary>
+    /// <param name="context">Input System 이 전달하는 콜백 컨텍스트.</param>
+    public void OnNavigate(InputAction.CallbackContext context) { }
+
+    /// <summary>UI/Submit 액션 콜백. UGUI 입력 모듈이 처리하므로 중계하지 않는다.</summary>
+    /// <param name="context">Input System 이 전달하는 콜백 컨텍스트.</param>
+    public void OnSubmit(InputAction.CallbackContext context) { }
+
+    /// <summary>UI/Point 액션 콜백. UGUI 입력 모듈이 처리하므로 중계하지 않는다.</summary>
+    /// <param name="context">Input System 이 전달하는 콜백 컨텍스트.</param>
+    public void OnPoint(InputAction.CallbackContext context) { }
+
+    /// <summary>UI/Click 액션 콜백. UGUI 입력 모듈이 처리하므로 중계하지 않는다.</summary>
+    /// <param name="context">Input System 이 전달하는 콜백 컨텍스트.</param>
+    public void OnClick(InputAction.CallbackContext context) { }
+
+    /// <summary>UI/RightClick 액션 콜백. UGUI 입력 모듈이 처리하므로 중계하지 않는다.</summary>
+    /// <param name="context">Input System 이 전달하는 콜백 컨텍스트.</param>
+    public void OnRightClick(InputAction.CallbackContext context) { }
+
+    /// <summary>UI/MiddleClick 액션 콜백. UGUI 입력 모듈이 처리하므로 중계하지 않는다.</summary>
+    /// <param name="context">Input System 이 전달하는 콜백 컨텍스트.</param>
+    public void OnMiddleClick(InputAction.CallbackContext context) { }
+
+    /// <summary>UI/ScrollWheel 액션 콜백. UGUI 입력 모듈이 처리하므로 중계하지 않는다.</summary>
+    /// <param name="context">Input System 이 전달하는 콜백 컨텍스트.</param>
+    public void OnScrollWheel(InputAction.CallbackContext context) { }
+
+    /// <summary>UI/TrackedDevicePosition 액션 콜백. XR 미사용이라 중계하지 않는다.</summary>
+    /// <param name="context">Input System 이 전달하는 콜백 컨텍스트.</param>
+    public void OnTrackedDevicePosition(InputAction.CallbackContext context) { }
+
+    /// <summary>UI/TrackedDeviceOrientation 액션 콜백. XR 미사용이라 중계하지 않는다.</summary>
+    /// <param name="context">Input System 이 전달하는 콜백 컨텍스트.</param>
+    public void OnTrackedDeviceOrientation(InputAction.CallbackContext context) { }
 }
