@@ -19,6 +19,12 @@ public class PlayerController : NetworkBehaviour
     [Header("Movement")]
     [SerializeField] private float moveSpeed = 5f;
 
+    [Header("Ownership-gated")]
+    [SerializeField] private PlayerInteractor interactor;
+
+    /// <summary>상호작용 프롬프트 전용 Canvas. 다른 HUD 요소와 분리해 두어, 프롬프트가 매 프레임 갱신돼도 그쪽 Canvas 는 리빌드되지 않는다.</summary>
+    [SerializeField] private Canvas promptCanvas;
+
     private Rigidbody body;
 
     // 소유자 카메라 — OnNetworkSpawn 에서 Main Camera 를 cameraPivot 아래로 붙이고 캐시한다.
@@ -40,11 +46,13 @@ public class PlayerController : NetworkBehaviour
 
     /// <summary>
     /// 네트워크 스폰 시 소유자에 한해 입력 이벤트를 구독한다.
-    /// 액션맵 활성화는 GameManager 가 GameState 방송에 따라 전담하므로 여기서 하지 않는다.
-    /// 비소유자는 구독하지 않으므로 호스트 프로세스에서 남의 캐릭터가 내 입력을 받지 않는다.
+    /// 상호작용 판정과 프롬프트 UI 는 로컬 전용이므로 비소유자 인스턴스에서는 꺼 둔다
     /// </summary>
     public override void OnNetworkSpawn()
     {
+        interactor.enabled = IsOwner;
+        promptCanvas.enabled = IsOwner;
+
         if (!IsOwner) return;
 
         inputReader.MoveEvent += OnMoveInput;
