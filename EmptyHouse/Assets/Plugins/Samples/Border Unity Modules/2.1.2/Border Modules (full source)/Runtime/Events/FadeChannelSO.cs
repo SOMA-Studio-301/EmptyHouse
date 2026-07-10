@@ -9,7 +9,7 @@ namespace Border.Events
     /// this channel without referencing the controller. The channel itself has no tween/render
     /// dependency — that lives in the listener.
     /// </summary>
-    [CreateAssetMenu(fileName = "FadeChannelSO", menuName = "Border/Events/UI/Fade Channel")]
+    [CreateAssetMenu(fileName = "FadeChannelSO", menuName = "Events/UI/Fade Channel")]
     public class FadeChannelSO : ScriptableObject
     {
         /// <summary>Payload: (fadeIn, duration, targetColor).</summary>

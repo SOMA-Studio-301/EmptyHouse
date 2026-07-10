@@ -4,7 +4,7 @@ using UnityEngine.Events;
 namespace Border.Events
 {
     /// <summary>Event channel carrying a <see cref="float"/> payload.</summary>
-    [CreateAssetMenu(fileName = "FloatEventChannelSO", menuName = "Border/Events/Float")]
+    [CreateAssetMenu(fileName = "FloatEventChannelSO", menuName = "Events/Float")]
     public class FloatEventChannelSO : ScriptableObject
     {
         public UnityAction<float> OnEventRaised = delegate { };
