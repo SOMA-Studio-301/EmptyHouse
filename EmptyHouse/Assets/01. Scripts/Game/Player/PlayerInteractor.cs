@@ -34,8 +34,9 @@ public class PlayerInteractor : MonoBehaviour
 
     private InteractableBase currentCandidate;
 
-    // 디버그 로그 도배 방지 — 직전 프레임에 조준하고 있던 오브젝트 이름. 없으면 null.
-    private string lastHitName;
+    // 후보가 없을 때 쓰는 불변 프롬프트. 매 프레임 struct 를 새로 만들 이유가 없다.
+    private static readonly InteractPromptInfo HiddenPrompt =
+        new InteractPromptInfo(InteractPromptState.Hidden, null, InteractInputMethod.Tap, 0f, null);
 
     /// <summary>현재 프레임의 프롬프트 정보. HUD가 이 값을 그대로 그린다(3-2 계약, 3-3 표시 규칙).</summary>
     public InteractPromptInfo CurrentPromptInfo { get; private set; }
@@ -62,38 +63,49 @@ public class PlayerInteractor : MonoBehaviour
     /// </summary>
     private void Update()
     {
-        // TODO(impl): hit.collider.GetComponentInParent<InteractableBase>() 로 후보 조회 — 콜라이더가 자식에 달릴 수 있다.
-        // TODO(impl): hit.collider.ClosestPoint(distanceOrigin.position) 까지의 거리로 interactRangeMeters 재검증
-        //             (카메라 기준 거리가 아니다, 3-1).
         // TODO(impl): E1(위장 중)·E5(사망/관전 중) 전역 예외면 후보를 버린다.
-        // TODO(impl): currentCandidate 갱신. 후보가 없으면 CurrentPromptInfo 를 Hidden 으로, 있으면 후보의 GetPromptInfo().
-        // TODO(impl): promptUI.Render(CurrentPromptInfo).
 
-        // 벽·문까지 포함한 raycastLayers 로 쏘므로 가장 가까운 히트 1개만 돌아온다 = 관통하지 않는다(3-1).
-        if (!Physics.Raycast(rayOrigin.position, rayOrigin.forward, out RaycastHit hit, rayMaxDistance, raycastLayers))
-        {
-            ReportHit(null);
-            return;
-        }
+        currentCandidate = FindCandidate();
+        CurrentPromptInfo = currentCandidate == null ? HiddenPrompt : currentCandidate.GetPromptInfo();
 
-        // 히트한 것이 interactableLayer 밖이면 벽 등에 가려진 것이다.
-        bool isInteractable = (interactableLayer.value & (1 << hit.collider.gameObject.layer)) != 0;
-        ReportHit(isInteractable ? hit.collider.gameObject.name : null);
+        promptUI.Render(CurrentPromptInfo);
     }
 
     /// <summary>
-    /// 현재 조준 중인 상호작용 오브젝트 이름을 로그로 남긴다. 직전 프레임과 같으면 아무것도 하지 않는다.
-    /// 판정 파이프라인이 채워지기 전까지 조준선 정합성을 확인하기 위한 임시 구현이다.
+    /// 화면 중심 레이캐스트로 이번 프레임의 후보 Interactable 을 찾는다.
+    /// 히트가 없거나, 벽 등에 가려졌거나, Interactable 이 아니거나, 사거리 밖이면 후보 없음이다.
     /// </summary>
-    /// <param name="hitName">조준 중인 오브젝트 이름. 후보가 없으면 null.</param>
-    private void ReportHit(string hitName)
+    /// <returns>이번 프레임의 후보. 없으면 null.</returns>
+    private InteractableBase FindCandidate()
     {
-        if (hitName == lastHitName) return;
+        // 벽·문까지 포함한 raycastLayers 로 쏘므로 가장 가까운 히트 1개만 돌아온다 = 관통하지 않는다(3-1).
+        if (!Physics.Raycast(rayOrigin.position, rayOrigin.forward, out RaycastHit hit, rayMaxDistance, raycastLayers))
+        {
+            return null;
+        }
 
-        lastHitName = hitName;
-        Log.D(hitName == null
-            ? "[PlayerInteractor] Hit: (none)"
-            : $"[PlayerInteractor] Hit: {hitName}");
+        // 히트한 것이 interactableLayer 밖이면 벽 등에 가려진 것이다.
+        if ((interactableLayer.value & (1 << hit.collider.gameObject.layer)) == 0)
+        {
+            return null;
+        }
+
+        // 콜라이더는 Interactable 의 자식에 달릴 수 있다.
+        InteractableBase interactable = hit.collider.GetComponentInParent<InteractableBase>();
+        if (interactable == null)
+        {
+            return null;
+        }
+
+        // 사거리는 카메라(rayOrigin)가 아니라 distanceOrigin ↔ 콜라이더 최근접점 기준이다(3-1).
+        // 그래야 큰 오브젝트를 먼 쪽 끝에서 조준해도 몸이 붙어 있으면 상호작용이 된다.
+        Vector3 closestPoint = hit.collider.ClosestPoint(distanceOrigin.position);
+        if ((closestPoint - distanceOrigin.position).sqrMagnitude > interactRangeMeters * interactRangeMeters)
+        {
+            return null;
+        }
+
+        return interactable;
     }
 
     /// <summary>
@@ -101,10 +113,21 @@ public class PlayerInteractor : MonoBehaviour
     /// </summary>
     private void OnInteractPressed()
     {
-        // TODO(impl): currentCandidate 없거나 비활성/점유 중이면 return.
-        // TODO(impl): InputMethod==Tap → (SingleClickInteractableBase)currentCandidate 로 TryActivate().
         // TODO(impl): InputMethod==Hold → (HoldInteractableBase)currentCandidate 로 BeginHold().
         Log.D("[PlayerInteractor] Interact pressed");
+
+        if (currentCandidate == null) return;
+
+        // Active 가 아니면(사거리 밖·조건 미충족·개방 완료 등) 프롬프트가 안내한 그대로 무반응이다.
+        if (CurrentPromptInfo.State != InteractPromptState.Active) return;
+
+        // 다른 플레이어가 점유 중이면 실행하지 않는다(3-9 M1).
+        if (currentCandidate.IsOccupied) return;
+
+        if (currentCandidate.InputMethod == InteractInputMethod.Tap)
+        {
+            ((SingleClickInteractableBase)currentCandidate).TryActivate();
+        }
     }
 
     /// <summary>

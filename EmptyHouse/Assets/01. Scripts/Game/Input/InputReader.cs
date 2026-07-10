@@ -10,32 +10,15 @@ using UnityEngine.InputSystem;
 [CreateAssetMenu(fileName = "InputReader", menuName = "Game/Input Reader")]
 public class InputReader : ScriptableObject, GameInput.IGameplayActions, GameInput.IUIActions
 {
-    /// <summary>이동 입력값이 갱신될 때 발행된다. 입력이 없어지면 Vector2.zero 로 한 번 발행된다.</summary>
-    public event UnityAction<Vector2> MoveEvent = delegate { };
-
-    /// <summary>시선 입력값(포인터 delta)이 갱신될 때 발행된다.</summary>
-    public event UnityAction<Vector2> LookEvent = delegate { };
-
-    /// <summary>공격 버튼이 눌렸을 때 발행된다.</summary>
-    public event UnityAction AttackEvent = delegate { };
-
-    /// <summary>공격 버튼에서 손을 뗐을 때 발행된다.</summary>
-    public event UnityAction AttackCanceledEvent = delegate { };
-
-    /// <summary>상호작용 버튼을 누르기 시작했을 때 발행된다. Tap형 Interactable은 즉시 실행, Hold형은 홀드 진행 시작 신호로 쓰인다.</summary>
-    public event UnityAction InteractPressedEvent = delegate { };
-
-    /// <summary>상호작용 버튼에서 손을 뗐을 때 발행된다. 홀드 진행 중이었다면 취소 신호로 쓰인다.</summary>
-    public event UnityAction InteractCanceledEvent = delegate { };
-
-    /// <summary>점프 버튼이 눌렸을 때 발행된다.</summary>
-    public event UnityAction JumpEvent = delegate { };
-
-    /// <summary>일시정지 버튼이 눌렸을 때 발행된다.</summary>
-    public event UnityAction PauseEvent = delegate { };
-
-    /// <summary>UI 맵의 Cancel(Esc) 이 눌렸을 때 발행된다. Pause 상태에서 게임으로 복귀하는 경로다.</summary>
-    public event UnityAction CancelEvent = delegate { };
+    public event UnityAction<Vector2> MoveEvent = delegate { }; // 이동 입력값이 갱신될 때 발행. 입력이 없어지면 Vector2.zero 한 번 발행
+    public event UnityAction<Vector2> LookEvent = delegate { }; // 시선 입력값(포인터 delta)이 갱신될 때 발행
+    public event UnityAction AttackEvent           = delegate { }; // 공격 버튼이 눌렸을 때 발행
+    public event UnityAction AttackCanceledEvent   = delegate { }; // 공격 버튼에서 손을 뗐을 때 발행
+    public event UnityAction InteractPressedEvent  = delegate { }; // 상호작용 버튼을 누르기 시작했을 때 발행. Tap형은 즉시 실행, Hold형은 홀드 진행 시작 신호
+    public event UnityAction InteractCanceledEvent = delegate { }; // 상호작용 버튼에서 손을 뗐을 때 발행. 홀드 진행 중이었다면 취소 신호
+    public event UnityAction JumpEvent   = delegate { }; // 점프 버튼이 눌렸을 때 발행
+    public event UnityAction PauseEvent  = delegate { }; // 일시정지 버튼이 눌렸을 때 발행
+    public event UnityAction CancelEvent = delegate { }; // UI 맵의 Cancel(Esc) 이 눌렸을 때 발행. Pause 상태에서 게임으로 복귀하는 경로
 
     private GameInput gameInput;
 
@@ -79,6 +62,18 @@ public class InputReader : ScriptableObject, GameInput.IGameplayActions, GameInp
     public void DisableAllInput()
     {
         gameInput.Disable();
+    }
+
+    /// <summary>
+    /// 현재 Interact 액션에 바인딩된 키의 표시 문자열을 반환한다(예: "E").
+    /// 프롬프트가 입력키를 하드코딩하지 않고 이 값을 조회하므로, 리바인드하면 UI 가 따라 바뀐다(조작상호작용UI.md 3-3).
+    /// </summary>
+    /// <returns>현재 바인딩된 키의 표시 문자열.</returns>
+    public string GetInteractBindingDisplayString()
+    {
+        // TODO(impl): gameInput.Gameplay.Interact.GetBindingDisplayString() 로 현재 활성 컨트롤 스킴의 바인딩을 조회한다.
+        Log.D("[InputReader] GetInteractBindingDisplayString");
+        return default;
     }
 
     // ── Value 액션 ──────────────────────────────────────────────
@@ -150,7 +145,11 @@ public class InputReader : ScriptableObject, GameInput.IGameplayActions, GameInp
         }
     }
 
-    /// <summary>Interact 액션 콜백. Started phase에 <see cref="InteractPressedEvent"/>, Canceled phase에 <see cref="InteractCanceledEvent"/> 로 중계한다.</summary>
+    /// <summary>
+    /// Interact 액션 콜백. Performed phase에 <see cref="InteractPressedEvent"/>, Canceled phase에 <see cref="InteractCanceledEvent"/> 로 중계한다.
+    /// 홀드 유지 시간은 대상마다 다르므로(<see cref="HoldInteractableBase.HoldDurationSeconds"/>) 액션에 Hold interaction 을 걸지 않는다.
+    /// 누름(Performed)과 뗌(Canceled) 시점만 중계하고, 그 사이 시간 누적은 Interactable 이 판정한다.
+    /// </summary>
     /// <param name="context">Input System 이 전달하는 콜백 컨텍스트.</param>
     public void OnInteract(InputAction.CallbackContext context)
     {
