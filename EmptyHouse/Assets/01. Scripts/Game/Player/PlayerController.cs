@@ -7,19 +7,7 @@ public class PlayerMovement : NetworkBehaviour
 {
     [Header("Movement Settings")]
     [SerializeField] private float moveSpeed = 5f;
-
-    [SerializeField] private INputRaeder inputReader;
-
-    private void OnEnable()
-    {
-        inputReader.MoveAction += Move;
-    }
     
-    private void OnDisable()
-    {
-        inputReader.MoveAction -= Move;
-    }
-
     private void Update()
     {
         if (!IsOwner) return;
