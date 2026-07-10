@@ -21,6 +21,9 @@ public class PlayerController : NetworkBehaviour
 
     private Rigidbody body;
 
+    // 소유자 카메라 — OnNetworkSpawn 에서 Main Camera 를 cameraPivot 아래로 붙이고 캐시한다.
+    private Transform cameraTransform;
+
     // 입력 캐시 — 콜백이 쓰고 Update/FixedUpdate 가 읽는다.
     private Vector2 moveInput;
     private Vector2 lookInput;
@@ -36,7 +39,8 @@ public class PlayerController : NetworkBehaviour
     }
 
     /// <summary>
-    /// 네트워크 스폰 시 소유자에 한해 입력 이벤트를 구독하고 Gameplay 입력을 활성화한다.
+    /// 네트워크 스폰 시 소유자에 한해 입력 이벤트를 구독한다.
+    /// 액션맵 활성화는 GameManager 가 GameState 방송에 따라 전담하므로 여기서 하지 않는다.
     /// 비소유자는 구독하지 않으므로 호스트 프로세스에서 남의 캐릭터가 내 입력을 받지 않는다.
     /// </summary>
     public override void OnNetworkSpawn()
@@ -48,10 +52,14 @@ public class PlayerController : NetworkBehaviour
         inputReader.AttackEvent += OnAttackInput;
         inputReader.AttackCanceledEvent += OnAttackCanceledInput;
 
-        inputReader.EnableGameplayInput();
+        // 씬의 Main Camera 를 cameraPivot 아래로 붙여 pitch 회전을 따라가게 한다.
+        cameraTransform = Camera.main.transform;
+        cameraTransform.SetParent(cameraPivot, false);
+        cameraTransform.localPosition = Vector3.zero;
+        cameraTransform.localRotation = Quaternion.identity;
     }
 
-    /// <summary>네트워크 디스폰 시 소유자에 한해 구독을 해제하고 입력을 비활성화한다.</summary>
+    /// <summary>네트워크 디스폰 시 소유자에 한해 구독을 해제한다. 액션맵 비활성화는 GameManager 소관이다.</summary>
     public override void OnNetworkDespawn()
     {
         if (!IsOwner) return;
@@ -61,7 +69,9 @@ public class PlayerController : NetworkBehaviour
         inputReader.AttackEvent -= OnAttackInput;
         inputReader.AttackCanceledEvent -= OnAttackCanceledInput;
 
-        inputReader.DisableAllInput();
+        // 카메라를 다시 분리한다. 이걸 생략하면 플레이어 NetworkObject 파괴 시
+        // 자식으로 붙어 있는 씬의 Main Camera 가 함께 파괴된다(리스폰·로비 복귀·호스트 이주는 씬을 유지한 채 despawn 한다).
+        cameraTransform.SetParent(null);
     }
 
     /// <summary>렌더 프레임마다 시선 회전을 처리한다. 회전은 물리와 무관하므로 Update 에서 처리한다.</summary>
@@ -119,20 +129,28 @@ public class PlayerController : NetworkBehaviour
     /// </summary>
     private void HandleLook()
     {
-        // TODO: yaw += lookInput.x * lookSensitivity; pitch -= lookInput.y * lookSensitivity;
-        // TODO: pitch = Mathf.Clamp(pitch, -pitchClamp, pitchClamp);
-        // TODO: transform.rotation = Quaternion.Euler(0f, yaw, 0f);
-        // TODO: cameraPivot.localRotation = Quaternion.Euler(pitch, 0f, 0f);
-        // TODO: lookInput = Vector2.zero;
-        Log.D("[PlayerController] Look: " + lookInput);
+        yaw += lookInput.x * lookSensitivity;
+        pitch -= lookInput.y * lookSensitivity;
+        pitch = Mathf.Clamp(pitch, -pitchClamp, pitchClamp);
+
+        transform.rotation = Quaternion.Euler(0f, yaw, 0f);
+        cameraPivot.localRotation = Quaternion.Euler(pitch, 0f, 0f);
+
+        // <Pointer>/delta 는 이번 프레임에 소비하고 반드시 zero 로 리셋한다. 그러지 않으면
+        // 마우스를 멈춰도 마지막 delta 가 매 프레임 재적용되어 계속 회전한다.
+        lookInput = Vector2.zero;
     }
 
-    /// <summary>캐시된 이동 입력을 yaw 기준 월드 방향으로 변환해 Rigidbody 를 이동시킨다.</summary>
+    /// <summary>
+    /// 캐시된 이동 입력을 yaw 기준 월드 방향으로 변환해 Rigidbody 의 수평 속도를 설정한다.
+    /// dynamic Rigidbody 에는 MovePosition 을 쓰지 않는다 — 솔버가 그 스텝의 속도를 목표 지점에
+    /// 맞춰 덮어써 중력이 뭉개지므로(공중에서 스르륵 내려온다), Y 속도는 중력에 맡기고 X/Z 만 설정한다.
+    /// </summary>
     private void HandleMove()
     {
-        // TODO: 로컬 방향 = transform.right * moveInput.x + transform.forward * moveInput.y
-        // TODO: body.MovePosition(body.position + direction.normalized * moveSpeed * Time.fixedDeltaTime);
-        Log.D("[PlayerController] Move: " + moveInput);
+        Vector3 dir = transform.right * moveInput.x + transform.forward * moveInput.y;
+        Vector3 v = dir.normalized * moveSpeed;
+        body.linearVelocity = new Vector3(v.x, body.linearVelocity.y, v.z);
     }
 
     /// <summary>카메라 전방으로 Raycast 해 상호작용 대상을 찾는다.</summary>

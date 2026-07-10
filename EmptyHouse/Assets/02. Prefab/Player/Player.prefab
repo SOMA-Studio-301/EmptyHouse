@@ -36,7 +36,8 @@ Transform:
   m_LocalPosition: {x: 0, y: 2, z: 0}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
-  m_Children: []
+  m_Children:
+  - {fileID: 2490874660187570101}
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!33 &6764455286099714829
@@ -169,15 +170,15 @@ MonoBehaviour:
   RotationMaxInterpolationTime: 0.1
   ScaleLerpSmoothing: 1
   ScaleMaxInterpolationTime: 0.1
-  AuthorityMode: 0
+  AuthorityMode: 1
   TickSyncChildren: 0
   UseUnreliableDeltas: 0
   SyncPositionX: 1
   SyncPositionY: 1
   SyncPositionZ: 1
-  SyncRotAngleX: 1
+  SyncRotAngleX: 0
   SyncRotAngleY: 1
-  SyncRotAngleZ: 1
+  SyncRotAngleZ: 0
   SyncScaleX: 1
   SyncScaleY: 1
   SyncScaleZ: 1
@@ -205,7 +206,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::PlayerController
   ShowTopMostFoldoutHeaderGroup: 1
   inputReader: {fileID: 11400000, guid: eaa08e0560934b24b9f7d5f7d9f863dd, type: 2}
-  cameraPivot: {fileID: 0}
+  cameraPivot: {fileID: 2490874660187570101}
   lookSensitivity: 0.1
   pitchClamp: 89
   moveSpeed: 5
@@ -233,8 +234,8 @@ Rigidbody:
   m_ImplicitTensor: 1
   m_UseGravity: 1
   m_IsKinematic: 0
-  m_Interpolate: 0
-  m_Constraints: 0
+  m_Interpolate: 1
+  m_Constraints: 112
   m_CollisionDetection: 0
 --- !u!114 &5506459990043460915
 MonoBehaviour:
@@ -253,3 +254,34 @@ MonoBehaviour:
   UseRigidBodyForMotion: 0
   AutoUpdateKinematicState: 1
   AutoSetKinematicOnDespawn: 1
+--- !u!1 &2490874660187570100
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 2490874660187570101}
+  m_Layer: 0
+  m_Name: CameraPivot
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &2490874660187570101
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2490874660187570100}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0, y: 0.7, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 1374410532633928955}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
