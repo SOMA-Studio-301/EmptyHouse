@@ -3,8 +3,6 @@ using UnityEngine;
 
 /// <summary>
 /// 탭(단일 클릭) 입력으로 즉시 실행되는 Interactable의 공통 부모.
-/// 자물쇠의 개방 애니메이션(0.8s), 발전기의 점등 유지(30s)처럼 "실행 후 일정 구간 재입력을 무시"하는
-/// 패턴은 <see cref="IsBusy"/> 하나로 표현한다 — 이는 홀드가 아니라 탭 + 잠금구간이다(조작상호작용UI.md 3-7).
 /// </summary>
 public abstract class SingleClickInteractableBase : InteractableBase
 {
@@ -23,14 +21,15 @@ public abstract class SingleClickInteractableBase : InteractableBase
     /// </summary>
     /// <remarks>
     /// 소음 발행은 여기서 하지 않는다. 강도(dB)는 리프의 인스펙터 필드라 베이스가 알 수 없으므로,
-    /// 리프의 <see cref="InteractableBase.OnActivate"/> 안에서 RaiseNoise 를 호출한다(3-4: 실행 시점 1회).
+    /// 리프의 <see cref="InteractableBase.OnActivate"/> 안에서 RaiseNoise 를 호출
     /// </remarks>
-    public void TryActivate()
+    /// <param name="interactor">E 를 입력한 상호작용 주체.</param>
+    public void TryActivate(PlayerInteractor interactor)
     {
         Log.D($"[SingleClickInteractableBase] TryActivate on {name}");
 
         if (IsBusy) return;
 
-        OnActivate();
+        OnActivate(interactor);
     }
 }

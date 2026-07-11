@@ -155,6 +155,7 @@ GameObject:
   - component: {fileID: 5506459990043460915}
   - component: {fileID: 8915136794142559673}
   - component: {fileID: -6210736759775564248}
+  - component: {fileID: 7556772348847717246}
   m_Layer: 0
   m_Name: Player
   m_TagString: Untagged
@@ -408,6 +409,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::PlayerInteractor
   inputReader: {fileID: 11400000, guid: eaa08e0560934b24b9f7d5f7d9f863dd, type: 2}
+  inventory: {fileID: 7556772348847717246}
   promptUI: {fileID: 4209612319932583615}
   rayOrigin: {fileID: 2490874660187570101}
   raycastLayers:
@@ -420,6 +422,20 @@ MonoBehaviour:
   interactRangeMeters: 3
   drawDebugGizmos: 1
   rayMaxDistance: 5
+--- !u!114 &7556772348847717246
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2490874660187570032}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 76a42dbd13139664297f497bad653a13, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::PlayerInventory
+  inventorySlots: 3
+  handSwapSeconds: 0.3
 --- !u!1 &2490874660187570100
 GameObject:
   m_ObjectHideFlags: 0

@@ -12,6 +12,10 @@ public class PlayerInteractor : MonoBehaviour
     [Header("Input")]
     [SerializeField] private InputReader inputReader;
 
+    /// <summary>같은 플레이어 프리팹 안의 인벤토리 — 프리팹 내부 참조이므로 자기완결 원칙에 어긋나지 않는다.</summary>
+    [Header("Player")]
+    [SerializeField] private PlayerInventory inventory;
+
     [Header("UI")]
     [SerializeField] private UIInteractPrompt promptUI;
 
@@ -41,6 +45,12 @@ public class PlayerInteractor : MonoBehaviour
     /// <summary>현재 프레임의 프롬프트 정보. HUD가 이 값을 그대로 그린다(3-2 계약, 3-3 표시 규칙).</summary>
     public InteractPromptInfo CurrentPromptInfo { get; private set; }
 
+    /// <summary>
+    /// 이 주체의 인벤토리. Interactable 이 "손에 든 것 × 빈 슬롯" 판정(3-5, 3-6)에 조회한다.
+    /// 위장 게이지 등 주체 상태가 더 필요해지면 여기에 프로퍼티를 추가해 컨텍스트를 넓힌다.
+    /// </summary>
+    public PlayerInventory Inventory => inventory;
+
     /// <summary>입력 이벤트 구독을 시작한다.</summary>
     private void OnEnable()
     {
@@ -66,7 +76,7 @@ public class PlayerInteractor : MonoBehaviour
         // TODO(impl): E1(위장 중)·E5(사망/관전 중) 전역 예외면 후보를 버린다.
 
         currentCandidate = FindCandidate();
-        CurrentPromptInfo = currentCandidate == null ? HiddenPrompt : currentCandidate.GetPromptInfo();
+        CurrentPromptInfo = currentCandidate == null ? HiddenPrompt : currentCandidate.GetPromptInfo(this);
 
         promptUI.Render(CurrentPromptInfo);
     }
@@ -113,7 +123,7 @@ public class PlayerInteractor : MonoBehaviour
     /// </summary>
     private void OnInteractPressed()
     {
-        // TODO(impl): InputMethod==Hold → (HoldInteractableBase)currentCandidate 로 BeginHold().
+        // TODO(impl): InputMethod==Hold → (HoldInteractableBase)currentCandidate 로 BeginHold(this).
         Log.D("[PlayerInteractor] Interact pressed");
 
         if (currentCandidate == null) return;
@@ -126,7 +136,7 @@ public class PlayerInteractor : MonoBehaviour
 
         if (currentCandidate.InputMethod == InteractInputMethod.Tap)
         {
-            ((SingleClickInteractableBase)currentCandidate).TryActivate();
+            ((SingleClickInteractableBase)currentCandidate).TryActivate(this);
         }
     }
 
