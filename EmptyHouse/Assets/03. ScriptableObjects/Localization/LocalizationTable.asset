@@ -1,0 +1,387 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 46e76559e46b0ab439975c2acac431b2, type: 3}
+  m_Name: LocalizationTable
+  m_EditorClassIdentifier: Border::Border.Localization.LocalizationTable
+  entries:
+  - key: INT_MSG_DISGUISE_FULL
+    translations:
+    - languageCode: cn
+      value: "\u4F2A\u88C5\u6750\u6599\u5DF2\u6EE1"
+    - languageCode: en
+      value: Camouflage material is full
+    - languageCode: jp
+      value: "\u507D\u88C5\u6750\u6599\u306F\u5341\u5206\u3067\u3059"
+    - languageCode: ko
+      value: "\uC704\uC7A5 \uC7AC\uB8CC \uCDA9\uBD84"
+    - languageCode: tw
+      value: "\u507D\u88DD\u6750\u6599\u5DF2\u6EFF"
+  - key: INT_MSG_INVENTORY_FULL
+    translations:
+    - languageCode: cn
+      value: "\u80CC\u5305\u5DF2\u6EE1"
+    - languageCode: en
+      value: Your bag is full
+    - languageCode: jp
+      value: "\u30D0\u30C3\u30B0\u304C\u3044\u3063\u3071\u3044\u3067\u3059"
+    - languageCode: ko
+      value: "\uAC00\uBC29\uC774 \uAC00\uB4DD \uCC3C\uC2B5\uB2C8\uB2E4"
+    - languageCode: tw
+      value: "\u80CC\u5305\u5DF2\u6EFF"
+  - key: INT_MSG_KEY_REQUIRED
+    translations:
+    - languageCode: cn
+      value: "\u9700\u8981\u94A5\u5319"
+    - languageCode: en
+      value: A key is required
+    - languageCode: jp
+      value: "\u9375\u304C\u5FC5\u8981\u3067\u3059"
+    - languageCode: ko
+      value: "\uD0A4\uAC00 \uD544\uC694\uD569\uB2C8\uB2E4"
+    - languageCode: tw
+      value: "\u9700\u8981\u9470\u5319"
+  - key: INT_PROMPT_APPLY_BLOOD
+    translations:
+    - languageCode: cn
+      value: "\u6D82\u62B9\u8840\u6DB2"
+    - languageCode: en
+      value: Apply Blood
+    - languageCode: jp
+      value: "\u8840\u3092\u5857\u308B"
+    - languageCode: ko
+      value: "\uD608\uC561 \uB3C4\uD3EC"
+    - languageCode: tw
+      value: "\u5857\u62B9\u8840\u6DB2"
+  - key: INT_PROMPT_CLOSE
+    translations:
+    - languageCode: cn
+      value: "\u5173\u95ED"
+    - languageCode: en
+      value: Close
+    - languageCode: jp
+      value: "\u9589\u3058\u308B"
+    - languageCode: ko
+      value: "\uB2EB\uAE30"
+    - languageCode: tw
+      value: "\u95DC\u9589"
+  - key: INT_PROMPT_COLLECT
+    translations:
+    - languageCode: cn
+      value: "\u56DE\u6536"
+    - languageCode: en
+      value: Collect
+    - languageCode: jp
+      value: "\u56DE\u53CE"
+    - languageCode: ko
+      value: "\uD68C\uC218"
+    - languageCode: tw
+      value: "\u56DE\u6536"
+  - key: INT_PROMPT_HOLD
+    translations:
+    - languageCode: cn
+      value: "\u957F\u6309"
+    - languageCode: en
+      value: Hold
+    - languageCode: jp
+      value: "\u9577\u62BC\u3057"
+    - languageCode: ko
+      value: "\uD640\uB4DC"
+    - languageCode: tw
+      value: "\u9577\u6309"
+  - key: INT_PROMPT_LOAD
+    translations:
+    - languageCode: cn
+      value: "\u88C5\u8F7D"
+    - languageCode: en
+      value: Load
+    - languageCode: jp
+      value: "\u7A4D\u307F\u8FBC\u3080"
+    - languageCode: ko
+      value: "\uC801\uC7AC"
+    - languageCode: tw
+      value: "\u88DD\u8F09"
+  - key: INT_PROMPT_OPEN
+    translations:
+    - languageCode: cn
+      value: "\u6253\u5F00"
+    - languageCode: en
+      value: Open
+    - languageCode: jp
+      value: "\u958B\u3051\u308B"
+    - languageCode: ko
+      value: "\uC5F4\uAE30"
+    - languageCode: tw
+      value: "\u6253\u958B"
+  - key: INT_PROMPT_PICKUP
+    translations:
+    - languageCode: cn
+      value: "\u62FE\u53D6"
+    - languageCode: en
+      value: Pick Up
+    - languageCode: jp
+      value: "\u62FE\u3046"
+    - languageCode: ko
+      value: "\uC90D\uAE30"
+    - languageCode: tw
+      value: "\u62FE\u53D6"
+  - key: INT_PROMPT_POWER_ON
+    translations:
+    - languageCode: cn
+      value: "\u6253\u5F00\u7535\u6E90"
+    - languageCode: en
+      value: Turn On
+    - languageCode: jp
+      value: "\u96FB\u6E90\u3092\u5165\u308C\u308B"
+    - languageCode: ko
+      value: "\uC804\uC6D0 \uCF1C\uAE30"
+    - languageCode: tw
+      value: "\u6253\u958B\u96FB\u6E90"
+  - key: INT_PROMPT_SETTLE
+    translations:
+    - languageCode: cn
+      value: "\u7ED3\u7B97"
+    - languageCode: en
+      value: Settle
+    - languageCode: jp
+      value: "\u7CBE\u7B97"
+    - languageCode: ko
+      value: "\uC815\uC0B0"
+    - languageCode: tw
+      value: "\u7D50\u7B97"
+  - key: ITEM_NAME_FUEL
+    translations:
+    - languageCode: cn
+      value: "\u71C3\u6599"
+    - languageCode: en
+      value: Fuel
+    - languageCode: jp
+      value: "\u71C3\u6599"
+    - languageCode: ko
+      value: "\uAE30\uB984"
+    - languageCode: tw
+      value: "\u71C3\u6599"
+  - key: ITEM_NAME_KEY
+    translations:
+    - languageCode: cn
+      value: "\u94A5\u5319"
+    - languageCode: en
+      value: Key
+    - languageCode: jp
+      value: "\u9375"
+    - languageCode: ko
+      value: "\uC5F4\uC1E0"
+    - languageCode: tw
+      value: "\u9470\u5319"
+  - key: UI_CMN_BACK
+    translations:
+    - languageCode: cn
+      value: "\u8FD4\u56DE"
+    - languageCode: en
+      value: Back
+    - languageCode: jp
+      value: "\u623B\u308B"
+    - languageCode: ko
+      value: "\uB3CC\uC544\uAC00\uAE30"
+    - languageCode: tw
+      value: "\u8FD4\u56DE"
+  - key: UI_CMN_CANCEL
+    translations:
+    - languageCode: cn
+      value: "\u53D6\u6D88"
+    - languageCode: en
+      value: Cancel
+    - languageCode: jp
+      value: "\u30AD\u30E3\u30F3\u30BB\u30EB"
+    - languageCode: ko
+      value: "\uCDE8\uC18C"
+    - languageCode: tw
+      value: "\u53D6\u6D88"
+  - key: UI_CMN_CLOSE
+    translations:
+    - languageCode: cn
+      value: "\u5173\u95ED"
+    - languageCode: en
+      value: Close
+    - languageCode: jp
+      value: "\u9589\u3058\u308B"
+    - languageCode: ko
+      value: "\uB2EB\uAE30"
+    - languageCode: tw
+      value: "\u95DC\u9589"
+  - key: UI_CMN_CONFIRM
+    translations:
+    - languageCode: cn
+      value: "\u786E\u8BA4"
+    - languageCode: en
+      value: Confirm
+    - languageCode: jp
+      value: "\u78BA\u8A8D"
+    - languageCode: ko
+      value: "\uD655\uC778"
+    - languageCode: tw
+      value: "\u78BA\u8A8D"
+  - key: UI_CMN_CREDITS
+    translations:
+    - languageCode: cn
+      value: "\u5F00\u53D1\u8005"
+    - languageCode: en
+      value: Developers
+    - languageCode: jp
+      value: "\u958B\u767A\u8005"
+    - languageCode: ko
+      value: "\uAC1C\uBC1C\uC790"
+    - languageCode: tw
+      value: "\u958B\u767C\u8005"
+  - key: UI_CMN_DISCORD
+    translations:
+    - languageCode: cn
+      value: Discord
+    - languageCode: en
+      value: Discord
+    - languageCode: jp
+      value: Discord
+    - languageCode: ko
+      value: "\uB514\uC2A4\uCF54\uB4DC"
+    - languageCode: tw
+      value: Discord
+  - key: UI_CMN_SETTINGS
+    translations:
+    - languageCode: cn
+      value: "\u8BBE\u7F6E"
+    - languageCode: en
+      value: Settings
+    - languageCode: jp
+      value: "\u8A2D\u5B9A"
+    - languageCode: ko
+      value: "\uC124\uC815"
+    - languageCode: tw
+      value: "\u8A2D\u5B9A"
+  - key: UI_OPT_DELETE_DATA
+    translations:
+    - languageCode: cn
+      value: "\u5220\u9664\u6570\u636E"
+    - languageCode: en
+      value: Delete Data
+    - languageCode: jp
+      value: "\u30C7\u30FC\u30BF\u524A\u9664"
+    - languageCode: ko
+      value: "\uB370\uC774\uD130 \uC0AD\uC81C"
+    - languageCode: tw
+      value: "\u522A\u9664\u8CC7\u6599"
+  - key: UI_OPT_RESOLUTION
+    translations:
+    - languageCode: cn
+      value: "\u5206\u8FA8\u7387"
+    - languageCode: en
+      value: Resolution
+    - languageCode: jp
+      value: "\u89E3\u50CF\u5EA6"
+    - languageCode: ko
+      value: "\uD574\uC0C1\uB3C4"
+    - languageCode: tw
+      value: "\u89E3\u6790\u5EA6"
+  - key: UI_OPT_SCREEN_SIZE
+    translations:
+    - languageCode: cn
+      value: "\u5C4F\u5E55\u5927\u5C0F"
+    - languageCode: en
+      value: Screen Size
+    - languageCode: jp
+      value: "\u753B\u9762\u30B5\u30A4\u30BA"
+    - languageCode: ko
+      value: "\uD654\uBA74 \uD06C\uAE30"
+    - languageCode: tw
+      value: "\u87A2\u5E55\u5927\u5C0F"
+  - key: UI_OPT_VOLUME_BGM
+    translations:
+    - languageCode: cn
+      value: "\u80CC\u666F\u97F3\u4E50"
+    - languageCode: en
+      value: Music
+    - languageCode: jp
+      value: BGM
+    - languageCode: ko
+      value: "\uBC30\uACBD\uC74C\uC545"
+    - languageCode: tw
+      value: "\u80CC\u666F\u97F3\u6A02"
+  - key: UI_OPT_VOLUME_MASTER
+    translations:
+    - languageCode: cn
+      value: "\u97F3\u91CF"
+    - languageCode: en
+      value: Volume
+    - languageCode: jp
+      value: "\u97F3\u91CF"
+    - languageCode: ko
+      value: "\uC74C\uB7C9"
+    - languageCode: tw
+      value: "\u97F3\u91CF"
+  - key: UI_OPT_VOLUME_SFX
+    translations:
+    - languageCode: cn
+      value: "\u97F3\u6548"
+    - languageCode: en
+      value: Sound Effects
+    - languageCode: jp
+      value: "\u52B9\u679C\u97F3"
+    - languageCode: ko
+      value: "\uD6A8\uACFC\uC74C"
+    - languageCode: tw
+      value: "\u97F3\u6548"
+  - key: UI_PAUSE_RETURN_TO_TITLE
+    translations:
+    - languageCode: cn
+      value: "\u8FD4\u56DE\u6807\u9898"
+    - languageCode: en
+      value: Return to Title
+    - languageCode: jp
+      value: "\u30BF\u30A4\u30C8\u30EB\u306B\u623B\u308B"
+    - languageCode: ko
+      value: "\uD0C0\uC774\uD2C0\uB85C \uB3CC\uC544\uAC00\uAE30"
+    - languageCode: tw
+      value: "\u8FD4\u56DE\u6A19\u984C"
+  - key: UI_TITLE_CONTINUE
+    translations:
+    - languageCode: cn
+      value: "\u7EE7\u7EED\u6E38\u620F"
+    - languageCode: en
+      value: Continue
+    - languageCode: jp
+      value: "\u3064\u3065\u304D\u304B\u3089"
+    - languageCode: ko
+      value: "\uC774\uC5B4\uD558\uAE30"
+    - languageCode: tw
+      value: "\u7E7C\u7E8C\u904A\u6232"
+  - key: UI_TITLE_NEW_GAME
+    translations:
+    - languageCode: cn
+      value: "\u5F00\u59CB\u6E38\u620F"
+    - languageCode: en
+      value: Start Game
+    - languageCode: jp
+      value: "\u30B2\u30FC\u30E0\u958B\u59CB"
+    - languageCode: ko
+      value: "\uAC8C\uC784 \uC2DC\uC791"
+    - languageCode: tw
+      value: "\u958B\u59CB\u904A\u6232"
+  - key: UI_TITLE_QUIT
+    translations:
+    - languageCode: cn
+      value: "\u9000\u51FA\u6E38\u620F"
+    - languageCode: en
+      value: Quit Game
+    - languageCode: jp
+      value: "\u30B2\u30FC\u30E0\u7D42\u4E86"
+    - languageCode: ko
+      value: "\uAC8C\uC784 \uC885\uB8CC"
+    - languageCode: tw
+      value: "\u96E2\u958B\u904A\u6232"
