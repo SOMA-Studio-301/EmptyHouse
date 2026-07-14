@@ -132,7 +132,7 @@ public partial class @GameInput: IInputActionCollection2, IDisposable
                     ""name"": ""Crouch"",
                     ""type"": ""Button"",
                     ""id"": ""27c5f898-bc57-4ee1-8800-db469aca5fe3"",
-                    ""expectedControlType"": ""Button"",
+                    ""expectedControlType"": """",
                     ""processors"": """",
                     ""interactions"": """",
                     ""initialStateCheck"": false
@@ -141,25 +141,7 @@ public partial class @GameInput: IInputActionCollection2, IDisposable
                     ""name"": ""Jump"",
                     ""type"": ""Button"",
                     ""id"": ""f1ba0d36-48eb-4cd5-b651-1c94a6531f70"",
-                    ""expectedControlType"": ""Button"",
-                    ""processors"": """",
-                    ""interactions"": """",
-                    ""initialStateCheck"": false
-                },
-                {
-                    ""name"": ""Previous"",
-                    ""type"": ""Button"",
-                    ""id"": ""2776c80d-3c14-4091-8c56-d04ced07a2b0"",
-                    ""expectedControlType"": ""Button"",
-                    ""processors"": """",
-                    ""interactions"": """",
-                    ""initialStateCheck"": false
-                },
-                {
-                    ""name"": ""Next"",
-                    ""type"": ""Button"",
-                    ""id"": ""b7230bb6-fc9b-4f52-8b25-f5e19cb2c2ba"",
-                    ""expectedControlType"": ""Button"",
+                    ""expectedControlType"": """",
                     ""processors"": """",
                     ""interactions"": """",
                     ""initialStateCheck"": false
@@ -168,7 +150,7 @@ public partial class @GameInput: IInputActionCollection2, IDisposable
                     ""name"": ""Sprint"",
                     ""type"": ""Button"",
                     ""id"": ""641cd816-40e6-41b4-8c3d-04687c349290"",
-                    ""expectedControlType"": ""Button"",
+                    ""expectedControlType"": """",
                     ""processors"": """",
                     ""interactions"": """",
                     ""initialStateCheck"": false
@@ -177,10 +159,28 @@ public partial class @GameInput: IInputActionCollection2, IDisposable
                     ""name"": ""Pause"",
                     ""type"": ""Button"",
                     ""id"": ""a1c3f5e7-2b48-4d16-9c0a-7e5f31d8b642"",
-                    ""expectedControlType"": ""Button"",
+                    ""expectedControlType"": """",
                     ""processors"": """",
                     ""interactions"": """",
                     ""initialStateCheck"": false
+                },
+                {
+                    ""name"": ""EquipSlot"",
+                    ""type"": ""Button"",
+                    ""id"": ""3f9c1e02-6a74-4d51-b8c3-91af2d0e7b15"",
+                    ""expectedControlType"": """",
+                    ""processors"": """",
+                    ""interactions"": """",
+                    ""initialStateCheck"": false
+                },
+                {
+                    ""name"": ""CycleHand"",
+                    ""type"": ""Value"",
+                    ""id"": ""5b2d8a41-c30f-4e69-8d17-4c6e9fb0a238"",
+                    ""expectedControlType"": ""Axis"",
+                    ""processors"": """",
+                    ""interactions"": """",
+                    ""initialStateCheck"": true
                 }
             ],
             ""bindings"": [
@@ -417,28 +417,6 @@ public partial class @GameInput: IInputActionCollection2, IDisposable
                 },
                 {
                     ""name"": """",
-                    ""id"": ""cbac6039-9c09-46a1-b5f2-4e5124ccb5ed"",
-                    ""path"": ""<Keyboard>/2"",
-                    ""interactions"": """",
-                    ""processors"": """",
-                    ""groups"": ""Keyboard&Mouse"",
-                    ""action"": ""Next"",
-                    ""isComposite"": false,
-                    ""isPartOfComposite"": false
-                },
-                {
-                    ""name"": """",
-                    ""id"": ""e15ca19d-e649-4852-97d5-7fe8ccc44e94"",
-                    ""path"": ""<Gamepad>/dpad/right"",
-                    ""interactions"": """",
-                    ""processors"": """",
-                    ""groups"": ""Gamepad"",
-                    ""action"": ""Next"",
-                    ""isComposite"": false,
-                    ""isPartOfComposite"": false
-                },
-                {
-                    ""name"": """",
                     ""id"": ""f2e9ba44-c423-42a7-ad56-f20975884794"",
                     ""path"": ""<Keyboard>/leftShift"",
                     ""interactions"": """",
@@ -505,28 +483,6 @@ public partial class @GameInput: IInputActionCollection2, IDisposable
                 },
                 {
                     ""name"": """",
-                    ""id"": ""1534dc16-a6aa-499d-9c3a-22b47347b52a"",
-                    ""path"": ""<Keyboard>/1"",
-                    ""interactions"": """",
-                    ""processors"": """",
-                    ""groups"": ""Keyboard&Mouse"",
-                    ""action"": ""Previous"",
-                    ""isComposite"": false,
-                    ""isPartOfComposite"": false
-                },
-                {
-                    ""name"": """",
-                    ""id"": ""25060bbd-a3a6-476e-8fba-45ae484aad05"",
-                    ""path"": ""<Gamepad>/dpad/left"",
-                    ""interactions"": """",
-                    ""processors"": """",
-                    ""groups"": ""Gamepad"",
-                    ""action"": ""Previous"",
-                    ""isComposite"": false,
-                    ""isPartOfComposite"": false
-                },
-                {
-                    ""name"": """",
                     ""id"": ""1c04ea5f-b012-41d1-a6f7-02e963b52893"",
                     ""path"": ""<Keyboard>/e"",
                     ""interactions"": """",
@@ -588,6 +544,72 @@ public partial class @GameInput: IInputActionCollection2, IDisposable
                     ""processors"": """",
                     ""groups"": ""Gamepad"",
                     ""action"": ""Pause"",
+                    ""isComposite"": false,
+                    ""isPartOfComposite"": false
+                },
+                {
+                    ""name"": """",
+                    ""id"": ""9d41c0b7-2e58-4a36-bf90-6c1d7e35a084"",
+                    ""path"": ""<Keyboard>/1"",
+                    ""interactions"": """",
+                    ""processors"": """",
+                    ""groups"": "";Keyboard&Mouse"",
+                    ""action"": ""EquipSlot"",
+                    ""isComposite"": false,
+                    ""isPartOfComposite"": false
+                },
+                {
+                    ""name"": """",
+                    ""id"": ""0a77e3c5-91b2-4f8d-8e46-2b5c9d0f7a13"",
+                    ""path"": ""<Keyboard>/2"",
+                    ""interactions"": """",
+                    ""processors"": """",
+                    ""groups"": "";Keyboard&Mouse"",
+                    ""action"": ""EquipSlot"",
+                    ""isComposite"": false,
+                    ""isPartOfComposite"": false
+                },
+                {
+                    ""name"": """",
+                    ""id"": ""b6e2f849-3d07-4c15-9a2e-8f70c1d64b95"",
+                    ""path"": ""<Keyboard>/3"",
+                    ""interactions"": """",
+                    ""processors"": """",
+                    ""groups"": "";Keyboard&Mouse"",
+                    ""action"": ""EquipSlot"",
+                    ""isComposite"": false,
+                    ""isPartOfComposite"": false
+                },
+                {
+                    ""name"": """",
+                    ""id"": ""4c18d5a0-7be6-4931-8207-e5a3b9f2c60d"",
+                    ""path"": ""<Keyboard>/4"",
+                    ""interactions"": """",
+                    ""processors"": """",
+                    ""groups"": "";Keyboard&Mouse"",
+                    ""action"": ""EquipSlot"",
+                    ""isComposite"": false,
+                    ""isPartOfComposite"": false
+                },
+                {
+                    ""name"": """",
+                    ""id"": ""e70b3f26-8c94-4d5a-b1e8-93f6027ad4c1"",
+                    ""path"": ""<Keyboard>/5"",
+                    ""interactions"": """",
+                    ""processors"": """",
+                    ""groups"": "";Keyboard&Mouse"",
+                    ""action"": ""EquipSlot"",
+                    ""isComposite"": false,
+                    ""isPartOfComposite"": false
+                },
+                {
+                    ""name"": """",
+                    ""id"": ""2f85a71c-4069-4b3e-97d2-c8b04e51f7a6"",
+                    ""path"": ""<Mouse>/scroll/y"",
+                    ""interactions"": """",
+                    ""processors"": """",
+                    ""groups"": "";Keyboard&Mouse"",
+                    ""action"": ""CycleHand"",
                     ""isComposite"": false,
                     ""isPartOfComposite"": false
                 }
@@ -1181,10 +1203,10 @@ public partial class @GameInput: IInputActionCollection2, IDisposable
         m_Gameplay_Interact = m_Gameplay.FindAction("Interact", throwIfNotFound: true);
         m_Gameplay_Crouch = m_Gameplay.FindAction("Crouch", throwIfNotFound: true);
         m_Gameplay_Jump = m_Gameplay.FindAction("Jump", throwIfNotFound: true);
-        m_Gameplay_Previous = m_Gameplay.FindAction("Previous", throwIfNotFound: true);
-        m_Gameplay_Next = m_Gameplay.FindAction("Next", throwIfNotFound: true);
         m_Gameplay_Sprint = m_Gameplay.FindAction("Sprint", throwIfNotFound: true);
         m_Gameplay_Pause = m_Gameplay.FindAction("Pause", throwIfNotFound: true);
+        m_Gameplay_EquipSlot = m_Gameplay.FindAction("EquipSlot", throwIfNotFound: true);
+        m_Gameplay_CycleHand = m_Gameplay.FindAction("CycleHand", throwIfNotFound: true);
         // UI
         m_UI = asset.FindActionMap("UI", throwIfNotFound: true);
         m_UI_Navigate = m_UI.FindAction("Navigate", throwIfNotFound: true);
@@ -1284,10 +1306,10 @@ public partial class @GameInput: IInputActionCollection2, IDisposable
     private readonly InputAction m_Gameplay_Interact;
     private readonly InputAction m_Gameplay_Crouch;
     private readonly InputAction m_Gameplay_Jump;
-    private readonly InputAction m_Gameplay_Previous;
-    private readonly InputAction m_Gameplay_Next;
     private readonly InputAction m_Gameplay_Sprint;
     private readonly InputAction m_Gameplay_Pause;
+    private readonly InputAction m_Gameplay_EquipSlot;
+    private readonly InputAction m_Gameplay_CycleHand;
     /// <summary>
     /// Provides access to input actions defined in input action map "Gameplay".
     /// </summary>
@@ -1324,14 +1346,6 @@ public partial class @GameInput: IInputActionCollection2, IDisposable
         /// </summary>
         public InputAction @Jump => m_Wrapper.m_Gameplay_Jump;
         /// <summary>
-        /// Provides access to the underlying input action "Gameplay/Previous".
-        /// </summary>
-        public InputAction @Previous => m_Wrapper.m_Gameplay_Previous;
-        /// <summary>
-        /// Provides access to the underlying input action "Gameplay/Next".
-        /// </summary>
-        public InputAction @Next => m_Wrapper.m_Gameplay_Next;
-        /// <summary>
         /// Provides access to the underlying input action "Gameplay/Sprint".
         /// </summary>
         public InputAction @Sprint => m_Wrapper.m_Gameplay_Sprint;
@@ -1339,6 +1353,14 @@ public partial class @GameInput: IInputActionCollection2, IDisposable
         /// Provides access to the underlying input action "Gameplay/Pause".
         /// </summary>
         public InputAction @Pause => m_Wrapper.m_Gameplay_Pause;
+        /// <summary>
+        /// Provides access to the underlying input action "Gameplay/EquipSlot".
+        /// </summary>
+        public InputAction @EquipSlot => m_Wrapper.m_Gameplay_EquipSlot;
+        /// <summary>
+        /// Provides access to the underlying input action "Gameplay/CycleHand".
+        /// </summary>
+        public InputAction @CycleHand => m_Wrapper.m_Gameplay_CycleHand;
         /// <summary>
         /// Provides access to the underlying input action map instance.
         /// </summary>
@@ -1383,18 +1405,18 @@ public partial class @GameInput: IInputActionCollection2, IDisposable
             @Jump.started += instance.OnJump;
             @Jump.performed += instance.OnJump;
             @Jump.canceled += instance.OnJump;
-            @Previous.started += instance.OnPrevious;
-            @Previous.performed += instance.OnPrevious;
-            @Previous.canceled += instance.OnPrevious;
-            @Next.started += instance.OnNext;
-            @Next.performed += instance.OnNext;
-            @Next.canceled += instance.OnNext;
             @Sprint.started += instance.OnSprint;
             @Sprint.performed += instance.OnSprint;
             @Sprint.canceled += instance.OnSprint;
             @Pause.started += instance.OnPause;
             @Pause.performed += instance.OnPause;
             @Pause.canceled += instance.OnPause;
+            @EquipSlot.started += instance.OnEquipSlot;
+            @EquipSlot.performed += instance.OnEquipSlot;
+            @EquipSlot.canceled += instance.OnEquipSlot;
+            @CycleHand.started += instance.OnCycleHand;
+            @CycleHand.performed += instance.OnCycleHand;
+            @CycleHand.canceled += instance.OnCycleHand;
         }
 
         /// <summary>
@@ -1424,18 +1446,18 @@ public partial class @GameInput: IInputActionCollection2, IDisposable
             @Jump.started -= instance.OnJump;
             @Jump.performed -= instance.OnJump;
             @Jump.canceled -= instance.OnJump;
-            @Previous.started -= instance.OnPrevious;
-            @Previous.performed -= instance.OnPrevious;
-            @Previous.canceled -= instance.OnPrevious;
-            @Next.started -= instance.OnNext;
-            @Next.performed -= instance.OnNext;
-            @Next.canceled -= instance.OnNext;
             @Sprint.started -= instance.OnSprint;
             @Sprint.performed -= instance.OnSprint;
             @Sprint.canceled -= instance.OnSprint;
             @Pause.started -= instance.OnPause;
             @Pause.performed -= instance.OnPause;
             @Pause.canceled -= instance.OnPause;
+            @EquipSlot.started -= instance.OnEquipSlot;
+            @EquipSlot.performed -= instance.OnEquipSlot;
+            @EquipSlot.canceled -= instance.OnEquipSlot;
+            @CycleHand.started -= instance.OnCycleHand;
+            @CycleHand.performed -= instance.OnCycleHand;
+            @CycleHand.canceled -= instance.OnCycleHand;
         }
 
         /// <summary>
@@ -1779,20 +1801,6 @@ public partial class @GameInput: IInputActionCollection2, IDisposable
         /// <seealso cref="UnityEngine.InputSystem.InputAction.canceled" />
         void OnJump(InputAction.CallbackContext context);
         /// <summary>
-        /// Method invoked when associated input action "Previous" is either <see cref="UnityEngine.InputSystem.InputAction.started" />, <see cref="UnityEngine.InputSystem.InputAction.performed" /> or <see cref="UnityEngine.InputSystem.InputAction.canceled" />.
-        /// </summary>
-        /// <seealso cref="UnityEngine.InputSystem.InputAction.started" />
-        /// <seealso cref="UnityEngine.InputSystem.InputAction.performed" />
-        /// <seealso cref="UnityEngine.InputSystem.InputAction.canceled" />
-        void OnPrevious(InputAction.CallbackContext context);
-        /// <summary>
-        /// Method invoked when associated input action "Next" is either <see cref="UnityEngine.InputSystem.InputAction.started" />, <see cref="UnityEngine.InputSystem.InputAction.performed" /> or <see cref="UnityEngine.InputSystem.InputAction.canceled" />.
-        /// </summary>
-        /// <seealso cref="UnityEngine.InputSystem.InputAction.started" />
-        /// <seealso cref="UnityEngine.InputSystem.InputAction.performed" />
-        /// <seealso cref="UnityEngine.InputSystem.InputAction.canceled" />
-        void OnNext(InputAction.CallbackContext context);
-        /// <summary>
         /// Method invoked when associated input action "Sprint" is either <see cref="UnityEngine.InputSystem.InputAction.started" />, <see cref="UnityEngine.InputSystem.InputAction.performed" /> or <see cref="UnityEngine.InputSystem.InputAction.canceled" />.
         /// </summary>
         /// <seealso cref="UnityEngine.InputSystem.InputAction.started" />
@@ -1806,6 +1814,20 @@ public partial class @GameInput: IInputActionCollection2, IDisposable
         /// <seealso cref="UnityEngine.InputSystem.InputAction.performed" />
         /// <seealso cref="UnityEngine.InputSystem.InputAction.canceled" />
         void OnPause(InputAction.CallbackContext context);
+        /// <summary>
+        /// Method invoked when associated input action "EquipSlot" is either <see cref="UnityEngine.InputSystem.InputAction.started" />, <see cref="UnityEngine.InputSystem.InputAction.performed" /> or <see cref="UnityEngine.InputSystem.InputAction.canceled" />.
+        /// </summary>
+        /// <seealso cref="UnityEngine.InputSystem.InputAction.started" />
+        /// <seealso cref="UnityEngine.InputSystem.InputAction.performed" />
+        /// <seealso cref="UnityEngine.InputSystem.InputAction.canceled" />
+        void OnEquipSlot(InputAction.CallbackContext context);
+        /// <summary>
+        /// Method invoked when associated input action "CycleHand" is either <see cref="UnityEngine.InputSystem.InputAction.started" />, <see cref="UnityEngine.InputSystem.InputAction.performed" /> or <see cref="UnityEngine.InputSystem.InputAction.canceled" />.
+        /// </summary>
+        /// <seealso cref="UnityEngine.InputSystem.InputAction.started" />
+        /// <seealso cref="UnityEngine.InputSystem.InputAction.performed" />
+        /// <seealso cref="UnityEngine.InputSystem.InputAction.canceled" />
+        void OnCycleHand(InputAction.CallbackContext context);
     }
     /// <summary>
     /// Interface to implement callback methods for all input action callbacks associated with input actions defined by "UI" which allows adding and removing callbacks.

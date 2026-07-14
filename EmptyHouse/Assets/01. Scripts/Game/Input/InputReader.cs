@@ -16,11 +16,17 @@ public class InputReader : ScriptableObject, GameInput.IGameplayActions, GameInp
     public event UnityAction AttackCanceledEvent   = delegate { }; // 공격 버튼에서 손을 뗐을 때 발행
     public event UnityAction InteractPressedEvent  = delegate { }; // 상호작용 버튼을 누르기 시작했을 때 발행. Tap형은 즉시 실행, Hold형은 홀드 진행 시작 신호
     public event UnityAction InteractCanceledEvent = delegate { }; // 상호작용 버튼에서 손을 뗐을 때 발행. 홀드 진행 중이었다면 취소 신호
+    public event UnityAction<int> EquipSlotEvent = delegate { }; // 숫자 키로 슬롯 선택. payload = 슬롯 인덱스(0-based). ※ 임시: Tab 홀드 없이 단독 입력 — Tab 게이팅(2장 키맵)은 후속
+    public event UnityAction<int> CycleHandEvent = delegate { }; // 마우스 휠로 손 순환. payload = 방향(+1 정방향 / -1 역방향)
     public event UnityAction JumpEvent   = delegate { }; // 점프 버튼이 눌렸을 때 발행
     public event UnityAction PauseEvent  = delegate { }; // 일시정지 버튼이 눌렸을 때 발행
     public event UnityAction CancelEvent = delegate { }; // UI 맵의 Cancel(Esc) 이 눌렸을 때 발행. Pause 상태에서 게임으로 복귀하는 경로
 
     private GameInput gameInput;
+
+    // 마지막으로 입력이 들어온 디바이스. 프롬프트에 어느 스킴의 바인딩을 보여줄지 고르는 기준이다.
+    // Interact 는 Keyboard&Mouse(E)·Gamepad 두 벌로 바인딩돼 있어, 스킴으로 거르지 않으면 "E | Y" 처럼 둘 다 나온다.
+    private InputDevice lastUsedDevice;
 
     /// <summary>
     /// SO 활성화 시 GameInput 을 1회 생성하고 Gameplay/UI 두 액션맵의 콜백 수신자로 자신을 등록한다.
@@ -71,19 +77,48 @@ public class InputReader : ScriptableObject, GameInput.IGameplayActions, GameInp
     /// <returns>현재 바인딩된 키의 표시 문자열.</returns>
     public string GetInteractBindingDisplayString()
     {
-        // TODO(impl): gameInput.Gameplay.Interact.GetBindingDisplayString() 로 현재 활성 컨트롤 스킴의 바인딩을 조회한다.
         Log.D("[InputReader] GetInteractBindingDisplayString");
-        return default;
+
+        // 그룹(=컨트롤 스킴)으로 거르지 않으면 Interact 에 걸린 모든 바인딩이 "E | Y" 처럼 이어붙어 나온다.
+        return gameInput.Gameplay.Interact.GetBindingDisplayString(group: ResolveActiveBindingGroup());
     }
 
-    // ── Value 액션 ──────────────────────────────────────────────
-    // Performed 는 값이 바뀔 때, Canceled 는 값이 기본값(zero)으로 돌아갈 때 온다.
-    // Canceled 에서도 ReadValue 는 zero 를 돌려주므로 두 phase 를 함께 처리한다.
+    /// <summary>
+    /// 마지막으로 입력이 들어온 디바이스가 속한 컨트롤 스킴의 바인딩 그룹명을 반환한다.
+    /// 아직 아무 입력도 없었거나(첫 프레임) 어느 스킴에도 속하지 않는 디바이스면 키보드, 마우스가 기본
+    /// </summary>
+    /// <returns>바인딩 그룹명(예: "Keyboard&amp;Mouse", "Gamepad").</returns>
+    private string ResolveActiveBindingGroup()
+    {
+        if (lastUsedDevice != null)
+        {
+            InputControlScheme? scheme = InputControlScheme.FindControlSchemeForDevice(lastUsedDevice, gameInput.controlSchemes);
+            if (scheme.HasValue) return scheme.Value.bindingGroup;
+        }
+
+        return gameInput.KeyboardMouseScheme.bindingGroup;
+    }
+
+    /// <summary>
+    /// 이번 입력을 발생시킨 디바이스를 기억한다. 프롬프트가 보여줄 바인딩 스킴을 고르는 기준이 된다(<see cref="GetInteractBindingDisplayString"/>).
+    /// 컨트롤이 없는 콜백도 있으므로(그 경우 직전 디바이스를 유지한다) 여기서는 의도적으로 null 을 허용한다.
+    /// </summary>
+    /// <param name="context">Input System 이 전달하는 콜백 컨텍스트.</param>
+    private void RememberDevice(InputAction.CallbackContext context)
+    {
+        InputDevice device = context.control?.device;
+        if (device != null)
+        {
+            lastUsedDevice = device;
+        }
+    }
 
     /// <summary>Move 액션 콜백. 갱신된 이동 입력값을 <see cref="MoveEvent"/> 로 발행한다.</summary>
     /// <param name="context">Input System 이 전달하는 콜백 컨텍스트.</param>
     public void OnMove(InputAction.CallbackContext context)
     {
+        RememberDevice(context);
+
         switch (context.phase)
         {
             case InputActionPhase.Performed:
@@ -97,6 +132,8 @@ public class InputReader : ScriptableObject, GameInput.IGameplayActions, GameInp
     /// <param name="context">Input System 이 전달하는 콜백 컨텍스트.</param>
     public void OnLook(InputAction.CallbackContext context)
     {
+        RememberDevice(context);
+
         switch (context.phase)
         {
             case InputActionPhase.Performed:
@@ -106,14 +143,12 @@ public class InputReader : ScriptableObject, GameInput.IGameplayActions, GameInp
         }
     }
 
-    // ── Button 액션 ─────────────────────────────────────────────
-    // interaction 이 없는 버튼은 Started 와 Performed 가 같은 프레임에 연달아 온다.
-    // Started 를 함께 처리하면 한 번의 입력이 두 번 발행되므로 Performed 만 잡는다.
-
     /// <summary>Attack 액션 콜백. 눌림은 <see cref="AttackEvent"/>, 뗌은 <see cref="AttackCanceledEvent"/> 로 발행한다.</summary>
     /// <param name="context">Input System 이 전달하는 콜백 컨텍스트.</param>
     public void OnAttack(InputAction.CallbackContext context)
     {
+        RememberDevice(context);
+
         switch (context.phase)
         {
             case InputActionPhase.Performed:
@@ -129,6 +164,8 @@ public class InputReader : ScriptableObject, GameInput.IGameplayActions, GameInp
     /// <param name="context">Input System 이 전달하는 콜백 컨텍스트.</param>
     public void OnJump(InputAction.CallbackContext context)
     {
+        RememberDevice(context);
+
         if (context.phase == InputActionPhase.Performed)
         {
             JumpEvent.Invoke();
@@ -153,6 +190,8 @@ public class InputReader : ScriptableObject, GameInput.IGameplayActions, GameInp
     /// <param name="context">Input System 이 전달하는 콜백 컨텍스트.</param>
     public void OnInteract(InputAction.CallbackContext context)
     {
+        RememberDevice(context);
+
         if (context.phase == InputActionPhase.Performed)
         {
             InteractPressedEvent.Invoke();
@@ -163,6 +202,42 @@ public class InputReader : ScriptableObject, GameInput.IGameplayActions, GameInp
         }
     }
 
+    /// <summary>
+    /// EquipSlot 액션 콜백(숫자 키). 슬롯 하나당 액션을 만들지 않고 액션 1개에 키 1~5 를 바인딩
+    /// 눌린 키을 0-based 인덱스로 바꿔 <see cref="EquipSlotEvent"/> 로 발행
+    /// 슬롯이 늘어도 inputactions 에 바인딩만 추가하면 되고 이 코드는 바뀌지 않음
+    /// 실제 슬롯 수를 넘는 번호인지는 여기서 거르지 않는다 — 슬롯 수를 아는 <see cref="PlayerInventory"/> 몫이다.
+    /// </summary>
+    /// <param name="context">Input System 이 전달하는 콜백 컨텍스트.</param>
+    public void OnEquipSlot(InputAction.CallbackContext context)
+    {
+        RememberDevice(context);
+
+        if (context.phase != InputActionPhase.Performed) return;
+
+        // 키보드 숫자 키의 컨트롤 이름은 "1".."5" 다. 숫자가 아닌 컨트롤이 바인딩되면 조용히 무시한다.
+        if (!int.TryParse(context.control.name, out int slotNumber)) return;
+
+        EquipSlotEvent.Invoke(slotNumber - 1);
+    }
+
+    /// <summary>
+    /// CycleHand 액션 콜백(마우스 휠, Value/Axis). 스크롤값의 부호를 ±1 로 정규화해
+    /// <see cref="CycleHandEvent"/> 로 발행한다. 0 이면 발행하지 않는다.
+    /// </summary>
+    /// <param name="context">Input System 이 전달하는 콜백 컨텍스트.</param>
+    public void OnCycleHand(InputAction.CallbackContext context)
+    {
+        RememberDevice(context);
+
+        if (context.phase != InputActionPhase.Performed) return;
+
+        float scroll = context.ReadValue<float>();
+        if (Mathf.Approximately(scroll, 0f)) return;
+
+        CycleHandEvent.Invoke(scroll > 0f ? 1 : -1);
+    }
+
     // ── 미사용 액션 ─────────────────────────────────────────────
     // Gameplay 맵에 남아 있는 템플릿 잔재. 인터페이스 구현을 위해 스텁만 둔다.
 
@@ -171,20 +246,6 @@ public class InputReader : ScriptableObject, GameInput.IGameplayActions, GameInp
     public void OnCrouch(InputAction.CallbackContext context)
     {
         Log.D($"[InputReader] Crouch {context.phase}");
-    }
-
-    /// <summary>Previous 액션 콜백. 아직 사용하지 않는다.</summary>
-    /// <param name="context">Input System 이 전달하는 콜백 컨텍스트.</param>
-    public void OnPrevious(InputAction.CallbackContext context)
-    {
-        Log.D($"[InputReader] Previous {context.phase}");
-    }
-
-    /// <summary>Next 액션 콜백. 아직 사용하지 않는다.</summary>
-    /// <param name="context">Input System 이 전달하는 콜백 컨텍스트.</param>
-    public void OnNext(InputAction.CallbackContext context)
-    {
-        Log.D($"[InputReader] Next {context.phase}");
     }
 
     /// <summary>Sprint 액션 콜백. 아직 사용하지 않는다.</summary>

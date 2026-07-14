@@ -2,11 +2,11 @@ using Border.Core;
 using UnityEngine;
 
 /// <summary>
-/// 플레이어 1인의 인벤토리 — 슬롯 N칸 + 손(슬롯 포인터) (조작상호작용UI.md 4장).
-/// 상주 매니저가 아니라 플레이어 프리팹에 붙는 플레이어별 컴포넌트다(멀티에서 사람마다 1개).
-/// 손은 별도 칸이 아니라 "지금 꺼내 든 슬롯의 인덱스"이며(4-2), -1 = 맨손이다.
-/// 입력(Tab 홀드/휠/G) 연결은 .inputactions 확장 후 후속 단계에서 이 API 를 호출하는 형태로 붙이고,
-/// HUD 통지 방식은 HUD(5장) 스켈레톤 단계에서 결정한다.
+/// 플레이어 1인의 인벤토리 — 슬롯 N칸 + 손(슬롯 포인터)
+/// 플레이어 프리팹에 붙는 플레이어별 컴포넌트다(멀티에서 사람마다 1개)
+/// 손은 별도 칸이 아니라 "지금 꺼내 든 슬롯의 인덱스"이며, -1 = 맨손
+/// 입력은 InputReader 이벤트를 직접 구독한다 — 현재는 숫자 단독(임시)·휠. Tab 홀드·G 버리기는 후속.
+/// HUD 는 밀어넣기(push) 단방향: 슬롯 변경은 RefreshSlot, 손 이동은 PointHand 를 반드시 경유한다.
 /// </summary>
 public class PlayerInventory : MonoBehaviour
 {
@@ -19,8 +19,17 @@ public class PlayerInventory : MonoBehaviour
     [Header("Hand")]
     [SerializeField] private float handSwapSeconds = 0.3f; // 3-10 hand_swap_sec ⚪ — 손 전환 딜레이(E6)
 
+    [Header("Input")]
+    [SerializeField] private InputReader inputReader; // 프로젝트 에셋(SO) — 자기완결 프리팹의 허용 의존
+
+    [Header("HUD")]
+    [SerializeField] private UIInventory ui; // 같은 프리팹의 Canvas-Inventory. 인벤은 UI 를 밀어넣기만 하고 역참조는 받지 않는다
+
     private InventorySlot[] slots;
     private int heldIndex = BareHandIndex;
+
+    // 손 전환 딜레이의 남은 시간(초). 0 보다 크면 전환 중이다(IsSwapping).
+    private float swapTimer;
 
     /// <summary>슬롯 수. 시작값은 inventory_slots 이며 🔵 상점 확장의 기준점이다(4-5).</summary>
     public int SlotCount => slots.Length;
@@ -50,11 +59,40 @@ public class PlayerInventory : MonoBehaviour
         Log.D($"[PlayerInventory] Awake slots={inventorySlots}");
     }
 
+    /// <summary>입력 이벤트 구독을 시작한다. 숫자 키 → 슬롯 선택, 휠 → 손 순환.</summary>
+    private void OnEnable()
+    {
+        inputReader.EquipSlotEvent += EquipSlot;
+        inputReader.CycleHandEvent += CycleHand;
+    }
+
+    /// <summary>입력 이벤트 구독을 해제한다.</summary>
+    private void OnDisable()
+    {
+        inputReader.EquipSlotEvent -= EquipSlot;
+        inputReader.CycleHandEvent -= CycleHand;
+    }
+
+    /// <summary>
+    /// HUD 슬롯 뷰를 슬롯 수만큼 짓는다. Awake 에서 slots 배열이 만들어진 뒤여야 하므로 Start 다.
+    /// UI 가 PlayerInventory 를 역참조해 스스로 칸 수를 읽으면 Awake/Start 순서에 의존하게 된다 — 그래서 이쪽에서 민다.
+    /// </summary>
+    private void Start()
+    {
+        ui.Build(SlotCount);
+    }
+
     /// <summary>손 전환 타이머를 갱신한다.</summary>
     private void Update()
     {
-        // TODO(impl): 손 전환 타이머 갱신 → handSwapSeconds 경과 시 IsSwapping 해제.
         // 매 프레임 호출되므로 진입 트레이스를 두지 않는다.
+        if (!IsSwapping) return;
+
+        swapTimer -= Time.deltaTime;
+        if (swapTimer > 0f) return;
+
+        swapTimer = 0f;
+        IsSwapping = false;
     }
 
     /// <summary>지정 인덱스의 슬롯 상태를 반환한다(HUD 3칸 상시 표시용, 5장).</summary>
@@ -114,30 +152,67 @@ public class PlayerInventory : MonoBehaviour
 
         slots[index].Data = item;
         slots[index].PairId = pairId;
+        RefreshSlot(index);
 
         // heldIndex 는 건드리지 않는다 — 회수는 손에 자동으로 쥐어주지 않는다(4-2).
         return true;
     }
 
+    /// <summary>한 칸의 현재 상태를 HUD 에 반영한다. 슬롯 내용이 바뀐 곳에서만 호출한다(획득·버리기·소비).</summary>
+    /// <param name="index">갱신할 슬롯 인덱스(0 .. SlotCount-1).</param>
+    private void RefreshSlot(int index)
+    {
+        ui.SetSlot(index, slots[index]);
+    }
+
     /// <summary>
-    /// 지정 슬롯을 손에 든다 (Tab 홀드 + 숫자). 빈 슬롯이면 맨손이 된다(4-2 전환 조작).
-    /// 손 전환 딜레이를 시작하며, 이미 전환 중이면 입력을 무시한다 — 연타로 딜레이를 우회할 수 없다(2-1).
+    /// 손 포인터를 옮기고 HUD 하이라이트를 따라 옮긴다.
+    /// heldIndex 를 고치는 모든 경로(EquipSlot·CycleHand·StowHand·자동 맨손)는 이 헬퍼를 경유해야 화면이 따라온다.
+    /// </summary>
+    /// <param name="index">새 손 인덱스. <see cref="BareHandIndex"/> 면 맨손(하이라이트 전부 off).</param>
+    private void PointHand(int index)
+    {
+        heldIndex = index;
+        ui.SetHeldIndex(index);
+    }
+
+    /// <summary>
+    /// 지정 슬롯을 손에 든다 (숫자 키 — 임시로 Tab 홀드 없이 단독 입력, Tab 게이팅은 후속).
+    /// 빈 슬롯을 선택해도 포인터는 그 칸으로 감
+    /// 손 전환 딜레이를 시작하며, 이미 전환 중이면 입력을 무시 — 연타로 딜레이를 우회 불가
     /// </summary>
     /// <param name="index">손에 들 슬롯 인덱스(0 .. SlotCount-1).</param>
-    public void EquipSlot(int index)
+    private void EquipSlot(int index)
     {
-        // TODO(impl): IsSwapping 중이면 무시. 빈 슬롯 → 맨손. heldIndex 갱신 + 전환 딜레이 시작.
         Log.D($"[PlayerInventory] EquipSlot {index}");
+
+        if (IsSwapping) return; // 전환 중 입력은 버린다 — 큐잉 없음(3-8 E6)
+
+        // 숫자 키는 슬롯 수와 무관하게 1..5 가 들어온다. 없는 칸이면 무시한다(3칸일 때 4·5 키).
+        if (index < 0 || index >= SlotCount) return;
+
+        if (index == heldIndex) return; // 이미 든 칸을 다시 눌러 스스로에게 전환 딜레이를 걸지 않는다
+
+        PointHand(index);
+        StartSwap();
     }
 
     /// <summary>
     /// 손에 든 것을 슬롯에 되돌리고 맨손이 된다 — 집어넣기 (Tab 홀드 후 숫자 없이 뗌).
     /// 아이템은 슬롯에 그대로 남는다(0-2: 집어넣기 ≠ 버리기).
     /// </summary>
-    public void StowHand()
+    private void StowHand()
     {
-        // TODO(impl): heldIndex = BareHandIndex. 슬롯 내용은 유지.
         Log.D("[PlayerInventory] StowHand");
+
+        PointHand(BareHandIndex);
+    }
+
+    /// <summary>손 전환 딜레이(hand_swap_sec)를 시작한다. 손 포인터가 실제로 움직인 경로에서만 호출한다.</summary>
+    private void StartSwap()
+    {
+        swapTimer = handSwapSeconds;
+        IsSwapping = swapTimer > 0f; // 딜레이를 0 으로 튜닝하면 전환 중 상태 자체가 생기지 않는다
     }
 
     /// <summary>
@@ -145,19 +220,29 @@ public class PlayerInventory : MonoBehaviour
     /// 빈 칸을 건너뛰지 않는다 — 빈 칸에 멈추고 그동안은 맨손 취급이다(기획 확정 2026-07-11).
     /// </summary>
     /// <param name="direction">휠 방향. +1 = 정방향, -1 = 역방향.</param>
-    public void CycleHand(int direction)
+    private void CycleHand(int direction)
     {
-        // TODO(impl): heldIndex 를 [BareHandIndex .. SlotCount-1] 범위에서 빈 칸 포함 순환. 전환 딜레이 적용.
         Log.D($"[PlayerInventory] CycleHand {direction}");
+
+        if (IsSwapping) return; // 전환 중 입력은 버린다 — 큐잉 없음(3-8 E6)
+
+        // 맨손(-1) 을 포함한 SlotCount + 1 개의 위치를 순환한다. -1 을 0 으로 밀어 모듈러를 태우고 되돌린다.
+        int positionCount = SlotCount + 1;
+        int position = heldIndex + 1;
+        int next = (position + direction + positionCount) % positionCount; // direction 이 음수여도 음수 나머지가 나오지 않게 한 바퀴 더한다
+
+        PointHand(next - 1);
+        StartSwap();
     }
 
     /// <summary>
     /// 손에 든 아이템을 월드에 떨군다 — 버리기 (G). WorldPrefab 을 스폰하고 슬롯을 비운 뒤
     /// 자동 맨손이 된다(4-2 자동 맨손 규칙). 맨손이면 아무것도 하지 않는다.
     /// </summary>
-    public void DropHeld()
+    private void DropHeld()
     {
-        // TODO(impl): 맨손이면 return. HeldSlot.Data.WorldPrefab 스폰(페어 번호 승계) → 슬롯 Clear → 맨손.
+        // TODO(impl): 맨손이면 return. HeldSlot.Data.WorldPrefab 스폰(페어 번호 승계)
+        //             → 슬롯 Clear + RefreshSlot → PointHand(BareHandIndex).
         Log.D("[PlayerInventory] DropHeld");
     }
 
@@ -165,9 +250,9 @@ public class PlayerInventory : MonoBehaviour
     /// 손에 든 아이템을 사용으로 소멸시킨다 — 자물쇠 개방 시 열쇠(3-6) · 투척 시 투척물(4-3).
     /// 슬롯이 비고 자동 맨손이 된다. 다음 슬롯을 자동 장착하지 않으며(4-2), 버리기와 달리 월드에 아무것도 남기지 않는다.
     /// </summary>
-    public void ConsumeHeld()
+    private void ConsumeHeld()
     {
-        // TODO(impl): 슬롯 Clear → 맨손. WorldPrefab 스폰 없음(버리기와 다르다).
+        // TODO(impl): 슬롯 Clear + RefreshSlot → PointHand(BareHandIndex). WorldPrefab 스폰 없음(버리기와 다르다).
         Log.D("[PlayerInventory] ConsumeHeld");
     }
 }

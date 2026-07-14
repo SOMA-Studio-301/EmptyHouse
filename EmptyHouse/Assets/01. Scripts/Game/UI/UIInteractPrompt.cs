@@ -22,6 +22,17 @@ public class UIInteractPrompt : MonoBehaviour
     [SerializeField] private Color activeColor = Color.white;
     [SerializeField] private Color inactiveColor = Color.gray;
 
+    // 직전에 그린 내용. Render 는 매 프레임 호출되므로 실제로 바뀐 프레임에만 위젯을 건드린다.
+    private InteractPromptState renderedState = InteractPromptState.Hidden;
+    private InteractInputMethod renderedInputMethod;
+    private string renderedText;
+
+    /// <summary>프롬프트를 숨긴 상태로 시작해 캐시 초기값(Hidden)과 실제 위젯 상태를 일치시킨다.</summary>
+    private void Awake()
+    {
+        promptRoot.SetActive(false);
+    }
+
     /// <summary>
     /// 프롬프트 정보를 화면에 반영한다. PlayerInteractor 가 매 프레임 호출한다.
     /// Hidden 이면 루트를 끄고, Inactive 면 회색 사유 문구만(입력키 미표기), Active 면 `[키] 행위명` 을 그린다(3-3).
@@ -29,11 +40,34 @@ public class UIInteractPrompt : MonoBehaviour
     /// <param name="info">이번 프레임의 프롬프트 정보.</param>
     public void Render(InteractPromptInfo info)
     {
-        // TODO(impl): Hidden → promptRoot.SetActive(false) 후 return.
-        // TODO(impl): promptRoot.SetActive(true).
-        // TODO(impl): Inactive → promptLabel.color = inactiveColor, text = info.InactiveReason (입력키 절대 붙이지 않는다).
-        // TODO(impl): Active → promptLabel.color = activeColor, text = BuildActiveText(info).
+        string text = info.State == InteractPromptState.Inactive ? info.InactiveReason : info.ActionName;
+
+        // 조준 대상·손에 든 것이 바뀔 때만 갱신한다. 매 프레임 문자열 보간·바인딩 조회를 돌리면 프레임마다 GC 가 쌓인다.
+        if (info.State == renderedState && info.InputMethod == renderedInputMethod && text == renderedText) return;
+
+        renderedState = info.State;
+        renderedInputMethod = info.InputMethod;
+        renderedText = text;
+
         Log.D($"[UIInteractPrompt] Render {info.State}");
+
+        if (info.State == InteractPromptState.Hidden)
+        {
+            promptRoot.SetActive(false);
+            return;
+        }
+
+        promptRoot.SetActive(true);
+
+        if (info.State == InteractPromptState.Inactive)
+        {
+            promptLabel.color = inactiveColor;
+            promptLabel.text = info.InactiveReason; // 비활성은 사유 문구만 — 입력키를 붙이지 않는다(3-3).
+            return;
+        }
+
+        promptLabel.color = activeColor;
+        promptLabel.text = BuildActiveText(info);
     }
 
     /// <summary>
@@ -44,9 +78,12 @@ public class UIInteractPrompt : MonoBehaviour
     /// <returns>화면에 그릴 프롬프트 문자열.</returns>
     private string BuildActiveText(InteractPromptInfo info)
     {
-        // TODO(impl): key = inputReader.GetInteractBindingDisplayString().
-        // TODO(impl): info.InputMethod == Hold ? $"[{key} 홀드] {info.ActionName}" : $"[{key}] {info.ActionName}".
         Log.D($"[UIInteractPrompt] BuildActiveText {info.ActionName}");
-        return default;
+
+        string key = inputReader.GetInteractBindingDisplayString();
+
+        return info.InputMethod == InteractInputMethod.Hold
+            ? $"[{key} Hold] {info.ActionName}"
+            : $"[{key}] {info.ActionName}";
     }
 }
