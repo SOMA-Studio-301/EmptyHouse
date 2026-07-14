@@ -123,20 +123,6 @@ public class PlayerInventory : MonoBehaviour
     }
 
     /// <summary>
-    /// 지정 종류·페어 번호의 아이템이 어느 슬롯에든 있는지 반환한다.
-    /// 자물쇠의 "열쇠를 손에 드세요"(있는데 안 들었다) vs "키가 필요합니다"(아예 없다) 분기(3-6)에 쓴다.
-    /// </summary>
-    /// <param name="kind">찾을 아이템 종류.</param>
-    /// <param name="pairId">페어 번호(NN). 페어 개념이 없는 종류는 0.</param>
-    /// <returns>소지 여부.</returns>
-    public bool Contains(ItemKind kind, int pairId)
-    {
-        // TODO(impl): slots 순회로 kind·pairId 일치 탐색.
-        // 매 프레임(프롬프트 판정) 호출되므로 진입 트레이스를 두지 않는다.
-        return default;
-    }
-
-    /// <summary>
     /// 아이템을 빈 슬롯 1칸에 넣는다 (3-5 회수 규칙 — 전 아이템 공통).
     /// 손에 자동으로 쥐어지지 않는다(4-2 회수 시 자동 장착 금지) — heldIndex 를 건드리지 않는다.
     /// </summary>
@@ -249,10 +235,19 @@ public class PlayerInventory : MonoBehaviour
     /// <summary>
     /// 손에 든 아이템을 사용으로 소멸시킨다 — 자물쇠 개방 시 열쇠(3-6) · 투척 시 투척물(4-3).
     /// 슬롯이 비고 자동 맨손이 된다. 다음 슬롯을 자동 장착하지 않으며(4-2), 버리기와 달리 월드에 아무것도 남기지 않는다.
+    /// 맨손이면 아무것도 하지 않는다.
     /// </summary>
-    private void ConsumeHeld()
+    public void ConsumeHeld()
     {
-        // TODO(impl): 슬롯 Clear + RefreshSlot → PointHand(BareHandIndex). WorldPrefab 스폰 없음(버리기와 다르다).
         Log.D("[PlayerInventory] ConsumeHeld");
+
+        if (IsBareHanded) return;
+
+        // 비운 칸은 제자리에 남는다 — 뒤 칸을 당겨오는 재정렬이 아니다.
+        int index = heldIndex;
+        slots[index].Clear();
+        RefreshSlot(index);
+
+        PointHand(BareHandIndex);
     }
 }
