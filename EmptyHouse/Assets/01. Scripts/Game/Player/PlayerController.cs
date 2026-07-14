@@ -19,6 +19,19 @@ public class PlayerController : NetworkBehaviour
     [Header("Movement")]
     [SerializeField] private float moveSpeed = 3f;
 
+    /// <summary>점프 시작 시 설정할 상승 속도. v²/2g ≈ 1.27m 상승한다.</summary>
+    [Header("Jump")]
+    [SerializeField] private float jumpSpeed = 5f;
+
+    /// <summary>접지 판정 대상 레이어. 인스펙터에서 Ground 만 선택한다.</summary>
+    [SerializeField] private LayerMask groundMask;
+
+    /// <summary>접지 판정 SphereCast 의 반지름. 캡슐 반지름(0.5)보다 작아야 벽 모서리를 바닥으로 오검출하지 않는다.</summary>
+    [SerializeField] private float groundCheckRadius = 0.4f;
+
+    /// <summary>접지 판정 SphereCast 의 거리. 중심→바닥 1.0 - 반지름 0.4 + 여유 0.1.</summary>
+    [SerializeField] private float groundCheckDistance = 0.7f;
+
     [Header("Ownership-gated")]
     [SerializeField] private PlayerInteractor interactor;
 
@@ -33,6 +46,9 @@ public class PlayerController : NetworkBehaviour
     // 입력 캐시 — 콜백이 쓰고 Update/FixedUpdate 가 읽는다.
     private Vector2 moveInput;
     private Vector2 lookInput;
+
+    // 점프 요청 — 입력 콜백이 세우고 FixedUpdate 의 HandleJump 가 소비한다.
+    private bool jumpRequested;
 
     // 시선 상태 — pitch 는 cameraPivot 의 로컬 X, yaw 는 본체의 Y 회전.
     private float pitch;
@@ -57,6 +73,7 @@ public class PlayerController : NetworkBehaviour
 
         inputReader.MoveEvent += OnMoveInput;
         inputReader.LookEvent += OnLookInput;
+        inputReader.JumpEvent += OnJumpInput;
         inputReader.AttackEvent += OnAttackInput;
         inputReader.AttackCanceledEvent += OnAttackCanceledInput;
 
@@ -74,6 +91,7 @@ public class PlayerController : NetworkBehaviour
 
         inputReader.MoveEvent -= OnMoveInput;
         inputReader.LookEvent -= OnLookInput;
+        inputReader.JumpEvent -= OnJumpInput;
         inputReader.AttackEvent -= OnAttackInput;
         inputReader.AttackCanceledEvent -= OnAttackCanceledInput;
 
@@ -90,12 +108,16 @@ public class PlayerController : NetworkBehaviour
         HandleLook();
     }
 
-    /// <summary>물리 스텝마다 이동을 처리한다. Rigidbody 기반이므로 FixedUpdate 에서 처리한다.</summary>
+    /// <summary>
+    /// 물리 스텝마다 이동과 점프를 처리한다. Rigidbody 기반이므로 FixedUpdate 에서 처리한다.
+    /// HandleMove 가 Y 속도를 보존하므로, 점프를 그 뒤에 두어야 상승 속도가 덮어써지지 않는다.
+    /// </summary>
     private void FixedUpdate()
     {
         if (!IsOwner) return;
 
         HandleMove();
+        HandleJump();
     }
 
     // ── 입력 콜백 — 캐시 갱신만 한다 ────────────────────────────
@@ -114,6 +136,15 @@ public class PlayerController : NetworkBehaviour
     private void OnLookInput(Vector2 value)
     {
         lookInput = value;
+    }
+
+    /// <summary>
+    /// 점프 입력을 캐시한다. 실제 물리 처리는 FixedUpdate 의 HandleJump 가 맡는다.
+    /// 입력 콜백은 물리 스텝과 타이밍이 다르므로 여기서 직접 속도를 건드리지 않는다.
+    /// </summary>
+    private void OnJumpInput()
+    {
+        jumpRequested = true;
     }
 
     /// <summary>공격 입력을 받아 공격 처리를 호출한다.</summary>
@@ -159,6 +190,41 @@ public class PlayerController : NetworkBehaviour
         Vector3 dir = transform.right * moveInput.x + transform.forward * moveInput.y;
         Vector3 v = dir.normalized * moveSpeed;
         body.linearVelocity = new Vector3(v.x, body.linearVelocity.y, v.z);
+    }
+
+    /// <summary>
+    /// 점프 요청이 있고 접지 상태라면 Y 속도를 jumpSpeed 로 설정해 띄움
+    /// 요청은 접지 성공/실패와 무관하게 이번 스텝에 소비
+    /// 남겨 두면 공중에서 누른 입력이 착지하는 순간 발동해 의도치 않은 점프가 튀는걸 방지
+    /// </summary>
+    private void HandleJump()
+    {
+        if (!jumpRequested) return;
+        jumpRequested = false;
+
+        if (!IsGrounded()) return;
+
+        Vector3 v = body.linearVelocity;
+        body.linearVelocity = new Vector3(v.x, jumpSpeed, v.z);
+
+        // TODO: 점프·착지 소음 이벤트 발행 (소음 시스템 미구현 — 기획서 '행위 기반 소음')
+    }
+
+    /// <summary>
+    /// 캡슐 중심에서 아래로 SphereCast 해 접지 여부를 판정한다.
+    /// Player 는 Default, 바닥은 Ground 레이어이므로 groundMask 로 자기 자신은 걸러진다.
+    /// </summary>
+    /// <returns>발밑 groundCheckDistance 안에 groundMask 콜라이더가 있으면 true.</returns>
+    private bool IsGrounded()
+    {
+        return Physics.SphereCast(
+            transform.position,
+            groundCheckRadius,
+            Vector3.down,
+            out _,
+            groundCheckDistance,
+            groundMask,
+            QueryTriggerInteraction.Ignore);
     }
 
     /// <summary>카메라 전방으로 Raycast 해 상호작용 대상을 찾는다.</summary>
