@@ -7,6 +7,9 @@ using UnityEngine;
 /// </summary>
 public abstract class InteractableBase : MonoBehaviour
 {
+    [Header("Event Channels")]
+    [SerializeField] private NoiseEventChannelSO noiseEmittedChannel;
+
     /// <summary>입력 방식. Tap/Hold 여부에 따라 PlayerInteractor가 입력을 라우팅한다.</summary>
     public abstract InteractInputMethod InputMethod { get; }
 
@@ -38,7 +41,13 @@ public abstract class InteractableBase : MonoBehaviour
     /// <param name="noiseDb">발행할 소음 강도(dB).</param>
     protected void RaiseNoise(float noiseDb)
     {
-        // TODO(impl): 소음 이벤트 채널(발생 위치=transform.position, 강도=noiseDb, 발생원=this)로 1회 발행.
+        if (noiseEmittedChannel == null)
+        {
+            Debug.LogError($"[{nameof(InteractableBase)}] Noise channel is not assigned on {name}.", this);
+            return;
+        }
+
+        noiseEmittedChannel.RaiseEvent(new NoiseEvent(transform.position, noiseDb, gameObject));
         Log.D($"[InteractableBase] RaiseNoise {noiseDb}dB from {name}");
     }
 }

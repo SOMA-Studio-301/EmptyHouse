@@ -17,7 +17,7 @@ public class PlayerController : NetworkBehaviour
     [SerializeField] private float pitchClamp = 89f;
 
     [Header("Movement")]
-    [SerializeField] private float moveSpeed = 5f;
+    [SerializeField] private float moveSpeed = 3f;
 
     [Header("Ownership-gated")]
     [SerializeField] private PlayerInteractor interactor;

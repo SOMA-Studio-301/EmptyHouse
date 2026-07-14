@@ -33,7 +33,7 @@ public class ItemDataSO : ScriptableObject
     public string PickupVerb = "회수";
 
     [Tooltip("회수 실행 시 발행할 소음(dB) ⚪")]
-    public float PickupNoiseDb = 5f;
+    public float PickupNoiseDb = 12f;
 
     [Header("월드 복원")]
     [Tooltip("G 버리기 · 열쇠 소지자 사망 드롭 시 스폰할 픽업 프리팹")]

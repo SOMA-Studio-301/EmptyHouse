@@ -1,0 +1,58 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 72758d1e2a1f67d45a909bfce553e820, type: 3}
+  m_Name: SO_Zombie_Listener
+  m_EditorClassIdentifier: Assembly-CSharp::ZombieDataSO
+  ZombieType: 1
+  VisionAngle: 90
+  VisionDistance: 10
+  VisInstantRange: 5
+  VisGainBase: 25
+  VisDistNear: 2
+  VisDistFar: 0.5
+  VisFront: 1.5
+  VisLightBright: 1.3
+  VisLightDark: 0.7
+  VisLightFlashlight: 1.8
+  VisPoseWalk: 1
+  VisPoseCrouch: 0.6
+  VisPoseIdle: 0.4
+  HearMinDb: 30
+  HearDetectDb: 60
+  HearFloor: 60
+  HearingStimulusSeconds: 0.5
+  SoundFalloffDbPerMeter: 1.5
+  DefaultWallOcclusionDb: 20
+  WanderSpeed: 1.2
+  PatrolRadius: 5
+  PatrolSampleAttempts: 12
+  AlertSpeed: 0
+  InvestigateBaseSpeed: 1.6
+  InvestigateCapSpeed: 3.5
+  InvestigateDbToSpeed: 0.05
+  ChaseSpeed: 3
+  SubsideSpeed: 1.2
+  TurnSpeedDegreesPerSecond: 120
+  TurnDeadZoneDegrees: 8
+  DestinationRefreshDistance: 0.3
+  AttackRange: 1.5
+  AttackWindupSeconds: 0.3
+  AlertMotionSeconds: 0.5
+  ChaseToInvestigateSeconds: 2
+  AttackLockSeconds: 5
+  InvestigateToWanderSeconds: 5
+  SuspicionGraceSeconds: 1.5
+  WatcherBlindRecoverySeconds: 1
+  ThAlert: 30
+  ThInvestigate: 60
+  CoolRate: 8
+  SyncRadius: 15
