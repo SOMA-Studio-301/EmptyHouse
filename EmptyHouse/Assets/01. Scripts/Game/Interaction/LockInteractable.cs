@@ -1,5 +1,6 @@
 using System.Collections;
 using Border.Core;
+using Border.Localization;
 using UnityEngine;
 
 /// <summary>
@@ -10,10 +11,6 @@ using UnityEngine;
 /// </summary>
 public class LockInteractable : SingleClickInteractableBase
 {
-    // TODO: Localization 으로 대체해야 함. 지금은 하드 코딩
-    private const string OpenVerb = "Open"; // 손에 짝맞는 열쇠를 들었을 때의 활성 프롬프트 행위명
-    private const string NeedsKeyReason = "Needs Key"; // 손에 짝맞는 열쇠가 없을 때의 비활성 사유 문구
-
     [Header("Pairing")]
     [SerializeField] private int pairId;
 
@@ -22,6 +19,10 @@ public class LockInteractable : SingleClickInteractableBase
 
     [Header("Noise")]
     [SerializeField] private float openNoiseDb = 45f; // 3-10 lock_open_noise_db ⚪
+
+    [Header("Localization")]
+    [LocalizeKey][SerializeField] private string openVerbKey = "INT_PROMPT_OPEN"; // 손에 짝맞는 열쇠를 들었을 때의 활성 프롬프트 행위명
+    [LocalizeKey][SerializeField] private string needsKeyReasonKey = "INT_MSG_KEY_REQUIRED"; // 손에 짝맞는 열쇠가 없을 때의 비활성 사유
 
     private bool isOpening;
     private bool isOpened;
@@ -45,10 +46,10 @@ public class LockInteractable : SingleClickInteractableBase
 
         if (!HasMatchingKeyInHand(interactor))
         {
-            return new InteractPromptInfo(InteractPromptState.Inactive, null, InteractInputMethod.Tap, 0f, NeedsKeyReason);
+            return new InteractPromptInfo(InteractPromptState.Inactive, null, InteractInputMethod.Tap, 0f, needsKeyReasonKey);
         }
 
-        return new InteractPromptInfo(InteractPromptState.Active, OpenVerb, InteractInputMethod.Tap, 0f, null);
+        return new InteractPromptInfo(InteractPromptState.Active, openVerbKey, InteractInputMethod.Tap, 0f, null);
     }
 
     /// <summary>손에 든 것이 이 자물쇠와 짝맞는 열쇠(Key · PairId 일치)인지 판정한다. 맨손이면 false.</summary>

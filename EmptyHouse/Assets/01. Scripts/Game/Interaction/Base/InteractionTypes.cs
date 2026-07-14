@@ -21,36 +21,37 @@ public enum InteractInputMethod
 /// <summary>
 /// Interactable이 매 프레임 UI에 보고하는 프롬프트 정보
 /// UI는 이 값을 그대로 그릴 뿐, 대상 타입으로 분기하지 않는다.
+/// 문구는 완성된 문자열이 아니라 로컬라이즈 키로 오간다 — 번역은 UI(UILocalizeText)가 한다.
 /// </summary>
 public readonly struct InteractPromptInfo
 {
     /// <summary>표시 상태.</summary>
     public readonly InteractPromptState State;
 
-    /// <summary>행위명. 예: "회수", "열기", "분장 도포".</summary>
-    public readonly string ActionName;
+    /// <summary>행위명의 로컬라이즈 키. 예: INT_PROMPT_COLLECT, INT_PROMPT_OPEN.</summary>
+    public readonly string ActionKey;
 
-    /// <summary>입력 방식. UI가 "[E]" 또는 "[E 홀드]" 접두사를 구성하는 데 쓴다.</summary>
+    /// <summary>입력 방식. UI가 입력키 뒤에 "홀드"를 덧붙일지 판단하는 데 쓴다.</summary>
     public readonly InteractInputMethod InputMethod;
 
     /// <summary>홀드 입력일 때 필요한 유지 시간(초). Tap이면 의미 없음(0).</summary>
     public readonly float HoldDurationSeconds;
 
-    /// <summary>비활성 사유 문구. State가 Inactive일 때만 사용한다. 입력키를 표기하지 않는다.</summary>
-    public readonly string InactiveReason;
+    /// <summary>비활성 사유 문구의 로컬라이즈 키. State가 Inactive일 때만 사용한다. 입력키를 표기하지 않는다.</summary>
+    public readonly string InactiveReasonKey;
 
     /// <summary>모든 필드를 지정해 프롬프트 정보를 생성한다.</summary>
     /// <param name="state">표시 상태.</param>
-    /// <param name="actionName">행위명.</param>
+    /// <param name="actionKey">행위명 로컬라이즈 키.</param>
     /// <param name="inputMethod">입력 방식.</param>
     /// <param name="holdDurationSeconds">홀드 유지 시간(초).</param>
-    /// <param name="inactiveReason">비활성 사유 문구.</param>
-    public InteractPromptInfo(InteractPromptState state, string actionName, InteractInputMethod inputMethod, float holdDurationSeconds, string inactiveReason)
+    /// <param name="inactiveReasonKey">비활성 사유 로컬라이즈 키.</param>
+    public InteractPromptInfo(InteractPromptState state, string actionKey, InteractInputMethod inputMethod, float holdDurationSeconds, string inactiveReasonKey)
     {
         State = state;
-        ActionName = actionName;
+        ActionKey = actionKey;
         InputMethod = inputMethod;
         HoldDurationSeconds = holdDurationSeconds;
-        InactiveReason = inactiveReason;
+        InactiveReasonKey = inactiveReasonKey;
     }
 }

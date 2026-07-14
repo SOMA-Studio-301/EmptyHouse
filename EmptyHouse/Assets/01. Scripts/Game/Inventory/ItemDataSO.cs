@@ -1,3 +1,4 @@
+using Border.Localization;
 using UnityEngine;
 
 /// <summary> 인벤토리 슬롯에 들어가는 아이템의 종류 </summary>
@@ -18,8 +19,8 @@ public enum ItemKind
 public class ItemDataSO : ScriptableObject
 {
     [Header("표시")]
-    [Tooltip("아이템 표시 이름")]
-    public string ItemName;
+    [Tooltip("아이템 표시 이름의 로컬라이즈 키")]
+    [LocalizeKey] public string NameKey;
 
     [Tooltip("HUD 인벤 3칸 표시용 아이콘(5장)")]
     public Sprite Icon;
@@ -29,8 +30,8 @@ public class ItemDataSO : ScriptableObject
     public ItemKind Kind;
 
     [Header("회수 (3-5)")]
-    [Tooltip("활성 프롬프트 행위명 — \"회수\" / \"줍기\" / \"적재\"")]
-    public string PickupVerb = "회수";
+    [Tooltip("활성 프롬프트 행위명의 로컬라이즈 키 — INT_PROMPT_COLLECT / INT_PROMPT_PICKUP / INT_PROMPT_LOAD")]
+    [LocalizeKey] public string PickupVerbKey = "INT_PROMPT_COLLECT";
 
     [Tooltip("회수 실행 시 발행할 소음(dB) ⚪")]
     public float PickupNoiseDb = 12f;

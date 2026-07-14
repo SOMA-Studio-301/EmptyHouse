@@ -12,9 +12,9 @@ GameObject:
   - component: {fileID: 3359024919400448815}
   - component: {fileID: 7583060048871582539}
   - component: {fileID: 5194508736754871802}
-  - component: {fileID: 3377332929086532804}
+  - component: {fileID: 1867735232260157366}
   m_Layer: 3
-  m_Name: Lock
+  m_Name: Fuel
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
@@ -113,7 +113,7 @@ MeshRenderer:
   m_SortingOrder: 0
   m_MaskInteraction: 0
   m_AdditionalVertexStreams: {fileID: 0}
---- !u!114 &3377332929086532804
+--- !u!114 &1867735232260157366
 MonoBehaviour:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
@@ -122,12 +122,10 @@ MonoBehaviour:
   m_GameObject: {fileID: 1829482273108571828}
   m_Enabled: 1
   m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: f25af624bccc5b047943561a675ddd03, type: 3}
+  m_Script: {fileID: 11500000, guid: 054c950a9060b6a46aa8d5ade1c82951, type: 3}
   m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::LockInteractable
+  m_EditorClassIdentifier: Assembly-CSharp::OilPickupInteractable
   noiseEmittedChannel: {fileID: 11400000, guid: f111c98f693a4db2a3f3c6e413c19f11, type: 2}
-  pairId: 0
-  openAnimationSeconds: 0.8
-  openNoiseDb: 45
-  openVerbKey: INT_PROMPT_OPEN
-  needsKeyReasonKey: INT_MSG_KEY_REQUIRED
+  itemData: {fileID: 11400000, guid: ef17ac12073198841a50b5c9b03ef982, type: 2}
+  holdSeconds: 2
+  inventoryFullReasonKey: INT_MSG_INVENTORY_FULL

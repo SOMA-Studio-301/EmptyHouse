@@ -18,6 +18,7 @@ public class PlayerInteractor : MonoBehaviour
 
     [Header("UI")]
     [SerializeField] private UIInteractPrompt promptUI;
+    [SerializeField] private UIHoldGauge holdGaugeUI;
 
     [Header("Raycast")]
     [SerializeField] private Transform rayOrigin;
@@ -38,6 +39,9 @@ public class PlayerInteractor : MonoBehaviour
 
     private InteractableBase currentCandidate;
 
+    // 지금 진행 중인 홀드 대상. null 이면 홀드 중이 아니다. 취소 경로(버튼 해제·이동·조준 이탈)가 공유하는 단일 참조다.
+    private HoldInteractableBase activeHold;
+
     // 후보가 없을 때 쓰는 불변 프롬프트. 매 프레임 struct 를 새로 만들 이유가 없다.
     private static readonly InteractPromptInfo HiddenPrompt =
         new InteractPromptInfo(InteractPromptState.Hidden, null, InteractInputMethod.Tap, 0f, null);
@@ -51,11 +55,15 @@ public class PlayerInteractor : MonoBehaviour
     /// </summary>
     public PlayerInventory Inventory => inventory;
 
-    /// <summary>입력 이벤트 구독을 시작한다.</summary>
+    /// <summary>진행 중인 홀드의 진행률(0~1). 홀드 중이 아니거나 대상이 소멸했으면 0이다. 조준선 게이지가 이 값을 그린다.</summary>
+    public float HoldProgress01 => activeHold == null ? 0f : activeHold.Progress01;
+
+    /// <summary>입력 이벤트 구독을 시작한다. 이동 입력은 홀드 취소 조건이라 함께 구독한다(3-7).</summary>
     private void OnEnable()
     {
         inputReader.InteractPressedEvent += OnInteractPressed;
         inputReader.InteractCanceledEvent += OnInteractCanceled;
+        inputReader.MoveEvent += OnMove;
     }
 
     /// <summary>입력 이벤트 구독을 해제한다.</summary>
@@ -63,6 +71,7 @@ public class PlayerInteractor : MonoBehaviour
     {
         inputReader.InteractPressedEvent -= OnInteractPressed;
         inputReader.InteractCanceledEvent -= OnInteractCanceled;
+        inputReader.MoveEvent -= OnMove;
     }
 
     /// <summary>
@@ -78,7 +87,30 @@ public class PlayerInteractor : MonoBehaviour
         currentCandidate = FindCandidate();
         CurrentPromptInfo = currentCandidate == null ? HiddenPrompt : currentCandidate.GetPromptInfo(this);
 
+        SyncActiveHold();
+
         promptUI.Render(CurrentPromptInfo);
+        holdGaugeUI.Render(HoldProgress01);
+    }
+
+    /// <summary>
+    /// 진행 중인 홀드를 이번 프레임의 후보와 맞춘다. 완료·소멸했으면 참조를 놓고,
+    /// 조준이 대상에서 벗어났으면 취소한다 — 벽 뒤·사거리 밖을 보면서 게이지가 차오르는 것을 막는다.
+    /// </summary>
+    private void SyncActiveHold()
+    {
+        if (activeHold == null) return; // Destroy 된 대상도 Unity 의 == 오버로드로 여기서 걸린다(기름 회수 완료).
+
+        // 대상이 스스로 완료·초기화했으면(진행 상태 종료) 참조만 놓는다 — CancelHold 를 다시 부를 필요가 없다.
+        if (!activeHold.IsHolding)
+        {
+            activeHold = null;
+            return;
+        }
+
+        if (currentCandidate == activeHold) return;
+
+        CancelActiveHold();
     }
 
     /// <summary>
@@ -123,7 +155,6 @@ public class PlayerInteractor : MonoBehaviour
     /// </summary>
     private void OnInteractPressed()
     {
-        // TODO(impl): InputMethod==Hold → (HoldInteractableBase)currentCandidate 로 BeginHold(this).
         Log.D("[PlayerInteractor] Interact pressed");
 
         if (currentCandidate == null) return;
@@ -137,7 +168,11 @@ public class PlayerInteractor : MonoBehaviour
         if (currentCandidate.InputMethod == InteractInputMethod.Tap)
         {
             ((SingleClickInteractableBase)currentCandidate).TryActivate(this);
+            return;
         }
+
+        activeHold = (HoldInteractableBase)currentCandidate;
+        activeHold.BeginHold(this);
     }
 
     /// <summary>
@@ -145,8 +180,30 @@ public class PlayerInteractor : MonoBehaviour
     /// </summary>
     private void OnInteractCanceled()
     {
-        // TODO(impl): currentCandidate가 HoldInteractableBase 이고 진행 중이면 CancelHold().
         Log.D("[PlayerInteractor] Interact canceled");
+
+        CancelActiveHold();
+    }
+
+    /// <summary>
+    /// 이동 입력 콜백. 홀드 중 이동은 취소 조건이다(3-7: 홀드 중 이동 불가 = 취약 구간).
+    /// 입력이 끊길 때도 zero 로 한 번 들어오므로 실제 입력값이 있을 때만 취소한다.
+    /// </summary>
+    /// <param name="move">이번에 갱신된 이동 입력값.</param>
+    private void OnMove(Vector2 move)
+    {
+        if (move.sqrMagnitude <= 0f) return;
+
+        CancelActiveHold();
+    }
+
+    /// <summary>진행 중인 홀드가 있으면 취소하고 참조를 놓는다. 진행도는 저장하지 않는다(3-7).</summary>
+    private void CancelActiveHold()
+    {
+        if (activeHold == null) return;
+
+        activeHold.CancelHold();
+        activeHold = null;
     }
 
     /// <summary>

@@ -131,7 +131,7 @@ public class PlayerInventory : MonoBehaviour
     /// <returns>획득 성공 여부. 만재면 false(E8: 가방이 가득 찼습니다).</returns>
     public bool TryAdd(ItemDataSO item, int pairId)
     {
-        Log.D($"[PlayerInventory] TryAdd {item.ItemName} pairId={pairId}");
+        Log.D($"[PlayerInventory] TryAdd {item.NameKey} pairId={pairId}");
 
         int index = FindEmptySlotIndex();
         if (index < 0) return false;
