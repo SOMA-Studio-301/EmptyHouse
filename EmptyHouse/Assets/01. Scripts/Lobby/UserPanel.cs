@@ -1,7 +1,8 @@
 using System;
+using Border.Core;
 using UnityEngine;
 using UnityEngine.UI;
-using Steamworks; // ★ 스팀 API 사용을 위해 추가
+using Steamworks;
 
 public class UserPanel : MonoBehaviour
 {
@@ -14,6 +15,11 @@ public class UserPanel : MonoBehaviour
     [SerializeField] private Text hostText;
     [SerializeField] private Text readyText;
     [SerializeField] private RawImage avatarImage;     // ★ 아바타를 그릴 RawImage 컴포넌트
+    [SerializeField] private Button slotButton;
+    private Texture2D runtimeAvatarTexture;
+    private string currentSteamId;
+
+    public Button SlotButton => slotButton;
 
     // 1. 유저가 존재할 때 호출되는 함수
     public void SetPlayerInfo(string playerName, bool isHost, bool isReady, string steamId)
@@ -37,46 +43,36 @@ public class UserPanel : MonoBehaviour
         // 패널 활성화 스위칭
         if (blankContent != null) blankContent.SetActive(true);
         if (userContent != null) userContent.SetActive(false);
+        currentSteamId = null;
+        SetAvatarTexture(null);
     }
 
     // ★ [추가] 스팀 ID를 기반으로 아바타 텍스처를 불러와 처리하는 함수
     private void LoadSteamAvatar(string steamIdString)
     {
         if (avatarImage == null) return;
+        if (currentSteamId == steamIdString && runtimeAvatarTexture != null) return;
+        currentSteamId = steamIdString;
 
-        // 스팀이 안 켜져 있거나 SteamID 데이터가 비어있다면 리턴
-        if (!SteamManager.Initialized || string.IsNullOrEmpty(steamIdString))
+        if (!SteamManager.Initialized || !ulong.TryParse(steamIdString, out ulong steamIdValue))
         {
-            avatarImage.texture = null;
+            SetAvatarTexture(null);
             return;
         }
 
         try
         {
-            // string 형태의 SteamID를 ulong으로 파싱 후 CSteamID 객체 생성
-            if (ulong.TryParse(steamIdString, out ulong steamIdValue))
-            {
-                CSteamID cSteamID = new CSteamID(steamIdValue);
-                
-                // 중간 사이즈(64x64) 아바타 핸들러 ID를 가져옴 (큰 사이즈를 원하면 GetLargeFriendAvatar 사용)
-                int avatarHandle = SteamFriends.GetMediumFriendAvatar(cSteamID);
-                
-                // 아바타 이미지를 성공적으로 가져왔다면 텍스트 적용
-                Texture2D avatarTexture = GetSteamAvatarTexture(avatarHandle);
-                if (avatarTexture != null)
-                {
-                    avatarImage.texture = avatarTexture;
-                }
-            }
+            int avatarHandle = SteamFriends.GetMediumFriendAvatar(new CSteamID(steamIdValue));
+            SetAvatarTexture(CreateSteamAvatarTexture(avatarHandle));
         }
         catch (Exception e)
         {
-            Debug.LogError($"[UserPanel] 아바타 로딩 중 예외 발생: {e.Message}");
+            SetAvatarTexture(null);
+            Log.E($"[UserPanel] 아바타 로딩 중 예외 발생: {e.Message}", this);
         }
     }
 
-    // ★ [추가] 스팀 이미지 핸들러 ID를 유니티 Texture2D로 변환하는 헬퍼 함수
-    private Texture2D GetSteamAvatarTexture(int avatarHandle)
+    private static Texture2D CreateSteamAvatarTexture(int avatarHandle)
     {
         // 핸들러 ID가 0 이하이거나 이미지 사이즈를 가져오지 못하면 실패
         if (avatarHandle <= 0) return null;
@@ -105,4 +101,17 @@ public class UserPanel : MonoBehaviour
         }
         return null;
     }
+
+    private void SetAvatarTexture(Texture2D texture)
+    {
+        if (runtimeAvatarTexture != null && runtimeAvatarTexture != texture)
+        {
+            Destroy(runtimeAvatarTexture);
+        }
+
+        runtimeAvatarTexture = texture;
+        if (avatarImage != null) avatarImage.texture = texture;
+    }
+
+    private void OnDestroy() => SetAvatarTexture(null);
 }

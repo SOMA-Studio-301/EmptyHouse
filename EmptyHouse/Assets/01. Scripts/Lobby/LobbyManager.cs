@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
+using Border.Core;
 using Steamworks;
 using Unity.Services.Authentication;
 using UnityEngine;
@@ -12,6 +13,11 @@ using Unity.Services.Lobbies.Models;
 
 public class LobbyManager : MonoBehaviour
 {
+    private const string PasswordDataKey = "Password";
+    private const string PlayerNameDataKey = "PlayerName";
+    private const string SteamIdDataKey = "SteamID";
+    private const float HeartbeatIntervalSeconds = 15f;
+
     [Header("NAVIGATION UI")]
     [SerializeField] private GameObject createPanel;          // 방 만들기 입력 팝업/패널
     [SerializeField] private Button openCreatePanelButton;    // Lobby화면에서 Create창을 여는 버튼
@@ -26,7 +32,7 @@ public class LobbyManager : MonoBehaviour
 
     [Header("JOIN Tab UI")]
     [SerializeField] private Transform lobbyListContainer;
-    [SerializeField] private GameObject lobbyListCellPrefab;
+    [SerializeField] private LobbyListCell lobbyListCellPrefab;
     [SerializeField] private TMP_InputField joinLobbyPasswordInput; // ★ [마이그레이션] TMP
     [SerializeField] private Button refreshButton;             // ★ [추가] 로비 리스트 새로고침 버튼
 
@@ -60,17 +66,9 @@ public class LobbyManager : MonoBehaviour
     
     private async void Start()
     {
-        LoadForbiddenWords(); // ★ [추가] 금칙어 CSV 로드
-
-        await InitializeUnityServices();
+        LoadForbiddenWords();
         SetupUI();
-        
-        if (passwordToggle != null && createLobbyPasswordInput != null)
-        {
-            passwordToggle.onValueChanged.RemoveAllListeners();
-            passwordToggle.onValueChanged.AddListener(OnPasswordToggleChanged);
-            createLobbyPasswordInput.gameObject.SetActive(passwordToggle.isOn);
-        }
+        await InitializeUnityServices();
     }
     
     private void OnPasswordToggleChanged(bool isOn)
@@ -78,7 +76,7 @@ public class LobbyManager : MonoBehaviour
         if (createLobbyPasswordInput != null)
         {
             createLobbyPasswordInput.gameObject.SetActive(isOn);
-            Debug.Log($"[LOBBY] 비밀번호 방 설정 토글 변경: {isOn}");
+            Log.D($"[LOBBY] 비밀번호 방 설정 토글 변경: {isOn}");
         }
     }
 
@@ -100,35 +98,35 @@ public class LobbyManager : MonoBehaviour
     {
         try
         {
-            Debug.Log("[INIT] Initializing Unity Services...");
+            Log.D("[INIT] Initializing Unity Services...");
             await UnityServices.InitializeAsync();
-            Debug.Log("[INIT] Unity Services initialized successfully");
+            Log.D("[INIT] Unity Services initialized successfully");
 
             if (!AuthenticationService.Instance.IsSignedIn)
             {
-                Debug.Log("[INIT] Signing in anonymously...");
+                Log.D("[INIT] Signing in anonymously...");
                 await AuthenticationService.Instance.SignInAnonymouslyAsync();
-                Debug.Log($"[INIT] Signed in as: {AuthenticationService.Instance.PlayerId}");
+                Log.D($"[INIT] Signed in as: {AuthenticationService.Instance.PlayerId}");
             }
             else
             {
-                Debug.Log($"[INIT] Already signed in as: {AuthenticationService.Instance.PlayerId}");
+                Log.D($"[INIT] Already signed in as: {AuthenticationService.Instance.PlayerId}");
             }
             
             if (SteamManager.Initialized)
             {
                 playerName = SteamFriends.GetPersonaName();
-                Debug.Log($"[STEAM] 스팀 닉네임 적용 완료: {playerName}");
+                Log.D($"[STEAM] 스팀 닉네임 적용 완료: {playerName}");
             }
             
-            Debug.Log("[INIT] Loading initial lobby list...");
+            Log.D("[INIT] Loading initial lobby list...");
             await RefreshLobbyList();
             
             nextRefreshTime = Time.time + lobbyRefreshInterval;
         }
         catch (Exception e)
         {
-            Debug.LogError($"[ERROR] Failed to initialize Unity Services: {e.Message}");
+            Log.E($"[ERROR] Failed to initialize Unity Services: {e.Message}", this);
         }
     }
 
@@ -143,7 +141,7 @@ public class LobbyManager : MonoBehaviour
 
         if (forbiddenWordsCsv == null)
         {
-            Debug.LogWarning("[FILTER] 금칙어 CSV 파일이 할당되지 않았습니다. 필터링이 동작하지 않습니다.");
+            Log.W("[FILTER] 금칙어 CSV 파일이 할당되지 않았습니다. 필터링이 동작하지 않습니다.", this);
             return;
         }
 
@@ -161,7 +159,7 @@ public class LobbyManager : MonoBehaviour
             }
         }
 
-        Debug.Log($"[FILTER] 금칙어 {forbiddenWords.Count}개 로드 완료");
+        Log.D($"[FILTER] 금칙어 {forbiddenWords.Count}개 로드 완료");
     }
 
     // 대상 텍스트에 금칙어가 포함되어 있는지 검사 (부분 일치, 대소문자 무시)
@@ -234,6 +232,13 @@ public class LobbyManager : MonoBehaviour
             refreshButton.onClick.AddListener(() => _ = OnRefreshButtonClicked());
         }
 
+        if (passwordToggle != null)
+        {
+            passwordToggle.onValueChanged.RemoveAllListeners();
+            passwordToggle.onValueChanged.AddListener(OnPasswordToggleChanged);
+            OnPasswordToggleChanged(passwordToggle.isOn);
+        }
+
         // 초기 상태 패널 상태 비활성화 정돈
         HideCreatePanel();
         if (privateJoinContent != null) privateJoinContent.SetActive(false);
@@ -273,7 +278,7 @@ public class LobbyManager : MonoBehaviour
         if (popupPasswordInput != null) popupPasswordInput.text = "";
         if (passwordWarningLabel != null) passwordWarningLabel.SetActive(false);
         if (privateJoinContent != null) privateJoinContent.SetActive(false);
-        Debug.Log("[JOIN] 비밀번호 입력창을 닫았습니다.");
+        Log.D("[JOIN] 비밀번호 입력창을 닫았습니다.");
     }
 
     // 방에서 나가거나 초기화될 때 UI 상태를 깔끔하게 청소하는 헬퍼 함수
@@ -315,16 +320,16 @@ public class LobbyManager : MonoBehaviour
 
         try
         {
-            Debug.Log("[REFRESH] Querying lobbies...");
+            Log.D("[REFRESH] Querying lobbies...");
             QueryResponse queryResponse = await LobbyService.Instance.QueryLobbiesAsync();
             availableLobbies = queryResponse.Results;
-            Debug.Log($"[REFRESH] Found {availableLobbies.Count} lobbies");
+            Log.D($"[REFRESH] Found {availableLobbies.Count} lobbies");
 
             UpdateLobbyListUI();
         }
         catch (Exception e)
         {
-            Debug.LogError($"[ERROR] Failed to refresh lobby list: {e.Message}");
+            Log.E($"[ERROR] Failed to refresh lobby list: {e.Message}", this);
         }
         finally
         {
@@ -380,13 +385,8 @@ public class LobbyManager : MonoBehaviour
 
         foreach (Lobby lobby in availableLobbies)
         {
-            GameObject cellObj = Instantiate(lobbyListCellPrefab, lobbyListContainer);
-            LobbyListCell cell = cellObj.GetComponent<LobbyListCell>();
-
-            if (cell != null)
-            {
-                cell.SetLobbyInfo(lobby, OnLobbyListJoinClicked);
-            }
+            LobbyListCell cell = Instantiate(lobbyListCellPrefab, lobbyListContainer);
+            cell.SetLobbyInfo(lobby, OnLobbyListJoinClicked);
         }
     }
 
@@ -394,9 +394,9 @@ public class LobbyManager : MonoBehaviour
     private void OnLobbyListJoinClicked(Lobby lobby)
     {
         // 로비에 비밀번호가 설정되어 있는 경우
-        if (lobby.Data != null && lobby.Data.ContainsKey("Password"))
+        if (lobby.Data != null && lobby.Data.ContainsKey(PasswordDataKey))
         {
-            Debug.Log($"[JOIN] '{lobby.Name}' 방은 비밀번호 방입니다. 입력 팝업창을 엽니다.");
+            Log.D($"[JOIN] '{lobby.Name}' 방은 비밀번호 방입니다. 입력 팝업창을 엽니다.");
             selectedLobbyIdForPopup = lobby.Id; // 대상 방 ID 보관
 
             // ★ [수정] 팝업 패널 SetActive 전에 포커스된 입력창을 먼저 해제 (caret 인덱스 손상 방지)
@@ -409,7 +409,7 @@ public class LobbyManager : MonoBehaviour
         else
         {
             // 비밀번호가 없는 일반 공개 방인 경우 -> 패스워드 없이 다이렉트 조인 시도
-            Debug.Log($"[JOIN] '{lobby.Name}' 방은 공개 방입니다. 즉시 입장을 시도합니다.");
+            Log.D($"[JOIN] '{lobby.Name}' 방은 공개 방입니다. 즉시 입장을 시도합니다.");
             _ = JoinLobbyById(lobby.Id, "");
         }
     }
@@ -434,14 +434,14 @@ public class LobbyManager : MonoBehaviour
 
         if (string.IsNullOrEmpty(lobbyName))
         {
-            Debug.LogWarning("Lobby name cannot be empty!");
+            Log.W("Lobby name cannot be empty!", this);
             return;
         }
 
         // ★ [추가] 금칙어 검사 - 걸리면 방 생성 자체를 막는다
         if (ContainsForbiddenWord(lobbyName, out string matchedWord))
         {
-            Debug.LogWarning($"[CREATE] 방 제목에 금칙어가 포함되어 있어 생성이 차단되었습니다: '{matchedWord}'");
+            Log.W($"[CREATE] 방 제목에 금칙어가 포함되어 있어 생성이 차단되었습니다: '{matchedWord}'", this);
 
             // ★ [마이그레이션] 경고 UI(SetActive) 켜기 전에 입력창 포커스를 먼저 해제 (안전 습관 유지)
             if (createLobbyNameInput != null) createLobbyNameInput.DeactivateInputField();
@@ -459,20 +459,13 @@ public class LobbyManager : MonoBehaviour
             CreateLobbyOptions options = new CreateLobbyOptions
             {
                 IsPrivate = false, 
-                Player = new Player
-                {
-                    Data = new Dictionary<string, PlayerDataObject>
-                    {
-                        { "PlayerName", new PlayerDataObject(PlayerDataObject.VisibilityOptions.Member, playerName) },
-                        { "SteamID", new PlayerDataObject(PlayerDataObject.VisibilityOptions.Member, SteamUser.GetSteamID().ToString())}
-                    }
-                },
+                Player = BuildLocalPlayer(),
                 Data = new Dictionary<string, DataObject>()
             };
 
             if (!string.IsNullOrEmpty(password))
             {
-                options.Data.Add("Password", new DataObject(
+                options.Data.Add(PasswordDataKey, new DataObject(
                     DataObject.VisibilityOptions.Public,
                     password,
                     DataObject.IndexOptions.S1));
@@ -480,11 +473,11 @@ public class LobbyManager : MonoBehaviour
 
             currentLobby = await LobbyService.Instance.CreateLobbyAsync(lobbyName, maxPlayersPerLobby, options);
 
-            Debug.Log($"[CREATE] Created lobby: {currentLobby.Name} (ID: {currentLobby.Id})");
+            Log.D($"[CREATE] Created lobby: {currentLobby.Name} (ID: {currentLobby.Id})");
 
             ResetLobbyUI();
 
-            InvokeRepeating(nameof(SendLobbyHeartbeat), 15f, 15f);
+            StartHeartbeatInstance();
 
             if (roomManager != null)
             {
@@ -493,7 +486,7 @@ public class LobbyManager : MonoBehaviour
         }
         catch (Exception e)
         {
-            Debug.LogError($"Failed to create lobby: {e.Message}");
+            Log.E($"Failed to create lobby: {e.Message}", this);
         }
     }
 
@@ -511,8 +504,7 @@ public class LobbyManager : MonoBehaviour
         }
         catch (LobbyServiceException e)
         {
-            if (e.ErrorCode == 404 || e.ErrorCode == 403 || e.ErrorCode == 400 || 
-                e.Message.ToLower().Contains("not found") || e.Message.ToLower().Contains("host"))
+            if (IsHeartbeatOwnershipFailure(e))
             {
                 CancelInvoke(nameof(SendLobbyHeartbeat));
                 return;
@@ -520,7 +512,7 @@ public class LobbyManager : MonoBehaviour
         }
         catch (Exception e)
         {
-            if (e.Message.ToLower().Contains("host") || e.Message.ToLower().Contains("not found"))
+            if (IsHeartbeatOwnershipFailure(e))
             {
                 CancelInvoke(nameof(SendLobbyHeartbeat));
                 return;
@@ -539,12 +531,12 @@ public class LobbyManager : MonoBehaviour
             Lobby targetLobby = await LobbyService.Instance.GetLobbyAsync(lobbyId);
 
             // 비밀번호가 존재하는 방인 경우 1차 문자열 일치성 검증 수행
-            if (targetLobby.Data != null && targetLobby.Data.ContainsKey("Password"))
+            if (targetLobby.Data != null && targetLobby.Data.TryGetValue(PasswordDataKey, out DataObject passwordData))
             {
-                string lobbyPassword = targetLobby.Data["Password"].Value;
+                string lobbyPassword = passwordData.Value;
                 if (string.IsNullOrEmpty(password) || lobbyPassword != password)
                 {
-                    Debug.LogWarning("[JOIN] 비밀번호가 일치하지 않습니다!");
+                    Log.W("[JOIN] 비밀번호가 일치하지 않습니다!", this);
                     
                     if (passwordWarningLabel != null) passwordWarningLabel.SetActive(true);
                     return;
@@ -553,14 +545,7 @@ public class LobbyManager : MonoBehaviour
 
             JoinLobbyByIdOptions options = new JoinLobbyByIdOptions
             {
-                Player = new Player
-                {
-                    Data = new Dictionary<string, PlayerDataObject>
-                    {
-                        { "PlayerName", new PlayerDataObject(PlayerDataObject.VisibilityOptions.Member, playerName) },
-                        { "SteamID", new PlayerDataObject(PlayerDataObject.VisibilityOptions.Member, SteamUser.GetSteamID().ToString())}
-                    }
-                }
+                Player = BuildLocalPlayer()
             };
 
             currentLobby = await LobbyService.Instance.JoinLobbyByIdAsync(lobbyId, options);
@@ -578,7 +563,7 @@ public class LobbyManager : MonoBehaviour
         }
         catch (Exception e)
         {
-            Debug.LogError($"Failed to join lobby by ID: {e.Message}");
+            Log.E($"Failed to join lobby by ID: {e.Message}", this);
             
             if (passwordWarningLabel != null) passwordWarningLabel.SetActive(true);
         }
@@ -602,12 +587,12 @@ public class LobbyManager : MonoBehaviour
             await LobbyService.Instance.RemovePlayerAsync(lobbyId, playerId);
 
             if (this == null) return; 
-            Debug.Log($"Left lobby: {currentLobby.Name}");
+            Log.D($"Left lobby: {currentLobby.Name}");
         }
         catch (Exception e)
         {
             if (this == null) return; 
-            Debug.LogError($"Failed to leave lobby: {e.Message}");
+            Log.E($"Failed to leave lobby: {e.Message}", this);
         }
     
         if (this != null)
@@ -621,8 +606,6 @@ public class LobbyManager : MonoBehaviour
 
     private void OnDestroy()
     {
-        // RoomManager를 찾아서 현재 게임 시작 중인지 확인합니다.
-        RoomManager roomManager = FindFirstObjectByType<RoomManager>();
         bool isStarting = roomManager != null && roomManager.IsStartingGame;
 
         // 게임 시작 중이 아닐 때만 방에서 나갑니다.
@@ -635,7 +618,33 @@ public class LobbyManager : MonoBehaviour
     public void StartHeartbeatInstance()
     {
         CancelInvoke(nameof(SendLobbyHeartbeat));
-        InvokeRepeating(nameof(SendLobbyHeartbeat), 15f, 15f);
-        Debug.Log("[HEARTBEAT] 새 방장 권한을 위임받아 하트비트 타이머를 가동합니다.");
+        InvokeRepeating(nameof(SendLobbyHeartbeat), HeartbeatIntervalSeconds, HeartbeatIntervalSeconds);
+        Log.D("[HEARTBEAT] 새 방장 권한을 위임받아 하트비트 타이머를 가동합니다.");
+    }
+
+    private Player BuildLocalPlayer()
+    {
+        string steamId = SteamManager.Initialized ? SteamUser.GetSteamID().ToString() : string.Empty;
+        return new Player
+        {
+            Data = new Dictionary<string, PlayerDataObject>
+            {
+                { PlayerNameDataKey, new PlayerDataObject(PlayerDataObject.VisibilityOptions.Member, playerName) },
+                { SteamIdDataKey, new PlayerDataObject(PlayerDataObject.VisibilityOptions.Member, steamId) }
+            }
+        };
+    }
+
+    private static bool IsHeartbeatOwnershipFailure(Exception exception)
+    {
+        if (exception is LobbyServiceException lobbyException
+            && (lobbyException.ErrorCode == 400 || lobbyException.ErrorCode == 403 || lobbyException.ErrorCode == 404))
+        {
+            return true;
+        }
+
+        string message = exception.Message ?? string.Empty;
+        return message.IndexOf("host", StringComparison.OrdinalIgnoreCase) >= 0
+            || message.IndexOf("not found", StringComparison.OrdinalIgnoreCase) >= 0;
     }
 }

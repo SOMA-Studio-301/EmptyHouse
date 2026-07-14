@@ -1,47 +1,72 @@
 using System.Collections.Generic;
 using Unity.Netcode;
 using UnityEngine;
+using UnityEngine.SceneManagement;
 
+/// <summary>
+/// Netcode가 각 클라이언트의 게임 씬 로드를 완료한 뒤 PlayerObject를 생성한다.
+/// </summary>
 public class GameScenePlayerSpawner : MonoBehaviour
 {
-    [SerializeField] private GameObject playerPrefab;
+    [SerializeField] private NetworkObject playerPrefab;
 
     private readonly HashSet<ulong> spawnedClients = new HashSet<ulong>();
 
+    private NetworkManager networkManager;
+    private string gameSceneName;
+
     private void Awake()
     {
-        if (!NetworkManager.Singleton.IsServer) return; // ★ 서버(호스트)만 스폰 로직 수행
-
-        // 이미 씬 로드 이전에 연결되어 있던 클라이언트(호스트 포함) 전부 스폰
-        foreach (var client in NetworkManager.Singleton.ConnectedClientsList)
+        networkManager = NetworkManager.Singleton;
+        if (networkManager == null || !networkManager.IsServer)
         {
-            SpawnPlayer(client.ClientId);
+            enabled = false;
+            return;
         }
 
-        // 이후에 늦게 들어오는(late-join) 클라이언트도 대응
-        NetworkManager.Singleton.OnClientConnectedCallback += OnClientConnected;
+        // Awake에서 생성하면 씬 로딩 중인 동적 Player가 ScenePlacedObject로 수집될 수 있다.
+        gameSceneName = gameObject.scene.name;
+        networkManager.SceneManager.OnLoadComplete += HandleLoadComplete;
+        networkManager.OnClientDisconnectCallback += HandleClientDisconnected;
     }
 
-    private void OnClientConnected(ulong clientId)
+    private void HandleLoadComplete(ulong clientId, string sceneName, LoadSceneMode loadSceneMode)
     {
+        if (sceneName != gameSceneName) return;
+
         SpawnPlayer(clientId);
     }
 
     private void SpawnPlayer(ulong clientId)
     {
-        if (spawnedClients.Contains(clientId)) return; // ★ 중복 스폰 방지
-        if (NetworkManager.Singleton.ConnectedClients[clientId].PlayerObject != null) return; // 이미 있으면 스킵
+        if (spawnedClients.Contains(clientId)) return;
+        if (!networkManager.ConnectedClients.TryGetValue(clientId, out NetworkClient client)) return;
 
-        GameObject playerObj = Instantiate(playerPrefab, Vector3.zero, Quaternion.identity);
-        playerObj.GetComponent<NetworkObject>().SpawnAsPlayerObject(clientId);
+        if (client.PlayerObject != null)
+        {
+            spawnedClients.Add(clientId);
+            return;
+        }
+
+        NetworkObject player = Instantiate(playerPrefab, Vector3.zero, Quaternion.identity);
+        player.SpawnAsPlayerObject(clientId);
         spawnedClients.Add(clientId);
+    }
+
+    private void HandleClientDisconnected(ulong clientId)
+    {
+        spawnedClients.Remove(clientId);
     }
 
     private void OnDestroy()
     {
-        if (NetworkManager.Singleton != null)
+        if (networkManager == null) return;
+
+        if (networkManager.SceneManager != null)
         {
-            NetworkManager.Singleton.OnClientConnectedCallback -= OnClientConnected;
+            networkManager.SceneManager.OnLoadComplete -= HandleLoadComplete;
         }
+
+        networkManager.OnClientDisconnectCallback -= HandleClientDisconnected;
     }
 }

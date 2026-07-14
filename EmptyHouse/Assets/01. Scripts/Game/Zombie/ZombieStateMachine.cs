@@ -20,12 +20,6 @@ public class ZombieStateMachine : NetworkBehaviour
     public Vector3 PatrolPoint => patrolPoint;
     public bool HasPatrolPoint => hasPatrolPoint;
 
-    private void OnValidate()
-    {
-        if (controller == null) controller = GetComponent<ZombieController>();
-        if (agent == null) agent = GetComponent<NavMeshAgent>();
-    }
-
     public void ServerInitialize()
     {
         if (!IsServer) return;
@@ -230,8 +224,8 @@ public class ZombieStateMachine : NetworkBehaviour
     {
         if (!IsServer || playerCaughtChannel == null || controller.CurrentTarget == null) return;
 
-        NetworkObject playerNetworkObject = controller.CurrentTarget.GetComponent<NetworkObject>();
-        ulong playerId = playerNetworkObject != null ? playerNetworkObject.NetworkObjectId : 0UL;
-        playerCaughtChannel.RaiseEvent(new ZombiePlayerCaughtEvent(controller.NetworkObjectId, playerId));
+        playerCaughtChannel.RaiseEvent(new ZombiePlayerCaughtEvent(
+            controller.NetworkObjectId,
+            controller.CurrentTargetNetworkObjectId));
     }
 }

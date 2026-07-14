@@ -2,10 +2,10 @@ using System.Collections.Generic;
 using Unity.Netcode;
 using UnityEngine;
 
-[RequireComponent(typeof(ZombieController))]
 public class ZombieSensorySystem : NetworkBehaviour
 {
     [SerializeField] private ZombieController controller;
+    [SerializeField] private ZombieRuntimeRegistrySO runtimeRegistry;
     [SerializeField] private NoiseEventChannelSO noiseEmittedChannel;
     [SerializeField] private LayerMask obstructionMask = ~0;
     [SerializeField] private bool environmentIsBright;
@@ -25,17 +25,13 @@ public class ZombieSensorySystem : NetworkBehaviour
         }
     }
 
-    private void OnValidate()
-    {
-        if (controller == null) controller = GetComponent<ZombieController>();
-    }
-
     public override void OnNetworkSpawn()
     {
         if (!IsServer) return;
-        if (noiseEmittedChannel == null)
+        if (controller == null || runtimeRegistry == null || noiseEmittedChannel == null)
         {
-            Debug.LogError($"[{nameof(ZombieSensorySystem)}] Noise channel is not assigned on {name}.", this);
+            Debug.LogError($"[{nameof(ZombieSensorySystem)}] Explicit references are incomplete on {name}.", this);
+            enabled = false;
             return;
         }
 
@@ -68,6 +64,7 @@ public class ZombieSensorySystem : NetworkBehaviour
         HearingResult hearing = EvaluateHearing();
 
         Transform preferredTarget = ChooseNearestTarget(vision.Target, hearing.Target);
+        ulong preferredTargetId = vision.Target != null ? vision.TargetNetworkObjectId : hearing.TargetNetworkObjectId;
         bool trackingStimulus = vision.HasStimulus || hearing.HasTrackableStimulus;
 
         return new ZombiePerceptionFrame(
@@ -79,24 +76,25 @@ public class ZombieSensorySystem : NetworkBehaviour
             hearing.EffectiveDb,
             vision.Position,
             hearing.Position,
-            preferredTarget);
+            preferredTarget,
+            preferredTargetId);
     }
 
     private VisionResult EvaluateVision()
     {
-        NetworkManager networkManager = NetworkManager.Singleton;
-        if (networkManager == null) return default;
+        if (runtimeRegistry == null) return default;
 
         bool watcher = controller.Data.ZombieType == ZombieType.Watcher;
         bool flashlightBlinding = false;
 
         if (watcher)
         {
-            foreach (NetworkClient client in networkManager.ConnectedClientsList)
+            IReadOnlyList<IZombiePerceptionSource> sources = runtimeRegistry.PerceptionSources;
+            for (int i = 0; i < sources.Count; i++)
             {
-                if (client.PlayerObject == null) continue;
-                PlayerSignals signals = ReadSignals(client.PlayerObject.gameObject);
-                if (!signals.IsSpectator && signals.IsFlashlightAimingAtZombie)
+                IZombiePerceptionSource source = sources[i];
+                if (source == null || source.Root == null || source.IsSpectator) continue;
+                if (source.IsFlashlightAimingAt(controller.transform))
                 {
                     flashlightBlinding = true;
                     break;
@@ -117,17 +115,19 @@ public class ZombieSensorySystem : NetworkBehaviour
         float bestGain = 0f;
         float nearestDistance = float.MaxValue;
         Transform nearestTarget = null;
+        ulong nearestTargetNetworkObjectId = 0UL;
         Vector3 nearestPosition = default;
         bool instantDetection = false;
 
-        foreach (NetworkClient client in networkManager.ConnectedClientsList)
+        IReadOnlyList<IZombiePerceptionSource> perceptionSources = runtimeRegistry.PerceptionSources;
+        for (int i = 0; i < perceptionSources.Count; i++)
         {
-            if (client.PlayerObject == null) continue;
-            GameObject playerObject = client.PlayerObject.gameObject;
-            PlayerSignals signals = ReadSignals(playerObject);
+            IZombiePerceptionSource source = perceptionSources[i];
+            if (source == null || source.Root == null) continue;
+            PlayerSignals signals = ReadSignals(source);
             if (signals.IsDisguised || signals.IsSpectator) continue;
 
-            Vector3 targetPosition = GetPlayerEyePosition(playerObject);
+            Vector3 targetPosition = source.EyePosition;
             Vector3 toTarget = targetPosition - origin;
             float distance = toTarget.magnitude;
             if (distance <= Mathf.Epsilon || distance > controller.Data.VisionDistance) continue;
@@ -135,7 +135,7 @@ public class ZombieSensorySystem : NetworkBehaviour
             Vector3 direction = toTarget / distance;
             float facingDot = Vector3.Dot(forward, direction);
             if (facingDot < cosThreshold) continue;
-            if (!HasLineOfSight(origin, direction, distance, playerObject.transform)) continue;
+            if (!HasLineOfSight(origin, direction, distance, source.Root)) continue;
 
             float gain = ComputeVisualGain(distance, facingDot, signals);
             if (gain > bestGain) bestGain = gain;
@@ -143,7 +143,8 @@ public class ZombieSensorySystem : NetworkBehaviour
             if (distance < nearestDistance)
             {
                 nearestDistance = distance;
-                nearestTarget = playerObject.transform;
+                nearestTarget = source.Root;
+                nearestTargetNetworkObjectId = source.NetworkObjectId;
                 nearestPosition = targetPosition;
             }
 
@@ -158,7 +159,8 @@ public class ZombieSensorySystem : NetworkBehaviour
             instantDetection,
             bestGain,
             nearestPosition,
-            nearestTarget);
+            nearestTarget,
+            nearestTargetNetworkObjectId);
     }
 
     private HearingResult EvaluateHearing()
@@ -181,10 +183,18 @@ public class ZombieSensorySystem : NetworkBehaviour
         if (bestEffectiveDb < controller.Data.HearMinDb) return default;
 
         Transform target = ResolvePlayerSource(bestNoise.Source);
+        ulong targetNetworkObjectId = 0UL;
         if (target != null)
         {
-            PlayerSignals signals = ReadSignals(target.gameObject);
-            if (signals.IsSpectator) target = null;
+            IZombiePerceptionSource source = FindPerceptionSource(target);
+            if (source == null || source.IsSpectator)
+            {
+                target = null;
+            }
+            else
+            {
+                targetNetworkObjectId = source.NetworkObjectId;
+            }
         }
 
         return new HearingResult(
@@ -192,7 +202,8 @@ public class ZombieSensorySystem : NetworkBehaviour
             target != null,
             bestEffectiveDb,
             bestNoise.Origin,
-            target);
+            target,
+            targetNetworkObjectId);
     }
 
     private float ComputeEffectiveNoiseDb(NoiseEvent noiseEvent)
@@ -215,8 +226,10 @@ public class ZombieSensorySystem : NetworkBehaviour
             if (hits[i].distance >= nearestBlocker) continue;
 
             nearestBlocker = hits[i].distance;
-            ZombieSoundOccluder occluder = hits[i].collider.GetComponent<ZombieSoundOccluder>();
-            attenuation = occluder != null ? occluder.AttenuationDb : controller.Data.DefaultWallOcclusionDb;
+            attenuation = runtimeRegistry != null
+                && runtimeRegistry.TryGetSoundAttenuation(hits[i].collider, out float registeredAttenuation)
+                    ? registeredAttenuation
+                    : controller.Data.DefaultWallOcclusionDb;
         }
 
         return effectiveDb - attenuation;
@@ -276,48 +289,44 @@ public class ZombieSensorySystem : NetworkBehaviour
 
     private Transform ResolvePlayerSource(GameObject source)
     {
-        if (source == null || NetworkManager.Singleton == null) return null;
+        if (source == null || runtimeRegistry == null) return null;
 
-        foreach (NetworkClient client in NetworkManager.Singleton.ConnectedClientsList)
+        IReadOnlyList<IZombiePerceptionSource> sources = runtimeRegistry.PerceptionSources;
+        for (int i = 0; i < sources.Count; i++)
         {
-            if (client.PlayerObject == null) continue;
-            Transform player = client.PlayerObject.transform;
+            Transform player = sources[i]?.Root;
+            if (player == null) continue;
             if (source.transform == player || source.transform.IsChildOf(player)) return player;
         }
 
         return null;
     }
 
-    private PlayerSignals ReadSignals(GameObject playerObject)
+    private IZombiePerceptionSource FindPerceptionSource(Transform root)
     {
-        MonoBehaviour[] behaviours = playerObject.GetComponentsInChildren<MonoBehaviour>(true);
-        for (int i = 0; i < behaviours.Length; i++)
+        if (root == null || runtimeRegistry == null) return null;
+        IReadOnlyList<IZombiePerceptionSource> sources = runtimeRegistry.PerceptionSources;
+        for (int i = 0; i < sources.Count; i++)
         {
-            if (behaviours[i] is IZombiePerceptionSource source)
-            {
-                return new PlayerSignals(
-                    source.IsDisguised,
-                    source.IsSpectator,
-                    source.IsCrouching,
-                    source.IsMoving,
-                    source.IsFlashlightAimingAt(controller.transform));
-            }
+            if (sources[i] != null && sources[i].Root == root) return sources[i];
         }
 
-        Rigidbody body = playerObject.GetComponent<Rigidbody>();
-        bool isMoving = body != null && body.linearVelocity.sqrMagnitude > 0.01f;
-        return new PlayerSignals(false, false, false, isMoving, false);
+        return null;
+    }
+
+    private PlayerSignals ReadSignals(IZombiePerceptionSource source)
+    {
+        return new PlayerSignals(
+            source.IsDisguised,
+            source.IsSpectator,
+            source.IsCrouching,
+            source.IsMoving,
+            source.IsFlashlightAimingAt(controller.transform));
     }
 
     private static Transform ChooseNearestTarget(Transform visualTarget, Transform auditoryTarget)
     {
         return visualTarget != null ? visualTarget : auditoryTarget;
-    }
-
-    private static Vector3 GetPlayerEyePosition(GameObject playerObject)
-    {
-        Camera camera = playerObject.GetComponentInChildren<Camera>(true);
-        return camera != null ? camera.transform.position : playerObject.transform.position + Vector3.up * 1.5f;
     }
 
     private readonly struct PlayerSignals
@@ -345,14 +354,16 @@ public class ZombieSensorySystem : NetworkBehaviour
         public readonly float GainPerSecond;
         public readonly Vector3 Position;
         public readonly Transform Target;
+        public readonly ulong TargetNetworkObjectId;
 
-        public VisionResult(bool hasStimulus, bool instantDetection, float gainPerSecond, Vector3 position, Transform target)
+        public VisionResult(bool hasStimulus, bool instantDetection, float gainPerSecond, Vector3 position, Transform target, ulong targetNetworkObjectId)
         {
             HasStimulus = hasStimulus;
             InstantDetection = instantDetection;
             GainPerSecond = gainPerSecond;
             Position = position;
             Target = target;
+            TargetNetworkObjectId = targetNetworkObjectId;
         }
     }
 
@@ -363,14 +374,16 @@ public class ZombieSensorySystem : NetworkBehaviour
         public readonly float EffectiveDb;
         public readonly Vector3 Position;
         public readonly Transform Target;
+        public readonly ulong TargetNetworkObjectId;
 
-        public HearingResult(bool hasStimulus, bool hasTrackableStimulus, float effectiveDb, Vector3 position, Transform target)
+        public HearingResult(bool hasStimulus, bool hasTrackableStimulus, float effectiveDb, Vector3 position, Transform target, ulong targetNetworkObjectId)
         {
             HasStimulus = hasStimulus;
             HasTrackableStimulus = hasTrackableStimulus;
             EffectiveDb = effectiveDb;
             Position = position;
             Target = target;
+            TargetNetworkObjectId = targetNetworkObjectId;
         }
     }
 }

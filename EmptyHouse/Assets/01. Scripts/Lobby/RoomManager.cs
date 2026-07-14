@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
 using System.Linq;
+using Border.Core;
 using UnityEngine;
 using UnityEngine.UI;
 using UnityEngine.SceneManagement;
@@ -17,6 +18,13 @@ using Steamworks;
 
 public class RoomManager : MonoBehaviour
 {
+    private const string RelayJoinCodeDataKey = "RelayJoinCode";
+    private const string PlayerNameDataKey = "PlayerName";
+    private const string SteamIdDataKey = "SteamID";
+    private const string ReadyDataKey = "IsReady";
+    private const string RelayConnectionType = "dtls";
+    private const int MaxRoomSlots = 4;
+
     [Header("Canvas References")]
     [SerializeField] private GameObject roomCanvas;
     [SerializeField] private GameObject joinCreateCanvas;
@@ -32,10 +40,11 @@ public class RoomManager : MonoBehaviour
 
     [Header("User List")]
     [SerializeField] private Transform userListContainer;
-    [SerializeField] private GameObject userPanelPrefab;
+    [SerializeField] private UserPanel userPanelPrefab;
 
     [Header("Settings")]
     [SerializeField] private float lobbyPollInterval = 1.5f;
+    [SerializeField] private LobbyManager lobbyManager;
     
     [Header("Scene Settings")]
     [SerializeField] private string gameSceneName = "GameScene";
@@ -46,6 +55,8 @@ public class RoomManager : MonoBehaviour
     private float nextPollTime;
     private bool isInRoom;
     private bool isPolling;
+    private bool userSlotsInitialized;
+    private readonly List<UserPanel> userPanels = new List<UserPanel>(MaxRoomSlots);
 
     // 씬 전환 시작 시점의 기대 인원 수를 저장해두고, 전원 로드 완료 시 로비 삭제
     private int expectedPlayerCount;
@@ -61,7 +72,7 @@ public class RoomManager : MonoBehaviour
         {
             avatarLoadedCallback = Callback<AvatarImageLoaded_t>.Create(OnAvatarImageLoaded);
             personaStateCallback = Callback<PersonaStateChange_t>.Create(OnPersonaStateChange);
-            Debug.Log("[STEAM] RoomManager 스팀 콜백 등록 완료");
+            Log.D("[STEAM] RoomManager 스팀 콜백 등록 완료");
         }
     }
 
@@ -101,14 +112,14 @@ public class RoomManager : MonoBehaviour
         
         _ = PollLobbyData();
         
-        Debug.Log($"[ROOM] Entered room: {lobby.Name}");
+        Log.D($"[ROOM] Entered room: {lobby.Name}");
         
         //스팀 리치 프레즌스 설정
         if (SteamManager.Initialized)
         {
             SteamFriends.SetRichPresence("status", "버스 대기 중");
             SteamFriends.SetRichPresence("connect", lobby.Id);
-            Debug.Log($"[STEAM] 리치 프레즌스 등록 완료 (LobbyID: {lobby.Id})");
+            Log.D($"[STEAM] 리치 프레즌스 등록 완료 (LobbyID: {lobby.Id})");
         }
     }
 
@@ -137,14 +148,16 @@ public class RoomManager : MonoBehaviour
                     if (currentLobby == null) continue;
                     UpdateRoomUI();
 
-                    if (!IsHost() && currentLobby.Data != null && currentLobby.Data.ContainsKey("RelayJoinCode"))
+                    if (!IsHost()
+                        && currentLobby.Data != null
+                        && currentLobby.Data.TryGetValue(RelayJoinCodeDataKey, out DataObject relayData))
                     {
-                        string joinCode = currentLobby.Data["RelayJoinCode"].Value;
+                        string joinCode = relayData.Value;
                         if (!string.IsNullOrEmpty(joinCode) && !isStartingGame)
                         {
                             isStartingGame = true;
                             if (exitButton != null) exitButton.interactable = false; // ★ 게임 조인 시작 시 Exit 잠금
-                            JoinGame(joinCode);
+                            _ = JoinGameAsync(joinCode);
                             break;
                         }
                     }
@@ -157,7 +170,7 @@ public class RoomManager : MonoBehaviour
                         // isStartingGame이 true라면 정상 흐름이므로 경고 로그를 띄우지 않음.
                         if (!isStartingGame)
                         {
-                            Debug.LogWarning("[ROOM] 로비가 이미 서버에서 삭제되었습니다.");
+                            Log.W("[ROOM] 로비가 이미 서버에서 삭제되었습니다.", this);
                         }
                         currentLobby = null;
                         isInRoom = false;
@@ -170,16 +183,16 @@ public class RoomManager : MonoBehaviour
                     }
                     else
                     {
-                        Debug.LogError($"[ROOM] 로비 데이터 갱신 실패: {e.Message}");
+                        Log.E($"[ROOM] 로비 데이터 갱신 실패: {e.Message}", this);
                     }
                 }
 
-                await Task.Delay(2000);
+                await Task.Delay(TimeSpan.FromSeconds(Mathf.Max(0.25f, lobbyPollInterval)));
             }
         }
         catch (Exception e)
         {
-            Debug.LogError($"[ROOM] 일반 에러: {e.Message}");
+            Log.E($"[ROOM] 일반 에러: {e.Message}", this);
         }
         finally
         {
@@ -203,18 +216,12 @@ public class RoomManager : MonoBehaviour
     {
         if (userListContainer == null || userPanelPrefab == null) return;
 
-        foreach (Transform child in userListContainer)
-        {
-            Destroy(child.gameObject);
-        }
+        EnsureUserSlots();
 
-        const int maxSlots = 4;
-        
-        for (int i = 0; i < maxSlots; i++)
+        for (int i = 0; i < MaxRoomSlots; i++)
         {
-            GameObject panelObj = Instantiate(userPanelPrefab, userListContainer);
-            UserPanel userPanel = panelObj.GetComponent<UserPanel>();
-            Button slotButton = panelObj.GetComponent<Button>();
+            UserPanel userPanel = userPanels[i];
+            Button slotButton = userPanel.SlotButton;
 
             if (i < currentLobby.Players.Count)
             {
@@ -225,9 +232,7 @@ public class RoomManager : MonoBehaviour
                     bool isHost = player.Id == currentLobby.HostId;
                     bool isPlayerReady = GetPlayerReadyStatus(player);
                 
-                    string steamId = (player.Data != null && player.Data.ContainsKey("SteamID")) 
-                        ? player.Data["SteamID"].Value 
-                        : "";
+                    string steamId = TryGetPlayerData(player, SteamIdDataKey, out string value) ? value : string.Empty;
 
                     userPanel.SetPlayerInfo(playerName, isHost, isPlayerReady, steamId);
                 }
@@ -254,11 +259,29 @@ public class RoomManager : MonoBehaviour
                         if (SteamManager.Initialized)
                         {
                             SteamFriends.ActivateGameOverlay("Invite");
-                            Debug.Log("[STEAM] 친구 초대 오버레이 창 활성화");
+                            Log.D("[STEAM] 친구 초대 오버레이 창 활성화");
                         }
                     });
                 }
             }
+        }
+    }
+
+    private void EnsureUserSlots()
+    {
+        if (!userSlotsInitialized)
+        {
+            foreach (Transform child in userListContainer)
+            {
+                Destroy(child.gameObject);
+            }
+
+            userSlotsInitialized = true;
+        }
+
+        while (userPanels.Count < MaxRoomSlots)
+        {
+            userPanels.Add(Instantiate(userPanelPrefab, userListContainer));
         }
     }
 
@@ -271,7 +294,6 @@ public class RoomManager : MonoBehaviour
             if (readyButton != null) readyButton.gameObject.SetActive(false);
             if (startButton != null) startButton.gameObject.SetActive(true);
             
-            LobbyManager lobbyManager = FindFirstObjectByType<LobbyManager>();
             if (lobbyManager != null && !lobbyManager.IsInvoking("SendLobbyHeartbeat"))
             {
                 lobbyManager.StartHeartbeatInstance();
@@ -322,7 +344,7 @@ public class RoomManager : MonoBehaviour
             {
                 Data = new Dictionary<string, PlayerDataObject>
                 {
-                    { "IsReady", new PlayerDataObject(PlayerDataObject.VisibilityOptions.Member, isReady.ToString()) }
+                    { ReadyDataKey, new PlayerDataObject(PlayerDataObject.VisibilityOptions.Member, isReady.ToString()) }
                 }
             };
 
@@ -331,7 +353,7 @@ public class RoomManager : MonoBehaviour
         }
         catch (Exception e)
         {
-            Debug.LogError($"[ROOM] Failed to update ready status: {e.Message}");
+            Log.E($"[ROOM] Failed to update ready status: {e.Message}", this);
             isReady = !isReady; 
         }
     }
@@ -345,22 +367,22 @@ public class RoomManager : MonoBehaviour
         if (startButton != null) startButton.interactable = false;
         if (exitButton != null) exitButton.interactable = false; // ★ Start 누르는 순간 Exit 잠금
 
-        Debug.Log("[ROOM] Host가 Relay 서버 생성을 시작합니다...");
+        Log.D("[ROOM] Host가 Relay 서버 생성을 시작합니다...");
 
         try
         {
             Allocation allocation = await RelayService.Instance.CreateAllocationAsync(currentLobby.MaxPlayers - 1);
             string relayJoinCode = await RelayService.Instance.GetJoinCodeAsync(allocation.AllocationId);
-            Debug.Log($"[ROOM] Relay 생성 완료! JoinCode: {relayJoinCode}");
+            Log.D($"[ROOM] Relay 생성 완료! JoinCode: {relayJoinCode}");
 
-            RelayServerData serverData = BuildRelayServerData(allocation, "dtls");
-            NetworkManager.Singleton.GetComponent<UnityTransport>().SetRelayServerData(serverData);
+            RelayServerData serverData = BuildRelayServerData(allocation, RelayConnectionType);
+            GetUnityTransport().SetRelayServerData(serverData);
 
             UpdateLobbyOptions options = new UpdateLobbyOptions
             {
                 Data = new Dictionary<string, DataObject>
                 {
-                    { "RelayJoinCode", new DataObject(DataObject.VisibilityOptions.Member, relayJoinCode) }
+                    { RelayJoinCodeDataKey, new DataObject(DataObject.VisibilityOptions.Member, relayJoinCode) }
                 }
             };
             currentLobby = await LobbyService.Instance.UpdateLobbyAsync(currentLobby.Id, options);
@@ -383,7 +405,7 @@ public class RoomManager : MonoBehaviour
         }
         catch (Exception e)
         {
-            Debug.LogError($"[ROOM] 게임 시작 실패 (Relay 에러): {e.Message}");
+            Log.E($"[ROOM] 게임 시작 실패 (Relay 에러): {e.Message}", this);
             isStartingGame = false;
             if (startButton != null) startButton.interactable = true;
             if (exitButton != null) exitButton.interactable = true;
@@ -402,9 +424,9 @@ public class RoomManager : MonoBehaviour
         }
 
         if (NetworkManager.Singleton.ConnectedClientsList.Count < expectedClients)
-            Debug.LogWarning($"[ROOM] 타임아웃: {NetworkManager.Singleton.ConnectedClientsList.Count}/{expectedClients}명만 연결됨. 그래도 진행합니다.");
+            Log.W($"[ROOM] 타임아웃: {NetworkManager.Singleton.ConnectedClientsList.Count}/{expectedClients}명만 연결됨. 그래도 진행합니다.", this);
         else
-            Debug.Log($"[ROOM] 전원({expectedClients}명) 연결 완료. 씬 전환 시작.");
+            Log.D($"[ROOM] 전원({expectedClients}명) 연결 완료. 씬 전환 시작.");
     }
 
     private void OnExitButtonClicked()
@@ -427,11 +449,11 @@ public class RoomManager : MonoBehaviour
 
         if (clientsTimedOut != null && clientsTimedOut.Count > 0)
         {
-            Debug.LogWarning($"[ROOM] 씬 로드에 실패(타임아웃)한 클라이언트가 있습니다: {clientsTimedOut.Count}명. " +
+            Log.W($"[ROOM] 씬 로드에 실패(타임아웃)한 클라이언트가 있습니다: {clientsTimedOut.Count}명. " +
                              $"그래도 로비를 정리하고 게임을 진행합니다.");
         }
 
-        Debug.Log($"[ROOM] 씬 로드 완료 클라이언트 수: {clientsCompleted.Count} / 예상 인원: {expectedPlayerCount}");
+        Log.D($"[ROOM] 씬 로드 완료 클라이언트 수: {clientsCompleted.Count} / 예상 인원: {expectedPlayerCount}");
 
         NetworkManager.Singleton.SceneManager.OnLoadEventCompleted -= OnAllClientsLoaded;
         isSceneLoadEventSubscribed = false;
@@ -443,11 +465,11 @@ public class RoomManager : MonoBehaviour
             try
             {
                 await LobbyService.Instance.DeleteLobbyAsync(currentLobby.Id);
-                Debug.Log("[ROOM] 게임 시작 완료 - 로비를 정상적으로 삭제했습니다.");
+                Log.D("[ROOM] 게임 시작 완료 - 로비를 정상적으로 삭제했습니다.");
             }
             catch (LobbyServiceException e)
             {
-                Debug.LogWarning($"[ROOM] 로비 삭제 중 예외 (무시 가능): {e.Message}");
+                Log.W($"[ROOM] 로비 삭제 중 예외 (무시 가능): {e.Message}", this);
             }
             finally
             {
@@ -460,16 +482,16 @@ public class RoomManager : MonoBehaviour
 
     #region Game Start (Client)
 
-    private async void JoinGame(string joinCode)
+    private async Task JoinGameAsync(string joinCode)
     {
-        Debug.Log($"[ROOM] Client가 Relay 연결을 시도합니다. 코드: {joinCode}");
+        Log.D($"[ROOM] Client가 Relay 연결을 시도합니다. 코드: {joinCode}");
 
         try
         {
             JoinAllocation joinAllocation = await RelayService.Instance.JoinAllocationAsync(joinCode);
             
-            RelayServerData clientServerData = BuildRelayServerData(joinAllocation, "dtls");
-            NetworkManager.Singleton.GetComponent<UnityTransport>().SetRelayServerData(clientServerData);
+            RelayServerData clientServerData = BuildRelayServerData(joinAllocation, RelayConnectionType);
+            GetUnityTransport().SetRelayServerData(clientServerData);
 
             NetworkManager.Singleton.OnClientConnectedCallback += OnNetcodeConnected;
             NetworkManager.Singleton.OnClientDisconnectCallback += OnNetcodeDisconnected;
@@ -479,7 +501,7 @@ public class RoomManager : MonoBehaviour
         }
         catch (Exception e)
         {
-            Debug.LogError($"[ROOM] Relay 연결 실패: {e.Message}");
+            Log.E($"[ROOM] Relay 연결 실패: {e.Message}", this);
             isStartingGame = false;
             if (exitButton != null) exitButton.interactable = true; // ★ 실패 시 Exit 복구
         }
@@ -487,13 +509,13 @@ public class RoomManager : MonoBehaviour
     
     private void OnNetcodeConnected(ulong clientId)
     {
-        Debug.Log($"[NETCODE] 호스트와 연결 성공! 내 ID: {clientId}");
+        Log.D($"[NETCODE] 호스트와 연결 성공! 내 ID: {clientId}");
         UnsubscribeNetcodeEvents();
     }
     
     private void OnNetcodeDisconnected(ulong clientId)
     {
-        Debug.LogError("[NETCODE] 호스트와의 연결에 실패했거나 끊어졌습니다!");
+        Log.E("[NETCODE] 호스트와의 연결에 실패했거나 끊어졌습니다!", this);
         isStartingGame = false;
         if (exitButton != null) exitButton.interactable = true; // ★ 연결 끊김 시 Exit 복구
         UnsubscribeNetcodeEvents();
@@ -528,13 +550,12 @@ public class RoomManager : MonoBehaviour
             if (roomCanvas != null) roomCanvas.SetActive(false);
             if (joinCreateCanvas != null) joinCreateCanvas.SetActive(true);
 
-            LobbyManager lobbyManager = FindFirstObjectByType<LobbyManager>();
             if (lobbyManager != null)
                 await lobbyManager.RefreshLobbyList();
         }
         catch (Exception e)
         {
-            Debug.LogError($"[ROOM] Failed to exit room: {e.Message}");
+            Log.E($"[ROOM] Failed to exit room: {e.Message}", this);
         }
     }
 
@@ -577,23 +598,31 @@ public class RoomManager : MonoBehaviour
     
     #region Helper Methods
 
-    private string GetPlayerName(Player player)
+    private static string GetPlayerName(Player player)
     {
-        if (player.Data != null && player.Data.ContainsKey("PlayerName"))
-        {
-            return player.Data["PlayerName"].Value;
-        }
-        return "Unknown";
+        return TryGetPlayerData(player, PlayerNameDataKey, out string playerName) ? playerName : "Unknown";
     }
 
-    private bool GetPlayerReadyStatus(Player player)
+    private static bool GetPlayerReadyStatus(Player player)
     {
-        if (player.Data != null && player.Data.ContainsKey("IsReady"))
-        {
-            bool.TryParse(player.Data["IsReady"].Value, out bool isReadyStatus);
-            return isReadyStatus;
-        }
-        return false;
+        return TryGetPlayerData(player, ReadyDataKey, out string value)
+            && bool.TryParse(value, out bool isReadyStatus)
+            && isReadyStatus;
+    }
+
+    private static bool TryGetPlayerData(Player player, string key, out string value)
+    {
+        value = string.Empty;
+        if (player?.Data == null || !player.Data.TryGetValue(key, out PlayerDataObject data)) return false;
+        value = data.Value;
+        return true;
+    }
+
+    private static UnityTransport GetUnityTransport()
+    {
+        UnityTransport transport = NetworkManager.Singleton?.NetworkConfig.NetworkTransport as UnityTransport;
+        if (transport == null) throw new InvalidOperationException("UnityTransport is not configured on NetworkManager.");
+        return transport;
     }
 
     private bool IsHost()

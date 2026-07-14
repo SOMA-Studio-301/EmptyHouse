@@ -1,3 +1,4 @@
+using System;
 using UnityEngine;
 using UnityEngine.UI;
 using Unity.Services.Lobbies.Models;
@@ -9,14 +10,10 @@ public class LobbyListCell : MonoBehaviour
     [SerializeField] private GameObject passwordIcon;
     [SerializeField] private Button joinButton;
     [SerializeField] private Text joinText;
-    
-
-    private Lobby _lobbyInfo;
-
-    public void SetLobbyInfo(Lobby lobby, System.Action<Lobby> onJoinClick)
+    public void SetLobbyInfo(Lobby lobby, Action<Lobby> onJoinClick)
     {
-        _lobbyInfo = lobby;
-    
+        if (lobby == null) return;
+
         if (lobbyNameText != null) lobbyNameText.text = lobby.Name;
         if (playerCountText != null) playerCountText.text = $"{lobby.Players.Count}/{lobby.MaxPlayers}";
 
@@ -46,6 +43,5 @@ public class LobbyListCell : MonoBehaviour
             if (joinButton != null) joinButton.interactable = true;
             if (joinText != null) joinText.text = "Join";
         }
-        
     }
 }

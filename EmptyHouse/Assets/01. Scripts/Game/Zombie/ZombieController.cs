@@ -46,6 +46,7 @@ public class ZombieController : NetworkBehaviour
     private Vector3 lastKnownPosition;
     private Vector3 homePosition;
     private Transform currentTarget;
+    private ulong currentTargetNetworkObjectId;
     private bool hasTrackingStimulus;
     private bool hadStimulusThisFrame;
 
@@ -57,6 +58,7 @@ public class ZombieController : NetworkBehaviour
     public Vector3 HomePosition => homePosition;
     public Vector3 LastKnownPosition => lastKnownPosition;
     public Transform CurrentTarget => currentTarget;
+    public ulong CurrentTargetNetworkObjectId => currentTargetNetworkObjectId;
     public float SuspicionValue => suspicion.Value;
     public bool IsLatched => suspicionLatched.Value;
     public ZombieStateKind CurrentState => stateKind.Value;
@@ -69,18 +71,8 @@ public class ZombieController : NetworkBehaviour
         ? patrolRadiusOverride
         : zombieData != null ? zombieData.PatrolRadius : 0f;
 
-    private void OnValidate()
-    {
-        if (agent == null) agent = GetComponent<NavMeshAgent>();
-        if (sensorySystem == null) sensorySystem = GetComponent<ZombieSensorySystem>();
-        if (stateMachine == null) stateMachine = GetComponent<ZombieStateMachine>();
-        if (squadSync == null) squadSync = GetComponent<ZombieSquadSync>();
-        ResolveAnchors();
-    }
-
     private void Awake()
     {
-        ResolveAnchors();
         CacheHomePosition();
 
         if (agent == null || sensorySystem == null || stateMachine == null || squadSync == null)
@@ -92,7 +84,6 @@ public class ZombieController : NetworkBehaviour
 
     public override void OnNetworkSpawn()
     {
-        ResolveAnchors();
         CacheHomePosition();
         if (!IsServer) return;
 
@@ -137,14 +128,14 @@ public class ZombieController : NetworkBehaviour
         if (frame.HasInstantVisualDetection)
         {
             nextSuspicion = 100f;
-            AcceptTarget(frame.PreferredTarget, frame.VisualPosition);
+            AcceptTarget(frame.PreferredTarget, frame.PreferredTargetNetworkObjectId, frame.VisualPosition);
         }
         else
         {
             if (frame.VisualGainPerSecond > 0f)
             {
                 nextSuspicion += frame.VisualGainPerSecond * deltaTime;
-                AcceptTarget(frame.PreferredTarget, frame.VisualPosition);
+                AcceptTarget(frame.PreferredTarget, frame.PreferredTargetNetworkObjectId, frame.VisualPosition);
                 investigationStimulusDb = 0f;
             }
 
@@ -165,7 +156,7 @@ public class ZombieController : NetworkBehaviour
 
                 if (frame.AuditoryEffectiveDb >= zombieData.HearDetectDb && frame.PreferredTarget != null)
                 {
-                    AcceptTarget(frame.PreferredTarget, frame.PreferredTarget.position);
+                    AcceptTarget(frame.PreferredTarget, frame.PreferredTargetNetworkObjectId, frame.PreferredTarget.position);
                 }
             }
 
@@ -203,10 +194,14 @@ public class ZombieController : NetworkBehaviour
         suspicion.Value = nextSuspicion;
     }
 
-    private void AcceptTarget(Transform target, Vector3 position)
+    private void AcceptTarget(Transform target, ulong targetNetworkObjectId, Vector3 position)
     {
         lastKnownPosition = position;
-        if (target != null) currentTarget = target;
+        if (target != null)
+        {
+            currentTarget = target;
+            currentTargetNetworkObjectId = targetNetworkObjectId;
+        }
     }
 
     public void ServerSetState(ZombieStateKind nextState)
@@ -221,6 +216,7 @@ public class ZombieController : NetworkBehaviour
         suspicionLatched.Value = false;
         suspicion.Value = Mathf.Clamp(zombieData.ThInvestigate, 0f, 100f);
         currentTarget = null;
+        currentTargetNetworkObjectId = 0UL;
         hasTrackingStimulus = false;
         investigationStimulusDb = zombieData.HearMinDb;
         silenceTimer = 0f;
@@ -239,6 +235,7 @@ public class ZombieController : NetworkBehaviour
         bool leaderIsAttacking = leader.CurrentState == ZombieStateKind.Attack;
         stateKind.Value = leaderIsAttacking ? ZombieStateKind.Chase : leader.CurrentState;
         currentTarget = leader.CurrentTarget;
+        currentTargetNetworkObjectId = leader.CurrentTargetNetworkObjectId;
         lastKnownPosition = leader.LastKnownPosition;
         investigationStimulusDb = leader.InvestigationStimulusDb;
         hasTrackingStimulus = leaderIsAttacking
@@ -263,34 +260,15 @@ public class ZombieController : NetworkBehaviour
     public float ChaseLostTimer => chaseLostTimer;
     public void ResetChaseLostTimer() => chaseLostTimer = 0f;
 
-    private void ResolveAnchors()
-    {
-        if (homeAnchor == null) homeAnchor = FindTransformByName("HomeAnchor", transform);
-        if (visionOrigin == null) visionOrigin = FindTransformByName("VisionOrigin", transform);
-        if (attackOrigin == null) attackOrigin = FindTransformByName("AttackOrigin", transform);
-    }
-
     private void CacheHomePosition()
     {
         homePosition = homeAnchor != null ? homeAnchor.position : transform.position;
         lastKnownPosition = homePosition;
     }
 
-    private static Transform FindTransformByName(string token, Transform root)
-    {
-        if (root == null) return null;
-        Transform[] children = root.GetComponentsInChildren<Transform>(true);
-        for (int i = 0; i < children.Length; i++)
-        {
-            if (children[i] != null && children[i].name == token) return children[i];
-        }
-        return null;
-    }
-
     private void OnDrawGizmos()
     {
         if (!drawDebugGizmos) return;
-        ResolveAnchors();
 
         Vector3 home = Application.isPlaying
             ? homePosition

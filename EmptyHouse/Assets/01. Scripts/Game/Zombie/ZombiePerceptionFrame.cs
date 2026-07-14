@@ -11,6 +11,7 @@ public readonly struct ZombiePerceptionFrame
     public readonly Vector3 VisualPosition;
     public readonly Vector3 AuditoryPosition;
     public readonly Transform PreferredTarget;
+    public readonly ulong PreferredTargetNetworkObjectId;
 
     public ZombiePerceptionFrame(
         bool hasVisualStimulus,
@@ -21,7 +22,8 @@ public readonly struct ZombiePerceptionFrame
         float auditoryEffectiveDb,
         Vector3 visualPosition,
         Vector3 auditoryPosition,
-        Transform preferredTarget)
+        Transform preferredTarget,
+        ulong preferredTargetNetworkObjectId)
     {
         HasVisualStimulus = hasVisualStimulus;
         HasAuditoryStimulus = hasAuditoryStimulus;
@@ -32,5 +34,6 @@ public readonly struct ZombiePerceptionFrame
         VisualPosition = visualPosition;
         AuditoryPosition = auditoryPosition;
         PreferredTarget = preferredTarget;
+        PreferredTargetNetworkObjectId = preferredTargetNetworkObjectId;
     }
 }

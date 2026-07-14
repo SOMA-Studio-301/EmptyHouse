@@ -4,52 +4,51 @@ using UnityEngine;
 public class ZombieSquadSync : MonoBehaviour
 {
     [SerializeField] private ZombieController controller;
-    [SerializeField] private LayerMask zombieMask = ~0;
+    [SerializeField] private ZombieRuntimeRegistrySO runtimeRegistry;
 
-    private ZombieController leader;
-    private readonly List<ZombieController> followers = new List<ZombieController>();
+    private ZombieSquadSync leader;
+    private readonly List<ZombieSquadSync> followers = new List<ZombieSquadSync>();
     private bool snapshotFormed;
 
     public bool IsFollower => leader != null;
-    public ZombieController Leader => leader;
+    public ZombieController Leader => leader != null ? leader.controller : null;
 
-    private void OnValidate()
-    {
-        if (controller == null) controller = GetComponent<ZombieController>();
-    }
+    private void OnEnable() => runtimeRegistry?.RegisterSquad(this);
+    private void OnDisable() => runtimeRegistry?.UnregisterSquad(this);
 
     public void ServerFormSquadSnapshot()
     {
-        if (controller == null || controller.Data == null || leader != null || snapshotFormed) return;
+        if (controller == null || controller.Data == null || runtimeRegistry == null || leader != null || snapshotFormed) return;
 
         snapshotFormed = true;
         followers.Clear();
-        Collider[] hits = Physics.OverlapSphere(controller.transform.position, controller.Data.SyncRadius, zombieMask, QueryTriggerInteraction.Ignore);
-        var unique = new HashSet<ZombieController>();
 
-        for (int i = 0; i < hits.Length; i++)
+        float radiusSquared = controller.Data.SyncRadius * controller.Data.SyncRadius;
+        IReadOnlyList<ZombieSquadSync> squads = runtimeRegistry.Squads;
+        for (int i = 0; i < squads.Count; i++)
         {
-            ZombieController other = hits[i].GetComponentInParent<ZombieController>();
-            if (other == null || other == controller || other.IsFollower || !unique.Add(other)) continue;
+            ZombieSquadSync other = squads[i];
+            if (other == null || other == this || other.controller == null || other.IsFollower || other.snapshotFormed) continue;
+            if (!other.controller.IsSpawned || !other.controller.IsServer) continue;
+            if ((other.controller.transform.position - controller.transform.position).sqrMagnitude > radiusSquared) continue;
 
-            ZombieSquadSync otherSync = other.GetComponent<ZombieSquadSync>();
-            if (otherSync == null || !otherSync.ServerAssignLeader(controller)) continue;
+            if (!other.ServerAssignLeader(this)) continue;
             followers.Add(other);
         }
     }
 
-    private bool ServerAssignLeader(ZombieController newLeader)
+    private bool ServerAssignLeader(ZombieSquadSync newLeader)
     {
-        if (newLeader == null || leader != null || controller == null) return false;
+        if (newLeader == null || newLeader.controller == null || leader != null || snapshotFormed || controller == null) return false;
         leader = newLeader;
-        controller.ServerCopyLeaderSnapshot(newLeader);
+        controller.ServerCopyLeaderSnapshot(newLeader.controller);
         return true;
     }
 
     public void ServerSynchronizeFollower()
     {
         if (leader == null || controller == null) return;
-        controller.ServerCopyLeaderSnapshot(leader);
+        controller.ServerCopyLeaderSnapshot(leader.controller);
     }
 
     public void ServerReleaseFollowersIfSettled()
@@ -59,20 +58,19 @@ public class ZombieSquadSync : MonoBehaviour
 
         for (int i = 0; i < followers.Count; i++)
         {
-            ZombieController follower = followers[i];
+            ZombieSquadSync follower = followers[i];
             if (follower == null) continue;
-            ZombieSquadSync sync = follower.GetComponent<ZombieSquadSync>();
-            if (sync != null) sync.ServerReleaseFromLeader(controller);
+            follower.ServerReleaseFromLeader(this);
         }
 
         followers.Clear();
         snapshotFormed = false;
     }
 
-    private void ServerReleaseFromLeader(ZombieController expectedLeader)
+    private void ServerReleaseFromLeader(ZombieSquadSync expectedLeader)
     {
         if (leader != expectedLeader) return;
-        controller.ServerCopyLeaderSnapshot(expectedLeader);
+        controller.ServerCopyLeaderSnapshot(expectedLeader.controller);
         leader = null;
     }
 }

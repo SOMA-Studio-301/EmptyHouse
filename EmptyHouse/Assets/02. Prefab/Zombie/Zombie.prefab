@@ -203,6 +203,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::ZombieSensorySystem
   ShowTopMostFoldoutHeaderGroup: 1
   controller: {fileID: 7330228090429543508}
+  runtimeRegistry: {fileID: 11400000, guid: a1f48fbd7d4b4d33a5a1c7e6b7f00003, type: 2}
   noiseEmittedChannel: {fileID: 11400000, guid: f111c98f693a4db2a3f3c6e413c19f11, type: 2}
   obstructionMask:
     serializedVersion: 2
@@ -237,9 +238,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::ZombieSquadSync
   controller: {fileID: 7330228090429543508}
-  zombieMask:
-    serializedVersion: 2
-    m_Bits: 4294967295
+  runtimeRegistry: {fileID: 11400000, guid: a1f48fbd7d4b4d33a5a1c7e6b7f00003, type: 2}
 --- !u!114 &7204894998762647704
 MonoBehaviour:
   m_ObjectHideFlags: 0

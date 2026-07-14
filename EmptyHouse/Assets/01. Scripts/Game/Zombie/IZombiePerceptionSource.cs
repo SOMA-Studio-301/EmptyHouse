@@ -4,6 +4,9 @@ using UnityEngine;
 // Zombie AI only consumes the read-only signals and never owns those systems.
 public interface IZombiePerceptionSource
 {
+    Transform Root { get; }
+    Vector3 EyePosition { get; }
+    ulong NetworkObjectId { get; }
     bool IsDisguised { get; }
     bool IsSpectator { get; }
     bool IsCrouching { get; }
