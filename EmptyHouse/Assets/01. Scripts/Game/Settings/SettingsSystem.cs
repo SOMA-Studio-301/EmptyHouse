@@ -20,6 +20,7 @@ public class SettingsSystem : MonoBehaviour
     [SerializeField] private FloatEventChannelSO changeSfxVolumeEvent;
     [SerializeField] private FloatEventChannelSO changeAmbientVolumeEvent;
     [SerializeField] private IntEventChannelSO changeResolutionEvent;
+    [SerializeField] private StringEventChannelSO changeLanguageEvent;
 
     /// <summary>
     /// 저장된 설정을 화면에 적용하고 각 채널로 방송한다.
@@ -37,5 +38,8 @@ public class SettingsSystem : MonoBehaviour
         changeSfxVolumeEvent.RaiseEvent(profile.SfxVolume);
         changeAmbientVolumeEvent.RaiseEvent(profile.AmbientVolume);
         changeResolutionEvent.RaiseEvent(profile.ResolutionIndex);
+
+        // LocalizationManager 는 Awake 에서 기본 언어(ko)를 적용하므로, 저장된 언어를 여기서 덮어써야 한다.
+        changeLanguageEvent.RaiseEvent(profile.LanguageCode);
     }
 }

@@ -277,6 +277,19 @@ MonoBehaviour:
       value: "\uB370\uC774\uD130 \uC0AD\uC81C"
     - languageCode: tw
       value: "\u522A\u9664\u8CC7\u6599"
+  - key: UI_OPT_DELETE_DATA_CONFIRM
+    translations:
+    - languageCode: cn
+      value: "\u5C06\u5220\u9664\u5DF2\u4FDD\u5B58\u7684\u6E38\u620F\u6570\u636E\u3002\u6B64\u64CD\u4F5C\u65E0\u6CD5\u64A4\u9500\u3002\u662F\u5426\u7EE7\u7EED\uFF1F"
+    - languageCode: en
+      value: This will delete your saved game data. This cannot be undone. Continue?
+    - languageCode: jp
+      value: "\u30BB\u30FC\u30D6\u30C7\u30FC\u30BF\u3092\u524A\u9664\u3057\u307E\u3059\u3002\u5143\u306B\u623B\u305B\u307E\u305B\u3093\u3002\u7D9A\u884C\u3057\u307E\u3059\u304B\uFF1F"
+    - languageCode: ko
+      value: "\uC800\uC7A5\uB41C \uAC8C\uC784 \uB370\uC774\uD130\uB97C \uC0AD\uC81C\uD569\uB2C8\uB2E4.
+        \uB418\uB3CC\uB9B4 \uC218 \uC5C6\uC2B5\uB2C8\uB2E4. \uACC4\uC18D\uD558\uC2DC\uACA0\uC2B5\uB2C8\uAE4C?"
+    - languageCode: tw
+      value: "\u5C07\u522A\u9664\u5DF2\u5132\u5B58\u7684\u904A\u6232\u8CC7\u6599\u3002\u6B64\u64CD\u4F5C\u7121\u6CD5\u5FA9\u539F\u3002\u662F\u5426\u7E7C\u7E8C\uFF1F"
   - key: UI_OPT_LANGUAGE
     translations:
     - languageCode: cn
@@ -373,6 +386,66 @@ MonoBehaviour:
       value: "\uD654\uBA74 \uD06C\uAE30"
     - languageCode: tw
       value: "\u87A2\u5E55\u5927\u5C0F"
+  - key: UI_OPT_TAB_AUDIO
+    translations:
+    - languageCode: cn
+      value: "\u97F3\u9891"
+    - languageCode: en
+      value: Audio
+    - languageCode: jp
+      value: "\u30AA\u30FC\u30C7\u30A3\u30AA"
+    - languageCode: ko
+      value: "\uC624\uB514\uC624"
+    - languageCode: tw
+      value: "\u97F3\u8A0A"
+  - key: UI_OPT_TAB_DATA
+    translations:
+    - languageCode: cn
+      value: "\u6570\u636E"
+    - languageCode: en
+      value: Data
+    - languageCode: jp
+      value: "\u30C7\u30FC\u30BF"
+    - languageCode: ko
+      value: "\uB370\uC774\uD130"
+    - languageCode: tw
+      value: "\u8CC7\u6599"
+  - key: UI_OPT_TAB_GAMEPLAY
+    translations:
+    - languageCode: cn
+      value: "\u6E38\u620F"
+    - languageCode: en
+      value: Gameplay
+    - languageCode: jp
+      value: "\u30B2\u30FC\u30E0\u30D7\u30EC\u30A4"
+    - languageCode: ko
+      value: "\uAC8C\uC784\uD50C\uB808\uC774"
+    - languageCode: tw
+      value: "\u904A\u6232"
+  - key: UI_OPT_TAB_GRAPHICS
+    translations:
+    - languageCode: cn
+      value: "\u753B\u9762"
+    - languageCode: en
+      value: Graphics
+    - languageCode: jp
+      value: "\u30B0\u30E9\u30D5\u30A3\u30C3\u30AF"
+    - languageCode: ko
+      value: "\uADF8\uB798\uD53D"
+    - languageCode: tw
+      value: "\u756B\u9762"
+  - key: UI_OPT_VOLUME_AMBIENT
+    translations:
+    - languageCode: cn
+      value: "\u73AF\u5883\u97F3"
+    - languageCode: en
+      value: Ambient
+    - languageCode: jp
+      value: "\u74B0\u5883\u97F3"
+    - languageCode: ko
+      value: "\uD658\uACBD\uC74C"
+    - languageCode: tw
+      value: "\u74B0\u5883\u97F3"
   - key: UI_OPT_VOLUME_BGM
     translations:
     - languageCode: cn
