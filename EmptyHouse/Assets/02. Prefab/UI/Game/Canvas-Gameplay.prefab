@@ -13,7 +13,6 @@ GameObject:
   - component: {fileID: 4328920901817529416}
   - component: {fileID: 3551392247443713827}
   - component: {fileID: 8148596054842744878}
-  - component: {fileID: 8817081069452690878}
   m_Layer: 5
   m_Name: Canvas-Gameplay
   m_TagString: Untagged
@@ -121,24 +120,6 @@ MonoBehaviour:
   gameStateChanged: {fileID: 11400000, guid: 7f1e63d814caec84581f1352109175df, type: 2}
   pausePanel: {fileID: 126233041900056859}
   settingsPanel: {fileID: 3906720933598107229}
---- !u!114 &8817081069452690878
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 2418924743311538725}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: df48747cd0c11a148a9631b5c5f4c9ef, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::GameSettingsSystem
-  saveLoadSystem: {fileID: 11400000, guid: 60c2f10eb6c3bed4c9bcb10231fb16d6, type: 2}
-  changeMasterVolumeEvent: {fileID: 11400000, guid: 18da7539e03d50c47acd5809c908a798, type: 2}
-  changeMusicVolumeEvent: {fileID: 11400000, guid: 73cccc140046bb444b304bc12223036f, type: 2}
-  changeSfxVolumeEvent: {fileID: 11400000, guid: 05de50ca67cb0b549bd01b16436613ca, type: 2}
-  changeAmbientVolumeEvent: {fileID: 11400000, guid: 8f35dd60c39dc5547acd6de9f81a155e, type: 2}
-  changeResolutionEvent: {fileID: 11400000, guid: 6ef97d0fce2742a469de3d1321ae40cd, type: 2}
 --- !u!1001 &5726196037906952431
 PrefabInstance:
   m_ObjectHideFlags: 0

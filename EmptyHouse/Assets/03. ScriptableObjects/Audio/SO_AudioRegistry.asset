@@ -1,0 +1,24 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 9b794f22255369743aee826b7257baab, type: 3}
+  m_Name: SO_AudioRegistry
+  m_EditorClassIdentifier: Assembly-CSharp::AudioRegistrySO
+  entries:
+  - Id: 100
+    Cue: {fileID: 11400000, guid: d559cca4f51ffe84495c0f8b3221e710, type: 2}
+    Configuration: {fileID: 11400000, guid: 17786051718a5e040ae689bf036af15a, type: 2}
+  - Id: 500
+    Cue: {fileID: 11400000, guid: 5f6bd70d4c73d3c4ea638c0ab4692328, type: 2}
+    Configuration: {fileID: 11400000, guid: 14026b26708a06f4a9953428a27701f7, type: 2}
+  - Id: 1000
+    Cue: {fileID: 11400000, guid: 71c5063a660cec742a411e70c0846311, type: 2}
+    Configuration: {fileID: 11400000, guid: f3bed020807a1304facb0b7b415fc6d6, type: 2}

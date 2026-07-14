@@ -1,0 +1,19 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 117088d6607e4819a0c5bde302fd9716, type: 3}
+  m_Name: SO_Cue_Sfx_TestBeep
+  m_EditorClassIdentifier: Border::Border.Audio.AudioCueSO
+  Looping: 0
+  priority: 128
+  volume: 1
+  gainDb: 0
+  audioClip: {fileID: 8300000, guid: c8451a92d74fc6c4b90b65657eea192c, type: 3}
