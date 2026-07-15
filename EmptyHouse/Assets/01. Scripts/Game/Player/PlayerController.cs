@@ -34,6 +34,7 @@ public class PlayerController : NetworkBehaviour
 
     [Header("Ownership-gated")]
     [SerializeField] private PlayerInteractor interactor;
+    [SerializeField] private PlayerInventory inventory;
 
     /// <summary>상호작용 프롬프트 전용 Canvas. 다른 HUD 요소와 분리해 두어, 프롬프트가 매 프레임 갱신돼도 그쪽 Canvas 는 리빌드되지 않는다.</summary>
     [SerializeField] private Canvas promptCanvas;
@@ -68,6 +69,7 @@ public class PlayerController : NetworkBehaviour
     {
         interactor.enabled = IsOwner;
         promptCanvas.enabled = IsOwner;
+        inventory.enabled = IsOwner;
 
         if (!IsOwner) return;
 
@@ -84,7 +86,7 @@ public class PlayerController : NetworkBehaviour
         cameraTransform.localRotation = Quaternion.identity;
     }
 
-    /// <summary>네트워크 디스폰 시 소유자에 한해 구독을 해제한다. 액션맵 비활성화는 GameManager 소관이다.</summary>
+    /// <summary>네트워크 디스폰 시 소유자에 한해 구독을 해제한다. 액션맵 비활성화는 ClientGameManager 소관이다.</summary>
     public override void OnNetworkDespawn()
     {
         if (!IsOwner) return;
