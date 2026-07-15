@@ -44,6 +44,9 @@ public class PlayerController : NetworkBehaviour
 
     private Rigidbody body;
 
+    // 사망 게이팅 소스 — 형제 PlayerDeathHandler. 사망 시 이동·시선·상호작용·인벤을 차단한다(2-1·관전은 PlayerSpectatorController).
+    private PlayerDeathHandler deathHandler;
+
     // 소유자 카메라 — OnNetworkSpawn 에서 Main Camera 를 cameraPivot 아래로 붙이고 캐시한다.
     private Transform cameraTransform;
 
@@ -61,10 +64,11 @@ public class PlayerController : NetworkBehaviour
     private float pitch;
     private float yaw;
 
-    /// <summary>Rigidbody 참조를 캐시한다.</summary>
+    /// <summary>Rigidbody 와 형제 PlayerDeathHandler 참조를 캐시한다.</summary>
     private void Awake()
     {
         body = GetComponent<Rigidbody>();
+        deathHandler = GetComponent<PlayerDeathHandler>();
     }
 
     /// <summary>
@@ -86,6 +90,7 @@ public class PlayerController : NetworkBehaviour
         inputReader.CrouchCanceledEvent += OnCrouchCanceledInput;
         inputReader.AttackEvent += OnAttackInput;
         inputReader.AttackCanceledEvent += OnAttackCanceledInput;
+        deathHandler.IsDead.OnValueChanged += HandleDeadChanged;
 
         // 씬의 Main Camera 를 cameraPivot 아래로 붙여 pitch 회전을 따라가게 한다.
         cameraTransform = Camera.main.transform;
@@ -106,16 +111,17 @@ public class PlayerController : NetworkBehaviour
         inputReader.CrouchCanceledEvent -= OnCrouchCanceledInput;
         inputReader.AttackEvent -= OnAttackInput;
         inputReader.AttackCanceledEvent -= OnAttackCanceledInput;
+        deathHandler.IsDead.OnValueChanged -= HandleDeadChanged;
 
         // 카메라를 다시 분리한다. 이걸 생략하면 플레이어 NetworkObject 파괴 시
         // 자식으로 붙어 있는 씬의 Main Camera 가 함께 파괴된다(리스폰·로비 복귀·호스트 이주는 씬을 유지한 채 despawn 한다).
         cameraTransform.SetParent(null);
     }
 
-    /// <summary>렌더 프레임마다 시선 회전을 처리한다. 회전은 물리와 무관하므로 Update 에서 처리한다.</summary>
+    /// <summary>렌더 프레임마다 시선 회전을 처리한다. 회전은 물리와 무관하므로 Update 에서 처리한다. 사망 중이면 관전(PlayerSpectatorController)이 카메라를 쥐므로 처리하지 않는다.</summary>
     private void Update()
     {
-        if (!IsOwner) return;
+        if (!IsOwner || deathHandler.IsDead.Value) return;
 
         HandleLook();
     }
@@ -123,13 +129,30 @@ public class PlayerController : NetworkBehaviour
     /// <summary>
     /// 물리 스텝마다 이동과 점프를 처리한다. Rigidbody 기반이므로 FixedUpdate 에서 처리한다.
     /// HandleMove 가 Y 속도를 보존하므로, 점프를 그 뒤에 두어야 상승 속도가 덮어써지지 않는다.
+    /// 사망 중이면 이동을 멈춘다(2-1) — 시신은 그 자리에 고정된다.
     /// </summary>
     private void FixedUpdate()
     {
-        if (!IsOwner) return;
+        if (!IsOwner || deathHandler.IsDead.Value) return;
 
         HandleMove();
         HandleJump();
+    }
+
+    /// <summary>
+    /// 사망 상태 변화를 받아 소유자 조작을 차단한다(2-1). 상호작용·인벤·프롬프트를 끄고 잔여 속도를 지워 시신을 고정한다.
+    /// 이동·시선은 Update/FixedUpdate 가 사망 상태로 게이팅한다. 부활(D18)은 MVP 미발동이라 복구는 다루지 않는다.
+    /// </summary>
+    /// <param name="previous">이전 사망 상태.</param>
+    /// <param name="current">새 사망 상태.</param>
+    private void HandleDeadChanged(bool previous, bool current)
+    {
+        if (!current) return;
+
+        interactor.enabled = false;
+        inventory.enabled = false;
+        promptCanvas.enabled = false;
+        body.linearVelocity = Vector3.zero;
     }
 
     // ── 입력 콜백 — 캐시 갱신만 한다 ────────────────────────────
