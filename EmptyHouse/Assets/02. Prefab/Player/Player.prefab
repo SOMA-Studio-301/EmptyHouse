@@ -163,7 +163,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: d5a57f767e5e46a458fc5d3c628d0cbb, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Unity.Netcode.Runtime::Unity.Netcode.NetworkObject
-  GlobalObjectIdHash: 1768140751
+  GlobalObjectIdHash: 3968709330
   InScenePlacedSourceGlobalObjectIdHash: 0
   DeferredDespawnTick: 0
   Ownership: 1
@@ -265,6 +265,7 @@ MonoBehaviour:
   groundCheckRadius: 0.4
   groundCheckDistance: 0.7
   interactor: {fileID: -6210736759775564248}
+  inventory: {fileID: 7556772348847717246}
   promptCanvas: {fileID: 2440586985477620737}
 --- !u!114 &-6210736759775564248
 MonoBehaviour:

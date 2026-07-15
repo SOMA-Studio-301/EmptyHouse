@@ -58,7 +58,13 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 0841bcc55b7904349851aa1cd7b556e3, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+  usePrefix: 0
+  prefixKey: 
   key: 
+  useSuffix: 0
+  suffixKey: 
+  prefixDynamicFirst: 0
+  suffixDynamicFirst: 1
   tmpText: {fileID: 8150399973515287640}
 --- !u!114 &8150399973515287640
 MonoBehaviour:
@@ -82,8 +88,8 @@ MonoBehaviour:
       m_Calls: []
   m_text: Localize Text
   m_isRightToLeft: 0
-  m_fontAsset: {fileID: 11400000, guid: 8f586378b4e144a9851e7b34d9b748ee, type: 2}
-  m_sharedMaterial: {fileID: 2180264, guid: 8f586378b4e144a9851e7b34d9b748ee, type: 2}
+  m_fontAsset: {fileID: 11400000, guid: 58b6d3da99b238b42bd27daa9d71673d, type: 2}
+  m_sharedMaterial: {fileID: -2006664490571270395, guid: 58b6d3da99b238b42bd27daa9d71673d, type: 2}
   m_fontSharedMaterials: []
   m_fontMaterial: {fileID: 0}
   m_fontMaterials: []
