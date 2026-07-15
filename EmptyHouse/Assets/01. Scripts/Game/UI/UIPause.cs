@@ -50,10 +50,13 @@ public class UIPause : MonoBehaviour
         SettingsRequested?.Invoke();
     }
 
-    /// <summary>나가기 버튼. 멀티플레이 세션 이탈·Menu 씬 복귀 흐름 확정 전까지 트레이스만 남긴다 — 구현 보류.</summary>
+    /// <summary>
+    /// 나가기 버튼 = 개인 이탈(포기). 세션을 종료하는 게 아니라 나 혼자 연결을 끊고 메인 메뉴로 나감
+    /// 멀티플레이라 한 명이 전원 세션을 끝낼 수 없다(세션 종료는 서버 권위의 종료 조건으로만).
+    /// </summary>
     private void OnQuitClicked()
     {
-        // TODO(impl): 세션 이탈 흐름(NGO 연동) 확정 후 구현 — 그 전까지 이 트레이스 상태를 유지한다.
+        // TODO(impl): 개인 이탈 흐름(NGO 연결 종료 → Menu 씬) 확정 후 구현 — 그 전까지 이 트레이스 상태를 유지한다.
         Log.D("[UIPause] OnQuitClicked");
     }
 }

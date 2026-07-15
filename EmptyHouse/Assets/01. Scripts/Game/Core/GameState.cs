@@ -4,7 +4,8 @@
 /// </summary>
 public enum GameState
 {
-    Menu,  // 타이틀·로비 등 UI 전용 화면. UI 입력만 활성화된다.
-    Game,  // 인게임 플레이 중. Gameplay 입력만 활성화된다.
-    Pause, // 인게임 일시정지 메뉴. UI 입력만 활성화되며 게임 시간은 계속 흐른다.
+    Menu,   // 타이틀·로비 등 UI 전용 화면. UI 입력만 활성화된다.
+    Game,   // 인게임 플레이 중. Gameplay 입력만 활성화된다.
+    Pause,  // 인게임 일시정지 메뉴. UI 입력만 활성화되며 게임 시간은 계속 흐른다.
+    Result, // 세션 종료 결과창. UI 입력만 활성화된다. 국면(GamePhase)은 서버 권위이나 이 값은 그 로컬 반영이다.
 }
