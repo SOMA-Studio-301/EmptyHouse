@@ -19,6 +19,8 @@ public class InputReader : ScriptableObject, GameInput.IGameplayActions, GameInp
     public event UnityAction<int> EquipSlotEvent = delegate { }; // 숫자 키로 슬롯 선택. payload = 슬롯 인덱스(0-based). ※ 임시: Tab 홀드 없이 단독 입력 — Tab 게이팅(2장 키맵)은 후속
     public event UnityAction<int> CycleHandEvent = delegate { }; // 마우스 휠로 손 순환. payload = 방향(+1 정방향 / -1 역방향)
     public event UnityAction JumpEvent   = delegate { }; // 점프 버튼이 눌렸을 때 발행
+    public event UnityAction CrouchEvent         = delegate { }; // 웅크리기 버튼이 눌렸을 때 발행(홀드 시작)
+    public event UnityAction CrouchCanceledEvent = delegate { }; // 웅크리기 버튼에서 손을 뗐을 때 발행(홀드 종료)
     public event UnityAction PauseEvent  = delegate { }; // 일시정지 버튼이 눌렸을 때 발행
     public event UnityAction CancelEvent = delegate { }; // UI 맵의 Cancel(Esc) 이 눌렸을 때 발행. Pause 상태에서 게임으로 복귀하는 경로
 
@@ -172,6 +174,25 @@ public class InputReader : ScriptableObject, GameInput.IGameplayActions, GameInp
         }
     }
 
+    /// <summary>
+    /// Crouch 액션 콜백(홀드). 눌림은 <see cref="CrouchEvent"/>, 뗌은 <see cref="CrouchCanceledEvent"/> 로 중계한다.
+    /// 누르는 동안 웅크림을 유지하는 방식이라, Attack 처럼 Performed/Canceled 두 시점을 모두 발행한다.
+    /// </summary>
+    /// <param name="context">Input System 이 전달하는 콜백 컨텍스트.</param>
+    public void OnCrouch(InputAction.CallbackContext context)
+    {
+        RememberDevice(context);
+
+        if (context.phase == InputActionPhase.Performed)
+        {
+            CrouchEvent.Invoke();
+        }
+        else if (context.phase == InputActionPhase.Canceled)
+        {
+            CrouchCanceledEvent.Invoke();
+        }
+    }
+
     /// <summary>Pause 액션 콜백. 눌림을 <see cref="PauseEvent"/> 로 발행한다.</summary>
     /// <param name="context">Input System 이 전달하는 콜백 컨텍스트.</param>
     public void OnPause(InputAction.CallbackContext context)
@@ -240,13 +261,6 @@ public class InputReader : ScriptableObject, GameInput.IGameplayActions, GameInp
 
     // ── 미사용 액션 ─────────────────────────────────────────────
     // Gameplay 맵에 남아 있는 템플릿 잔재. 인터페이스 구현을 위해 스텁만 둔다.
-
-    /// <summary>Crouch 액션 콜백. 아직 사용하지 않는다.</summary>
-    /// <param name="context">Input System 이 전달하는 콜백 컨텍스트.</param>
-    public void OnCrouch(InputAction.CallbackContext context)
-    {
-        Log.D($"[InputReader] Crouch {context.phase}");
-    }
 
     /// <summary>Sprint 액션 콜백. 아직 사용하지 않는다.</summary>
     /// <param name="context">Input System 이 전달하는 콜백 컨텍스트.</param>
