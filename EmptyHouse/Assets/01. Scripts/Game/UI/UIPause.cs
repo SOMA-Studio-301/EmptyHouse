@@ -1,6 +1,5 @@
 using UnityEngine;
 using UnityEngine.Events;
-using Border.Core;
 using Border.UI;
 
 /// <summary>
@@ -21,6 +20,9 @@ public class UIPause : MonoBehaviour
 
     /// <summary>설정 창 열기 요청. UIManager 가 퍼즈를 감추고 설정 창을 연다.</summary>
     public event UnityAction SettingsRequested;
+
+    /// <summary>나가기(개인 이탈·포기) 요청. UIManager 가 실제 이탈 흐름을 수행한다.</summary>
+    public event UnityAction QuitRequested;
 
     /// <summary>패널이 켜질 때 각 버튼의 Clicked 에 핸들러를 구독한다.</summary>
     private void OnEnable()
@@ -50,13 +52,9 @@ public class UIPause : MonoBehaviour
         SettingsRequested?.Invoke();
     }
 
-    /// <summary>
-    /// 나가기 버튼 = 개인 이탈(포기). 세션을 종료하는 게 아니라 나 혼자 연결을 끊고 메인 메뉴로 나감
-    /// 멀티플레이라 한 명이 전원 세션을 끝낼 수 없다(세션 종료는 서버 권위의 종료 조건으로만).
-    /// </summary>
+    /// <summary>나가기 버튼. 개인 이탈(포기) 요청만 올린다.</summary>
     private void OnQuitClicked()
     {
-        // TODO(impl): 개인 이탈 흐름(NGO 연결 종료 → Menu 씬) 확정 후 구현 — 그 전까지 이 트레이스 상태를 유지한다.
-        Log.D("[UIPause] OnQuitClicked");
+        QuitRequested?.Invoke();
     }
 }
