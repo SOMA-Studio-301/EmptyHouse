@@ -19,6 +19,7 @@ GameObject:
   - component: {fileID: 8915136794142559673}
   - component: {fileID: -6210736759775564248}
   - component: {fileID: 7556772348847717246}
+  - component: {fileID: 7161473234652010412}
   m_Layer: 0
   m_Name: Player
   m_TagString: Untagged
@@ -163,7 +164,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: d5a57f767e5e46a458fc5d3c628d0cbb, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Unity.Netcode.Runtime::Unity.Netcode.NetworkObject
-  GlobalObjectIdHash: 3968709330
+  GlobalObjectIdHash: 1768140751
   InScenePlacedSourceGlobalObjectIdHash: 0
   DeferredDespawnTick: 0
   Ownership: 1
@@ -310,6 +311,20 @@ MonoBehaviour:
   handSwapSeconds: 0.3
   inputReader: {fileID: 11400000, guid: eaa08e0560934b24b9f7d5f7d9f863dd, type: 2}
   ui: {fileID: 5554895056618055241}
+--- !u!114 &7161473234652010412
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2490874660187570032}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 9d7589108b02f6943a1bc170ca484413, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::PlayerReturn
+  ShowTopMostFoldoutHeaderGroup: 1
+  playerLifecycle: {fileID: 11400000, guid: 99aaaaab4771c6d45bcc0132da11b06f, type: 2}
 --- !u!1 &2490874660187570100
 GameObject:
   m_ObjectHideFlags: 0

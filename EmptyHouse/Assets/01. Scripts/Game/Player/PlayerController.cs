@@ -19,6 +19,9 @@ public class PlayerController : NetworkBehaviour
     [Header("Movement")]
     [SerializeField] private float moveSpeed = 3f;
 
+    /// <summary>웅크림 중 이동속도 배율. moveSpeed 에 곱해 적용한다.</summary>
+    [SerializeField] private float crouchSpeedMultiplier = 0.5f;
+
     /// <summary>점프 시작 시 설정할 상승 속도. v²/2g ≈ 1.27m 상승한다.</summary>
     [Header("Jump")]
     [SerializeField] private float jumpSpeed = 5f;
@@ -51,6 +54,9 @@ public class PlayerController : NetworkBehaviour
     // 점프 요청 — 입력 콜백이 세우고 FixedUpdate 의 HandleJump 가 소비한다.
     private bool jumpRequested;
 
+    // 웅크림 상태(홀드) — Crouch 입력 콜백이 켜고 끄며, HandleMove 가 이동속도 배율에 반영한다.
+    private bool isCrouching;
+
     // 시선 상태 — pitch 는 cameraPivot 의 로컬 X, yaw 는 본체의 Y 회전.
     private float pitch;
     private float yaw;
@@ -76,6 +82,8 @@ public class PlayerController : NetworkBehaviour
         inputReader.MoveEvent += OnMoveInput;
         inputReader.LookEvent += OnLookInput;
         inputReader.JumpEvent += OnJumpInput;
+        inputReader.CrouchEvent += OnCrouchInput;
+        inputReader.CrouchCanceledEvent += OnCrouchCanceledInput;
         inputReader.AttackEvent += OnAttackInput;
         inputReader.AttackCanceledEvent += OnAttackCanceledInput;
 
@@ -94,6 +102,8 @@ public class PlayerController : NetworkBehaviour
         inputReader.MoveEvent -= OnMoveInput;
         inputReader.LookEvent -= OnLookInput;
         inputReader.JumpEvent -= OnJumpInput;
+        inputReader.CrouchEvent -= OnCrouchInput;
+        inputReader.CrouchCanceledEvent -= OnCrouchCanceledInput;
         inputReader.AttackEvent -= OnAttackInput;
         inputReader.AttackCanceledEvent -= OnAttackCanceledInput;
 
@@ -149,6 +159,20 @@ public class PlayerController : NetworkBehaviour
         jumpRequested = true;
     }
 
+    /// <summary>웅크리기 버튼을 누르기 시작했을 때 호출된다. 웅크림 상태로 진입한다.</summary>
+    private void OnCrouchInput()
+    {
+        Log.D("[PlayerController] Crouch");
+        isCrouching = true;
+    }
+
+    /// <summary>웅크리기 버튼에서 손을 뗐을 때 호출된다. 웅크림 상태를 해제한다.</summary>
+    private void OnCrouchCanceledInput()
+    {
+        Log.D("[PlayerController] Crouch canceled");
+        isCrouching = false;
+    }
+
     /// <summary>공격 입력을 받아 공격 처리를 호출한다.</summary>
     private void OnAttackInput()
     {
@@ -190,7 +214,8 @@ public class PlayerController : NetworkBehaviour
     private void HandleMove()
     {
         Vector3 dir = transform.right * moveInput.x + transform.forward * moveInput.y;
-        Vector3 v = dir.normalized * moveSpeed;
+        float speed = isCrouching ? moveSpeed * crouchSpeedMultiplier : moveSpeed;
+        Vector3 v = dir.normalized * speed;
         body.linearVelocity = new Vector3(v.x, body.linearVelocity.y, v.z);
     }
 

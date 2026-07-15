@@ -11,7 +11,7 @@ GameObject:
   - component: {fileID: 1331758865839398253}
   - component: {fileID: 6790825034522559538}
   m_Layer: 0
-  m_Name: GameManager
+  m_Name: ClientGameManager
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
@@ -46,4 +46,5 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::GameManager
   inputReader: {fileID: 11400000, guid: eaa08e0560934b24b9f7d5f7d9f863dd, type: 2}
   gameStateChanged: {fileID: 11400000, guid: 7f1e63d814caec84581f1352109175df, type: 2}
+  gameResultChanged: {fileID: 11400000, guid: 95969388b1e545f41970994b0520a867, type: 2}
   initialState: 1

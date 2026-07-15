@@ -4,7 +4,7 @@ using UnityEngine.Events;
 
 /// <summary>
 /// GameState 브로드캐스트 이벤트 채널. 패키지 Border.Events 채널과 동일한 형태의 게임 전용 확장이다.
-/// 발행자가 상태를 결정하며, GameManager 를 포함한 모든 리스너는 대등한 구독자다.
+/// 발행자가 상태를 결정하며, ClientGameManager 를 포함한 모든 리스너는 대등한 구독자다.
 /// GameState 는 게임 전용 타입이므로 이 채널은 패키지가 아닌 게임 코드에 둔다.
 /// </summary>
 [CreateAssetMenu(fileName = "GameStateEventChannelSO", menuName = "Events/GameState")]
@@ -24,7 +24,6 @@ public class GameStateEventChannelSO : ScriptableObject
     /// </summary>
     private void OnEnable()
     {
-        Log.D("[GameStateEventChannelSO] OnEnable");
         CurrentState = GameState.Menu;
     }
 
@@ -32,7 +31,6 @@ public class GameStateEventChannelSO : ScriptableObject
     /// <param name="state">전환할 게임 상태.</param>
     public void RaiseEvent(GameState state)
     {
-        Log.D($"[GameStateEventChannelSO] RaiseEvent {state}");
         CurrentState = state;
         OnEventRaised.Invoke(state);
     }

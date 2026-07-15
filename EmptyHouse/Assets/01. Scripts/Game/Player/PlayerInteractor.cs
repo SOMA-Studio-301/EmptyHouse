@@ -155,8 +155,6 @@ public class PlayerInteractor : MonoBehaviour
     /// </summary>
     private void OnInteractPressed()
     {
-        Log.D("[PlayerInteractor] Interact pressed");
-
         if (currentCandidate == null) return;
 
         // Active 가 아니면(사거리 밖·조건 미충족·개방 완료 등) 프롬프트가 안내한 그대로 무반응이다.
@@ -180,8 +178,6 @@ public class PlayerInteractor : MonoBehaviour
     /// </summary>
     private void OnInteractCanceled()
     {
-        Log.D("[PlayerInteractor] Interact canceled");
-
         CancelActiveHold();
     }
 
