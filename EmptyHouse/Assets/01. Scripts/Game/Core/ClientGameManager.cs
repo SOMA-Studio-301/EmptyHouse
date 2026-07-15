@@ -45,6 +45,8 @@ public class ClientGameManager : MonoBehaviour
     /// <summary>
     /// 수신한 상태에 따라 입력 액션맵과 커서를 전환한다.
     /// Game → Gameplay 맵 활성화 + 커서 잠금·숨김. Menu/Pause/Result → UI 맵 활성화 + 커서 해제·표시.
+    /// Spectating → Gameplay 맵 유지(카메라 Look·대상 순환 Next/Previous 수신) + 커서 잠금·숨김.
+    ///   사망 캐릭터의 이동·E·인벤 조작 차단은 PlayerController 가 사망 상태로 게이팅한다(2-1).
     /// </summary>
     /// <param name="state">방송된 게임 상태.</param>
     private void HandleStateChanged(GameState state)
@@ -52,6 +54,9 @@ public class ClientGameManager : MonoBehaviour
         switch (state)
         {
             case GameState.Game:
+            case GameState.Spectating:
+                // 관전도 Gameplay 맵을 켜 둔다 — 마우스 Look 으로 관전 카메라를 돌리고 ←/→(Next/Previous)로 대상을 순환하기 때문.
+                // 관전 중 이동·E·인벤 무반응(2-1)은 PlayerController 가 사망 상태로 게이팅한다.
                 inputReader.EnableGameplayInput();
                 Cursor.lockState = CursorLockMode.Locked;
                 Cursor.visible = false;

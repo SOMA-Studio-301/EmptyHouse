@@ -8,4 +8,5 @@ public enum GameState
     Game,   // 인게임 플레이 중. Gameplay 입력만 활성화된다.
     Pause,  // 인게임 일시정지 메뉴. UI 입력만 활성화되며 게임 시간은 계속 흐른다.
     Result, // 세션 종료 결과창. UI 입력만 활성화된다. 국면(GamePhase)은 서버 권위이나 이 값은 그 로컬 반영이다.
+    Spectating, // 사망 후 관전. Gameplay 입력을 차단하되 ←/→ 관전 순환만 허용. 클라 로컬 값.
 }

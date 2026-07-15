@@ -23,6 +23,8 @@ public class InputReader : ScriptableObject, GameInput.IGameplayActions, GameInp
     public event UnityAction CrouchCanceledEvent = delegate { }; // 웅크리기 버튼에서 손을 뗐을 때 발행(홀드 종료)
     public event UnityAction PauseEvent  = delegate { }; // 일시정지 버튼이 눌렸을 때 발행
     public event UnityAction CancelEvent = delegate { }; // UI 맵의 Cancel(Esc) 이 눌렸을 때 발행. Pause 상태에서 게임으로 복귀하는 경로
+    public event UnityAction NextEvent     = delegate { }; // 관전 대상 다음 순환(→). 관전 중에만 소비된다
+    public event UnityAction PreviousEvent = delegate { }; // 관전 대상 이전 순환(←). 관전 중에만 소비된다
 
     private GameInput gameInput;
 
@@ -257,6 +259,30 @@ public class InputReader : ScriptableObject, GameInput.IGameplayActions, GameInp
         if (Mathf.Approximately(scroll, 0f)) return;
 
         CycleHandEvent.Invoke(scroll > 0f ? 1 : -1);
+    }
+
+    /// <summary>Next 액션 콜백. 눌림을 <see cref="NextEvent"/> 로 발행한다(관전 대상 다음 순환).</summary>
+    /// <param name="context">Input System 이 전달하는 콜백 컨텍스트.</param>
+    public void OnNext(InputAction.CallbackContext context)
+    {
+        RememberDevice(context);
+
+        if (context.phase == InputActionPhase.Performed)
+        {
+            NextEvent.Invoke();
+        }
+    }
+
+    /// <summary>Previous 액션 콜백. 눌림을 <see cref="PreviousEvent"/> 로 발행한다(관전 대상 이전 순환).</summary>
+    /// <param name="context">Input System 이 전달하는 콜백 컨텍스트.</param>
+    public void OnPrevious(InputAction.CallbackContext context)
+    {
+        RememberDevice(context);
+
+        if (context.phase == InputActionPhase.Performed)
+        {
+            PreviousEvent.Invoke();
+        }
     }
 
     // ── 미사용 액션 ─────────────────────────────────────────────

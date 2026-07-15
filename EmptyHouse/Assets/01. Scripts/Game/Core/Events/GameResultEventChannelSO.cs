@@ -25,7 +25,6 @@ public class GameResultEventChannelSO : ScriptableObject
     /// </summary>
     private void OnEnable()
     {
-        Log.D("[GameResultEventChannelSO] OnEnable");
         CurrentReason = GameResultReason.None;
     }
 
@@ -33,7 +32,6 @@ public class GameResultEventChannelSO : ScriptableObject
     /// <param name="reason">확정된 종료 사유.</param>
     public void RaiseEvent(GameResultReason reason)
     {
-        Log.D($"[GameResultEventChannelSO] RaiseEvent {reason}");
         CurrentReason = reason;
         OnEventRaised.Invoke(reason);
     }
