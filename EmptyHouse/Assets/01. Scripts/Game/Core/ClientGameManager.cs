@@ -69,12 +69,12 @@ public class ClientGameManager : MonoBehaviour
 
     /// <summary>
     /// 서버가 확정한 세션 결과를 클라 입력 상태로 번역한다 — Result 상태를 발행해 UI 입력·커서로 전환한다.
-    /// 결과창 UI 표시 자체는 이 클래스가 아니라 클라 UI(UIResult)가 같은 채널을 구독해 처리한다.
+    /// 결과창 UI 표시 자체는 이 클래스가 아니라 UIManager(→ UIResult)가 같은 채널을 구독해 처리한다.
     /// </summary>
     /// <param name="reason">종료 사유(성공/전멸/미완수 탈출). 여기서는 상태 전환에만 쓰고 문구는 UI 가 해석한다.</param>
     private void HandleGameResult(GameResultReason reason)
     {
-        // TODO(impl): 결과창 UI 표시는 UIResult 핸드오프. 이 클래스는 입력·커서 전환만 책임진다.
+        // 결과창 UI 표시는 UIManager 가 같은 채널을 구독해 핸드오프한다. 이 클래스는 입력·커서 전환만 책임진다.
         Log.D($"[ClientGameManager] HandleGameResult {reason}");
         gameStateChanged.RaiseEvent(GameState.Result);
     }

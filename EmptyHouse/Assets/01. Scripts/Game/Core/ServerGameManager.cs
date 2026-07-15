@@ -3,11 +3,13 @@ using System.Collections.Generic;
 using Border.Core;
 using Unity.Netcode;
 using UnityEngine;
+using UnityEngine.SceneManagement;
 
 /// <summary>
-/// 세션 종료 판정의 서버 권위자(세션루프.md 3·5장). 플레이어 로스터(활성/귀환/사망/포기)를 들고,
-/// 활성(생존 &amp;&amp; 미귀환) 수가 0 이 되는 순간 결과를 확정한다 — 귀환자 0 → GameOver, 귀환자 ≥ 1 → Settlement(D35).
-/// 결과 확정 후 8초(⚪) 서버 타이머로 ReturningToLobby 로 자동 전이한다 — 버튼·호스트 조작·전원 확인이 아니다(5-1).
+/// 세션 종료 판정의 서버 권위자. 플레이어 로스터(활성/귀환/사망/포기)를 들고,
+/// 활성(생존&미귀환) 수가 0 이 되는 순간 결과를 확정한다 — 귀환자 0 → GameOver, 귀환자 ≥ 1 → Settlement
+/// 결과 확정 후 8초 서버 타이머로 ReturningToLobby 로 자동 전이하며 로비 씬을 NGO 로 로드한다 — 버튼·호스트 조작·전원 확인이 아님(5-1).
+/// 복귀는 재접속이 아니라 씬 스왑이다 — NGO 세션은 유지되고 전 클라가 같은 세션으로 로비 씬을 로드한다(4장).
 /// GamePhase/GameResultReason 을 전 클라에 복제하고, 결과는 채널로만 방송한다(UI 미참조).
 /// 사망/귀환/포기 신호는 PlayerLifecycleEventChannelSO 로 서버에서만 수신한다.
 /// </summary>
@@ -25,6 +27,10 @@ public class ServerGameManager : NetworkBehaviour
     /// <summary>결과 표시 후 로비 복귀까지의 대기 시간(초). ⚪ 플레이테스트 튜닝값(5-1).</summary>
     [Header("Timing")]
     [SerializeField] private float resultDisplaySeconds = 8f;
+
+    /// <summary>로비 복귀 시 로드할 씬 이름. NGO SceneManager 로 전 클라에 복제 로드된다(재접속 아님·씬 스왑, 4장). 빌드 세팅에 등록돼 있어야 한다.</summary>
+    [Header("Scene")]
+    [SerializeField] private string lobbySceneName = "Lobby";
 
     /// <summary>백신 달성 판정 기준 수(정산 요약 표시용, 종료 게이트 아님). MVP 1 / 정식 3 — 레벨디자인 3-4.</summary>
     [Header("Objective")]
@@ -166,8 +172,8 @@ public class ServerGameManager : NetworkBehaviour
     }
 
     /// <summary>
-    /// 결과 표시 후 resultDisplaySeconds(⚪) 뒤 phase 를 ReturningToLobby 로 전이하는 타이머를 시작한다 — 버튼이 아닌 서버 타이머(5-1).
-    /// 실제 로비 씬 스왑(로비 상주·재접속 아님)은 네트워크 레이어가 phase 를 보고 처리한다(오규빈).
+    /// 결과 표시 후 resultDisplaySeconds(⚪) 뒤 phase 를 ReturningToLobby 로 전이하고 로비 씬을 로드하는 타이머를 시작한다 — 버튼이 아닌 서버 타이머(5-1).
+    /// 씬 스왑은 NGO SceneManager 로 전 클라에 복제된다(로비 상주·재접속 아님, 4장).
     /// </summary>
     private void BeginReturnToLobbyCountdown()
     {
@@ -177,14 +183,15 @@ public class ServerGameManager : NetworkBehaviour
         StartCoroutine(ReturnToLobbyAfterDelay());
     }
 
-    /// <summary>resultDisplaySeconds 대기 후 phase 를 ReturningToLobby 로 전이한다.</summary>
+    /// <summary>resultDisplaySeconds 대기 후 phase 를 ReturningToLobby 로 전이하고 로비 씬을 NGO 로 로드한다(전 클라 복제·재접속 아님).</summary>
     /// <returns>대기용 열거자.</returns>
     private IEnumerator ReturnToLobbyAfterDelay()
     {
         yield return new WaitForSeconds(resultDisplaySeconds);
 
-        Log.D("[ServerGameManager] → ReturningToLobby");
+        Log.D($"[ServerGameManager] → ReturningToLobby · 로비 씬 로드 {lobbySceneName}");
         phase.Value = GamePhase.ReturningToLobby;
+        NetworkManager.SceneManager.LoadScene(lobbySceneName, LoadSceneMode.Single);
     }
 
     /// <summary>결과 사유 변화를 클라 채널로 방송한다(None 은 방송하지 않음). 전 클라에서 발화된다.</summary>

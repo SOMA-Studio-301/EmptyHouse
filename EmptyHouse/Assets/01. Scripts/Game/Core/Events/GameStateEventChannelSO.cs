@@ -24,7 +24,6 @@ public class GameStateEventChannelSO : ScriptableObject
     /// </summary>
     private void OnEnable()
     {
-        Log.D("[GameStateEventChannelSO] OnEnable");
         CurrentState = GameState.Menu;
     }
 
@@ -32,7 +31,6 @@ public class GameStateEventChannelSO : ScriptableObject
     /// <param name="state">전환할 게임 상태.</param>
     public void RaiseEvent(GameState state)
     {
-        Log.D($"[GameStateEventChannelSO] RaiseEvent {state}");
         CurrentState = state;
         OnEventRaised.Invoke(state);
     }

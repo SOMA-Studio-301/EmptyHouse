@@ -5,7 +5,7 @@ using UnityEngine.Events;
 /// <summary>
 /// 세션 결과 브로드캐스트 이벤트 채널. 패키지 Border.Events 채널과 동일한 형태의 게임 전용 확장이다.
 /// ServerGameManager 가 결과를 확정한 뒤(각 클라의 NetworkVariable OnValueChanged 시점) 발행하며,
-/// 클라 UI(UIResult)와 ClientGameManager 가 대등한 구독자로서 수신한다.
+/// 클라 UI 매니저(UIManager, 사유를 UIResult 로 핸드오프)와 ClientGameManager 가 대등한 구독자로서 수신한다.
 /// GameResultReason 이 게임 전용 타입이므로 이 채널은 패키지가 아닌 게임 코드에 둔다.
 /// </summary>
 [CreateAssetMenu(fileName = "GameResultEventChannelSO", menuName = "Events/GameResult")]

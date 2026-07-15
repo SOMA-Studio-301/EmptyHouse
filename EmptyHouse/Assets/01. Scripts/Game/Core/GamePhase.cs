@@ -6,5 +6,5 @@ public enum GamePhase
 {
     InProgress,       // 스폰 완료·플레이 중. 종료 조건(활성==0)을 매 변화마다 재판정한다.
     Result,           // 활성==0 도달. 결과 확정·결과창 표시. 판정은 정지(래치)한다.
-    ReturningToLobby, // 호스트가 복귀를 발동, 세션 정리(NGO teardown) 진행 중. 중복 트리거 방지 래치.
+    ReturningToLobby, // 8초 타이머 만료 → 서버가 로비 씬을 NGO 로 로드 중(세션 유지·재접속 아님·씬 스왑, 4장). 중복 트리거 방지 래치.
 }

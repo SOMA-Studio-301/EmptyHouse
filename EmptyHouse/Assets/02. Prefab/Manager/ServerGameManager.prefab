@@ -45,8 +45,8 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: d5a57f767e5e46a458fc5d3c628d0cbb, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Unity.Netcode.Runtime::Unity.Netcode.NetworkObject
-  GlobalObjectIdHash: 1313224786
-  InScenePlacedSourceGlobalObjectIdHash: 0
+  GlobalObjectIdHash: 3560933266
+  InScenePlacedSourceGlobalObjectIdHash: 1313224786
   DeferredDespawnTick: 0
   Ownership: 1
   AlwaysReplicateAsRoot: 0
@@ -72,5 +72,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::ServerGameManager
   ShowTopMostFoldoutHeaderGroup: 1
+  resultDisplaySeconds: 8
   requiredVaccines: 1
   gameResultChanged: {fileID: 11400000, guid: 95969388b1e545f41970994b0520a867, type: 2}
+  playerLifecycle: {fileID: 11400000, guid: 99aaaaab4771c6d45bcc0132da11b06f, type: 2}
