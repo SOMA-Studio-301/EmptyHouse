@@ -7,10 +7,12 @@ public class ZombieSensorySystem : NetworkBehaviour
     [SerializeField] private ZombieController controller;
     [SerializeField] private ZombieRuntimeRegistrySO runtimeRegistry;
     [SerializeField] private NoiseEventChannelSO noiseEmittedChannel;
+    [SerializeField] private EmptyHouse.NoiseSystem.NoiseDetectedEventChannelSO noiseDetectedChannel;
     [SerializeField] private LayerMask obstructionMask = ~0;
     [SerializeField] private bool environmentIsBright;
 
     private readonly List<TimedNoise> pendingNoises = new List<TimedNoise>();
+    private readonly List<TimedDetectedNoise> pendingDetectedNoises = new List<TimedDetectedNoise>();
     private float watcherBlindUntil;
 
     private readonly struct TimedNoise
@@ -25,22 +27,48 @@ public class ZombieSensorySystem : NetworkBehaviour
         }
     }
 
+    private readonly struct TimedDetectedNoise
+    {
+        public readonly EmptyHouse.NoiseSystem.NoiseDetectedEvent Noise;
+        public readonly float ReceivedAt;
+
+        public TimedDetectedNoise(EmptyHouse.NoiseSystem.NoiseDetectedEvent noise, float receivedAt)
+        {
+            Noise = noise;
+            ReceivedAt = receivedAt;
+        }
+    }
+
     public override void OnNetworkSpawn()
     {
         if (!IsServer) return;
-        if (controller == null || runtimeRegistry == null || noiseEmittedChannel == null)
+        if (controller == null || runtimeRegistry == null ||
+            (noiseDetectedChannel == null && noiseEmittedChannel == null))
         {
             Debug.LogError($"[{nameof(ZombieSensorySystem)}] Explicit references are incomplete on {name}.", this);
             enabled = false;
             return;
         }
 
-        noiseEmittedChannel.OnEventRaised += OnNoiseEmitted;
+        // Production uses the propagated, target-specific channel. The legacy
+        // channel remains a fallback for scenes that have not been migrated yet.
+        if (noiseDetectedChannel != null)
+        {
+            noiseDetectedChannel.OnEventRaised += OnNoiseDetected;
+        }
+        else
+        {
+            noiseEmittedChannel.OnEventRaised += OnNoiseEmitted;
+        }
     }
 
     public override void OnNetworkDespawn()
     {
-        if (noiseEmittedChannel != null)
+        if (noiseDetectedChannel != null)
+        {
+            noiseDetectedChannel.OnEventRaised -= OnNoiseDetected;
+        }
+        else if (noiseEmittedChannel != null)
         {
             noiseEmittedChannel.OnEventRaised -= OnNoiseEmitted;
         }
@@ -50,6 +78,12 @@ public class ZombieSensorySystem : NetworkBehaviour
     {
         if (!IsServer) return;
         pendingNoises.Add(new TimedNoise(noiseEvent, Time.time));
+    }
+
+    private void OnNoiseDetected(EmptyHouse.NoiseSystem.NoiseDetectedEvent noiseEvent)
+    {
+        if (!IsServer || noiseEvent.TargetZombieId != NetworkObjectId) return;
+        pendingDetectedNoises.Add(new TimedDetectedNoise(noiseEvent, Time.time));
     }
 
     public ZombiePerceptionFrame ServerCollectPerception()
@@ -165,10 +199,12 @@ public class ZombieSensorySystem : NetworkBehaviour
 
     private HearingResult EvaluateHearing()
     {
-        if (pendingNoises.Count == 0) return default;
+        if (pendingNoises.Count == 0 && pendingDetectedNoises.Count == 0) return default;
 
         float bestEffectiveDb = float.MinValue;
         NoiseEvent bestNoise = default;
+        EmptyHouse.NoiseSystem.NoiseDetectedEvent bestDetectedNoise = default;
+        bool usesDetectedNoise = false;
 
         for (int i = 0; i < pendingNoises.Count; i++)
         {
@@ -177,12 +213,24 @@ public class ZombieSensorySystem : NetworkBehaviour
             {
                 bestEffectiveDb = effectiveDb;
                 bestNoise = pendingNoises[i].Noise;
+                usesDetectedNoise = false;
             }
+        }
+
+        for (int i = 0; i < pendingDetectedNoises.Count; i++)
+        {
+            EmptyHouse.NoiseSystem.NoiseDetectedEvent detected = pendingDetectedNoises[i].Noise;
+            if (detected.ReachedDb <= bestEffectiveDb) continue;
+            bestEffectiveDb = detected.ReachedDb;
+            bestDetectedNoise = detected;
+            usesDetectedNoise = true;
         }
 
         if (bestEffectiveDb < controller.Data.HearMinDb) return default;
 
-        Transform target = ResolvePlayerSource(bestNoise.Source);
+        Transform target = usesDetectedNoise
+            ? ResolveNetworkSource(bestDetectedNoise.SourceId)
+            : ResolvePlayerSource(bestNoise.Source);
         ulong targetNetworkObjectId = 0UL;
         if (target != null)
         {
@@ -201,9 +249,17 @@ public class ZombieSensorySystem : NetworkBehaviour
             true,
             target != null,
             bestEffectiveDb,
-            bestNoise.Origin,
+            usesDetectedNoise ? bestDetectedNoise.Origin : bestNoise.Origin,
             target,
             targetNetworkObjectId);
+    }
+
+    private Transform ResolveNetworkSource(ulong sourceId)
+    {
+        if (NetworkManager == null || NetworkManager.SpawnManager == null) return null;
+        return NetworkManager.SpawnManager.SpawnedObjects.TryGetValue(sourceId, out NetworkObject source)
+            ? source.transform
+            : null;
     }
 
     private float ComputeEffectiveNoiseDb(NoiseEvent noiseEvent)
@@ -284,6 +340,10 @@ public class ZombieSensorySystem : NetworkBehaviour
         for (int i = pendingNoises.Count - 1; i >= 0; i--)
         {
             if (pendingNoises[i].ReceivedAt < cutoff) pendingNoises.RemoveAt(i);
+        }
+        for (int i = pendingDetectedNoises.Count - 1; i >= 0; i--)
+        {
+            if (pendingDetectedNoises[i].ReceivedAt < cutoff) pendingDetectedNoises.RemoveAt(i);
         }
     }
 

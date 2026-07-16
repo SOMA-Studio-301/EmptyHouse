@@ -48,7 +48,7 @@ GameObject:
   - component: {fileID: 9094875705781540961}
   - component: {fileID: 936554292871143504}
   - component: {fileID: 7204894998762647704}
-  m_Layer: 0
+  m_Layer: 9
   m_Name: Zombie
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -205,9 +205,10 @@ MonoBehaviour:
   controller: {fileID: 7330228090429543508}
   runtimeRegistry: {fileID: 11400000, guid: a1f48fbd7d4b4d33a5a1c7e6b7f00003, type: 2}
   noiseEmittedChannel: {fileID: 11400000, guid: f111c98f693a4db2a3f3c6e413c19f11, type: 2}
+  noiseDetectedChannel: {fileID: 11400000, guid: 0a8d756587604aeca8f072b58cf72daf, type: 2}
   obstructionMask:
     serializedVersion: 2
-    m_Bits: 4294967295
+    m_Bits: 1152
   environmentIsBright: 0
 --- !u!114 &9094875705781540961
 MonoBehaviour:
@@ -303,7 +304,7 @@ GameObject:
   - component: {fileID: 681828777028321013}
   - component: {fileID: 3733529474911484194}
   - component: {fileID: 6656175341658445897}
-  m_Layer: 0
+  m_Layer: 9
   m_Name: Capsule
   m_TagString: Untagged
   m_Icon: {fileID: 0}
