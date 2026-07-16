@@ -64,6 +64,20 @@ public class PlayerController : NetworkBehaviour
     private float pitch;
     private float yaw;
 
+    // ── 애니메이션 노출 (읽기 전용) — PlayerAnimator 가 소유자에서 참조한다 ──
+
+    /// <summary>수평(XZ) 이동 속력. 이동 블렌드 파라미터용. 단위 m/s.</summary>
+    public float PlanarSpeed => new Vector2(body.linearVelocity.x, body.linearVelocity.z).magnitude; // XZ 속력
+
+    /// <summary>접지 여부. 애니메이션 파라미터용.</summary>
+    public bool Grounded => IsGrounded(); // 접지 여부
+
+    /// <summary>웅크림 상태 여부. 애니메이션 파라미터용.</summary>
+    public bool Crouching => isCrouching; // 웅크림 여부
+
+    /// <summary>점프가 실제로 발동한 순간 발행된다. 애니메이션 트리거용.</summary>
+    public event System.Action JumpPerformed;
+
     /// <summary>Rigidbody 와 형제 PlayerDeathHandler 참조를 캐시한다.</summary>
     private void Awake()
     {
@@ -256,6 +270,8 @@ public class PlayerController : NetworkBehaviour
 
         Vector3 v = body.linearVelocity;
         body.linearVelocity = new Vector3(v.x, jumpSpeed, v.z);
+
+        JumpPerformed?.Invoke();
 
         // TODO: 점프·착지 소음 이벤트 발행 (소음 시스템 미구현 — 기획서 '행위 기반 소음')
     }
