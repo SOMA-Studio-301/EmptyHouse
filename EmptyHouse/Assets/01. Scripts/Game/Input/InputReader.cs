@@ -25,6 +25,7 @@ public class InputReader : ScriptableObject, GameInput.IGameplayActions, GameInp
     public event UnityAction CancelEvent = delegate { }; // UI 맵의 Cancel(Esc) 이 눌렸을 때 발행. Pause 상태에서 게임으로 복귀하는 경로
     public event UnityAction NextEvent     = delegate { }; // 관전 대상 다음 순환(→). 관전 중에만 소비된다
     public event UnityAction PreviousEvent = delegate { }; // 관전 대상 이전 순환(←). 관전 중에만 소비된다
+    public event UnityAction DropEvent = delegate { }; // 버리기(G) 버튼이 눌렸을 때 발행
 
     private GameInput gameInput;
 
@@ -282,6 +283,18 @@ public class InputReader : ScriptableObject, GameInput.IGameplayActions, GameInp
         if (context.phase == InputActionPhase.Performed)
         {
             PreviousEvent.Invoke();
+        }
+    }
+
+    /// <summary>Drop 액션 콜백. 눌림을 <see cref="DropEvent"/> 로 발행한다.</summary>
+    /// <param name="context">Input System 이 전달하는 콜백 컨텍스트.</param>
+    public void OnDrop(InputAction.CallbackContext context)
+    {
+        RememberDevice(context);
+
+        if (context.phase == InputActionPhase.Performed)
+        {
+            DropEvent.Invoke();
         }
     }
 

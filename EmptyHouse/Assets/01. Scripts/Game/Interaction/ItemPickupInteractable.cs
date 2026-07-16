@@ -19,6 +19,21 @@ public class ItemPickupInteractable : SingleClickInteractableBase
     [LocalizeKey][SerializeField] private string inventoryFullReasonKey = "INT_MSG_INVENTORY_FULL"; // 슬롯 만재 시 비활성 사유 (3-8 E8)
 
     /// <summary>
+    /// 런타임 스폰된 픽업에 아이템과 페어 번호를 주입한다 — G 버리기 · 사망 드롭(D19) 경로 전용.
+    /// 맵에 미리 배치된 픽업은 인스펙터 직렬화 값을 쓰므로 이 메서드를 호출하지 않는다.
+    /// 페어 번호를 승계하지 않으면 열쇠_NN 을 들고 죽었을 때 드롭된 열쇠가 pairId=0 으로 리셋되어 자물쇠_NN 을 열 수 없다(0-3 넘버링 규약).
+    /// </summary>
+    /// <param name="data">스폰된 픽업이 표상할 아이템 데이터.</param>
+    /// <param name="pair">승계할 페어 번호(NN). 열쇠 외에는 0.</param>
+    public void Initialize(ItemDataSO data, int pair)
+    {
+        Log.D($"[ItemPickupInteractable] Initialize {data.NameKey} pairId={pair}");
+
+        itemData = data;
+        pairId = pair;
+    }
+
+    /// <summary>
     /// 빈 슬롯이 있으면 활성(itemData 의 동사 키), 풀이면 비활성 "가방이 가득 찼습니다"를 반환
     /// </summary>
     /// <param name="interactor">이 픽업을 조준 중인 상호작용 주체.</param>
