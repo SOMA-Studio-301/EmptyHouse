@@ -9,11 +9,28 @@ public enum AudioId
     None = 0,
 
     // SFX (100~)
-    Sfx_Test_Beep = 100,
+    Sfx_Door_Close = 100,
+    Sfx_Door_Open = 101,
+    Sfx_Flash_OnOff = 102,
+    Sfx_Foot_Walk_Hard = 103,
+    Sfx_Item_Drop = 104,
+    Sfx_Item_Pickup = 105,
+    Sfx_Player_Heartbeat = 106,
+    Sfx_Power_Activate = 107,
+    Sfx_Power_Interaction = 108,
+    Sfx_Ui_Click = 109,
+    Sfx_Ui_GameStart = 110,
+    Sfx_Ui_SlotSelect = 111,
+    Sfx_Ui_TabClose = 112,
+    Sfx_Ui_TabOpen = 113,
 
     // Ambient (500~)
-    Amb_Test_Room = 500,
+    Amb_1F_Wind = 500,
+    Amb_2F_Beep = 501,
+    Amb_B1_Drone = 502,
 
     // BGM (1000~)
-    Bgm_Test_Tone = 1000,
+    Bgm_Alert_Sting = 1000,
+    Bgm_Lobby_0 = 1001,
+    Bgm_Lobby_1 = 1002,
 }
