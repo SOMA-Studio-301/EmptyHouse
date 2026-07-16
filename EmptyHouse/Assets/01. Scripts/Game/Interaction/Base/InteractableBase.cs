@@ -1,11 +1,16 @@
 using Border.Core;
+using Unity.Netcode;
 using UnityEngine;
 
 /// <summary>
 /// 상호작용 가능한 모든 오브젝트의 공통 부모 클래스
 /// 이 클래스는 프롬프트 정보 제공과 실행 시점의 소음 발행 계약만 책임진다.
+///
+/// 상호작용 결과(픽업 소멸 등)는 전 클라에 복제돼야 하므로 NetworkBehaviour 를 상속한다 —
+/// 따라서 모든 Interactable 프리팹에는 NetworkObject 가 필요하고, 런타임 스폰되는 픽업은
+/// NetworkManager 의 NetworkPrefabs 에도 등록돼 있어야 한다.
 /// </summary>
-public abstract class InteractableBase : MonoBehaviour
+public abstract class InteractableBase : NetworkBehaviour
 {
     [Header("Event Channels")]
     [SerializeField] private NoiseEventChannelSO noiseEmittedChannel;
@@ -49,5 +54,29 @@ public abstract class InteractableBase : MonoBehaviour
 
         noiseEmittedChannel.RaiseEvent(new NoiseEvent(transform.position, noiseDb, gameObject));
         Log.D($"[InteractableBase] RaiseNoise {noiseDb}dB from {name}");
+    }
+
+    /// <summary>
+    /// 이 오브젝트를 전 클라에서 소멸시킨다. 회수된 픽업처럼 "사라짐"이 결과인 상호작용이 호출한다.
+    /// 스폰된 NetworkObject 는 클라이언트가 Destroy 할 수 없으므로 서버에 요청만 보낸다.
+    /// </summary>
+    protected void DespawnSelf()
+    {
+        RequestDespawnServerRpc();
+    }
+
+    /// <summary>
+    /// 소멸 요청을 서버에서 수신해 전 클라에서 despawn 한다.
+    /// 픽업은 서버 소유라 상호작용 주체가 소유자가 아니므로 RequireOwnership 을 끈다.
+    /// </summary>
+    [ServerRpc(RequireOwnership = false)]
+    private void RequestDespawnServerRpc()
+    {
+        Log.D($"[InteractableBase] RequestDespawnServerRpc {name}");
+
+        // 두 클라가 같은 프레임에 회수하면 요청이 두 번 온다. 이미 despawn 됐으면 두 번째는 무시한다.
+        if (!IsSpawned) return;
+
+        NetworkObject.Despawn();
     }
 }

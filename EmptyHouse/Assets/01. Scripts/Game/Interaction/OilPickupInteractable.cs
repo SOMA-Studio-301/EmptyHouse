@@ -49,8 +49,8 @@ public class OilPickupInteractable : HoldInteractableBase
         // 프롬프트가 Active 였어도 완료 프레임에 만재일 수 있다(홀드 중 다른 경로로 슬롯이 찬 경우).
         if (!interactor.Inventory.TryAdd(itemData, 0)) return;
 
-        // Destroy 이후에는 transform·name 접근이 위험하므로 소음을 먼저 발행한다.
+        // 소음을 먼저 발행한다 — 소멸 후에는 transform·name 접근이 위험하다.
         RaiseNoise(itemData.PickupNoiseDb);
-        Destroy(gameObject);
+        DespawnSelf();
     }
 }
