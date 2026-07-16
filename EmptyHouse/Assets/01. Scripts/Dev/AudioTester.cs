@@ -15,6 +15,11 @@ public class AudioTester : MonoBehaviour
     [SerializeField] private BorderAudio.AudioCueEventChannelSO musicEventChannel;
     [SerializeField] private AudioRegistrySO audioRegistry;
 
+    [Header("Targets")]
+    [SerializeField] private AudioId sfxAudioId = AudioId.Sfx_Ui_Click;         // playSfxBeep 이 재생할 단발 SFX
+    [SerializeField] private AudioId ambientAudioId = AudioId.Amb_1F_Wind;      // playAmbientLoop 이 재생할 앰비언트 루프
+    [SerializeField] private AudioId musicAudioId = AudioId.Bgm_Lobby_0;        // playMusicLoop 이 재생할 BGM
+
     [Header("Triggers")]
     [Tooltip("SFX 버스로 단발 비프를 재생한다.")]
     public bool playSfxBeep;
@@ -39,19 +44,19 @@ public class AudioTester : MonoBehaviour
         if (playSfxBeep)
         {
             playSfxBeep = false;
-            PlaySfx(AudioId.Sfx_Test_Beep);
+            PlaySfx(sfxAudioId);
         }
 
         if (playAmbientLoop)
         {
             playAmbientLoop = false;
-            ambientKey = PlaySfx(AudioId.Amb_Test_Room);
+            ambientKey = PlaySfx(ambientAudioId);
         }
 
         if (playMusicLoop)
         {
             playMusicLoop = false;
-            PlayMusic(AudioId.Bgm_Test_Tone);
+            PlayMusic(musicAudioId);
         }
 
         if (stopAmbientLoop)
