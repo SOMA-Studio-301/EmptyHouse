@@ -354,6 +354,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::PlayerDeathHandler
   ShowTopMostFoldoutHeaderGroup: 1
   playerLifecycle: {fileID: 11400000, guid: 99aaaaab4771c6d45bcc0132da11b06f, type: 2}
+  playerCaught: {fileID: 11400000, guid: 03bcb361216443aaacf8722ae0f347cc, type: 2}
   debugSuicideKey: 25
 --- !u!114 &8399999556817308483
 MonoBehaviour:
@@ -409,10 +410,10 @@ MonoBehaviour:
   runtimeRegistry: {fileID: 11400000, guid: a1f48fbd7d4b4d33a5a1c7e6b7f00003, type: 2}
   eyeAnchor: {fileID: 0}
   flashlightAimAnchor: {fileID: 0}
+  deathHandler: {fileID: 5679039205233311701}
   movingSpeedThreshold: 0.05
   flashlightAimTolerance: 10
   isDisguised: 0
-  isSpectator: 0
   isCrouching: 0
   isFlashlightActive: 0
 --- !u!114 &5351568001240086071

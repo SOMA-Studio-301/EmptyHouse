@@ -21,11 +21,11 @@ GameObject:
   - component: {fileID: 5679039205233311701}
   - component: {fileID: 8399999556817308483}
   - component: {fileID: 8473248619750313470}
-  - component: {fileID: 6212539197787962726}
   - component: {fileID: 119432426559719344}
   - component: {fileID: 8714832752457740018}
-  - component: {fileID: 7650519245280552335}
   - component: {fileID: 1777472600522537525}
+  - component: {fileID: 7697173771500124627}
+  - component: {fileID: 6212539197787962726}
   m_Layer: 0
   m_Name: Player_UnityChan
   m_TagString: Untagged
@@ -114,7 +114,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: d5a57f767e5e46a458fc5d3c628d0cbb, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Unity.Netcode.Runtime::Unity.Netcode.NetworkObject
-  GlobalObjectIdHash: 3912006500
+  GlobalObjectIdHash: 3422737945
   InScenePlacedSourceGlobalObjectIdHash: 0
   DeferredDespawnTick: 0
   Ownership: 1
@@ -298,6 +298,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::PlayerDeathHandler
   ShowTopMostFoldoutHeaderGroup: 1
   playerLifecycle: {fileID: 11400000, guid: 99aaaaab4771c6d45bcc0132da11b06f, type: 2}
+  playerCaught: {fileID: 11400000, guid: 03bcb361216443aaacf8722ae0f347cc, type: 2}
   debugSuicideKey: 25
 --- !u!114 &8399999556817308483
 MonoBehaviour:
@@ -335,28 +336,6 @@ MonoBehaviour:
   animator: {fileID: 6501918125736260266}
   controller: {fileID: 8915136794142559673}
   speedDampTime: 0.1
---- !u!114 &6212539197787962726
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 2490874660187570032}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: a1f48fbd7d4b4d33a5a1c7e6b7f00002, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::ZombiePerceptionSource
-  ShowTopMostFoldoutHeaderGroup: 1
-  runtimeRegistry: {fileID: 11400000, guid: a1f48fbd7d4b4d33a5a1c7e6b7f00003, type: 2}
-  eyeAnchor: {fileID: 0}
-  flashlightAimAnchor: {fileID: 0}
-  movingSpeedThreshold: 0.05
-  flashlightAimTolerance: 10
-  isDisguised: 0
-  isSpectator: 0
-  isCrouching: 0
-  isFlashlightActive: 0
 --- !u!114 &119432426559719344
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -390,21 +369,6 @@ MonoBehaviour:
   ShowTopMostFoldoutHeaderGroup: 1
   dropScatterRadius: 0.5
   dropHeightOffset: -0.5
---- !u!114 &7650519245280552335
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 2490874660187570032}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 7c7d2248ba10eb9488b0a4e452fb94fa, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::PlayerDeathDropper
-  ShowTopMostFoldoutHeaderGroup: 1
-  dropScatterRadius: 0.5
-  dropHeightOffset: -0.5
 --- !u!114 &1777472600522537525
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -418,6 +382,47 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::PlayerItemDropper
   ShowTopMostFoldoutHeaderGroup: 1
+--- !u!114 &7697173771500124627
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2490874660187570032}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: a6750b512efdf4e43bf1c1391224ae05, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::PlayerFootstepSfx
+  ShowTopMostFoldoutHeaderGroup: 1
+  sfxEventChannel: {fileID: 11400000, guid: 0338426556d75b241bee37e3eca8f958, type: 2}
+  footstepAudioId: 103
+  strideDistance: 2
+  minStepSpeed: 0.2
+  teleportDistance: 3
+  controller: {fileID: 8915136794142559673}
+--- !u!114 &6212539197787962726
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2490874660187570032}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: a1f48fbd7d4b4d33a5a1c7e6b7f00002, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::ZombiePerceptionSource
+  ShowTopMostFoldoutHeaderGroup: 1
+  runtimeRegistry: {fileID: 11400000, guid: a1f48fbd7d4b4d33a5a1c7e6b7f00003, type: 2}
+  eyeAnchor: {fileID: 6501918125745249614}
+  flashlightAimAnchor: {fileID: 2149352299379098368}
+  deathHandler: {fileID: 5679039205233311701}
+  movingSpeedThreshold: 0.05
+  flashlightAimTolerance: 10
+  isDisguised: 0
+  isCrouching: 0
+  isFlashlightActive: 0
 --- !u!1 &2490874660187570100
 GameObject:
   m_ObjectHideFlags: 0
@@ -8299,6 +8304,7 @@ Transform:
   - {fileID: 6501918125745249352}
   - {fileID: 6501918125745249354}
   - {fileID: 6501918125745249610}
+  - {fileID: 2149352299379098368}
   m_Father: {fileID: 6501918125745249418}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1 &6501918125745733932
@@ -9717,6 +9723,37 @@ MonoBehaviour:
   m_FillOrigin: 0
   m_UseSpriteMesh: 0
   m_PixelsPerUnitMultiplier: 1
+--- !u!1 &7461626386047872332
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 2149352299379098368}
+  m_Layer: 0
+  m_Name: Pos_Hand
+  m_TagString: Untagged
+  m_Icon: {fileID: 1206586993520771344, guid: 0000000000000000d000000000000000, type: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &2149352299379098368
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 7461626386047872332}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: -0.0706, y: 0.0109, z: -0.0001}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 6501918125745249546}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1001 &5392365520988021570
 PrefabInstance:
   m_ObjectHideFlags: 0
@@ -9751,11 +9788,11 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 4805921727747155879, guid: 17e48a6a61d965248bd21abb2a661cdc, type: 3}
       propertyPath: m_SizeDelta.x
-      value: 112.8
+      value: 0
       objectReference: {fileID: 0}
     - target: {fileID: 4805921727747155879, guid: 17e48a6a61d965248bd21abb2a661cdc, type: 3}
       propertyPath: m_SizeDelta.y
-      value: 27.6
+      value: 0
       objectReference: {fileID: 0}
     - target: {fileID: 4805921727747155879, guid: 17e48a6a61d965248bd21abb2a661cdc, type: 3}
       propertyPath: m_LocalPosition.x
