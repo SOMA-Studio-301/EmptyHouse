@@ -1,53 +1,37 @@
+using Border.Core;
 using UnityEngine;
 using UnityEngine.UI;
-using UnityEngine.SceneManagement;
 
+/// <summary>
+/// 메뉴 패널의 설정/종료 버튼 처리기. 게임 시작 버튼은 CanvasController.EnableLobby 를
+/// 인스펙터 onClick 에 직접 물려두므로 여기서 다루지 않는다.
+/// </summary>
 public class MenuButtons : MonoBehaviour
 {
     [Header("Menu Buttons")]
-    [SerializeField] private Button gameStartButton;
-    [SerializeField] private Button settingsButton;
-    [SerializeField] private Button exitButton;
+    [SerializeField] private Button settingsButton; // 설정 버튼
+    [SerializeField] private Button exitButton;     // 게임 종료 버튼
 
-    [Header("Scene Settings")]
-    [SerializeField] private string lobbySceneName = "LobbyScene"; // 이동할 로비 씬 이름
-
+    /// <summary>버튼 리스너를 등록한다.</summary>
     private void Start()
     {
-        // 버튼 리스너 초기화 및 등록
-        if (gameStartButton != null)
-        {
-            gameStartButton.onClick.RemoveAllListeners();
-            gameStartButton.onClick.AddListener(OnGameStartButtonClicked);
-        }
+        settingsButton.onClick.RemoveAllListeners();
+        settingsButton.onClick.AddListener(OnSettingsButtonClicked);
 
-        if (settingsButton != null)
-        {
-            settingsButton.onClick.RemoveAllListeners();
-            settingsButton.onClick.AddListener(OnSettingsButtonClicked);
-        }
-
-        if (exitButton != null)
-        {
-            exitButton.onClick.RemoveAllListeners();
-            exitButton.onClick.AddListener(OnExitButtonClicked);
-        }
+        exitButton.onClick.RemoveAllListeners();
+        exitButton.onClick.AddListener(OnExitButtonClicked);
     }
 
-    private void OnGameStartButtonClicked()
-    {
-        Debug.Log("[MENU] 게임 시작 버튼 클릭 -> 로비 씬으로 이동합니다.");
-        SceneManager.LoadScene(lobbySceneName);
-    }
-
+    /// <summary>설정 버튼 처리. 추후 구현 예정.</summary>
     private void OnSettingsButtonClicked()
     {
-        Debug.Log("[MENU] 설정 버튼 클릭 (추후 구현 예정)");
+        Log.D("[MENU] 설정 버튼 클릭 (추후 구현 예정)");
     }
 
+    /// <summary>게임을 종료한다. 에디터에서는 플레이 모드를 중지한다.</summary>
     private void OnExitButtonClicked()
     {
-        Debug.Log("[MENU] 게임 종료");
+        Log.D("[MENU] 게임 종료");
 #if UNITY_EDITOR
         UnityEditor.EditorApplication.isPlaying = false;
 #else

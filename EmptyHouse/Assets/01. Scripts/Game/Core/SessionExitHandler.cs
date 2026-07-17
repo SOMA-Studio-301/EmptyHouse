@@ -17,9 +17,12 @@ public class SessionExitHandler : MonoBehaviour
     [Header("Listening to")]
     [SerializeField] private VoidEventChannelSO sessionExitRequested;
 
-    /// <summary>이탈 후 로드할 메인 메뉴 씬 이름. NGO 를 끊은 뒤라 네트워크 로드가 아닌 로컬 로드다. 빌드 세팅에 등록돼 있어야 한다.</summary>
+    /// <summary>
+    /// 이탈 후 로드할 씬 이름. 메뉴는 별도 씬이 아니라 Lobby 씬의 캔버스이고, CanvasController 가
+    /// 메뉴 화면으로 시작하므로 씬만 로드하면 된다. NGO 를 끊은 뒤라 로컬 로드이며 빌드 세팅에 등록돼 있어야 한다.
+    /// </summary>
     [Header("Scene")]
-    [SerializeField] private string menuSceneName = "Menu";
+    [SerializeField] private string menuSceneName = "Lobby";
 
     /// <summary>이탈 요청 구독을 시작한다.</summary>
     private void OnEnable()

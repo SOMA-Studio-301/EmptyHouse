@@ -71,6 +71,9 @@ public class ZombieController : NetworkBehaviour
         ? patrolRadiusOverride
         : zombieData != null ? zombieData.PatrolRadius : 0f;
 
+    /// <summary>복제된 상태가 바뀔 때 발행된다. 서버·클라이언트 모두에서 발행되므로 애니메이션 구동에 쓴다.</summary>
+    public event System.Action<ZombieStateKind> StateChanged;
+
     private void Awake()
     {
         CacheHomePosition();
@@ -85,9 +88,27 @@ public class ZombieController : NetworkBehaviour
     public override void OnNetworkSpawn()
     {
         CacheHomePosition();
+
+        // 상태는 서버가 쓰고 전 클라이언트에 복제된다. 애니메이션은 이 복제 상태로 구동하므로 서버 게이트 앞에서 구독한다.
+        stateKind.OnValueChanged += HandleStateKindChanged;
+
         if (!IsServer) return;
 
         stateMachine.ServerInitialize();
+    }
+
+    /// <summary>복제 상태 구독을 해제한다.</summary>
+    public override void OnNetworkDespawn()
+    {
+        stateKind.OnValueChanged -= HandleStateKindChanged;
+    }
+
+    /// <summary>복제된 상태 변화를 받아 StateChanged 를 발행한다.</summary>
+    /// <param name="previous">이전 상태.</param>
+    /// <param name="current">새 상태.</param>
+    private void HandleStateKindChanged(ZombieStateKind previous, ZombieStateKind current)
+    {
+        StateChanged?.Invoke(current);
     }
 
     private void Update()
