@@ -178,8 +178,6 @@ public class AudioManager : MonoBehaviour
     /// <returns>정지에 쓸 키. 실패 시 Invalid.</returns>
     private BorderAudio.AudioCueKey PlaySfx(AudioId audioId, Vector3 position)
     {
-        Log.D($"[AudioManager] PlaySfx: {audioId}");
-
         if (audioId == AudioId.None)
         {
             return BorderAudio.AudioCueKey.Invalid;
