@@ -12,8 +12,9 @@ GameObject:
   - component: {fileID: 3359024919400448815}
   - component: {fileID: 7583060048871582539}
   - component: {fileID: 5194508736754871802}
-  - component: {fileID: 1867735232260157366}
   - component: {fileID: 3321139084125675627}
+  - component: {fileID: 1867735232260157366}
+  - component: {fileID: 8696469843942033421}
   m_Layer: 3
   m_Name: Fuel
   m_TagString: Untagged
@@ -114,23 +115,6 @@ MeshRenderer:
   m_SortingOrder: 0
   m_MaskInteraction: 0
   m_AdditionalVertexStreams: {fileID: 0}
---- !u!114 &1867735232260157366
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1829482273108571828}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 054c950a9060b6a46aa8d5ade1c82951, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::OilPickupInteractable
-  ShowTopMostFoldoutHeaderGroup: 1
-  noiseEmittedChannel: {fileID: 11400000, guid: f111c98f693a4db2a3f3c6e413c19f11, type: 2}
-  itemData: {fileID: 11400000, guid: ef17ac12073198841a50b5c9b03ef982, type: 2}
-  holdSeconds: 2
-  inventoryFullReasonKey: INT_MSG_INVENTORY_FULL
 --- !u!114 &3321139084125675627
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -157,3 +141,36 @@ MonoBehaviour:
   AutoObjectParentSync: 1
   SyncOwnerTransformWhenParented: 1
   AllowOwnerToParent: 0
+--- !u!114 &1867735232260157366
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1829482273108571828}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 054c950a9060b6a46aa8d5ade1c82951, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::OilPickupInteractable
+  ShowTopMostFoldoutHeaderGroup: 1
+  noiseEmittedChannel: {fileID: 11400000, guid: f111c98f693a4db2a3f3c6e413c19f11, type: 2}
+  itemData: {fileID: 11400000, guid: ef17ac12073198841a50b5c9b03ef982, type: 2}
+  holdSeconds: 2
+  inventoryFullReasonKey: INT_MSG_INVENTORY_FULL
+--- !u!114 &8696469843942033421
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1829482273108571828}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 644aa3a2cb6df154aaec6f3e89a62fcf, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::ItemWorldSfx
+  ShowTopMostFoldoutHeaderGroup: 1
+  sfxEventChannel: {fileID: 11400000, guid: 0338426556d75b241bee37e3eca8f958, type: 2}
+  dropAudioId: 104
+  pickupAudioId: 105

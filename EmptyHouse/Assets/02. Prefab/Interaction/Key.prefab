@@ -14,6 +14,7 @@ GameObject:
   - component: {fileID: 6247461000237710407}
   - component: {fileID: 7963251595659370824}
   - component: {fileID: 6991922343254469061}
+  - component: {fileID: 5261072761275542110}
   m_Layer: 3
   m_Name: Key
   m_TagString: Untagged
@@ -157,3 +158,19 @@ MonoBehaviour:
   itemData: {fileID: 11400000, guid: 24a953e292fabee488c730bc65a6e706, type: 2}
   pairId: 0
   inventoryFullReasonKey: INT_MSG_INVENTORY_FULL
+--- !u!114 &5261072761275542110
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 8764207917146816838}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 644aa3a2cb6df154aaec6f3e89a62fcf, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::ItemWorldSfx
+  ShowTopMostFoldoutHeaderGroup: 1
+  sfxEventChannel: {fileID: 11400000, guid: 0338426556d75b241bee37e3eca8f958, type: 2}
+  dropAudioId: 104
+  pickupAudioId: 105
