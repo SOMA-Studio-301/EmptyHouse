@@ -23,6 +23,9 @@ GameObject:
   - component: {fileID: 8473248619750313470}
   - component: {fileID: 6212539197787962726}
   - component: {fileID: 119432426559719344}
+  - component: {fileID: 8714832752457740018}
+  - component: {fileID: 7650519245280552335}
+  - component: {fileID: 1777472600522537525}
   m_Layer: 0
   m_Name: Player_UnityChan
   m_TagString: Untagged
@@ -259,6 +262,7 @@ MonoBehaviour:
   handSwapSeconds: 0.3
   inputReader: {fileID: 11400000, guid: eaa08e0560934b24b9f7d5f7d9f863dd, type: 2}
   ui: {fileID: 5554895056618055241}
+  dropper: {fileID: 1777472600522537525}
   groundMask:
     serializedVersion: 2
     m_Bits: 64
@@ -361,7 +365,7 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: ecbba42130294bd3af8607b0e4885462, type: 3}
-  m_Name:
+  m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::EmptyHouse.NoiseSystem.PlayerMovementNoiseEmitter
   ShowTopMostFoldoutHeaderGroup: 1
   emittedChannel: {fileID: 11400000, guid: 22360f3f2e054bf0afcd98bc8c6a0121, type: 2}
@@ -369,6 +373,49 @@ MonoBehaviour:
   movingSpeedThreshold: 0.05
   walkingDb: 20
   crouchingDb: 8
+--- !u!114 &8714832752457740018
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2490874660187570032}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 7c7d2248ba10eb9488b0a4e452fb94fa, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::PlayerDeathDropper
+  ShowTopMostFoldoutHeaderGroup: 1
+  dropScatterRadius: 0.5
+  dropHeightOffset: -0.5
+--- !u!114 &7650519245280552335
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2490874660187570032}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 7c7d2248ba10eb9488b0a4e452fb94fa, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::PlayerDeathDropper
+  ShowTopMostFoldoutHeaderGroup: 1
+  dropScatterRadius: 0.5
+  dropHeightOffset: -0.5
+--- !u!114 &1777472600522537525
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2490874660187570032}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: d02716452f480c94aa63da3019a68584, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::PlayerItemDropper
+  ShowTopMostFoldoutHeaderGroup: 1
 --- !u!1 &2490874660187570100
 GameObject:
   m_ObjectHideFlags: 0
