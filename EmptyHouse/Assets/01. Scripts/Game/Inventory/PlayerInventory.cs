@@ -1,4 +1,6 @@
+using System.Collections.Generic;
 using Border.Core;
+using Unity.Netcode;
 using UnityEngine;
 
 /// <summary>
@@ -24,6 +26,9 @@ public class PlayerInventory : MonoBehaviour
 
     [Header("HUD")]
     [SerializeField] private UIInventory ui; // 같은 프리팹의 Canvas-Inventory. 인벤은 UI 를 밀어넣기만 하고 역참조는 받지 않는다
+
+    [Header("Player")]
+    [SerializeField] private PlayerItemDropper dropper; // 같은 프리팹의 서버 권위 스폰 창구 — 인벤은 위치만 정하고 스폰은 서버에 맡긴다
 
     [Header("Drop")]
     [SerializeField] private LayerMask groundMask; // 드롭 위치 접지 판정 대상 레이어. 인스펙터에서 Ground 만 선택한다
@@ -172,8 +177,6 @@ public class PlayerInventory : MonoBehaviour
     /// <param name="index">손에 들 슬롯 인덱스(0 .. SlotCount-1).</param>
     private void EquipSlot(int index)
     {
-        Log.D($"[PlayerInventory] EquipSlot {index}");
-
         // 숫자 키는 슬롯 수와 무관하게 1..5 가 들어온다. 없는 칸이면 무시한다(3칸일 때 4·5 키).
         if (index < 0 || index >= SlotCount) return;
 
@@ -209,8 +212,6 @@ public class PlayerInventory : MonoBehaviour
     /// <param name="direction">휠 방향. +1 = 정방향, -1 = 역방향.</param>
     private void CycleHand(int direction)
     {
-        Log.D($"[PlayerInventory] CycleHand {direction}");
-
         // 맨손(-1) 을 포함한 SlotCount + 1 개의 위치를 순환한다. -1 을 0 으로 밀어 모듈러를 태우고 되돌린다.
         int positionCount = SlotCount + 1;
         int position = heldIndex + 1;
@@ -230,9 +231,8 @@ public class PlayerInventory : MonoBehaviour
 
         int index = heldIndex;
         ItemDataSO data = slots[index].Data;
-        int pairId = slots[index].PairId;
 
-        SpawnDroppedItem(data, pairId);
+        RequestDrop(data, ResolveGroundPosition(transform.position + transform.forward * dropForwardOffset));
 
         slots[index].Clear();
         RefreshSlot(index);
@@ -240,36 +240,28 @@ public class PlayerInventory : MonoBehaviour
     }
 
     /// <summary>
-    /// 아이템의 WorldPrefab 을 플레이어 정면 지면 위치에 스폰한다.
-    /// 콜라이더 바운즈로 접지 높이를 보정해 공중에 뜨거나 바닥에 파묻히지 않게 한다.
-    /// Initialize 는 <see cref="ItemPickupInteractable"/>(Tap형) 에만 있다 — <see cref="OilPickupInteractable"/>(Hold형)
-    /// 는 페어 번호가 필요 없고 프리팹 자체에 itemData 가 이미 직렬화돼 있어 주입이 불필요하다.
+    /// 아이템의 WorldPrefab 을 지정 위치에 스폰해 달라고 서버에 요청한다.
+    /// 페어 번호는 넘기지 않는다 — 열쇠는 페어마다 프리팹(Variant)이 갈리므로 WorldPrefab 자체가 곧 페어 식별자다.
     /// </summary>
     /// <param name="data">스폰할 아이템 데이터.</param>
-    /// <param name="pairId">승계할 페어 번호(NN). 열쇠 외에는 0.</param>
-    private void SpawnDroppedItem(ItemDataSO data, int pairId)
+    /// <param name="position">스폰할 접지 위치(월드).</param>
+    private void RequestDrop(ItemDataSO data, Vector3 position)
     {
-        Vector3 dropXZ = transform.position + transform.forward * dropForwardOffset;
-        Vector3 probeOrigin = dropXZ + Vector3.up * groundProbeHeight;
+        dropper.RequestDrop(data.WorldPrefab.GetComponent<NetworkObject>().PrefabIdHash, position);
+    }
 
-        Vector3 spawnPos = Physics.Raycast(probeOrigin, Vector3.down, out RaycastHit hit, groundProbeHeight * 2f, groundMask)
+    /// <summary>
+    /// 지정 XZ 위치의 접지 높이를 구한다. 사망 드롭(<see cref="PlayerDeathDropper"/>)도 이 규칙을 공유한다.
+    /// </summary>
+    /// <param name="origin">접지 판정을 시작할 위치(월드). Y 는 무시하고 XZ 만 쓴다.</param>
+    /// <returns>바닥에 닿는 월드 좌표. 바닥을 못 찾으면 플레이어 발밑 높이로 폴백한다.</returns>
+    public Vector3 ResolveGroundPosition(Vector3 origin)
+    {
+        Vector3 probeOrigin = new Vector3(origin.x, transform.position.y + groundProbeHeight, origin.z);
+
+        return Physics.Raycast(probeOrigin, Vector3.down, out RaycastHit hit, groundProbeHeight * 2f, groundMask)
             ? hit.point
-            : new Vector3(dropXZ.x, transform.position.y, dropXZ.z); // 바닥을 못 찾으면 플레이어 발밑 높이로 폴백(항상 접지 중이라 사실상 도달하지 않는다)
-
-        GameObject instance = Instantiate(data.WorldPrefab, spawnPos, data.WorldPrefab.transform.rotation);
-
-        // 콜라이더 중심이 피벗인 프리팹(예: Key)은 바닥 좌표에 그대로 놓으면 절반이 파묻힌다 — 바운즈 하단을 접지면에 맞춘다.
-        Collider col = instance.GetComponentInChildren<Collider>();
-        if (col != null)
-        {
-            instance.transform.position += Vector3.up * (spawnPos.y - col.bounds.min.y);
-        }
-
-        ItemPickupInteractable pickup = instance.GetComponent<ItemPickupInteractable>();
-        if (pickup != null)
-        {
-            pickup.Initialize(data, pairId);
-        }
+            : new Vector3(origin.x, transform.position.y, origin.z); // 바닥을 못 찾으면 플레이어 발밑 높이로 폴백(항상 접지 중이라 사실상 도달하지 않는다)
     }
 
     /// <summary>
@@ -280,11 +272,20 @@ public class PlayerInventory : MonoBehaviour
     /// <returns>비우기 직전의 슬롯 내용. 채워져 있던 칸만 담기며, 인벤이 비어 있었다면 길이 0 배열이다.</returns>
     public InventorySlot[] DrainAll()
     {
-        Log.D("[PlayerInventory] DrainAll");
+        // InventorySlot 은 struct 라 리스트에 담긴 시점에 복사본이 남는다 — 원본을 비워도 반환값은 안전하다.
+        List<InventorySlot> drained = new List<InventorySlot>(slots.Length);
 
-        // TODO(impl): 채워진 칸만 골라 결과 배열로 복사 → 각 칸 Clear + RefreshSlot → PointHand(BareHandIndex).
-        //             InventorySlot 은 struct 라 복사본이 남으므로, 배열에 담은 뒤 원본을 비워도 안전하다.
-        return System.Array.Empty<InventorySlot>();
+        for (int i = 0; i < slots.Length; i++)
+        {
+            if (slots[i].IsEmpty) continue;
+
+            drained.Add(slots[i]);
+            slots[i].Clear();
+            RefreshSlot(i);
+        }
+
+        PointHand(BareHandIndex);
+        return drained.ToArray();
     }
 
     /// <summary>
@@ -294,8 +295,6 @@ public class PlayerInventory : MonoBehaviour
     /// </summary>
     public void ConsumeHeld()
     {
-        Log.D("[PlayerInventory] ConsumeHeld");
-
         if (IsBareHanded) return;
 
         // 비운 칸은 제자리에 남는다 — 뒤 칸을 당겨오는 재정렬이 아니다.
