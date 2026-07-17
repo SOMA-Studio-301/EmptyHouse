@@ -12,8 +12,8 @@ GameObject:
   - component: {fileID: 8893031478082104385}
   - component: {fileID: 1747993232305751929}
   - component: {fileID: 5311208700229998655}
-  - component: {fileID: 5265359121450787501}
   - component: {fileID: 111949412493073554}
+  - component: {fileID: 5265359121450787501}
   m_Layer: 3
   m_Name: Return
   m_TagString: Untagged
@@ -114,22 +114,6 @@ BoxCollider:
   serializedVersion: 3
   m_Size: {x: 1, y: 1, z: 1}
   m_Center: {x: 0, y: 0, z: 0}
---- !u!114 &5265359121450787501
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1086802933729699784}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: f439fd6423164984482ecb30562fe89a, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::ReturnInteractable
-  ShowTopMostFoldoutHeaderGroup: 1
-  noiseEmittedChannel: {fileID: 11400000, guid: f111c98f693a4db2a3f3c6e413c19f11, type: 2}
-  holdDurationSeconds: 3
-  returnActionKey: INT_PROMPT_HOLD
 --- !u!114 &111949412493073554
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -156,3 +140,19 @@ MonoBehaviour:
   AutoObjectParentSync: 1
   SyncOwnerTransformWhenParented: 1
   AllowOwnerToParent: 0
+--- !u!114 &5265359121450787501
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1086802933729699784}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: f439fd6423164984482ecb30562fe89a, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::ReturnInteractable
+  ShowTopMostFoldoutHeaderGroup: 1
+  noiseEmittedChannel: {fileID: 11400000, guid: f111c98f693a4db2a3f3c6e413c19f11, type: 2}
+  holdDurationSeconds: 3
+  returnActionKey: INT_PROMPT_HOLD
