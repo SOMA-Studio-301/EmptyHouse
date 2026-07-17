@@ -10,12 +10,12 @@ public sealed class ZombiePerceptionSource : NetworkBehaviour, IZombiePerception
     [SerializeField] private ZombieRuntimeRegistrySO runtimeRegistry;
     [SerializeField] private Transform eyeAnchor;
     [SerializeField] private Transform flashlightAimAnchor;
+    [SerializeField] private PlayerDeathHandler deathHandler; // 같은 프리팹의 사망 권위 — IsSpectator 를 여기서 직접 읽는다
     [SerializeField, Min(0f)] private float movingSpeedThreshold = 0.05f;
     [SerializeField, Range(0f, 90f)] private float flashlightAimTolerance = 10f;
 
     [Header("Server-owned perception flags")]
     [SerializeField] private bool isDisguised;
-    [SerializeField] private bool isSpectator;
     [SerializeField] private bool isCrouching;
     [SerializeField] private bool isFlashlightActive;
 
@@ -25,7 +25,8 @@ public sealed class ZombiePerceptionSource : NetworkBehaviour, IZombiePerception
     public Transform Root => transform;
     public Vector3 EyePosition => eyeAnchor != null ? eyeAnchor.position : transform.position + Vector3.up * 1.5f;
     public bool IsDisguised => isDisguised;
-    public bool IsSpectator => isSpectator;
+    // 사망 권위를 서버 메모리에서 직접 읽는다(push 아님) — Die() 가 선 프레임부터 즉시 인지에서 제외된다(좀비AI E2).
+    public bool IsSpectator => deathHandler.IsDead.Value;
     public bool IsCrouching => isCrouching;
     public bool IsMoving => isMoving;
 
@@ -68,7 +69,6 @@ public sealed class ZombiePerceptionSource : NetworkBehaviour, IZombiePerception
     }
 
     public void ServerSetDisguised(bool value) { if (IsServer) isDisguised = value; }
-    public void ServerSetSpectator(bool value) { if (IsServer) isSpectator = value; }
     public void ServerSetCrouching(bool value) { if (IsServer) isCrouching = value; }
     public void ServerSetFlashlightActive(bool value) { if (IsServer) isFlashlightActive = value; }
 }
