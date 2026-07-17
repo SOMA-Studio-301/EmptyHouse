@@ -44,9 +44,12 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: b03f06bd919c16a46b92595321ab9bdb, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::AudioTester
-  sfxEventChannel: {fileID: 11400000, guid: 72f3b562456231040aff22ff5a7fd44a, type: 2}
+  sfxEventChannel: {fileID: 11400000, guid: 0338426556d75b241bee37e3eca8f958, type: 2}
   musicEventChannel: {fileID: 11400000, guid: 6709446594f7e6c43a1020cbbf709251, type: 2}
   audioRegistry: {fileID: 11400000, guid: f5fa9ca25b7bd3545aab90c70371d877, type: 2}
+  sfxAudioId: 109
+  ambientAudioId: 500
+  musicAudioId: 1001
   playSfxBeep: 0
   playAmbientLoop: 0
   playMusicLoop: 0

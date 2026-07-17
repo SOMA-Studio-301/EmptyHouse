@@ -301,10 +301,7 @@ public class InputReader : ScriptableObject, GameInput.IGameplayActions, GameInp
 
     /// <summary>Sprint 액션 콜백. 아직 사용하지 않는다.</summary>
     /// <param name="context">Input System 이 전달하는 콜백 컨텍스트.</param>
-    public void OnSprint(InputAction.CallbackContext context)
-    {
-        Log.D($"[InputReader] Sprint {context.phase}");
-    }
+    public void OnSprint(InputAction.CallbackContext context) { }
 
     // ── UI 액션 ─────────────────────────────────────────────────
     // Cancel 만 게임 로직으로 중계한다. 나머지는 UGUI 입력 모듈(InputSystemUIInputModule)이
@@ -315,8 +312,6 @@ public class InputReader : ScriptableObject, GameInput.IGameplayActions, GameInp
     /// <param name="context">Input System 이 전달하는 콜백 컨텍스트.</param>
     public void OnCancel(InputAction.CallbackContext context)
     {
-        Log.D($"[InputReader] Cancel {context.phase}");
-
         if (context.phase == InputActionPhase.Performed)
         {
             CancelEvent.Invoke();

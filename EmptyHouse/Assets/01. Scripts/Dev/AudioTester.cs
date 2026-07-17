@@ -11,9 +11,9 @@ using BorderAudio = Border.Audio;
 public class AudioTester : MonoBehaviour
 {
     [Header("Audio")]
-    [SerializeField] private BorderAudio.AudioCueEventChannelSO sfxEventChannel;
+    [SerializeField] private SFXEventChannelSO sfxEventChannel;
     [SerializeField] private BorderAudio.AudioCueEventChannelSO musicEventChannel;
-    [SerializeField] private AudioRegistrySO audioRegistry;
+    [SerializeField] private AudioRegistrySO audioRegistry;    // BGM 경로 전용. SFX 는 채널이 룩업을 대신한다
 
     [Header("Targets")]
     [SerializeField] private AudioId sfxAudioId = AudioId.Sfx_Ui_Click;         // playSfxBeep 이 재생할 단발 SFX
@@ -73,23 +73,12 @@ public class AudioTester : MonoBehaviour
         }
     }
 
-    /// <summary>
-    /// audioRegistry에서 AudioId로 cue/config를 룩업해 sfxEventChannel로 발행한다.
-    /// 룩업 실패나 AudioId.None이면 아무것도 하지 않는다.
-    /// </summary>
+    /// <summary>sfxEventChannel 로 AudioId 를 발행한다. 룩업은 AudioManager 가 한다.</summary>
     /// <param name="audioId">재생할 사운드 식별자. None이면 스킵.</param>
     /// <returns>정지에 쓸 키. 실패 시 Invalid.</returns>
     private BorderAudio.AudioCueKey PlaySfx(AudioId audioId)
     {
-        if (audioId == AudioId.None) return BorderAudio.AudioCueKey.Invalid;
-        if (!audioRegistry.TryGetAudio(audioId, out BorderAudio.AudioCueSO cue, out BorderAudio.AudioConfigurationSO config))
-        {
-            Log.W($"[AudioTester] 레지스트리 룩업 실패: {audioId}");
-            return BorderAudio.AudioCueKey.Invalid;
-        }
-
-        if (cue == null || config == null || cue.GetClip() == null) return BorderAudio.AudioCueKey.Invalid;
-        return sfxEventChannel.RaisePlayEvent(cue, config, transform.position);
+        return sfxEventChannel.RaisePlayEvent(audioId, transform.position);
     }
 
     /// <summary>audioRegistry에서 AudioId로 cue/config를 룩업해 musicEventChannel로 발행한다.</summary>

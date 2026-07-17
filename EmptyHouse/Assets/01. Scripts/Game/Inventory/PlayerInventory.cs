@@ -27,6 +27,10 @@ public class PlayerInventory : MonoBehaviour
     [Header("HUD")]
     [SerializeField] private UIInventory ui; // 같은 프리팹의 Canvas-Inventory. 인벤은 UI 를 밀어넣기만 하고 역참조는 받지 않는다
 
+    [Header("Audio")]
+    [SerializeField] private SFXEventChannelSO sfxEventChannel; // 프로젝트 에셋(SO) — 자기완결 프리팹의 허용 의존
+    [SerializeField] private AudioId slotSelectAudioId = AudioId.Sfx_Ui_SlotSelect; // 손 포인터 이동음. 내 인벤이므로 로컬 사운드다
+
     [Header("Player")]
     [SerializeField] private PlayerItemDropper dropper; // 같은 프리팹의 서버 권위 스폰 창구 — 인벤은 위치만 정하고 스폰은 서버에 맡긴다
 
@@ -202,6 +206,8 @@ public class PlayerInventory : MonoBehaviour
     {
         swapTimer = handSwapSeconds;
         IsSwapping = swapTimer > 0f; // 딜레이를 0 으로 튜닝하면 전환 중 상태 자체가 생기지 않는다
+
+        sfxEventChannel.RaisePlayEvent(slotSelectAudioId, transform.position);
     }
 
     /// <summary>

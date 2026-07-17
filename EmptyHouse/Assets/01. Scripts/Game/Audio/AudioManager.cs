@@ -35,7 +35,7 @@ public class AudioManager : MonoBehaviour
 
     [Header("Listening on - Cue")]
     [SerializeField] private BorderAudio.AudioCueEventChannelSO musicEventChannel;
-    [SerializeField] private BorderAudio.AudioCueEventChannelSO sfxEventChannel;
+    [SerializeField] private SFXEventChannelSO sfxEventChannel; // AudioId 를 받는 우리 채널
 
     [Header("Listening on - Volume")]
     [SerializeField] private FloatEventChannelSO changeMasterVolumeEvent;
@@ -69,9 +69,8 @@ public class AudioManager : MonoBehaviour
         musicEventChannel.OnAudioCuePlayRequested += PlayMusicTrack;
         musicEventChannel.OnAudioCueStopRequested += StopMusic;
 
-        sfxEventChannel.OnAudioCuePlayRequested += PlayAudioCue;
-        sfxEventChannel.OnAudioCuePlayWithPoolRequested += PlayAudioCue;
-        sfxEventChannel.OnAudioCueStopRequested += StopAudioCue;
+        sfxEventChannel.OnSfxPlayRequested += PlaySfx;
+        sfxEventChannel.OnSfxStopRequested += StopAudioCue;
 
         changeMasterVolumeEvent.OnEventRaised += ChangeMasterVolume;
         changeMusicVolumeEvent.OnEventRaised += ChangeMusicVolume;
@@ -85,9 +84,8 @@ public class AudioManager : MonoBehaviour
         musicEventChannel.OnAudioCuePlayRequested -= PlayMusicTrack;
         musicEventChannel.OnAudioCueStopRequested -= StopMusic;
 
-        sfxEventChannel.OnAudioCuePlayRequested -= PlayAudioCue;
-        sfxEventChannel.OnAudioCuePlayWithPoolRequested -= PlayAudioCue;
-        sfxEventChannel.OnAudioCueStopRequested -= StopAudioCue;
+        sfxEventChannel.OnSfxPlayRequested -= PlaySfx;
+        sfxEventChannel.OnSfxStopRequested -= StopAudioCue;
 
         changeMasterVolumeEvent.OnEventRaised -= ChangeMasterVolume;
         changeMusicVolumeEvent.OnEventRaised -= ChangeMusicVolume;
@@ -170,6 +168,31 @@ public class AudioManager : MonoBehaviour
     #endregion
 
     #region PLAYBACK
+
+    /// <summary>
+    /// AudioId 로 레지스트리를 룩업해 효과음을 재생한다. SFXEventChannelSO 가 부르는 진입점이다.
+    /// 룩업이 여기 있는 덕에 호출자는 AudioRegistrySO 를 알 필요가 없다.
+    /// </summary>
+    /// <param name="audioId">재생할 사운드 식별자. None 이면 스킵.</param>
+    /// <param name="position">재생될 월드 좌표.</param>
+    /// <returns>정지에 쓸 키. 실패 시 Invalid.</returns>
+    private BorderAudio.AudioCueKey PlaySfx(AudioId audioId, Vector3 position)
+    {
+        Log.D($"[AudioManager] PlaySfx: {audioId}");
+
+        if (audioId == AudioId.None)
+        {
+            return BorderAudio.AudioCueKey.Invalid;
+        }
+
+        if (!audioRegistry.TryGetAudio(audioId, out BorderAudio.AudioCueSO cue, out BorderAudio.AudioConfigurationSO config))
+        {
+            Log.W($"[AudioManager] 레지스트리 룩업 실패: {audioId}");
+            return BorderAudio.AudioCueKey.Invalid;
+        }
+
+        return PlayAudioCue(cue, config, position);
+    }
 
     /// <summary>기본 풀로 효과음을 재생한다.</summary>
     /// <param name="audioCue">재생할 큐.</param>
