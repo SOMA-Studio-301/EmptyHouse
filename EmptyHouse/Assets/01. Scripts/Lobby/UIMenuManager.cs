@@ -7,11 +7,14 @@ using UnityEngine;
 /// 트윈은 Awake 에서 1회만 만들어 재사용하므로(SetAutoKill(false)) 전환당 할당이 없다.
 /// 패널을 비활성화하지 않는 이유: 이 루트에 붙은 LobbyManager/RoomManager 의 하트비트·await 이 끊기면 안 된다.
 /// </summary>
-public class CanvasController : MonoBehaviour
+public class UIMenuManager : MonoBehaviour
 {
     [Header("Panels")]
     [SerializeField] private CanvasGroup menuCanvasGroup;  // 자식 MenuPanel 의 CanvasGroup
     [SerializeField] private CanvasGroup lobbyCanvasGroup; // 자식 LobbyPanel 의 CanvasGroup
+
+    [Header("Menu View")]
+    [SerializeField] private UIMenu uiMenu; // 메뉴 패널 뷰. 버튼 액션을 여기서 주입한다.
 
     [Header("Fade")]
     [SerializeField] private float fadeDuration = 0.3f; // 크로스페이드 시간(초)
@@ -19,7 +22,7 @@ public class CanvasController : MonoBehaviour
     private Tween menuFade;  // 캐싱된 메뉴 페이드. PlayForward = 표시, PlayBackward = 숨김
     private Tween lobbyFade; // 캐싱된 로비 페이드. 위와 동일
 
-    /// <summary>재사용할 페이드 트윈을 생성하고 초기 화면을 메뉴로 맞춘다.</summary>
+    /// <summary>재사용할 페이드 트윈을 생성하고, 메뉴 버튼 액션을 주입한 뒤 초기 화면을 메뉴로 맞춘다.</summary>
     private void Awake()
     {
         menuFade = CreateFade(menuCanvasGroup);
@@ -33,12 +36,16 @@ public class CanvasController : MonoBehaviour
 
         SetInteractable(menuCanvasGroup, true);
         SetInteractable(lobbyCanvasGroup, false);
+
+        uiMenu.StartClicked = EnableLobby;
+        uiMenu.SettingsClicked = ShowSettings;
+        uiMenu.ExitClicked = ExitGame;
     }
 
     /// <summary>메뉴 화면으로 전환한다. 전환 중 재호출되면 진행 중인 트윈의 방향만 뒤집힌다.</summary>
     public void EnableMenu()
     {
-        Log.D("[CanvasController] EnableMenu");
+        Log.D("[UIMenuManager] EnableMenu");
 
         menuFade.PlayForward();
         lobbyFade.PlayBackwards();
@@ -50,13 +57,30 @@ public class CanvasController : MonoBehaviour
     /// <summary>로비 화면으로 전환한다. 전환 중 재호출되면 진행 중인 트윈의 방향만 뒤집힌다.</summary>
     public void EnableLobby()
     {
-        Log.D("[CanvasController] EnableLobby");
+        Log.D("[UIMenuManager] EnableLobby");
 
         lobbyFade.PlayForward();
         menuFade.PlayBackwards();
 
         SetInteractable(lobbyCanvasGroup, true);
         SetInteractable(menuCanvasGroup, false);
+    }
+
+    /// <summary>설정 화면을 연다. 추후 구현 예정.</summary>
+    private void ShowSettings()
+    {
+        Log.D("[UIMenuManager] ShowSettings (미구현)");
+    }
+
+    /// <summary>게임을 종료한다. 에디터에서는 플레이 모드를 멈춘다.</summary>
+    private void ExitGame()
+    {
+        Log.D("[UIMenuManager] ExitGame");
+#if UNITY_EDITOR
+        UnityEditor.EditorApplication.isPlaying = false;
+#else
+        Application.Quit();
+#endif
     }
 
     /// <summary>알파 0 → 1 페이드 트윈을 정지 상태로 만든다. 수명은 이 오브젝트에 묶는다.</summary>
