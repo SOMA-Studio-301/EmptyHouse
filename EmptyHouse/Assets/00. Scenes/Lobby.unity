@@ -667,6 +667,8 @@ MonoBehaviour:
   lobbyNameText: {fileID: 0}
   userListContainer: {fileID: 32127365}
   userPanelPrefab: {fileID: 2438463415417323851, guid: 5e2421ab634e0c549bbc21b81c81b4d4, type: 3}
+  sfxEventChannel: {fileID: 11400000, guid: 0338426556d75b241bee37e3eca8f958, type: 2}
+  gameStartAudioId: 110
   lobbyPollInterval: 3
   lobbyManager: {fileID: 2107148210}
   gameSceneName: Game
@@ -1369,7 +1371,7 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 8609753531297623104, guid: 55f4ce2de4967e943bd0cdc8fa44d9d3, type: 3}
       propertyPath: m_AnchoredPosition.y
-      value: 122.50706
+      value: 122.50632
       objectReference: {fileID: 0}
     m_RemovedComponents: []
     m_RemovedGameObjects: []
