@@ -82,8 +82,6 @@ public class InputReader : ScriptableObject, GameInput.IGameplayActions, GameInp
     /// <returns>현재 바인딩된 키의 표시 문자열.</returns>
     public string GetInteractBindingDisplayString()
     {
-        Log.D("[InputReader] GetInteractBindingDisplayString");
-
         // 그룹(=컨트롤 스킴)으로 거르지 않으면 Interact 에 걸린 모든 바인딩이 "E | Y" 처럼 이어붙어 나온다.
         return gameInput.Gameplay.Interact.GetBindingDisplayString(group: ResolveActiveBindingGroup());
     }

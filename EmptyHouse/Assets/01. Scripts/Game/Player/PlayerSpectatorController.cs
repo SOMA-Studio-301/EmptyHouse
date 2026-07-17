@@ -67,7 +67,6 @@ public class PlayerSpectatorController : NetworkBehaviour
     /// <summary>소유자에 한해 사망 상태와 관전 입력 구독을 건다. 관전은 본인 화면의 로컬 연출이라 소유자만 관여한다.</summary>
     public override void OnNetworkSpawn()
     {
-        Log.D("[PlayerSpectatorController] OnNetworkSpawn");
         if (!IsOwner) return;
 
         deathHandler.IsDead.OnValueChanged += HandleDeadChanged;
@@ -79,7 +78,6 @@ public class PlayerSpectatorController : NetworkBehaviour
     /// <summary>사망 상태·관전 입력 구독을 해제한다. OnNetworkSpawn 과 짝을 맞춘다.</summary>
     public override void OnNetworkDespawn()
     {
-        Log.D("[PlayerSpectatorController] OnNetworkDespawn");
         if (!IsOwner) return;
 
         deathHandler.IsDead.OnValueChanged -= HandleDeadChanged;

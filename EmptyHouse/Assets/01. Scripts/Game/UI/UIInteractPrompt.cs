@@ -81,8 +81,6 @@ public class UIInteractPrompt : MonoBehaviour
         renderedInputMethod = info.InputMethod;
         renderedKey = key;
 
-        Log.D($"[UIInteractPrompt] Render {info.State} {key}");
-
         if (info.State == InteractPromptState.Hidden)
         {
             promptRoot.SetActive(false);
