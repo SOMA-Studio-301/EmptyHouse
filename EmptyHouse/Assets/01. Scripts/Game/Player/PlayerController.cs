@@ -44,8 +44,14 @@ public class PlayerController : NetworkBehaviour
 
     private Rigidbody body;
 
-    // 사망 게이팅 소스 — 형제 PlayerDeathHandler. 사망 시 이동·시선·상호작용·인벤을 차단한다(2-1·관전은 PlayerSpectatorController).
+    // 비활성 게이팅 소스 — 형제 PlayerDeathHandler. 사망 시 이동·시선·상호작용·인벤을 차단한다(2-1·관전은 PlayerSpectatorController).
     private PlayerDeathHandler deathHandler;
+
+    // 비활성 게이팅 소스 — 형제 PlayerReturn. 귀환도 사망과 똑같이 조작을 차단한다(세션루프.md 3장).
+    private PlayerReturn playerReturn;
+
+    // 비활성(사망 OR 귀환) 여부. 어느 쪽이든 조작을 차단하고 관전으로 넘긴다 — PlayerSpectatorController 의 진입 조건과 같다.
+    private bool IsInactive => deathHandler.IsDead.Value || playerReturn.HasExtracted.Value;
 
     // 소유자 카메라 — OnNetworkSpawn 에서 Main Camera 를 cameraPivot 아래로 붙이고 캐시한다.
     private Transform cameraTransform;
@@ -78,11 +84,12 @@ public class PlayerController : NetworkBehaviour
     /// <summary>점프가 실제로 발동한 순간 발행된다. 애니메이션 트리거용.</summary>
     public event System.Action JumpPerformed;
 
-    /// <summary>Rigidbody 와 형제 PlayerDeathHandler 참조를 캐시한다.</summary>
+    /// <summary>Rigidbody 와 형제 PlayerDeathHandler·PlayerReturn 참조를 캐시한다.</summary>
     private void Awake()
     {
         body = GetComponent<Rigidbody>();
         deathHandler = GetComponent<PlayerDeathHandler>();
+        playerReturn = GetComponent<PlayerReturn>();
     }
 
     /// <summary>
@@ -104,7 +111,8 @@ public class PlayerController : NetworkBehaviour
         inputReader.CrouchCanceledEvent += OnCrouchCanceledInput;
         inputReader.AttackEvent += OnAttackInput;
         inputReader.AttackCanceledEvent += OnAttackCanceledInput;
-        deathHandler.IsDead.OnValueChanged += HandleDeadChanged;
+        deathHandler.IsDead.OnValueChanged += HandleInactiveChanged;
+        playerReturn.HasExtracted.OnValueChanged += HandleInactiveChanged;
 
         // 씬의 Main Camera 를 cameraPivot 아래로 붙여 pitch 회전을 따라가게 한다.
         cameraTransform = Camera.main.transform;
@@ -125,17 +133,18 @@ public class PlayerController : NetworkBehaviour
         inputReader.CrouchCanceledEvent -= OnCrouchCanceledInput;
         inputReader.AttackEvent -= OnAttackInput;
         inputReader.AttackCanceledEvent -= OnAttackCanceledInput;
-        deathHandler.IsDead.OnValueChanged -= HandleDeadChanged;
+        deathHandler.IsDead.OnValueChanged -= HandleInactiveChanged;
+        playerReturn.HasExtracted.OnValueChanged -= HandleInactiveChanged;
 
         // 카메라를 다시 분리한다. 이걸 생략하면 플레이어 NetworkObject 파괴 시
         // 자식으로 붙어 있는 씬의 Main Camera 가 함께 파괴된다(리스폰·로비 복귀·호스트 이주는 씬을 유지한 채 despawn 한다).
         cameraTransform.SetParent(null);
     }
 
-    /// <summary>렌더 프레임마다 시선 회전을 처리한다. 회전은 물리와 무관하므로 Update 에서 처리한다. 사망 중이면 관전(PlayerSpectatorController)이 카메라를 쥐므로 처리하지 않는다.</summary>
+    /// <summary>렌더 프레임마다 시선 회전을 처리한다. 회전은 물리와 무관하므로 Update 에서 처리한다. 비활성이면 관전(PlayerSpectatorController)이 카메라를 쥐므로 처리하지 않는다.</summary>
     private void Update()
     {
-        if (!IsOwner || deathHandler.IsDead.Value) return;
+        if (!IsOwner || IsInactive) return;
 
         HandleLook();
     }
@@ -143,25 +152,26 @@ public class PlayerController : NetworkBehaviour
     /// <summary>
     /// 물리 스텝마다 이동과 점프를 처리한다. Rigidbody 기반이므로 FixedUpdate 에서 처리한다.
     /// HandleMove 가 Y 속도를 보존하므로, 점프를 그 뒤에 두어야 상승 속도가 덮어써지지 않는다.
-    /// 사망 중이면 이동을 멈춘다(2-1) — 시신은 그 자리에 고정된다.
+    /// 비활성이면 이동을 멈춘다(2-1) — 시신은 그 자리에 고정되고, 귀환자는 버스에 남는다.
     /// </summary>
     private void FixedUpdate()
     {
-        if (!IsOwner || deathHandler.IsDead.Value) return;
+        if (!IsOwner || IsInactive) return;
 
         HandleMove();
         HandleJump();
     }
 
     /// <summary>
-    /// 사망 상태 변화를 받아 소유자 조작을 차단한다(2-1). 상호작용·인벤·프롬프트를 끄고 잔여 속도를 지워 시신을 고정한다.
-    /// 이동·시선은 Update/FixedUpdate 가 사망 상태로 게이팅한다. 부활(D18)은 MVP 미발동이라 복구는 다루지 않는다.
+    /// 사망·귀환 어느 쪽의 변화든 받아 소유자 조작을 차단한다(2-1). 상호작용·인벤·프롬프트를 끄고 잔여 속도를 지워 캐릭터를 고정한다.
+    /// 이동·시선은 Update/FixedUpdate 가 IsInactive 로 게이팅한다. 부활(D18)은 MVP 미발동이라 복구는 다루지 않는다.
+    /// 두 채널이 같은 핸들러를 공유하므로 인자는 쓰지 않고 현재 상태를 다시 읽는다.
     /// </summary>
-    /// <param name="previous">이전 사망 상태.</param>
-    /// <param name="current">새 사망 상태.</param>
-    private void HandleDeadChanged(bool previous, bool current)
+    /// <param name="previous">이전 상태(미사용).</param>
+    /// <param name="current">새 상태(미사용).</param>
+    private void HandleInactiveChanged(bool previous, bool current)
     {
-        if (!current) return;
+        if (!IsInactive) return;
 
         interactor.enabled = false;
         inventory.enabled = false;
@@ -199,14 +209,14 @@ public class PlayerController : NetworkBehaviour
     /// <summary>웅크리기 버튼을 누르기 시작했을 때 호출된다. 웅크림 상태로 진입한다.</summary>
     private void OnCrouchInput()
     {
-        Log.D("[PlayerController] Crouch");
+        //Log.D("[PlayerController] Crouch");
         isCrouching = true;
     }
 
     /// <summary>웅크리기 버튼에서 손을 뗐을 때 호출된다. 웅크림 상태를 해제한다.</summary>
     private void OnCrouchCanceledInput()
     {
-        Log.D("[PlayerController] Crouch canceled");
+        //Log.D("[PlayerController] Crouch canceled");
         isCrouching = false;
     }
 
@@ -219,7 +229,7 @@ public class PlayerController : NetworkBehaviour
     /// <summary>공격 버튼에서 손을 뗐을 때 호출된다. 아직 처리할 동작이 없다.</summary>
     private void OnAttackCanceledInput()
     {
-        Log.D("[PlayerController] Attack canceled");
+        //Log.D("[PlayerController] Attack canceled");
     }
 
     // ── 실제 행동 ───────────────────────────────────────────────
