@@ -20,6 +20,8 @@ namespace EmptyHouse.NoiseSystem
             NetworkVariableWritePermission.Server);
         private bool lastReportedCrouching;
         private float elapsed;
+        private Vector3 previousServerPosition;
+        private float planarDistanceSinceEmission;
 
         private void Awake()
         {
@@ -27,16 +29,35 @@ namespace EmptyHouse.NoiseSystem
             perceptionSource = GetComponent<ZombiePerceptionSource>();
         }
 
+        public override void OnNetworkSpawn()
+        {
+            if (!IsServer) return;
+
+            previousServerPosition = transform.position;
+            planarDistanceSinceEmission = 0f;
+            elapsed = 0f;
+        }
+
         private void FixedUpdate()
         {
             SynchronizeCrouching();
-            if (!IsServer || !IsSpawned || emittedChannel == null || playerController == null) return;
+            if (!IsServer || !IsSpawned || emittedChannel == null) return;
+
+            Vector3 currentPosition = transform.position;
+            Vector3 displacement = currentPosition - previousServerPosition;
+            displacement.y = 0f;
+            planarDistanceSinceEmission += displacement.magnitude;
+            previousServerPosition = currentPosition;
 
             elapsed += Time.fixedDeltaTime;
             if (elapsed < emissionIntervalSeconds) return;
-            elapsed = 0f;
 
-            if (playerController.PlanarSpeed < movingSpeedThreshold) return;
+            float sampleSeconds = elapsed;
+            float averagePlanarSpeed = planarDistanceSinceEmission / Mathf.Max(sampleSeconds, 0.0001f);
+            elapsed = 0f;
+            planarDistanceSinceEmission = 0f;
+
+            if (averagePlanarSpeed < movingSpeedThreshold) return;
 
             emittedChannel.RaiseEvent(new NoiseEmittedEvent(
                 NetworkObjectId,

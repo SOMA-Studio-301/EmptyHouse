@@ -37,22 +37,29 @@ namespace EmptyHouse.NoiseSystem
         {
             if (!IsServer || payload.Decibel <= 0f) return;
 
-            ulong sourceId = ResolveNearestPlayerSource(payload.Origin);
-            NetworkObject sourceNetworkObject = payload.Source != null
-                ? payload.Source.GetComponentInParent<NetworkObject>()
-                : null;
-            if (sourceId == 0UL && sourceNetworkObject != null && sourceNetworkObject.IsSpawned)
+            ulong sourceId;
+            bool hasSourceId = payload.HasSourceId;
+            if (hasSourceId)
             {
-                sourceId = sourceNetworkObject.NetworkObjectId;
+                sourceId = payload.SourceId;
+            }
+            else if (!TryResolveNearestPlayerSource(payload.Origin, out sourceId))
+            {
+                NetworkObject sourceNetworkObject = payload.Source != null
+                    ? payload.Source.GetComponentInParent<NetworkObject>()
+                    : null;
+                if (sourceNetworkObject != null && sourceNetworkObject.IsSpawned)
+                    sourceId = sourceNetworkObject.NetworkObjectId;
             }
 
             emittedChannel.RaiseEvent(new NoiseEmittedEvent(sourceId, payload.Origin, payload.Decibel));
         }
 
-        private ulong ResolveNearestPlayerSource(Vector3 origin)
+        private bool TryResolveNearestPlayerSource(Vector3 origin, out ulong sourceId)
         {
             float bestSqrDistance = playerSourceSearchRadius * playerSourceSearchRadius;
-            ulong bestSourceId = 0UL;
+            sourceId = 0UL;
+            bool found = false;
             var sources = runtimeRegistry.PerceptionSources;
 
             for (int i = 0; i < sources.Count; i++)
@@ -64,10 +71,11 @@ namespace EmptyHouse.NoiseSystem
                 if (sqrDistance > bestSqrDistance) continue;
 
                 bestSqrDistance = sqrDistance;
-                bestSourceId = source.NetworkObjectId;
+                sourceId = source.NetworkObjectId;
+                found = true;
             }
 
-            return bestSourceId;
+            return found;
         }
     }
 }

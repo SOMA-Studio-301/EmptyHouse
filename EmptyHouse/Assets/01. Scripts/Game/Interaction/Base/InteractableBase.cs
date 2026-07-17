@@ -15,6 +15,8 @@ public abstract class InteractableBase : NetworkBehaviour
     [Header("Event Channels")]
     [SerializeField] private NoiseEventChannelSO noiseEmittedChannel;
 
+    private const float MaxAllowedNoiseDb = 100f;
+
     /// <summary>입력 방식. Tap/Hold 여부에 따라 PlayerInteractor가 입력을 라우팅한다.</summary>
     public abstract InteractInputMethod InputMethod { get; }
 
@@ -41,10 +43,27 @@ public abstract class InteractableBase : NetworkBehaviour
     protected abstract void OnActivate(PlayerInteractor interactor);
 
     /// <summary>
-    /// 실행 시점에 소음 이벤트를 1회 발행. (홀드는 완료 시점 1회).
+    /// 실행 시점에 서버로 소음 발행을 1회 요청한다. (홀드는 완료 시점 1회).
+    /// 호출부는 소음 크기만 전달하고, 위치와 발행 주체는 서버가 신뢰 가능한 값으로 결정한다.
     /// </summary>
     /// <param name="noiseDb">발행할 소음 강도(dB).</param>
     protected void RaiseNoise(float noiseDb)
+    {
+        if (!IsSpawned)
+        {
+            Debug.LogWarning($"[{nameof(InteractableBase)}] Cannot raise noise from an unspawned object: {name}.", this);
+            return;
+        }
+
+        RequestNoiseServerRpc(noiseDb);
+    }
+
+    /// <summary>
+    /// 소유권이 없는 상호작용 오브젝트에서도 호출할 수 있는 서버 소음 요청.
+    /// 발행 위치는 서버 오브젝트의 위치를, SourceId 는 RPC 송신자의 PlayerObject 를 사용한다.
+    /// </summary>
+    [Rpc(SendTo.Server, InvokePermission = RpcInvokePermission.Everyone)]
+    private void RequestNoiseServerRpc(float noiseDb, RpcParams rpcParams = default)
     {
         if (noiseEmittedChannel == null)
         {
@@ -52,8 +71,25 @@ public abstract class InteractableBase : NetworkBehaviour
             return;
         }
 
-        noiseEmittedChannel.RaiseEvent(new NoiseEvent(transform.position, noiseDb, gameObject));
-        Log.D($"[InteractableBase] RaiseNoise {noiseDb}dB from {name}");
+        if (!float.IsFinite(noiseDb) || noiseDb <= 0f)
+        {
+            Debug.LogWarning($"[{nameof(InteractableBase)}] Rejected invalid noise value {noiseDb} from {name}.", this);
+            return;
+        }
+
+        float validatedDb = Mathf.Min(noiseDb, MaxAllowedNoiseDb);
+        ulong senderClientId = rpcParams.Receive.SenderClientId;
+        if (NetworkManager == null
+            || !NetworkManager.ConnectedClients.TryGetValue(senderClientId, out NetworkClient client)
+            || client.PlayerObject == null)
+        {
+            Debug.LogWarning($"[{nameof(InteractableBase)}] Rejected noise from client {senderClientId}: PlayerObject is unavailable.", this);
+            return;
+        }
+
+        ulong sourceId = client.PlayerObject.NetworkObjectId;
+        noiseEmittedChannel.RaiseEvent(new NoiseEvent(transform.position, validatedDb, gameObject, sourceId));
+        Log.D($"[InteractableBase] RaiseNoise {validatedDb}dB from {name}, source={sourceId}");
     }
 
     /// <summary>
