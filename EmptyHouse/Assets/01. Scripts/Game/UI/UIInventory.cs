@@ -23,8 +23,6 @@ public class UIInventory : MonoBehaviour
     /// <param name="slotCount">만들 칸 수. PlayerInventory.SlotCount 를 그대로 받는다.</param>
     public void Build(int slotCount)
     {
-        Log.D($"[UIInventory] Build slotCount={slotCount}");
-
         ClearSlots();
 
         slotViews = new UIInventorySlot[slotCount];
@@ -49,8 +47,6 @@ public class UIInventory : MonoBehaviour
     /// <param name="slot">그 칸의 현재 상태. 빈 칸이면 아이콘을 지운다.</param>
     public void SetSlot(int index, InventorySlot slot)
     {
-        Log.D($"[UIInventory] SetSlot {index} empty={slot.IsEmpty}");
-
         UIInventorySlot view = slotViews[index];
 
         if (slot.IsEmpty)
