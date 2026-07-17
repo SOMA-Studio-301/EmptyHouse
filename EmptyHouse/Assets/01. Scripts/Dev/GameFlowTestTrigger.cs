@@ -41,7 +41,7 @@ public class GameFlowTestTrigger : MonoBehaviour
         Log.D("[GameFlowTestTrigger] StartHost");
     }
 
-    /// <summary>가짜 플레이어 fakePlayerCount 명을 로스터에 Active 로 등록한다.</summary>
+    /// <summary>가짜 플레이어 fakePlayerCount 명을 로스터에 Active 로 등록한다(스포너와 같은 합류 채널 경로).</summary>
     [Button("2) 가짜 N명 등록")]
     private void RegisterFakePlayers()
     {
@@ -52,7 +52,7 @@ public class GameFlowTestTrigger : MonoBehaviour
         for (int i = 0; i < fakePlayerCount; i++)
         {
             ulong id = FakeIdBase + (ulong)i;
-            server.RegisterPlayer(id);
+            playerLifecycle.RaiseJoined(id);
             registered.Add(id);
             stillActive.Add(id);
         }

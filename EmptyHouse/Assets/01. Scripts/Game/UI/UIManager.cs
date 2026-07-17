@@ -1,4 +1,5 @@
 using Border.Core;
+using Border.Events;
 using UnityEngine;
 
 /// <summary>
@@ -17,6 +18,10 @@ public class UIManager : MonoBehaviour
     [Header("State")]
     [SerializeField] private GameStateEventChannelSO gameStateChanged;   // 발행: Pause/Game
     [SerializeField] private GameResultEventChannelSO gameResultChanged; // 구독: 결과창 열기 트리거
+
+    /// <summary>발행: 개인 이탈 요청. 네트워크 이탈 핸들러가 구독해 NGO 연결 종료 + Menu 씬 로드를 수행한다.</summary>
+    [Header("Session Exit")]
+    [SerializeField] private VoidEventChannelSO sessionExitRequested;
 
     [Header("Screens")]
     [SerializeField] private UIPause pausePanel;
@@ -100,11 +105,13 @@ public class UIManager : MonoBehaviour
     /// <summary>
     /// 나가기 = 개인 이탈(포기). 세션을 종료하는 게 아니라 나 혼자 연결을 끊고 메인 메뉴로 나간다.
     /// 멀티플레이라 한 명이 전원 세션을 끝낼 수 없다(세션 종료는 서버 권위의 종료 조건으로만).
+    /// 이탈 요청만 채널로 발행한다 — 실제 NGO 연결 종료·씬 로드는 네트워크 이탈 핸들러가 구독해 처리하므로
+    /// 이 매니저는 netcode 를 만지지 않는다. 로스터 Left 는 그 연결 종료를 서버가 감지해 자동으로 반영한다.
     /// </summary>
     private void QuitGame()
     {
-        // TODO(impl): 개인 이탈 흐름(NGO 연결 종료 → Menu 씬) 확정 후 구현 — 그 전까지 이 테스트 로그를 유지한다.
         Log.D("[UIManager] QuitGame — 개인 이탈 요청");
+        sessionExitRequested.RaiseEvent();
     }
 
     /// <summary>퍼즈를 감추고 설정 창을 연다. Pause 상태는 유지된다.</summary>

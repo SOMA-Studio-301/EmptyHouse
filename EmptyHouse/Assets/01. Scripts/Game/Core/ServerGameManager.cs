@@ -61,6 +61,7 @@ public class ServerGameManager : NetworkBehaviour
         resultReason.OnValueChanged += HandleResultReasonChanged;
 
         if (!IsServer) return;
+        playerLifecycle.OnJoined += RegisterPlayer;
         playerLifecycle.OnDied += NotifyPlayerDied;
         playerLifecycle.OnExtracted += NotifyPlayerExtracted;
         playerLifecycle.OnLeft += NotifyPlayerLeft;
@@ -72,14 +73,18 @@ public class ServerGameManager : NetworkBehaviour
         resultReason.OnValueChanged -= HandleResultReasonChanged;
 
         if (!IsServer) return;
+        playerLifecycle.OnJoined -= RegisterPlayer;
         playerLifecycle.OnDied -= NotifyPlayerDied;
         playerLifecycle.OnExtracted -= NotifyPlayerExtracted;
         playerLifecycle.OnLeft -= NotifyPlayerLeft;
     }
 
-    /// <summary>플레이어를 로스터에 Active 로 등록한다. GameScenePlayerSpawner 가 스폰 직후 서버에서 호출한다.</summary>
+    /// <summary>
+    /// 플레이어를 로스터에 Active 로 등록한다. PlayerLifecycle.OnJoined 로 서버에서만 호출된다(스포너가 스폰 직후 발화).
+    /// 재합류 시 Left/Dead 였던 엔트리를 다시 Active 로 되돌린다.
+    /// </summary>
     /// <param name="clientId">등록할 클라이언트 ID.</param>
-    public void RegisterPlayer(ulong clientId)
+    private void RegisterPlayer(ulong clientId)
     {
         Log.D($"[ServerGameManager] RegisterPlayer {clientId}");
         if (!IsServer) return;
@@ -87,17 +92,6 @@ public class ServerGameManager : NetworkBehaviour
         roster[clientId] = PlayerSessionStatus.Active;
         hasRegisteredAny = true;
         // 등록은 종료 판정을 부르지 않는다 — 활성이 늘기만 하므로 종료로 이어질 수 없다.
-    }
-
-    /// <summary>플레이어를 로스터에서 제거한다(연결 끊김) 후 종료 조건을 재판정한다.</summary>
-    /// <param name="clientId">제거할 클라이언트 ID.</param>
-    public void UnregisterPlayer(ulong clientId)
-    {
-        Log.D($"[ServerGameManager] UnregisterPlayer {clientId}");
-        if (!IsServer) return;
-
-        roster.Remove(clientId);
-        EvaluateTerminalCondition();
     }
 
     /// <summary>플레이어 사망을 로스터에 반영한다. PlayerLifecycle.OnDied 로 서버에서만 호출된다.</summary>
@@ -139,10 +133,29 @@ public class ServerGameManager : NetworkBehaviour
     private void SetStatus(ulong clientId, PlayerSessionStatus status)
     {
         if (!IsServer) return;
-        if (!roster.ContainsKey(clientId)) return;
+        if (!roster.ContainsKey(clientId))
+        {
+            // 배선이 정상이면 도달하지 않는다 — 찍히면 합류(OnJoined) 발화가 누락됐다는 뜻이라 경고로 남긴다.
+            Log.W($"[ServerGameManager] SetStatus 무시 — 미등록 clientId {clientId} → {status} (roster {roster.Count}명, 활성 {CountActive()}명)", this);
+            return;
+        }
 
         roster[clientId] = status;
+        // 테스트 로그: 탈출/사망 반영 직후의 로스터 현황.
+        Log.D($"[ServerGameManager] SetStatus {clientId} → {status} · 활성 {CountActive()}명 / 전체 {roster.Count}명");
         EvaluateTerminalCondition();
+    }
+
+    /// <summary>로스터의 활성(Active) 인원 수를 센다.</summary>
+    /// <returns>Active 상태 엔트리 수.</returns>
+    private int CountActive()
+    {
+        int active = 0;
+        foreach (PlayerSessionStatus status in roster.Values)
+        {
+            if (status == PlayerSessionStatus.Active) active++;
+        }
+        return active;
     }
 
     /// <summary>

@@ -42,6 +42,10 @@ public class RoomManager : MonoBehaviour
     [SerializeField] private Transform userListContainer;
     [SerializeField] private UserPanel userPanelPrefab;
 
+    [Header("Audio")]
+    [SerializeField] private SFXEventChannelSO sfxEventChannel;
+    [SerializeField] private AudioId gameStartAudioId = AudioId.Sfx_Ui_GameStart; // 결과 피드백 — 클릭음(버튼 컴포넌트 담당)이 아니라 시작이 확정된 뒤 울린다
+
     [Header("Settings")]
     [SerializeField] private float lobbyPollInterval = 1.5f;
     [SerializeField] private LobbyManager lobbyManager;
@@ -366,6 +370,8 @@ public class RoomManager : MonoBehaviour
         isStartingGame = true;
         if (startButton != null) startButton.interactable = false;
         if (exitButton != null) exitButton.interactable = false; // ★ Start 누르는 순간 Exit 잠금
+
+        sfxEventChannel.RaisePlayEvent(gameStartAudioId, transform.position);
 
         Log.D("[ROOM] Host가 Relay 서버 생성을 시작합니다...");
 

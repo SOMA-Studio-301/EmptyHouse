@@ -4,14 +4,15 @@ using Unity.Netcode;
 using UnityEngine;
 
 /// <summary>
-/// 사망한 플레이어의 관전을 담당하는 소유자 로컬 컨트롤러(D13 · 조작상호작용UI.md 3-8-1).
-/// 형제 PlayerDeathHandler.IsDead 를 구독해 본인 사망 시 관전에 진입한다 —
+/// 비활성(사망 OR 귀환) 플레이어의 관전을 담당하는 소유자 로컬 컨트롤러(D13 · 조작상호작용UI.md 3-8-1 · 세션루프.md 3~4장).
+/// 형제 PlayerDeathHandler.IsDead 와 PlayerReturn.HasExtracted 를 구독해 본인이 비활성이 되면 관전에 진입한다 —
 /// GameState.Spectating 을 발행하고, 3인칭 카메라를 생존 대상 주위에 궤도로 배치하며,
 /// 마우스 Look 으로 대상을 중심으로 카메라를 돌리고 InputReader 의 Next/Previous(←/→)로 생존 대상을 순환한다.
 /// 전원 사망은 게임오버라 관전 대상 0 은 존재하지 않는다(3-8-1).
 /// 사망 캐릭터의 이동·E·인벤 차단은 PlayerController 소관이다. 보이스 채널 분리(네트워크)·전신 모델(아트)은 선행 의존이라 다루지 않는다.
 /// </summary>
 [RequireComponent(typeof(PlayerDeathHandler))]
+[RequireComponent(typeof(PlayerReturn))]
 public class PlayerSpectatorController : NetworkBehaviour
 {
     /// <summary>관전 진입 시 발행할 클라 상태 채널. Spectating 을 실어 ClientGameManager 가 입력 모드를 전환한다.</summary>
@@ -41,6 +42,9 @@ public class PlayerSpectatorController : NetworkBehaviour
     // 사망 상태 소스. 같은 프리팹의 형제 컴포넌트다.
     private PlayerDeathHandler deathHandler;
 
+    // 귀환 상태 소스. 같은 프리팹의 형제 컴포넌트다.
+    private PlayerReturn playerReturn;
+
     // 현재 관전 대상 인덱스. 생존자 순환의 커서다.
     private int currentTargetIndex;
 
@@ -57,30 +61,32 @@ public class PlayerSpectatorController : NetworkBehaviour
     // 관전 카메라 트랜스폼. EnterSpectate 에서 Camera.main 을 캐시한다(매 프레임 Camera.main 조회 회피).
     private Transform spectatorCamera;
 
-    /// <summary>형제 PlayerDeathHandler 참조를 캐시한다.</summary>
+    /// <summary>형제 PlayerDeathHandler·PlayerReturn 참조를 캐시한다.</summary>
     private void Awake()
     {
-        Log.D("[PlayerSpectatorController] Awake");
         deathHandler = GetComponent<PlayerDeathHandler>();
+        playerReturn = GetComponent<PlayerReturn>();
     }
 
-    /// <summary>소유자에 한해 사망 상태와 관전 입력 구독을 건다. 관전은 본인 화면의 로컬 연출이라 소유자만 관여한다.</summary>
+    /// <summary>소유자에 한해 비활성 상태(사망·귀환)와 관전 입력 구독을 건다. 관전은 본인 화면의 로컬 연출이라 소유자만 관여한다.</summary>
     public override void OnNetworkSpawn()
     {
         if (!IsOwner) return;
 
-        deathHandler.IsDead.OnValueChanged += HandleDeadChanged;
+        deathHandler.IsDead.OnValueChanged += HandleInactiveChanged;
+        playerReturn.HasExtracted.OnValueChanged += HandleInactiveChanged;
         inputReader.LookEvent += OnLook;
         inputReader.NextEvent += OnNext;
         inputReader.PreviousEvent += OnPrevious;
     }
 
-    /// <summary>사망 상태·관전 입력 구독을 해제한다. OnNetworkSpawn 과 짝을 맞춘다.</summary>
+    /// <summary>비활성 상태·관전 입력 구독을 해제한다. OnNetworkSpawn 과 짝을 맞춘다.</summary>
     public override void OnNetworkDespawn()
     {
         if (!IsOwner) return;
 
-        deathHandler.IsDead.OnValueChanged -= HandleDeadChanged;
+        deathHandler.IsDead.OnValueChanged -= HandleInactiveChanged;
+        playerReturn.HasExtracted.OnValueChanged -= HandleInactiveChanged;
         inputReader.LookEvent -= OnLook;
         inputReader.NextEvent -= OnNext;
         inputReader.PreviousEvent -= OnPrevious;
@@ -121,20 +127,25 @@ public class PlayerSpectatorController : NetworkBehaviour
         CycleTarget(-1);
     }
 
-    /// <summary>사망 상태 변화를 받아 관전 진입/이탈을 전환한다. 사망 시 진입, 부활 시 이탈(MVP 미발동).</summary>
-    /// <param name="previous">이전 사망 상태.</param>
-    /// <param name="current">새 사망 상태.</param>
-    private void HandleDeadChanged(bool previous, bool current)
+    /// <summary>
+    /// 사망·귀환 어느 쪽의 변화든 받아 관전 진입/이탈을 전환한다. 둘 중 하나라도 비활성이면 진입, 둘 다 풀려야 이탈(MVP 미발동).
+    /// 두 채널이 같은 핸들러를 공유하므로 인자는 쓰지 않고 현재 상태를 다시 읽는다.
+    /// </summary>
+    /// <param name="previous">이전 상태(미사용).</param>
+    /// <param name="current">새 상태(미사용).</param>
+    private void HandleInactiveChanged(bool previous, bool current)
     {
-        Log.D($"[PlayerSpectatorController] HandleDeadChanged {previous}->{current}");
-        if (current) EnterSpectate();
+        bool isInactive = deathHandler.IsDead.Value || playerReturn.HasExtracted.Value;
+
+        if (isInactive == isSpectating) return; // 이미 반영된 상태면 재진입/재이탈하지 않는다(사망+귀환 중복 전이 방어)
+
+        if (isInactive) EnterSpectate();
         else ExitSpectate();
     }
 
     /// <summary>관전에 진입한다. GameState.Spectating 을 발행하고 카메라를 떼어 첫 생존 대상 궤도에 배치한다.</summary>
     private void EnterSpectate()
     {
-        Log.D("[PlayerSpectatorController] EnterSpectate");
         isSpectating = true;
         gameStateChanged.RaiseEvent(GameState.Spectating);
 
@@ -152,7 +163,6 @@ public class PlayerSpectatorController : NetworkBehaviour
     /// <summary>관전을 종료한다(귀환 부활 D18 — MVP 단일 외출이라 미발동). GameState.Game 으로 복귀시킨다.</summary>
     private void ExitSpectate()
     {
-        Log.D("[PlayerSpectatorController] ExitSpectate");
         isSpectating = false;
         currentTarget = null;
 
@@ -161,15 +171,16 @@ public class PlayerSpectatorController : NetworkBehaviour
         gameStateChanged.RaiseEvent(GameState.Game);
     }
 
-    /// <summary>생존 플레이어를 방향으로 순환해 관전 대상을 바꾼다. 생존자가 1명이면 전환되지 않는다.</summary>
+    /// <summary>생존 플레이어를 방향으로 순환해 관전 대상을 바꾼다. 대상이 1명 이하면 순환이 무의미하므로 입력을 무시한다.</summary>
     /// <param name="direction">순환 방향(+1 다음 / -1 이전).</param>
     private void CycleTarget(int direction)
     {
-        Log.D($"[PlayerSpectatorController] CycleTarget {direction}");
         List<NetworkObject> targets = CollectAliveTargets();
-        if (targets.Count == 0) return;
 
-        // 음수 방향도 감싸도록 정규화. 생존자 1명이면 항상 같은 인덱스라 전환되지 않는다(AC 3-8-1).
+        // 1명이면 인덱스는 그대로여도 ApplySpectatorCamera 가 궤도를 리셋해 카메라만 튄다 — 아예 무시한다(AC 3-8-1).
+        if (targets.Count <= 1) return;
+
+        // 음수 방향도 감싸도록 정규화.
         currentTargetIndex = ((currentTargetIndex + direction) % targets.Count + targets.Count) % targets.Count;
         ApplySpectatorCamera(targets[currentTargetIndex]);
     }
@@ -178,7 +189,6 @@ public class PlayerSpectatorController : NetworkBehaviour
     /// <param name="target">관전할 대상 플레이어의 NetworkObject.</param>
     private void ApplySpectatorCamera(NetworkObject target)
     {
-        Log.D("[PlayerSpectatorController] ApplySpectatorCamera");
         currentTarget = target;
 
         // 궤도를 대상이 바라보는 방향 뒤로 맞춰, 전환 직후 대상을 등지고 같은 방향을 보는 시점으로 시작한다.
@@ -196,17 +206,16 @@ public class PlayerSpectatorController : NetworkBehaviour
         spectatorCamera.SetPositionAndRotation(focus - rot * Vector3.forward * orbitDistance, rot);
     }
 
-    /// <summary>생존 중인 플레이어 NetworkObject 목록을 수집한다. 각 PlayerDeathHandler.IsDead 로 판별한다.</summary>
-    /// <returns>사망하지 않은 플레이어 오브젝트 목록.</returns>
+    /// <summary>활성 생존 플레이어 NetworkObject 목록을 수집한다. IsDead 또는 HasExtracted 면 제외한다 — 귀환자는 비활성이라 관전 대상이 아니다(세션루프.md 3장).</summary>
+    /// <returns>사망하지도 귀환하지도 않은 플레이어 오브젝트 목록.</returns>
     private List<NetworkObject> CollectAliveTargets()
     {
-        Log.D("[PlayerSpectatorController] CollectAliveTargets");
-
         // 클라이언트에서도 채워지는 SpawnManager.PlayerObjects 로 전 플레이어를 순회한다(연결 클라 목록은 서버 전용이라 관전 소유자 클라에서 못 쓴다).
         List<NetworkObject> alive = new List<NetworkObject>();
         foreach (NetworkObject player in NetworkManager.SpawnManager.PlayerObjects)
         {
             if (player.GetComponent<PlayerDeathHandler>().IsDead.Value) continue;
+            if (player.GetComponent<PlayerReturn>().HasExtracted.Value) continue;
             alive.Add(player);
         }
         return alive;

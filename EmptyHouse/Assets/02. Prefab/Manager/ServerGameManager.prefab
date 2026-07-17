@@ -11,6 +11,7 @@ GameObject:
   - component: {fileID: 7042183349059420208}
   - component: {fileID: 6245000233682176873}
   - component: {fileID: 3581917061981428369}
+  - component: {fileID: 1406027933520433531}
   m_Layer: 0
   m_Name: ServerGameManager
   m_TagString: Untagged
@@ -45,7 +46,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: d5a57f767e5e46a458fc5d3c628d0cbb, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Unity.Netcode.Runtime::Unity.Netcode.NetworkObject
-  GlobalObjectIdHash: 3560933266
+  GlobalObjectIdHash: 3857248506
   InScenePlacedSourceGlobalObjectIdHash: 1313224786
   DeferredDespawnTick: 0
   Ownership: 1
@@ -73,6 +74,21 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::ServerGameManager
   ShowTopMostFoldoutHeaderGroup: 1
   resultDisplaySeconds: 8
+  lobbySceneName: Lobby
   requiredVaccines: 1
   gameResultChanged: {fileID: 11400000, guid: 95969388b1e545f41970994b0520a867, type: 2}
   playerLifecycle: {fileID: 11400000, guid: 99aaaaab4771c6d45bcc0132da11b06f, type: 2}
+--- !u!114 &1406027933520433531
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 3913736384442364574}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 3c3c07000bbc55949a1a6f1198bd973b, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::SessionExitHandler
+  sessionExitRequested: {fileID: 11400000, guid: 967fdd94a8a1836418d23c16d1645e44, type: 2}
+  menuSceneName: Menu
