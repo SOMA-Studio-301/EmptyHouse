@@ -1,5 +1,4 @@
 using UnityEngine;
-using Border.UI;
 
 /// <summary>
 /// 설정 창 DATA 탭. 세이브 데이터 삭제를 담당한다.

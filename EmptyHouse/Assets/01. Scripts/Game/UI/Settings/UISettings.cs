@@ -1,7 +1,6 @@
 using System;
 using UnityEngine;
 using UnityEngine.Events;
-using Border.UI;
 
 /// <summary>
 /// 설정 창의 탭 컨테이너. 탭 버튼과 패널을 짝지어 하나만 켜고, 닫기 요청을 UIManager 로 올린다.

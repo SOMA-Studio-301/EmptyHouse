@@ -1,5 +1,4 @@
 using UnityEngine;
-using Border.UI;
 
 /// <summary>
 /// 설정 창 탭 바의 버튼 하나. 클릭 처리는 UISettings 가 하고, 이쪽은 선택 상태 표시만 책임진다.

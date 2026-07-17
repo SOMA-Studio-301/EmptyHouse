@@ -1,6 +1,5 @@
 using UnityEngine;
 using UnityEngine.Events;
-using Border.UI;
 
 /// <summary>
 /// 퍼즈 패널 내부 로직(버튼 액션) 전담 컨트롤러.

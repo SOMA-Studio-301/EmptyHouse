@@ -44,7 +44,6 @@ public class UIHoldGauge : MonoBehaviour
 
         if (wasHidden)
         {
-            Log.D("[UIHoldGauge] Show");
             gaugeRoot.SetActive(true);
         }
 
