@@ -60,7 +60,8 @@ public class GameScenePlayerSpawner : MonoBehaviour
         }
 
         NetworkObject player = Instantiate(playerPrefab, Vector3.zero, Quaternion.identity);
-        player.SpawnAsPlayerObject(clientId);
+        // PlayerObject는 한 판에만 속한다. Lobby 복귀 시 함께 Despawn하고 다음 판에 새로 만든다.
+        player.SpawnAsPlayerObject(clientId, true);
         spawnedClients.Add(clientId);
         playerLifecycle.RaiseJoined(clientId);
     }

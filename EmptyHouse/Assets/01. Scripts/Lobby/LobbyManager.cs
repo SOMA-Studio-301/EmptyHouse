@@ -16,7 +16,6 @@ public class LobbyManager : MonoBehaviour
     private const string PasswordDataKey = "Password";
     private const string PlayerNameDataKey = "PlayerName";
     private const string SteamIdDataKey = "SteamID";
-    private const float HeartbeatIntervalSeconds = 15f;
 
     [Header("NAVIGATION UI")]
     [SerializeField] private GameObject createPanel;          // 방 만들기 입력 팝업/패널
@@ -117,6 +116,27 @@ public class LobbyManager : MonoBehaviour
             {
                 playerName = SteamFriends.GetPersonaName();
                 Log.D($"[STEAM] 스팀 닉네임 적용 완료: {playerName}");
+            }
+
+            // Game -> Lobby 복귀 시 씬 UI는 새로 만들어지지만 방 세션은 Coordinator에 남아 있다.
+            if (SessionCoordinator.Instance.HasRoom)
+            {
+                try
+                {
+                    currentLobby = await SessionCoordinator.Instance.RefreshCurrentLobbyAsync();
+                    if (currentLobby != null && roomManager != null)
+                    {
+                        ResetLobbyUI();
+                        roomManager.EnterRoom(currentLobby);
+                        nextRefreshTime = Time.time + lobbyRefreshInterval;
+                        return;
+                    }
+                }
+                catch (LobbyServiceException e) when (e.ErrorCode == 404)
+                {
+                    await SessionCoordinator.Instance.HandleRoomDestroyedAsync();
+                    currentLobby = null;
+                }
             }
             
             Log.D("[INIT] Loading initial lobby list...");
@@ -472,12 +492,11 @@ public class LobbyManager : MonoBehaviour
             }
 
             currentLobby = await LobbyService.Instance.CreateLobbyAsync(lobbyName, maxPlayersPerLobby, options);
+            SessionCoordinator.Instance.SetCurrentLobby(currentLobby);
 
             Log.D($"[CREATE] Created lobby: {currentLobby.Name} (ID: {currentLobby.Id})");
 
             ResetLobbyUI();
-
-            StartHeartbeatInstance();
 
             if (roomManager != null)
             {
@@ -487,36 +506,6 @@ public class LobbyManager : MonoBehaviour
         catch (Exception e)
         {
             Log.E($"Failed to create lobby: {e.Message}", this);
-        }
-    }
-
-    private async void SendLobbyHeartbeat()
-    {
-        if (currentLobby == null || !AuthenticationService.Instance.IsSignedIn)
-        {
-            CancelInvoke(nameof(SendLobbyHeartbeat));
-            return;
-        }
-
-        try
-        {
-            await LobbyService.Instance.SendHeartbeatPingAsync(currentLobby.Id);
-        }
-        catch (LobbyServiceException e)
-        {
-            if (IsHeartbeatOwnershipFailure(e))
-            {
-                CancelInvoke(nameof(SendLobbyHeartbeat));
-                return;
-            }
-        }
-        catch (Exception e)
-        {
-            if (IsHeartbeatOwnershipFailure(e))
-            {
-                CancelInvoke(nameof(SendLobbyHeartbeat));
-                return;
-            }
         }
     }
 
@@ -549,6 +538,7 @@ public class LobbyManager : MonoBehaviour
             };
 
             currentLobby = await LobbyService.Instance.JoinLobbyByIdAsync(lobbyId, options);
+            SessionCoordinator.Instance.SetCurrentLobby(currentLobby);
             
             if (joinLobbyPasswordInput != null) joinLobbyPasswordInput.text = "";
 
@@ -575,51 +565,20 @@ public class LobbyManager : MonoBehaviour
 
     public async Task LeaveLobby()
     {
-        if (currentLobby == null) return;
+        await SessionCoordinator.Instance.ExitCurrentRoomAsync();
+        if (this == null) return;
 
-        CancelInvoke(nameof(SendLobbyHeartbeat)); 
-
-        try
-        {
-            string lobbyId = currentLobby.Id;
-            string playerId = AuthenticationService.Instance.PlayerId;
-
-            await LobbyService.Instance.RemovePlayerAsync(lobbyId, playerId);
-
-            if (this == null) return; 
-            Log.D($"Left lobby: {currentLobby.Name}");
-        }
-        catch (Exception e)
-        {
-            if (this == null) return; 
-            Log.E($"Failed to leave lobby: {e.Message}", this);
-        }
-    
-        if (this != null)
-        {
-            currentLobby = null;
-            ResetLobbyUI(); 
-        }
+        currentLobby = null;
+        ResetLobbyUI();
     }
 
     #endregion
 
-    private void OnDestroy()
+    public void HandleRoomCleared()
     {
-        bool isStarting = roomManager != null && roomManager.IsStartingGame;
-
-        // 게임 시작 중이 아닐 때만 방에서 나갑니다.
-        if (currentLobby != null && !isStarting)
-        {
-            _ = LeaveLobby();
-        }
-    }
-    
-    public void StartHeartbeatInstance()
-    {
-        CancelInvoke(nameof(SendLobbyHeartbeat));
-        InvokeRepeating(nameof(SendLobbyHeartbeat), HeartbeatIntervalSeconds, HeartbeatIntervalSeconds);
-        Log.D("[HEARTBEAT] 새 방장 권한을 위임받아 하트비트 타이머를 가동합니다.");
+        currentLobby = null;
+        ResetLobbyUI();
+        nextRefreshTime = Time.time + lobbyRefreshInterval;
     }
 
     private Player BuildLocalPlayer()
@@ -635,16 +594,4 @@ public class LobbyManager : MonoBehaviour
         };
     }
 
-    private static bool IsHeartbeatOwnershipFailure(Exception exception)
-    {
-        if (exception is LobbyServiceException lobbyException
-            && (lobbyException.ErrorCode == 400 || lobbyException.ErrorCode == 403 || lobbyException.ErrorCode == 404))
-        {
-            return true;
-        }
-
-        string message = exception.Message ?? string.Empty;
-        return message.IndexOf("host", StringComparison.OrdinalIgnoreCase) >= 0
-            || message.IndexOf("not found", StringComparison.OrdinalIgnoreCase) >= 0;
-    }
 }
