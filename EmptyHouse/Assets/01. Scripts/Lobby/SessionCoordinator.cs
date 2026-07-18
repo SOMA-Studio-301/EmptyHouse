@@ -52,6 +52,7 @@ public sealed class SessionCoordinator : MonoBehaviour
     }
 
     public Lobby CurrentLobby { get; private set; }
+    public int SessionGeneration { get; private set; }
     public bool HasRoom => CurrentLobby != null;
     public bool IsCleaningUp => isCleaningUp;
     public bool IsCurrentLobbyHost => CurrentLobby != null
@@ -77,7 +78,36 @@ public sealed class SessionCoordinator : MonoBehaviour
         BindNetworkManager();
     }
 
-    private void HandleUnitySceneLoaded(Scene scene, LoadSceneMode mode) => BindNetworkManager();
+    private void HandleUnitySceneLoaded(Scene scene, LoadSceneMode mode)
+    {
+        BindNetworkManager();
+        DestroyDuplicateNetworkManagers();
+
+        if (scene.name == "Menu" || scene.name == "Lobby")
+            ResetFrontendInput();
+    }
+
+    private static void DestroyDuplicateNetworkManagers()
+    {
+        NetworkManager singleton = NetworkManager.Singleton;
+        if (singleton == null) return;
+
+        NetworkManager[] managers = FindObjectsByType<NetworkManager>(
+            FindObjectsInactive.Include,
+            FindObjectsSortMode.None);
+
+        foreach (NetworkManager manager in managers)
+        {
+            if (manager != null && manager != singleton)
+                Destroy(manager.gameObject);
+        }
+    }
+
+    private static void ResetFrontendInput()
+    {
+        Cursor.lockState = CursorLockMode.None;
+        Cursor.visible = true;
+    }
 
     private void BindNetworkManager()
     {
@@ -105,23 +135,56 @@ public sealed class SessionCoordinator : MonoBehaviour
 
     public void SetCurrentLobby(Lobby lobby)
     {
+        if (lobby == null) return;
+        if (CurrentLobby == null || CurrentLobby.Id != lobby.Id)
+            SessionGeneration++;
+
         CurrentLobby = lobby;
         RefreshHeartbeatOwnership();
+    }
+
+    public bool TryUpdateLobby(Lobby lobby, string expectedLobbyId, int expectedSessionGeneration)
+    {
+        if (lobby == null
+            || !IsCurrentSession(expectedLobbyId, expectedSessionGeneration)
+            || lobby.Id != expectedLobbyId)
+            return false;
+
+        CurrentLobby = lobby;
+        RefreshHeartbeatOwnership();
+        return true;
+    }
+
+    private bool IsCurrentSession(string lobbyId, int generation)
+    {
+        return !isCleaningUp
+            && CurrentLobby != null
+            && SessionGeneration == generation
+            && CurrentLobby.Id == lobbyId;
+    }
+
+    private void InvalidateCurrentRoom()
+    {
+        SessionGeneration++;
+        CurrentLobby = null;
+        StopHeartbeat();
     }
 
     public async Task<Lobby> RefreshCurrentLobbyAsync()
     {
         if (CurrentLobby == null) return null;
 
-        Lobby refreshed = await LobbyService.Instance.GetLobbyAsync(CurrentLobby.Id);
-        if (isCleaningUp || CurrentLobby == null) return null;
-        SetCurrentLobby(refreshed);
-        return refreshed;
+        string lobbyId = CurrentLobby.Id;
+        int generation = SessionGeneration;
+        Lobby refreshed = await LobbyService.Instance.GetLobbyAsync(lobbyId);
+        return TryUpdateLobby(refreshed, lobbyId, generation) ? refreshed : null;
     }
 
     public async Task ResetLocalReadyAsync()
     {
         if (CurrentLobby == null || !AuthenticationService.Instance.IsSignedIn) return;
+        string lobbyId = CurrentLobby.Id;
+        int generation = SessionGeneration;
 
         try
         {
@@ -134,11 +197,10 @@ public sealed class SessionCoordinator : MonoBehaviour
             };
 
             Lobby updated = await LobbyService.Instance.UpdatePlayerAsync(
-                CurrentLobby.Id,
+                lobbyId,
                 AuthenticationService.Instance.PlayerId,
                 options);
-            if (isCleaningUp || CurrentLobby == null) return;
-            SetCurrentLobby(updated);
+            TryUpdateLobby(updated, lobbyId, generation);
         }
         catch (Exception e)
         {
@@ -194,11 +256,14 @@ public sealed class SessionCoordinator : MonoBehaviour
 
         string joinCode = GetRelayJoinCode(CurrentLobby);
         if (string.IsNullOrEmpty(joinCode)) return;
+        string lobbyId = CurrentLobby.Id;
+        int generation = SessionGeneration;
 
         isConnecting = true;
         try
         {
             JoinAllocation allocation = await RelayService.Instance.JoinAllocationAsync(joinCode);
+            if (!IsCurrentSession(lobbyId, generation)) return;
             GetUnityTransport().SetRelayServerData(BuildRelayServerData(allocation));
             await StartClientAndWaitAsync(15f);
         }
@@ -235,7 +300,7 @@ public sealed class SessionCoordinator : MonoBehaviour
 
         Lobby leavingLobby = CurrentLobby;
         bool wasHost = IsCurrentLobbyHost;
-        StopHeartbeat();
+        InvalidateCurrentRoom();
 
         try
         {
@@ -266,9 +331,9 @@ public sealed class SessionCoordinator : MonoBehaviour
         }
         finally
         {
-            CurrentLobby = null;
             isCleaningUp = false;
             suppressDisconnectHandling = false;
+            ResetFrontendInput();
             RoomCleared?.Invoke();
         }
     }
@@ -281,7 +346,7 @@ public sealed class SessionCoordinator : MonoBehaviour
         isCleaningUp = true;
         suppressDisconnectHandling = true;
         Lobby destroyedLobby = CurrentLobby;
-        StopHeartbeat();
+        InvalidateCurrentRoom();
 
         try
         {
@@ -303,9 +368,9 @@ public sealed class SessionCoordinator : MonoBehaviour
         }
         finally
         {
-            CurrentLobby = null;
             isCleaningUp = false;
             suppressDisconnectHandling = false;
+            ResetFrontendInput();
             RoomCleared?.Invoke();
 
             if (SceneManager.GetActiveScene().name != "Lobby")
@@ -313,8 +378,32 @@ public sealed class SessionCoordinator : MonoBehaviour
         }
     }
 
+    public async Task DiscardStaleSessionAsync()
+    {
+        if (isCleaningUp) return;
+
+        isCleaningUp = true;
+        suppressDisconnectHandling = true;
+        InvalidateCurrentRoom();
+
+        try
+        {
+            await ShutdownNetworkAsync();
+        }
+        finally
+        {
+            isCleaningUp = false;
+            suppressDisconnectHandling = false;
+            ResetFrontendInput();
+        }
+    }
+
     private async Task UpdateLobbySessionDataAsync(string relayJoinCode, string state, int epoch, bool isLocked)
     {
+        if (CurrentLobby == null) throw new InvalidOperationException("No active lobby session.");
+        string lobbyId = CurrentLobby.Id;
+        int generation = SessionGeneration;
+
         UpdateLobbyOptions options = new UpdateLobbyOptions
         {
             IsLocked = isLocked,
@@ -326,8 +415,9 @@ public sealed class SessionCoordinator : MonoBehaviour
             }
         };
 
-        Lobby updated = await LobbyService.Instance.UpdateLobbyAsync(CurrentLobby.Id, options);
-        SetCurrentLobby(updated);
+        Lobby updated = await LobbyService.Instance.UpdateLobbyAsync(lobbyId, options);
+        if (!TryUpdateLobby(updated, lobbyId, generation))
+            throw new InvalidOperationException("The lobby session changed while updating its state.");
     }
 
     private async Task StartClientAndWaitAsync(float timeoutSeconds)

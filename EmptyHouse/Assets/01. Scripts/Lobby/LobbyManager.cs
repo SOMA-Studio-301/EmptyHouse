@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Threading.Tasks;
 using Border.Core;
 using Steamworks;
@@ -124,6 +125,16 @@ public class LobbyManager : MonoBehaviour
                 try
                 {
                     currentLobby = await SessionCoordinator.Instance.RefreshCurrentLobbyAsync();
+                    bool isStillMember = currentLobby?.Players != null
+                        && currentLobby.Players.Any(
+                            player => player.Id == AuthenticationService.Instance.PlayerId);
+
+                    if (currentLobby != null && !isStillMember)
+                    {
+                        await SessionCoordinator.Instance.DiscardStaleSessionAsync();
+                        currentLobby = null;
+                    }
+
                     if (currentLobby != null && roomManager != null)
                     {
                         ResetLobbyUI();

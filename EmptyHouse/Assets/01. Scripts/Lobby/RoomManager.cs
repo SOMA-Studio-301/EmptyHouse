@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Threading;
 using System.Threading.Tasks;
 using Border.Core;
 using UnityEngine;
@@ -49,7 +50,7 @@ public class RoomManager : MonoBehaviour
     private bool isReady;
     private float nextPollTime;
     private bool isInRoom;
-    private bool isPolling;
+    private CancellationTokenSource lobbyPollCts;
     private bool userSlotsInitialized;
     private readonly List<UserPanel> userPanels = new List<UserPanel>(MaxRoomSlots);
 
@@ -104,7 +105,7 @@ public class RoomManager : MonoBehaviour
             exitButton.interactable = true; // ★ 재입장 시 초기화
         }
         
-        _ = PollLobbyData();
+        StartLobbyPolling();
         _ = PrepareRoomEntryAsync();
         
         Log.D($"[ROOM] Entered room: {lobby.Name}");
@@ -144,22 +145,48 @@ public class RoomManager : MonoBehaviour
 
     #region Lobby Polling
 
-    private async Task PollLobbyData()
+    private void StartLobbyPolling()
     {
-        if (isPolling) return;
-        isPolling = true;
+        CancelLobbyPolling();
+        lobbyPollCts = new CancellationTokenSource();
+        _ = PollLobbyData(lobbyPollCts, currentLobby.Id, SessionCoordinator.Instance.SessionGeneration);
+    }
+
+    private void CancelLobbyPolling()
+    {
+        CancellationTokenSource cts = lobbyPollCts;
+        lobbyPollCts = null;
+        if (cts == null) return;
+
+        cts.Cancel();
+        cts.Dispose();
+    }
+
+    private async Task PollLobbyData(
+        CancellationTokenSource pollingSource,
+        string expectedLobbyId,
+        int expectedSessionGeneration)
+    {
+        CancellationToken cancellationToken = pollingSource.Token;
+        int rateLimitAttempt = 0;
 
         try
         {
-            while (isInRoom && currentLobby != null)
+            while (!cancellationToken.IsCancellationRequested && isInRoom && currentLobby != null)
             {
                 try
                 {
-                    Lobby polledLobby = await LobbyService.Instance.GetLobbyAsync(currentLobby.Id);
-                    if (!isInRoom || SessionCoordinator.Instance.IsCleaningUp) break;
+                    Lobby polledLobby = await LobbyService.Instance.GetLobbyAsync(expectedLobbyId);
+                    cancellationToken.ThrowIfCancellationRequested();
+                    if (this == null || !isInRoom || SessionCoordinator.Instance.IsCleaningUp) break;
+                    if (!SessionCoordinator.Instance.TryUpdateLobby(
+                            polledLobby,
+                            expectedLobbyId,
+                            expectedSessionGeneration))
+                        break;
                     currentLobby = polledLobby;
                     if (currentLobby == null) continue;
-                    SessionCoordinator.Instance.SetCurrentLobby(currentLobby);
+                    rateLimitAttempt = 0;
                     UpdateRoomUI();
 
                     if (!IsHost())
@@ -167,6 +194,11 @@ public class RoomManager : MonoBehaviour
                         try
                         {
                             await SessionCoordinator.Instance.ConnectToRoomNetworkIfNeededAsync();
+                            cancellationToken.ThrowIfCancellationRequested();
+                        }
+                        catch (OperationCanceledException)
+                        {
+                            throw;
                         }
                         catch (Exception e)
                         {
@@ -176,7 +208,9 @@ public class RoomManager : MonoBehaviour
                 }
                 catch (LobbyServiceException e)
                 {
-                    if (e.ErrorCode == 404 || e.Message.ToLower().Contains("not found"))
+                    if (e.ErrorCode == 404
+                        || (!string.IsNullOrEmpty(e.Message)
+                            && e.Message.IndexOf("not found", StringComparison.OrdinalIgnoreCase) >= 0))
                     {
                         // 호스트의 방 파괴와 비정상 종료 후 Lobby 소멸을 같은 정리 경로로 처리한다.
                         if (!isStartingGame)
@@ -185,13 +219,17 @@ public class RoomManager : MonoBehaviour
                         }
                         isInRoom = false;
                         await SessionCoordinator.Instance.HandleRoomDestroyedAsync();
+                        cancellationToken.ThrowIfCancellationRequested();
                         currentLobby = null;
                         break;
                     }
 
                     if (e.ErrorCode == 429)
                     {
-                        await Task.Delay(3000); // 잠깐 쉬고 루프는 계속 진행
+                        rateLimitAttempt++;
+                        float retryDelay = Mathf.Min(30f, 3f * Mathf.Pow(2f, rateLimitAttempt - 1));
+                        await Task.Delay(TimeSpan.FromSeconds(retryDelay), cancellationToken);
+                        continue;
                     }
                     else
                     {
@@ -199,8 +237,14 @@ public class RoomManager : MonoBehaviour
                     }
                 }
 
-                await Task.Delay(TimeSpan.FromSeconds(Mathf.Max(0.25f, lobbyPollInterval)));
+                await Task.Delay(
+                    TimeSpan.FromSeconds(Mathf.Max(0.25f, lobbyPollInterval)),
+                    cancellationToken);
             }
+        }
+        catch (OperationCanceledException)
+        {
+            // Leaving the room or destroying this RoomManager normally ends polling.
         }
         catch (Exception e)
         {
@@ -208,7 +252,10 @@ public class RoomManager : MonoBehaviour
         }
         finally
         {
-            isPolling = false;
+            if (ReferenceEquals(lobbyPollCts, pollingSource))
+                lobbyPollCts = null;
+
+            pollingSource.Dispose();
         }
     }
 
@@ -406,6 +453,7 @@ public class RoomManager : MonoBehaviour
     {
         if (SessionCoordinator.Instance.IsCleaningUp) return;
         isInRoom = false;
+        CancelLobbyPolling();
         if (exitButton != null) exitButton.interactable = false;
 
         await SessionCoordinator.Instance.ExitCurrentRoomAsync();
@@ -465,12 +513,14 @@ public class RoomManager : MonoBehaviour
 
     private void OnDestroy()
     {
+        CancelLobbyPolling();
         if (SessionCoordinator.Instance != null)
             SessionCoordinator.Instance.RoomCleared -= HandleRoomCleared;
     }
 
     private async void HandleRoomCleared()
     {
+        CancelLobbyPolling();
         currentLobby = null;
         isReady = false;
         isInRoom = false;
