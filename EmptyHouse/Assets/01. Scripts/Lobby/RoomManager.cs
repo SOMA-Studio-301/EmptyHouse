@@ -21,10 +21,6 @@ using Steamworks;
 /// </summary>
 public class RoomManager : MonoBehaviour
 {
-    private const string RelayJoinCodeDataKey = "RelayJoinCode";
-    private const string PlayerNameDataKey = "PlayerName";
-    private const string SteamIdDataKey = "SteamID";
-    private const string ReadyDataKey = "IsReady";
     private const string RelayConnectionType = "dtls";
 
     /// <summary>발행: 방에서 빠져나왔다. LobbyManager 가 로비 화면을 되살린다.</summary>
@@ -169,7 +165,7 @@ public class RoomManager : MonoBehaviour
 
                     if (!IsHost()
                         && currentLobby.Data != null
-                        && currentLobby.Data.TryGetValue(RelayJoinCodeDataKey, out DataObject relayData))
+                        && currentLobby.Data.TryGetValue(LobbyDataKeys.RelayJoinCode, out DataObject relayData))
                     {
                         string joinCode = relayData.Value;
                         if (!string.IsNullOrEmpty(joinCode) && !isStartingGame)
@@ -240,7 +236,7 @@ public class RoomManager : MonoBehaviour
 
         foreach (Player player in currentLobby.Players)
         {
-            string steamId = TryGetPlayerData(player, SteamIdDataKey, out string value) ? value : string.Empty;
+            string steamId = TryGetPlayerData(player, LobbyDataKeys.SteamId, out string value) ? value : string.Empty;
             slots.Add(new RoomSlotInfo(
                 GetPlayerName(player),
                 player.Id == currentLobby.HostId,
@@ -305,7 +301,7 @@ public class RoomManager : MonoBehaviour
             {
                 Data = new Dictionary<string, PlayerDataObject>
                 {
-                    { ReadyDataKey, new PlayerDataObject(PlayerDataObject.VisibilityOptions.Member, isReady.ToString()) }
+                    { LobbyDataKeys.IsReady, new PlayerDataObject(PlayerDataObject.VisibilityOptions.Member, isReady.ToString()) }
                 }
             };
 
@@ -347,7 +343,7 @@ public class RoomManager : MonoBehaviour
             {
                 Data = new Dictionary<string, DataObject>
                 {
-                    { RelayJoinCodeDataKey, new DataObject(DataObject.VisibilityOptions.Member, relayJoinCode) }
+                    { LobbyDataKeys.RelayJoinCode, new DataObject(DataObject.VisibilityOptions.Member, relayJoinCode) }
                 }
             };
             currentLobby = await LobbyService.Instance.UpdateLobbyAsync(currentLobby.Id, options);
@@ -583,7 +579,7 @@ public class RoomManager : MonoBehaviour
     /// <returns>닉네임. 없으면 "Unknown"</returns>
     private static string GetPlayerName(Player player)
     {
-        return TryGetPlayerData(player, PlayerNameDataKey, out string playerName) ? playerName : "Unknown";
+        return TryGetPlayerData(player, LobbyDataKeys.PlayerName, out string playerName) ? playerName : "Unknown";
     }
 
     /// <summary>플레이어의 준비 상태를 읽는다.</summary>
@@ -591,7 +587,7 @@ public class RoomManager : MonoBehaviour
     /// <returns>준비 완료면 true</returns>
     private static bool GetPlayerReadyStatus(Player player)
     {
-        return TryGetPlayerData(player, ReadyDataKey, out string value)
+        return TryGetPlayerData(player, LobbyDataKeys.IsReady, out string value)
             && bool.TryParse(value, out bool isReadyStatus)
             && isReadyStatus;
     }

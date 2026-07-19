@@ -40,7 +40,7 @@ public class LobbyListCell : MonoBehaviour
 
         lobbyNameText.text = lobby.Name;
         playerCountText.text = $"{lobby.Players.Count}/{lobby.MaxPlayers}";
-        passwordIcon.SetActive(lobby.Data != null && lobby.Data.ContainsKey("Password"));
+        passwordIcon.SetActive(LobbyDataKeys.HasPassword(lobby));
 
         bool isFull = lobby.Players.Count >= lobby.MaxPlayers;
         joinButton.Interactable = !isFull;

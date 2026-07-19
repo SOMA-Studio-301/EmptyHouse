@@ -15,9 +15,6 @@ using Unity.Services.Lobbies.Models;
 /// </summary>
 public class LobbyManager : MonoBehaviour
 {
-    private const string PasswordDataKey = "Password";
-    private const string PlayerNameDataKey = "PlayerName";
-    private const string SteamIdDataKey = "SteamID";
     private const float HeartbeatIntervalSeconds = 15f;
 
     [Header("View")]
@@ -108,7 +105,7 @@ public class LobbyManager : MonoBehaviour
     /// <param name="lobby">대상 로비</param>
     private void HandleLobbyJoinRequested(Lobby lobby)
     {
-        if (lobby.Data != null && lobby.Data.ContainsKey(PasswordDataKey))
+        if (LobbyDataKeys.HasPassword(lobby))
         {
             Log.D($"[JOIN] '{lobby.Name}' 방은 비밀번호 방이다. 입력 팝업을 연다.");
             selectedLobbyIdForPopup = lobby.Id;
@@ -345,7 +342,7 @@ public class LobbyManager : MonoBehaviour
 
             if (!string.IsNullOrEmpty(password))
             {
-                options.Data.Add(PasswordDataKey, new DataObject(
+                options.Data.Add(LobbyDataKeys.Password, new DataObject(
                     DataObject.VisibilityOptions.Public,
                     password,
                     DataObject.IndexOptions.S1));
@@ -413,7 +410,7 @@ public class LobbyManager : MonoBehaviour
         {
             Lobby targetLobby = await LobbyService.Instance.GetLobbyAsync(lobbyId);
 
-            if (targetLobby.Data != null && targetLobby.Data.TryGetValue(PasswordDataKey, out DataObject passwordData))
+            if (targetLobby.Data != null && targetLobby.Data.TryGetValue(LobbyDataKeys.Password, out DataObject passwordData))
             {
                 string lobbyPassword = passwordData.Value;
                 if (string.IsNullOrEmpty(password) || lobbyPassword != password)
@@ -509,8 +506,8 @@ public class LobbyManager : MonoBehaviour
         {
             Data = new Dictionary<string, PlayerDataObject>
             {
-                { PlayerNameDataKey, new PlayerDataObject(PlayerDataObject.VisibilityOptions.Member, playerName) },
-                { SteamIdDataKey, new PlayerDataObject(PlayerDataObject.VisibilityOptions.Member, steamId) }
+                { LobbyDataKeys.PlayerName, new PlayerDataObject(PlayerDataObject.VisibilityOptions.Member, playerName) },
+                { LobbyDataKeys.SteamId, new PlayerDataObject(PlayerDataObject.VisibilityOptions.Member, steamId) }
             }
         };
     }
