@@ -569,6 +569,7 @@ GameObject:
   - component: {fileID: 6778483617719470389}
   - component: {fileID: 3313133499818915760}
   - component: {fileID: 5050705290833138086}
+  - component: {fileID: 5050705290833139001}
   m_Layer: 5
   m_Name: UserPanel
   m_TagString: Untagged
@@ -623,7 +624,7 @@ MonoBehaviour:
   hostText: {fileID: 764095944007881063}
   readyText: {fileID: 4530122817944691216}
   avatarImage: {fileID: 4702512019925486517}
-  slotButton: {fileID: 5050705290833138086}
+  slotButton: {fileID: 5050705290833139001}
 --- !u!114 &6778483617719470389
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -699,7 +700,7 @@ MonoBehaviour:
     m_HighlightedColor: {r: 0.9607843, g: 0.9607843, b: 0.9607843, a: 1}
     m_PressedColor: {r: 0.78431374, g: 0.78431374, b: 0.78431374, a: 1}
     m_SelectedColor: {r: 0.9607843, g: 0.9607843, b: 0.9607843, a: 1}
-    m_DisabledColor: {r: 0.78431374, g: 0.78431374, b: 0.78431374, a: 0.5019608}
+    m_DisabledColor: {r: 1, g: 1, b: 1, a: 1}
     m_ColorMultiplier: 1
     m_FadeDuration: 0.1
   m_SpriteState:
@@ -717,7 +718,35 @@ MonoBehaviour:
   m_TargetGraphic: {fileID: 6778483617719470389}
   m_OnClick:
     m_PersistentCalls:
-      m_Calls: []
+      m_Calls:
+      - m_Target: {fileID: 5050705290833139001}
+        m_TargetAssemblyTypeName: UIGenericButton, Assembly-CSharp
+        m_MethodName: Click
+        m_Mode: 1
+        m_Arguments:
+          m_ObjectArgument: {fileID: 0}
+          m_ObjectArgumentAssemblyTypeName: UnityEngine.Object, UnityEngine
+          m_IntArgument: 0
+          m_FloatArgument: 0
+          m_StringArgument:
+          m_BoolArgument: 0
+        m_CallState: 2
+--- !u!114 &5050705290833139001
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 8208967124887837880}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: b2f15aa8b6cf2c148b64f4fd0138a6f8, type: 3}
+  m_Name:
+  m_EditorClassIdentifier:
+  buttonLocalizeText: {fileID: 0}
+  button: {fileID: 5050705290833138086}
+  sfxEventChannel: {fileID: 11400000, guid: 0338426556d75b241bee37e3eca8f958, type: 2}
+  clickAudioId: 109
 --- !u!1 &8355006095119815680
 GameObject:
   m_ObjectHideFlags: 0

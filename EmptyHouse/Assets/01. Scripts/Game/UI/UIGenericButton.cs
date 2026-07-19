@@ -1,6 +1,6 @@
+using System;
 using TMPro;
 using UnityEngine;
-using UnityEngine.Events;
 using UnityEngine.UI;
 using Border.Localization;
 
@@ -25,17 +25,32 @@ public class UIGenericButton : MonoBehaviour
     [SerializeField] private SFXEventChannelSO sfxEventChannel;
     [SerializeField] private AudioId clickAudioId = AudioId.Sfx_Ui_Click;    // 버튼별로 교체 가능. None 이면 무음
 
-    public UnityAction Clicked;
+    public event Action Clicked;
+
+    /// <summary>버튼 입력 허용 여부. 구독자가 Button 을 따로 참조하지 않아도 되도록 위임한다.</summary>
+    public bool Interactable
+    {
+        get => ResolveButton().interactable;
+        set => ResolveButton().interactable = value;
+    }
 
     /// <summary>
     /// 누락된 참조를 자동 보정하고 클릭 사운드를 onClick 에 등록한다.
     /// </summary>
     private void Awake()
     {
-        button ??= GetComponent<Button>();
+        ResolveButton();
         EnsureLocalizeTextReference();
 
         button.onClick.AddListener(PlayClickSfx);
+    }
+
+    /// <summary>Button 참조를 보정해 반환한다. Awake 보다 먼저 접근돼도 안전하도록 프로퍼티도 이걸 거친다.</summary>
+    /// <returns>이 오브젝트의 Button</returns>
+    private Button ResolveButton()
+    {
+        button ??= GetComponent<Button>();
+        return button;
     }
 
     /// <summary>
