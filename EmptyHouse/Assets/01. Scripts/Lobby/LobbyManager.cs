@@ -2,20 +2,18 @@ using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
 using Border.Core;
-using Steamworks;
-using Unity.Services.Authentication;
 using UnityEngine;
-using Unity.Services.Core;
 using Unity.Services.Lobbies;
 using Unity.Services.Lobbies.Models;
 
 /// <summary>
-/// UGS 로비 세션 소유자. 초기화·인증·목록 조회·생성/입장/퇴장·하트비트를 담당한다.
-/// 화면은 UILobby 가 소유하므로 여기서는 위젯을 직접 만지지 않는다 — 의도를 구독하고 결과를 내려줄 뿐이다.
+/// 로비 목록 화면 프레젠터. 목록 조회·새로고침 쿨다운·금칙어 필터와 생성/입장 요청 라우팅을 담당한다.
+/// 세션 상태(현재 로비·하트비트·인증)는 LobbySession 이 단독 소유하며, 여기서는 읽기와 요청만 한다.
 /// </summary>
 public class LobbyManager : MonoBehaviour
 {
-    private const float HeartbeatIntervalSeconds = 15f;
+    [Header("Session")]
+    [SerializeField] private LobbySession session; // 세션 단일 소유자
 
     [Header("View")]
     [SerializeField] private UILobby uiLobby; // 로비 화면 뷰
@@ -28,11 +26,6 @@ public class LobbyManager : MonoBehaviour
     [SerializeField] private float lobbyRefreshInterval = 10f;
     [SerializeField] private float refreshButtonCooldown = 5f; // Refresh 버튼 재사용 대기시간(초)
 
-    [Header("Room Manager")]
-    [SerializeField] private RoomManager roomManager;
-
-    private string playerName = "Player";
-    private Lobby currentLobby;
     private List<Lobby> availableLobbies = new List<Lobby>();
     private float nextRefreshTime;
     private bool isRefreshing = false;
@@ -41,7 +34,7 @@ public class LobbyManager : MonoBehaviour
     private HashSet<string> forbiddenWords = new HashSet<string>(); // 로드된 금칙어 집합
     private bool isRefreshButtonOnCooldown = false;                 // Refresh 버튼 쿨다운 상태
 
-    /// <summary>뷰의 의도를 구독한다.</summary>
+    /// <summary>뷰의 의도와 세션 종료를 구독한다.</summary>
     private void OnEnable()
     {
         uiLobby.CreateRequested += HandleCreateRequested;
@@ -49,13 +42,13 @@ public class LobbyManager : MonoBehaviour
         uiLobby.LobbyJoinRequested += HandleLobbyJoinRequested;
         uiLobby.PasswordJoinConfirmed += HandlePasswordJoinConfirmed;
         uiLobby.PasswordJoinCancelled += HandlePasswordJoinCancelled;
-        roomManager.RoomExited += HandleRoomExited;
+        session.SessionEnded += HandleSessionEnded;
     }
 
     /// <summary>구독을 해제한다.</summary>
     private void OnDisable()
     {
-        roomManager.RoomExited -= HandleRoomExited;
+        session.SessionEnded -= HandleSessionEnded;
         uiLobby.CreateRequested -= HandleCreateRequested;
         uiLobby.RefreshRequested -= HandleRefreshRequested;
         uiLobby.LobbyJoinRequested -= HandleLobbyJoinRequested;
@@ -63,20 +56,32 @@ public class LobbyManager : MonoBehaviour
         uiLobby.PasswordJoinCancelled -= HandlePasswordJoinCancelled;
     }
 
-    /// <summary>금칙어를 읽고 UGS 를 초기화한다.</summary>
+    /// <summary>금칙어를 읽고 세션을 초기화한 뒤 첫 목록을 불러온다.</summary>
     private async void Start()
     {
         LoadForbiddenWords();
-        await InitializeUnityServices();
+
+        try
+        {
+            await session.InitializeAsync();
+
+            Log.D("[INIT] Loading initial lobby list...");
+            await RefreshLobbyList();
+
+            nextRefreshTime = Time.time + lobbyRefreshInterval;
+        }
+        catch (Exception e)
+        {
+            Log.E($"[ERROR] Failed to initialize Unity Services: {e.Message}", this);
+        }
     }
 
-    /// <summary>방에 들어가 있지 않을 때 주기적으로 목록을 갱신한다.</summary>
+    /// <summary>세션에 참여 중이 아닐 때 주기적으로 목록을 갱신한다.</summary>
     private void Update()
     {
-        if (UnityServices.State != ServicesInitializationState.Initialized || !AuthenticationService.Instance.IsSignedIn)
-            return;
+        if (!session.IsSignedIn) return;
 
-        if (Time.time >= nextRefreshTime && currentLobby == null && !isRefreshing)
+        if (Time.time >= nextRefreshTime && !session.IsInSession && !isRefreshing)
         {
             nextRefreshTime = Time.time + lobbyRefreshInterval;
             _ = RefreshLobbyList();
@@ -132,53 +137,12 @@ public class LobbyManager : MonoBehaviour
         selectedLobbyIdForPopup = "";
     }
 
-    /// <summary>방에서 나왔다는 통지를 받아 로비 화면을 되살리고 목록을 새로 받는다.</summary>
-    private void HandleRoomExited()
+    /// <summary>세션 종료 통지를 받아 로비 화면을 되살리고 목록을 새로 받는다.</summary>
+    private void HandleSessionEnded()
     {
+        uiLobby.ResetUI();
         uiLobby.Show();
         _ = RefreshLobbyList();
-    }
-
-    #endregion
-
-    #region Unity Services Initialization
-
-    /// <summary>UGS 초기화·익명 로그인·스팀 닉네임 적용 후 첫 목록을 불러온다.</summary>
-    /// <returns>초기화 완료를 기다리는 Task</returns>
-    private async Task InitializeUnityServices()
-    {
-        try
-        {
-            Log.D("[INIT] Initializing Unity Services...");
-            await UnityServices.InitializeAsync();
-            Log.D("[INIT] Unity Services initialized successfully");
-
-            if (!AuthenticationService.Instance.IsSignedIn)
-            {
-                Log.D("[INIT] Signing in anonymously...");
-                await AuthenticationService.Instance.SignInAnonymouslyAsync();
-                Log.D($"[INIT] Signed in as: {AuthenticationService.Instance.PlayerId}");
-            }
-            else
-            {
-                Log.D($"[INIT] Already signed in as: {AuthenticationService.Instance.PlayerId}");
-            }
-
-            if (SteamManager.Initialized)
-            {
-                playerName = SteamFriends.GetPersonaName();
-                Log.D($"[STEAM] 스팀 닉네임 적용 완료: {playerName}");
-            }
-
-            Log.D("[INIT] Loading initial lobby list...");
-            await RefreshLobbyList();
-
-            nextRefreshTime = Time.time + lobbyRefreshInterval;
-        }
-        catch (Exception e)
-        {
-            Log.E($"[ERROR] Failed to initialize Unity Services: {e.Message}", this);
-        }
     }
 
     #endregion
@@ -248,7 +212,7 @@ public class LobbyManager : MonoBehaviour
     /// <returns>조회 완료를 기다리는 Task</returns>
     public async Task RefreshLobbyList()
     {
-        if (!AuthenticationService.Instance.IsSignedIn || isRefreshing)
+        if (!session.IsSignedIn || isRefreshing)
         {
             return;
         }
@@ -308,7 +272,7 @@ public class LobbyManager : MonoBehaviour
 
     #endregion
 
-    #region Create Lobby
+    #region Create / Join
 
     /// <summary>방을 만든다. 이름이 비었거나 금칙어가 걸리면 생성하지 않는다.</summary>
     /// <param name="lobbyName">방 이름</param>
@@ -333,31 +297,10 @@ public class LobbyManager : MonoBehaviour
 
         try
         {
-            CreateLobbyOptions options = new CreateLobbyOptions
-            {
-                IsPrivate = false,
-                Player = BuildLocalPlayer(),
-                Data = new Dictionary<string, DataObject>()
-            };
-
-            if (!string.IsNullOrEmpty(password))
-            {
-                options.Data.Add(LobbyDataKeys.Password, new DataObject(
-                    DataObject.VisibilityOptions.Public,
-                    password,
-                    DataObject.IndexOptions.S1));
-            }
-
-            currentLobby = await LobbyService.Instance.CreateLobbyAsync(lobbyName, maxPlayersPerLobby, options);
-
-            Log.D($"[CREATE] Created lobby: {currentLobby.Name} (ID: {currentLobby.Id})");
+            await session.CreateAsync(lobbyName, maxPlayersPerLobby, password);
 
             uiLobby.ResetUI();
             uiLobby.Hide();
-
-            StartHeartbeatInstance();
-
-            roomManager.EnterRoom(currentLobby);
         }
         catch (Exception e)
         {
@@ -365,166 +308,24 @@ public class LobbyManager : MonoBehaviour
         }
     }
 
-    /// <summary>방장 자격으로 하트비트를 보낸다. 자격을 잃으면 타이머를 멈춘다.</summary>
-    private async void SendLobbyHeartbeat()
-    {
-        if (currentLobby == null || !AuthenticationService.Instance.IsSignedIn)
-        {
-            CancelInvoke(nameof(SendLobbyHeartbeat));
-            return;
-        }
-
-        try
-        {
-            await LobbyService.Instance.SendHeartbeatPingAsync(currentLobby.Id);
-        }
-        catch (LobbyServiceException e)
-        {
-            if (IsHeartbeatOwnershipFailure(e))
-            {
-                CancelInvoke(nameof(SendLobbyHeartbeat));
-                return;
-            }
-        }
-        catch (Exception e)
-        {
-            if (IsHeartbeatOwnershipFailure(e))
-            {
-                CancelInvoke(nameof(SendLobbyHeartbeat));
-                return;
-            }
-        }
-    }
-
-    #endregion
-
-    #region Join Lobby
-
-    /// <summary>ID 로 방에 입장한다. 비밀번호 방이면 문자열 일치를 먼저 검증한다.</summary>
+    /// <summary>ID 로 방 입장을 요청한다. 실패하면 비밀번호 경고를 띄운다.</summary>
     /// <param name="lobbyId">대상 로비 ID</param>
     /// <param name="password">입력된 비밀번호</param>
     /// <returns>입장 완료를 기다리는 Task</returns>
     private async Task JoinLobbyById(string lobbyId, string password = "")
     {
-        try
+        LobbySession.JoinResult result = await session.JoinByIdAsync(lobbyId, password);
+
+        if (result != LobbySession.JoinResult.Success)
         {
-            Lobby targetLobby = await LobbyService.Instance.GetLobbyAsync(lobbyId);
-
-            if (targetLobby.Data != null && targetLobby.Data.TryGetValue(LobbyDataKeys.Password, out DataObject passwordData))
-            {
-                string lobbyPassword = passwordData.Value;
-                if (string.IsNullOrEmpty(password) || lobbyPassword != password)
-                {
-                    Log.W("[JOIN] 비밀번호가 일치하지 않는다!", this);
-                    uiLobby.SetPasswordWarning(true);
-                    return;
-                }
-            }
-
-            JoinLobbyByIdOptions options = new JoinLobbyByIdOptions
-            {
-                Player = BuildLocalPlayer()
-            };
-
-            currentLobby = await LobbyService.Instance.JoinLobbyByIdAsync(lobbyId, options);
-
-            uiLobby.HidePasswordPopup();
-            selectedLobbyIdForPopup = "";
-            uiLobby.Hide();
-
-            roomManager.EnterRoom(currentLobby);
-        }
-        catch (Exception e)
-        {
-            Log.E($"Failed to join lobby by ID: {e.Message}", this);
             uiLobby.SetPasswordWarning(true);
+            return;
         }
+
+        uiLobby.HidePasswordPopup();
+        selectedLobbyIdForPopup = "";
+        uiLobby.Hide();
     }
 
     #endregion
-
-    #region Leave Lobby
-
-    /// <summary>방에서 나가고 화면을 초기 상태로 되돌린다.</summary>
-    /// <returns>퇴장 완료를 기다리는 Task</returns>
-    public async Task LeaveLobby()
-    {
-        if (currentLobby == null) return;
-
-        CancelInvoke(nameof(SendLobbyHeartbeat));
-
-        try
-        {
-            string lobbyId = currentLobby.Id;
-            string playerId = AuthenticationService.Instance.PlayerId;
-
-            await LobbyService.Instance.RemovePlayerAsync(lobbyId, playerId);
-
-            if (this == null) return;
-            Log.D($"Left lobby: {currentLobby.Name}");
-        }
-        catch (Exception e)
-        {
-            if (this == null) return;
-            Log.E($"Failed to leave lobby: {e.Message}", this);
-        }
-
-        if (this != null)
-        {
-            currentLobby = null;
-            uiLobby.ResetUI();
-        }
-    }
-
-    #endregion
-
-    /// <summary>게임 시작 중이 아니라면 파괴 시 방에서 빠져나온다.</summary>
-    private void OnDestroy()
-    {
-        bool isStarting = roomManager != null && roomManager.IsStartingGame;
-
-        if (currentLobby != null && !isStarting)
-        {
-            _ = LeaveLobby();
-        }
-    }
-
-    /// <summary>하트비트 타이머를 (재)가동한다. 방장 권한을 넘겨받았을 때도 쓴다.</summary>
-    public void StartHeartbeatInstance()
-    {
-        CancelInvoke(nameof(SendLobbyHeartbeat));
-        InvokeRepeating(nameof(SendLobbyHeartbeat), HeartbeatIntervalSeconds, HeartbeatIntervalSeconds);
-        Log.D("[HEARTBEAT] 새 방장 권한을 위임받아 하트비트 타이머를 가동한다.");
-    }
-
-    /// <summary>UGS 에 실을 로컬 플레이어 정보를 만든다.</summary>
-    /// <returns>닉네임·스팀 ID 를 담은 Player</returns>
-    private Player BuildLocalPlayer()
-    {
-        string steamId = SteamManager.Initialized ? SteamUser.GetSteamID().ToString() : string.Empty;
-        return new Player
-        {
-            Data = new Dictionary<string, PlayerDataObject>
-            {
-                { LobbyDataKeys.PlayerName, new PlayerDataObject(PlayerDataObject.VisibilityOptions.Member, playerName) },
-                { LobbyDataKeys.SteamId, new PlayerDataObject(PlayerDataObject.VisibilityOptions.Member, steamId) }
-            }
-        };
-    }
-
-    /// <summary>하트비트 실패가 방장 자격 상실 때문인지 판정한다.</summary>
-    /// <param name="exception">발생한 예외</param>
-    /// <returns>자격 상실로 볼 수 있으면 true</returns>
-    private static bool IsHeartbeatOwnershipFailure(Exception exception)
-    {
-        if (exception is LobbyServiceException lobbyException
-            && (lobbyException.ErrorCode == 400 || lobbyException.ErrorCode == 403 || lobbyException.ErrorCode == 404))
-        {
-            return true;
-        }
-
-        string message = exception.Message ?? string.Empty;
-        return message.IndexOf("host", StringComparison.OrdinalIgnoreCase) >= 0
-            || message.IndexOf("not found", StringComparison.OrdinalIgnoreCase) >= 0;
-    }
 }
