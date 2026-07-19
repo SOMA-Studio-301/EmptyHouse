@@ -86,8 +86,16 @@ public class UILobby : MonoBehaviour
         foreach (Lobby lobby in lobbies)
         {
             LobbyListCell cell = Instantiate(lobbyListCellPrefab, lobbyListContainer);
-            cell.SetLobbyInfo(lobby, l => LobbyJoinRequested?.Invoke(l));
+            cell.SetLobbyInfo(lobby);
+            cell.JoinClicked += RaiseLobbyJoinRequested; // 셀은 재그리기마다 파괴되므로 해제 불요
         }
+    }
+
+    /// <summary>셀의 Join 클릭을 매니저용 이벤트로 올린다.</summary>
+    /// <param name="lobby">대상 로비</param>
+    private void RaiseLobbyJoinRequested(Lobby lobby)
+    {
+        LobbyJoinRequested?.Invoke(lobby);
     }
 
     /// <summary>비밀번호 입력 팝업을 연다.</summary>
