@@ -113,6 +113,7 @@ RectTransform:
   - {fileID: 6779069087659586916}
   - {fileID: 8263713453814863393}
   - {fileID: 7175899551567197223}
+  - {fileID: 5091561947364730002}
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0, y: 0}
@@ -211,12 +212,12 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 7ff22f191da07d64caf688c50bc63d55, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::LobbyManager
+  session: {fileID: 5091561947364730003}
   uiLobby: {fileID: 2675803490985070026}
   forbiddenWordsCsv: {fileID: 4900000, guid: 45d184d1bad2a3a438f957fe9d3cacc3, type: 3}
   maxPlayersPerLobby: 4
   lobbyRefreshInterval: 10
   refreshButtonCooldown: 5
-  roomManager: {fileID: 7470527435545627814}
 --- !u!114 &7470527435545627814
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -229,12 +230,56 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: dfdbb5307cd70f948b288b7dd8841461, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::RoomManager
+  session: {fileID: 5091561947364730003}
   uiRoom: {fileID: 5128871025080183738}
   sfxEventChannel: {fileID: 11400000, guid: 0338426556d75b241bee37e3eca8f958, type: 2}
   gameStartAudioId: 110
   lobbyPollInterval: 3
-  lobbyManager: {fileID: 7350481064866487755}
   gameSceneName: Game
+--- !u!1 &5091561947364730001
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 5091561947364730002}
+  - component: {fileID: 5091561947364730003}
+  m_Layer: 5
+  m_Name: Session
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &5091561947364730002
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 5091561947364730001}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 1065625016598441855}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &5091561947364730003
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 5091561947364730001}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 61ed14098af3d014889a41691a34d3b5, type: 3}
+  m_Name:
+  m_EditorClassIdentifier:
 --- !u!1001 &743194005272740472
 PrefabInstance:
   m_ObjectHideFlags: 0
