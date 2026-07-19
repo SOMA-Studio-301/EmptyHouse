@@ -16,14 +16,11 @@ public class UICreateContent : MonoBehaviour
     [SerializeField] private UIGenericButton closeButton;          // 팝업 닫기 버튼
     [SerializeField] private GameObject forbiddenWordWarningLabel; // 금칙어 경고
 
-    /// <summary>발행: 방 생성 확정. (방 이름, 비밀번호) — 비밀번호를 쓰지 않으면 빈 문자열.</summary>
-    public event Action<string, string> CreateConfirmed;
-
-    /// <summary>발행: 팝업 닫기.</summary>
-    public event Action CloseRequested;
+    public event Action<string, string> CreateConfirmed; // 방 생성 확정. (방 이름, 비밀번호)
+    public event Action CloseRequested; // 팝업 닫기.
 
     /// <summary>버튼·토글 리스너를 등록한다.</summary>
-    private void Awake()
+    private void OnEnable()
     {
         createButton.Clicked += RaiseCreateConfirmed;
         closeButton.Clicked += RaiseCloseRequested;
@@ -31,7 +28,7 @@ public class UICreateContent : MonoBehaviour
     }
 
     /// <summary>리스너를 해제한다.</summary>
-    private void OnDestroy()
+    private void OnDisable()
     {
         createButton.Clicked -= RaiseCreateConfirmed;
         closeButton.Clicked -= RaiseCloseRequested;

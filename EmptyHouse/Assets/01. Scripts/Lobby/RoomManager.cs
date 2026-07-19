@@ -271,7 +271,7 @@ public class RoomManager : MonoBehaviour
         // 게임 시작 중일 때는 allReady 여부와 상관없이 버튼 비활성 유지
         if (session.IsStartingGame) return;
 
-        uiRoom.SetStartInteractable(IsEveryGuestReady() && session.CurrentLobby.Players.Count > 1);
+        uiRoom.SetStartInteractable(IsEveryGuestReady()); // 게스트가 없으면(혼자) 참 — 솔로 시작 허용
     }
 
     /// <summary>방장을 뺀 전원이 준비됐는지 판정한다.</summary>

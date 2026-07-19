@@ -56,6 +56,9 @@ public class UserPanel : MonoBehaviour
 
         nameText.text = playerName;
         hostText.text = isHost ? "Host" : "";
+
+        // 방장은 항상 준비 상태로 취급하므로 Ready 라벨 자체를 숨긴다
+        readyText.gameObject.SetActive(!isHost);
         readyText.text = isReady ? "Ready" : "Not Ready";
 
         LoadSteamAvatar(steamId);

@@ -31,7 +31,7 @@ public class UIMenuManager : MonoBehaviour
     private Tween lobbyFade; // 캐싱된 로비 페이드. 위와 동일
 
     /// <summary>재사용할 페이드 트윈을 생성하고, 뷰 의도와 세션 이벤트를 배선한 뒤 초기 화면을 메뉴로 맞춘다.</summary>
-    private void Awake()
+    private void OnEnable()
     {
         // 트윈 미리 제작해서 캐싱하기 - 메모리 절약/GC방지
         menuFade = CreateFade(menuCanvasGroup);
@@ -51,17 +51,18 @@ public class UIMenuManager : MonoBehaviour
         lobbyPanel.gameObject.SetActive(false);
         roomPanel.gameObject.SetActive(false);
 
-        // 하위 패널들 액션 설정
+        // 메뉴 패널 액션 설정
         menuPanel.StartClicked += EnableLobby;
         menuPanel.SettingsClicked += ShowSettings;
         menuPanel.ExitClicked += ExitGame;
-
+        // 로비 패널 액션 설정
         lobbyPanel.CreateRequested += lobbyManager.RequestCreate;
         lobbyPanel.RefreshRequested += lobbyManager.RequestRefresh;
         lobbyPanel.LobbyJoinRequested += lobbyManager.RequestJoin;
         lobbyPanel.PasswordJoinConfirmed += lobbyManager.ConfirmPasswordJoin;
         lobbyPanel.PasswordJoinCancelled += lobbyManager.CancelPasswordJoin;
-
+        lobbyPanel.BackButtonClicked += EnableMenu;
+        // 룸 패널 액션 설정
         roomPanel.ReadyRequested += roomManager.RequestToggleReady;
         roomPanel.StartRequested += roomManager.RequestStartGame;
         roomPanel.ExitRequested += roomManager.RequestExitRoom;
@@ -72,7 +73,7 @@ public class UIMenuManager : MonoBehaviour
     }
 
     /// <summary>배선을 해제한다.</summary>
-    private void OnDestroy()
+    private void OnDisable()
     {
         session.SessionStarted -= HandleSessionStarted;
         session.SessionEnded -= HandleSessionEnded;
@@ -94,7 +95,7 @@ public class UIMenuManager : MonoBehaviour
     }
 
     /// <summary>메뉴 화면으로 전환한다. 전환 중 재호출되면 진행 중인 트윈의 방향만 뒤집힌다.</summary>
-    public void EnableMenu()
+    private void EnableMenu()
     {
         // UI 활성화 설정
         menuPanel.gameObject.SetActive(true);
@@ -109,7 +110,7 @@ public class UIMenuManager : MonoBehaviour
     }
 
     /// <summary>로비 화면으로 전환한다. 전환 중 재호출되면 진행 중인 트윈의 방향만 뒤집힌다.</summary>
-    public void EnableLobby()
+    private void EnableLobby()
     {
         // UI 활성화 설정
         menuPanel.gameObject.SetActive(false);

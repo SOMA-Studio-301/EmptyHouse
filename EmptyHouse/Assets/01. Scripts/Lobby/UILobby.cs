@@ -10,21 +10,6 @@ using UnityEngine;
 /// </summary>
 public class UILobby : MonoBehaviour
 {
-    /// <summary>발행: 방 생성 요청. (방 이름, 비밀번호) — 비밀번호를 쓰지 않으면 빈 문자열이다.</summary>
-    public event Action<string, string> CreateRequested;
-
-    /// <summary>발행: 새로고침 버튼 클릭.</summary>
-    public event Action RefreshRequested;
-
-    /// <summary>발행: 리스트 셀의 Join 클릭. 비밀번호 방인지 판단은 매니저가 한다.</summary>
-    public event Action<Lobby> LobbyJoinRequested;
-
-    /// <summary>발행: 비밀번호 팝업의 Join 확정. 입력된 비밀번호를 싣는다.</summary>
-    public event Action<string> PasswordJoinConfirmed;
-
-    /// <summary>발행: 비밀번호 팝업 취소. 매니저가 잡아둔 대상 로비를 놓게 한다.</summary>
-    public event Action PasswordJoinCancelled;
-
     [Header("Navigation")]
     [SerializeField] private UIGenericButton openCreatePanelButton; // 방 만들기 팝업을 여는 버튼
     [SerializeField] private UIGenericButton backButton;            // 방 만들기 팝업을 닫는 버튼(목록 화면 툴바)
@@ -38,15 +23,19 @@ public class UILobby : MonoBehaviour
     [SerializeField] private LobbyListCell lobbyListCellPrefab; // 리스트 셀 프리팹
     [SerializeField] private UIGenericButton refreshButton;     // 리스트 새로고침 버튼
 
+    public event Action<string, string> CreateRequested; // 방 생성 요청. (방 이름, 비밀번호)
+    public event Action RefreshRequested; // 새로고침 버튼 클릭
+    public event Action<Lobby> LobbyJoinRequested; // 리스트 셀의 Join 클릭. 비밀번호 방인지 판단은 매니저가
+    public event Action<string> PasswordJoinConfirmed; // 비밀번호 팝업의 Join 확정. 입력된 비밀번호를 싣는다.
+    public event Action PasswordJoinCancelled; // 비밀번호 팝업 취소. 매니저가 잡아둔 대상 로비를 놓게 한다.
+    public event Action BackButtonClicked; // 뒤로 가기 버튼 누르면 Menu 패널 활성화
+
     /// <summary>위젯 리스너를 등록하고 자식 이벤트를 구독한 뒤 두 팝업을 닫은 상태로 초기화한다.</summary>
-    private void Awake()
+    private void OnEnable()
     {
-        // 활성화 관리
-
-
         // 액션 할당
         openCreatePanelButton.Clicked += ShowCreatePanel;
-        backButton.Clicked += HideCreatePanel;
+        backButton.Clicked += BackToMenu;
         refreshButton.Clicked += RaiseRefreshRequested;
 
         createContent.CreateConfirmed += HandleCreateConfirmed;
@@ -59,7 +48,7 @@ public class UILobby : MonoBehaviour
     }
 
     /// <summary>리스너를 해제한다.</summary>
-    private void OnDestroy()
+    private void OnDisable()
     {
         openCreatePanelButton.Clicked -= ShowCreatePanel;
         backButton.Clicked -= HideCreatePanel;
@@ -185,5 +174,11 @@ public class UILobby : MonoBehaviour
     {
         HidePasswordPopup();
         PasswordJoinCancelled?.Invoke();
+    }
+
+    /// <summary> 메뉴 패널 활성화 </summary>
+    private void BackToMenu()
+    {
+        BackButtonClicked?.Invoke();
     }
 }
