@@ -7,19 +7,17 @@ using UnityEngine;
 /// </summary>
 public class UIMenu : MonoBehaviour
 {
-    /// <summary>발행: Start 버튼 클릭.</summary>
-    public event Action StartClicked;
-
-    /// <summary>발행: Settings 버튼 클릭.</summary>
-    public event Action SettingsClicked;
-
-    /// <summary>발행: Exit 버튼 클릭.</summary>
-    public event Action ExitClicked;
+    [Header("UI")]
+    [SerializeField] private UISettings settingsPanel;
 
     [Header("Menu Buttons")]
     [SerializeField] private UIGenericButton startButton;    // 게임 시작(로비로 전환) 버튼
     [SerializeField] private UIGenericButton settingsButton; // 설정 버튼
     [SerializeField] private UIGenericButton exitButton;      // 게임 종료 버튼
+
+    public event Action StartClicked; // Start 버튼 클릭
+    public event Action SettingsClicked; // Settings 버튼 클릭
+    public event Action ExitClicked; // Exit 버튼 클릭
 
     /// <summary>버튼 리스너를 등록한다.</summary>
     private void OnEnable()

@@ -15,9 +15,9 @@ public class UIMenuManager : MonoBehaviour
     [SerializeField] private CanvasGroup lobbyCanvasGroup; // 자식 LobbyPanel 의 CanvasGroup
 
     [Header("Views")]
-    [SerializeField] private UIMenu uiMenu;   // 메뉴 패널 뷰
-    [SerializeField] private UILobby uiLobby; // 로비 패널 뷰
-    [SerializeField] private UIRoom uiRoom;   // 방 패널 뷰
+    [SerializeField] private UIMenu menuPanel;   // 메뉴 패널 뷰
+    [SerializeField] private UILobby lobbyPanel; // 로비 패널 뷰
+    [SerializeField] private UIRoom roomPanel;   // 방 패널 뷰
 
     [Header("Managers")]
     [SerializeField] private LobbyManager lobbyManager; // 로비 목록 프레젠터
@@ -33,6 +33,7 @@ public class UIMenuManager : MonoBehaviour
     /// <summary>재사용할 페이드 트윈을 생성하고, 뷰 의도와 세션 이벤트를 배선한 뒤 초기 화면을 메뉴로 맞춘다.</summary>
     private void Awake()
     {
+        // 트윈 미리 제작해서 캐싱하기 - 메모리 절약/GC방지
         menuFade = CreateFade(menuCanvasGroup);
         lobbyFade = CreateFade(lobbyCanvasGroup);
 
@@ -45,20 +46,26 @@ public class UIMenuManager : MonoBehaviour
         SetInteractable(menuCanvasGroup, true);
         SetInteractable(lobbyCanvasGroup, false);
 
-        uiMenu.StartClicked += EnableLobby;
-        uiMenu.SettingsClicked += ShowSettings;
-        uiMenu.ExitClicked += ExitGame;
+        // UI 활성화 설정
+        menuPanel.gameObject.SetActive(true);
+        lobbyPanel.gameObject.SetActive(false);
+        roomPanel.gameObject.SetActive(false);
 
-        uiLobby.CreateRequested += lobbyManager.RequestCreate;
-        uiLobby.RefreshRequested += lobbyManager.RequestRefresh;
-        uiLobby.LobbyJoinRequested += lobbyManager.RequestJoin;
-        uiLobby.PasswordJoinConfirmed += lobbyManager.ConfirmPasswordJoin;
-        uiLobby.PasswordJoinCancelled += lobbyManager.CancelPasswordJoin;
+        // 하위 패널들 액션 설정
+        menuPanel.StartClicked += EnableLobby;
+        menuPanel.SettingsClicked += ShowSettings;
+        menuPanel.ExitClicked += ExitGame;
 
-        uiRoom.ReadyRequested += roomManager.RequestToggleReady;
-        uiRoom.StartRequested += roomManager.RequestStartGame;
-        uiRoom.ExitRequested += roomManager.RequestExitRoom;
-        uiRoom.InviteRequested += roomManager.OpenInviteOverlay;
+        lobbyPanel.CreateRequested += lobbyManager.RequestCreate;
+        lobbyPanel.RefreshRequested += lobbyManager.RequestRefresh;
+        lobbyPanel.LobbyJoinRequested += lobbyManager.RequestJoin;
+        lobbyPanel.PasswordJoinConfirmed += lobbyManager.ConfirmPasswordJoin;
+        lobbyPanel.PasswordJoinCancelled += lobbyManager.CancelPasswordJoin;
+
+        roomPanel.ReadyRequested += roomManager.RequestToggleReady;
+        roomPanel.StartRequested += roomManager.RequestStartGame;
+        roomPanel.ExitRequested += roomManager.RequestExitRoom;
+        roomPanel.InviteRequested += roomManager.OpenInviteOverlay;
 
         session.SessionStarted += HandleSessionStarted;
         session.SessionEnded += HandleSessionEnded;
@@ -70,26 +77,29 @@ public class UIMenuManager : MonoBehaviour
         session.SessionStarted -= HandleSessionStarted;
         session.SessionEnded -= HandleSessionEnded;
 
-        uiRoom.ReadyRequested -= roomManager.RequestToggleReady;
-        uiRoom.StartRequested -= roomManager.RequestStartGame;
-        uiRoom.ExitRequested -= roomManager.RequestExitRoom;
-        uiRoom.InviteRequested -= roomManager.OpenInviteOverlay;
+        roomPanel.ReadyRequested -= roomManager.RequestToggleReady;
+        roomPanel.StartRequested -= roomManager.RequestStartGame;
+        roomPanel.ExitRequested -= roomManager.RequestExitRoom;
+        roomPanel.InviteRequested -= roomManager.OpenInviteOverlay;
 
-        uiLobby.CreateRequested -= lobbyManager.RequestCreate;
-        uiLobby.RefreshRequested -= lobbyManager.RequestRefresh;
-        uiLobby.LobbyJoinRequested -= lobbyManager.RequestJoin;
-        uiLobby.PasswordJoinConfirmed -= lobbyManager.ConfirmPasswordJoin;
-        uiLobby.PasswordJoinCancelled -= lobbyManager.CancelPasswordJoin;
+        lobbyPanel.CreateRequested -= lobbyManager.RequestCreate;
+        lobbyPanel.RefreshRequested -= lobbyManager.RequestRefresh;
+        lobbyPanel.LobbyJoinRequested -= lobbyManager.RequestJoin;
+        lobbyPanel.PasswordJoinConfirmed -= lobbyManager.ConfirmPasswordJoin;
+        lobbyPanel.PasswordJoinCancelled -= lobbyManager.CancelPasswordJoin;
 
-        uiMenu.StartClicked -= EnableLobby;
-        uiMenu.SettingsClicked -= ShowSettings;
-        uiMenu.ExitClicked -= ExitGame;
+        menuPanel.StartClicked -= EnableLobby;
+        menuPanel.SettingsClicked -= ShowSettings;
+        menuPanel.ExitClicked -= ExitGame;
     }
 
     /// <summary>메뉴 화면으로 전환한다. 전환 중 재호출되면 진행 중인 트윈의 방향만 뒤집힌다.</summary>
     public void EnableMenu()
     {
-        Log.D("[UIMenuManager] EnableMenu");
+        // UI 활성화 설정
+        menuPanel.gameObject.SetActive(true);
+        lobbyPanel.gameObject.SetActive(false);
+        roomPanel.gameObject.SetActive(false);
 
         menuFade.PlayForward();
         lobbyFade.PlayBackwards();
@@ -101,7 +111,10 @@ public class UIMenuManager : MonoBehaviour
     /// <summary>로비 화면으로 전환한다. 전환 중 재호출되면 진행 중인 트윈의 방향만 뒤집힌다.</summary>
     public void EnableLobby()
     {
-        Log.D("[UIMenuManager] EnableLobby");
+        // UI 활성화 설정
+        menuPanel.gameObject.SetActive(false);
+        lobbyPanel.gameObject.SetActive(true);
+        roomPanel.gameObject.SetActive(false);
 
         lobbyFade.PlayForward();
         menuFade.PlayBackwards();
@@ -114,17 +127,17 @@ public class UIMenuManager : MonoBehaviour
     /// <param name="lobby">입장한 로비</param>
     private void HandleSessionStarted(Lobby lobby)
     {
-        uiLobby.ResetUI();
-        uiLobby.Hide();
-        uiRoom.Show();
+        lobbyPanel.ResetUI();
+        lobbyPanel.Hide();
+        roomPanel.Show();
     }
 
     /// <summary>세션 종료를 받아 방 화면을 접고 로비 화면을 되살린다.</summary>
     private void HandleSessionEnded()
     {
-        uiRoom.Hide();
-        uiLobby.ResetUI();
-        uiLobby.Show();
+        roomPanel.Hide();
+        lobbyPanel.ResetUI();
+        lobbyPanel.Show();
     }
 
     /// <summary>설정 화면을 연다. 추후 구현 예정.</summary>

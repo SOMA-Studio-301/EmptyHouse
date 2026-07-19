@@ -11,17 +11,10 @@ public class UIRoom : MonoBehaviour
     /// <summary>슬롯 수. 빈 자리는 초대 슬롯으로 그린다.</summary>
     private const int MaxRoomSlots = 4;
 
-    /// <summary>발행: Ready 버튼 클릭.</summary>
-    public event Action ReadyRequested;
-
-    /// <summary>발행: Start 버튼 클릭.</summary>
-    public event Action StartRequested;
-
-    /// <summary>발행: Exit 버튼 클릭.</summary>
-    public event Action ExitRequested;
-
-    /// <summary>발행: 빈 슬롯 클릭(친구 초대). 스팀 오버레이는 매니저가 연다.</summary>
-    public event Action InviteRequested;
+    public event Action ReadyRequested; // Ready 버튼 클릭
+    public event Action StartRequested; // Start 버튼 클릭
+    public event Action ExitRequested; // Exit 버튼 클릭
+    public event Action InviteRequested; // 빈 슬롯 클릭(친구 초대). 스팀 오버레이는 매니저가 연다.
 
     [Header("Interaction Panel")]
     [SerializeField] private UIGenericButton readyButton; // 준비 토글 (게스트)

@@ -41,6 +41,10 @@ public class UILobby : MonoBehaviour
     /// <summary>위젯 리스너를 등록하고 자식 이벤트를 구독한 뒤 두 팝업을 닫은 상태로 초기화한다.</summary>
     private void Awake()
     {
+        // 활성화 관리
+
+
+        // 액션 할당
         openCreatePanelButton.Clicked += ShowCreatePanel;
         backButton.Clicked += HideCreatePanel;
         refreshButton.Clicked += RaiseRefreshRequested;
