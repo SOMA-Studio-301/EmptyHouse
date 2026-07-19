@@ -17,6 +17,7 @@ using Steamworks;
 
 /// <summary>
 /// 방(Room) 화면 프레젠터 겸 게임 시작 오케스트레이터. 로비 폴링·Relay 할당·Netcode 연결·게임 씬 전환을 담당한다.
+/// 버튼 의도 배선과 화면 전환은 UIMenuManager 가 하고, 여기서는 공개 요청 API 로 받아 뷰에 데이터만 내려 그린다.
 /// 세션 상태(현재 로비·게임 시작 플래그·하트비트)는 LobbySession 이 단독 소유하며, 여기서는 읽기와 쓰기 경유만 한다.
 /// </summary>
 public class RoomManager : MonoBehaviour
@@ -50,13 +51,9 @@ public class RoomManager : MonoBehaviour
     private Callback<AvatarImageLoaded_t> avatarLoadedCallback;
     private Callback<PersonaStateChange_t> personaStateCallback;
 
-    /// <summary>뷰의 의도와 세션 이벤트를 구독한다.</summary>
+    /// <summary>세션 이벤트를 구독한다. 뷰 의도 배선은 UIMenuManager 몫이다.</summary>
     private void OnEnable()
     {
-        uiRoom.ReadyRequested += HandleReadyRequested;
-        uiRoom.StartRequested += HandleStartRequested;
-        uiRoom.ExitRequested += HandleExitRequested;
-        uiRoom.InviteRequested += HandleInviteRequested;
         session.SessionStarted += HandleSessionStarted;
         session.LobbyUpdated += HandleLobbyUpdated;
         session.SessionEnded += HandleSessionEnded;
@@ -68,10 +65,6 @@ public class RoomManager : MonoBehaviour
         session.SessionStarted -= HandleSessionStarted;
         session.LobbyUpdated -= HandleLobbyUpdated;
         session.SessionEnded -= HandleSessionEnded;
-        uiRoom.ReadyRequested -= HandleReadyRequested;
-        uiRoom.StartRequested -= HandleStartRequested;
-        uiRoom.ExitRequested -= HandleExitRequested;
-        uiRoom.InviteRequested -= HandleInviteRequested;
     }
 
     /// <summary>스팀 콜백을 등록한다. 아바타·닉네임이 늦게 도착하면 슬롯을 다시 그려야 한다.</summary>
@@ -87,14 +80,13 @@ public class RoomManager : MonoBehaviour
 
     #region Session Events
 
-    /// <summary>세션 시작(방 생성/입장)을 받아 방 화면을 열고 폴링을 시작한다.</summary>
+    /// <summary>세션 시작(방 생성/입장)을 받아 슬롯을 그리고 폴링을 시작한다. 방 화면 열기는 UIMenuManager 몫이다.</summary>
     /// <param name="lobby">입장한 로비</param>
     private void HandleSessionStarted(Lobby lobby)
     {
         isReady = false;
         isInRoom = true;
 
-        uiRoom.Show();
         UpdateRoomUI();
 
         _ = PollLobbyData();
@@ -116,40 +108,39 @@ public class RoomManager : MonoBehaviour
         UpdateRoomUI();
     }
 
-    /// <summary>세션 종료(퇴장·로비 소멸)를 받아 방 화면을 닫는다.</summary>
+    /// <summary>세션 종료(퇴장·로비 소멸)를 받아 방 상태를 초기화한다. 방 화면 닫기는 UIMenuManager 몫이다.</summary>
     private void HandleSessionEnded()
     {
         isInRoom = false;
         isReady = false;
-        uiRoom.Hide();
     }
 
     #endregion
 
-    #region View Intents
+    #region Public Request API
 
-    /// <summary>Ready 의도를 받는다.</summary>
-    private void HandleReadyRequested()
+    /// <summary>Ready 토글 요청을 받는다.</summary>
+    public void RequestToggleReady()
     {
         _ = ToggleReady();
     }
 
-    /// <summary>Start 의도를 받는다.</summary>
-    private void HandleStartRequested()
+    /// <summary>게임 시작 요청을 받는다.</summary>
+    public void RequestStartGame()
     {
         _ = StartGame();
     }
 
-    /// <summary>Exit 의도를 받는다. 게임 시작 중이면 버튼 잠금을 우회해도 막는다.</summary>
-    private void HandleExitRequested()
+    /// <summary>방 나가기 요청을 받는다. 게임 시작 중이면 버튼 잠금을 우회해도 막는다.</summary>
+    public void RequestExitRoom()
     {
         if (session.IsStartingGame) return;
 
         _ = session.LeaveAsync();
     }
 
-    /// <summary>빈 슬롯 클릭을 받아 스팀 친구 초대 오버레이를 연다.</summary>
-    private void HandleInviteRequested()
+    /// <summary>빈 슬롯 클릭 요청을 받아 스팀 친구 초대 오버레이를 연다.</summary>
+    public void OpenInviteOverlay()
     {
         if (!SteamManager.Initialized) return;
 

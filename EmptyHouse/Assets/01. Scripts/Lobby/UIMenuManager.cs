@@ -1,11 +1,12 @@
 using Border.Core;
 using DG.Tweening;
+using Unity.Services.Lobbies.Models;
 using UnityEngine;
 
 /// <summary>
-/// 메뉴/로비 화면 전환기. 씬 전환 대신 자식 패널 두 개의 CanvasGroup 알파를 크로스페이드한다.
-/// 트윈은 Awake 에서 1회만 만들어 재사용하므로(SetAutoKill(false)) 전환당 할당이 없다.
-/// 패널을 비활성화하지 않는 이유: 이 루트에 붙은 LobbyManager/RoomManager 의 하트비트·await 이 끊기면 안 된다.
+/// 메뉴/로비/방 화면의 단일 배선 지점. 뷰가 올린 버튼 의도를 매니저 요청으로 라우팅하고 화면 전환을 전담한다.
+/// 메뉴↔로비는 CanvasGroup 크로스페이드(트윈은 Awake 에서 1회 생성·재사용), 로비↔방은 세션 이벤트에 따른 패널 토글이다.
+/// 세션 상태·네트워크 호출은 LobbySession/매니저 몫이라 여기서는 알지 못한다.
 /// </summary>
 public class UIMenuManager : MonoBehaviour
 {
@@ -13,8 +14,15 @@ public class UIMenuManager : MonoBehaviour
     [SerializeField] private CanvasGroup menuCanvasGroup;  // 자식 MenuPanel 의 CanvasGroup
     [SerializeField] private CanvasGroup lobbyCanvasGroup; // 자식 LobbyPanel 의 CanvasGroup
 
-    [Header("Menu View")]
-    [SerializeField] private UIMenu uiMenu; // 메뉴 패널 뷰. 버튼 액션을 여기서 주입한다.
+    [Header("Views")]
+    [SerializeField] private UIMenu uiMenu;   // 메뉴 패널 뷰
+    [SerializeField] private UILobby uiLobby; // 로비 패널 뷰
+    [SerializeField] private UIRoom uiRoom;   // 방 패널 뷰
+
+    [Header("Managers")]
+    [SerializeField] private LobbyManager lobbyManager; // 로비 목록 프레젠터
+    [SerializeField] private RoomManager roomManager;   // 방 프레젠터
+    [SerializeField] private LobbySession session;      // 세션 단일 소유자
 
     [Header("Fade")]
     [SerializeField] private float fadeDuration = 0.3f; // 크로스페이드 시간(초)
@@ -22,7 +30,7 @@ public class UIMenuManager : MonoBehaviour
     private Tween menuFade;  // 캐싱된 메뉴 페이드. PlayForward = 표시, PlayBackward = 숨김
     private Tween lobbyFade; // 캐싱된 로비 페이드. 위와 동일
 
-    /// <summary>재사용할 페이드 트윈을 생성하고, 메뉴 의도를 구독한 뒤 초기 화면을 메뉴로 맞춘다.</summary>
+    /// <summary>재사용할 페이드 트윈을 생성하고, 뷰 의도와 세션 이벤트를 배선한 뒤 초기 화면을 메뉴로 맞춘다.</summary>
     private void Awake()
     {
         menuFade = CreateFade(menuCanvasGroup);
@@ -40,11 +48,39 @@ public class UIMenuManager : MonoBehaviour
         uiMenu.StartClicked += EnableLobby;
         uiMenu.SettingsClicked += ShowSettings;
         uiMenu.ExitClicked += ExitGame;
+
+        uiLobby.CreateRequested += lobbyManager.RequestCreate;
+        uiLobby.RefreshRequested += lobbyManager.RequestRefresh;
+        uiLobby.LobbyJoinRequested += lobbyManager.RequestJoin;
+        uiLobby.PasswordJoinConfirmed += lobbyManager.ConfirmPasswordJoin;
+        uiLobby.PasswordJoinCancelled += lobbyManager.CancelPasswordJoin;
+
+        uiRoom.ReadyRequested += roomManager.RequestToggleReady;
+        uiRoom.StartRequested += roomManager.RequestStartGame;
+        uiRoom.ExitRequested += roomManager.RequestExitRoom;
+        uiRoom.InviteRequested += roomManager.OpenInviteOverlay;
+
+        session.SessionStarted += HandleSessionStarted;
+        session.SessionEnded += HandleSessionEnded;
     }
 
-    /// <summary>메뉴 의도 구독을 해제한다.</summary>
+    /// <summary>배선을 해제한다.</summary>
     private void OnDestroy()
     {
+        session.SessionStarted -= HandleSessionStarted;
+        session.SessionEnded -= HandleSessionEnded;
+
+        uiRoom.ReadyRequested -= roomManager.RequestToggleReady;
+        uiRoom.StartRequested -= roomManager.RequestStartGame;
+        uiRoom.ExitRequested -= roomManager.RequestExitRoom;
+        uiRoom.InviteRequested -= roomManager.OpenInviteOverlay;
+
+        uiLobby.CreateRequested -= lobbyManager.RequestCreate;
+        uiLobby.RefreshRequested -= lobbyManager.RequestRefresh;
+        uiLobby.LobbyJoinRequested -= lobbyManager.RequestJoin;
+        uiLobby.PasswordJoinConfirmed -= lobbyManager.ConfirmPasswordJoin;
+        uiLobby.PasswordJoinCancelled -= lobbyManager.CancelPasswordJoin;
+
         uiMenu.StartClicked -= EnableLobby;
         uiMenu.SettingsClicked -= ShowSettings;
         uiMenu.ExitClicked -= ExitGame;
@@ -72,6 +108,23 @@ public class UIMenuManager : MonoBehaviour
 
         SetInteractable(lobbyCanvasGroup, true);
         SetInteractable(menuCanvasGroup, false);
+    }
+
+    /// <summary>세션 시작을 받아 로비 화면을 접고 방 화면을 연다.</summary>
+    /// <param name="lobby">입장한 로비</param>
+    private void HandleSessionStarted(Lobby lobby)
+    {
+        uiLobby.ResetUI();
+        uiLobby.Hide();
+        uiRoom.Show();
+    }
+
+    /// <summary>세션 종료를 받아 방 화면을 접고 로비 화면을 되살린다.</summary>
+    private void HandleSessionEnded()
+    {
+        uiRoom.Hide();
+        uiLobby.ResetUI();
+        uiLobby.Show();
     }
 
     /// <summary>설정 화면을 연다. 추후 구현 예정.</summary>

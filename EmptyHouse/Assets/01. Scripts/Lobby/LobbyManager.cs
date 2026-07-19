@@ -7,7 +7,8 @@ using Unity.Services.Lobbies;
 using Unity.Services.Lobbies.Models;
 
 /// <summary>
-/// 로비 목록 화면 프레젠터. 목록 조회·새로고침 쿨다운·금칙어 필터와 생성/입장 요청 라우팅을 담당한다.
+/// 로비 목록 화면 프레젠터. 목록 조회·새로고침 쿨다운·금칙어 필터와 생성/입장 요청 처리를 담당한다.
+/// 버튼 의도 배선과 화면 전환은 UIMenuManager 가 하고, 여기서는 공개 요청 API 로 받아 뷰에 데이터만 내려 그린다.
 /// 세션 상태(현재 로비·하트비트·인증)는 LobbySession 이 단독 소유하며, 여기서는 읽기와 요청만 한다.
 /// </summary>
 public class LobbyManager : MonoBehaviour
@@ -34,14 +35,9 @@ public class LobbyManager : MonoBehaviour
     private HashSet<string> forbiddenWords = new HashSet<string>(); // 로드된 금칙어 집합
     private bool isRefreshButtonOnCooldown = false;                 // Refresh 버튼 쿨다운 상태
 
-    /// <summary>뷰의 의도와 세션 종료를 구독한다.</summary>
+    /// <summary>세션 종료를 구독한다. 뷰 의도 배선은 UIMenuManager 몫이다.</summary>
     private void OnEnable()
     {
-        uiLobby.CreateRequested += HandleCreateRequested;
-        uiLobby.RefreshRequested += HandleRefreshRequested;
-        uiLobby.LobbyJoinRequested += HandleLobbyJoinRequested;
-        uiLobby.PasswordJoinConfirmed += HandlePasswordJoinConfirmed;
-        uiLobby.PasswordJoinCancelled += HandlePasswordJoinCancelled;
         session.SessionEnded += HandleSessionEnded;
     }
 
@@ -49,11 +45,6 @@ public class LobbyManager : MonoBehaviour
     private void OnDisable()
     {
         session.SessionEnded -= HandleSessionEnded;
-        uiLobby.CreateRequested -= HandleCreateRequested;
-        uiLobby.RefreshRequested -= HandleRefreshRequested;
-        uiLobby.LobbyJoinRequested -= HandleLobbyJoinRequested;
-        uiLobby.PasswordJoinConfirmed -= HandlePasswordJoinConfirmed;
-        uiLobby.PasswordJoinCancelled -= HandlePasswordJoinCancelled;
     }
 
     /// <summary>금칙어를 읽고 세션을 초기화한 뒤 첫 목록을 불러온다.</summary>
@@ -88,27 +79,27 @@ public class LobbyManager : MonoBehaviour
         }
     }
 
-    #region View Intents
+    #region Public Request API
 
-    /// <summary>방 생성 의도를 받는다.</summary>
+    /// <summary>방 생성 요청을 받는다.</summary>
     /// <param name="lobbyName">방 이름</param>
     /// <param name="password">비밀번호. 없으면 빈 문자열</param>
-    private void HandleCreateRequested(string lobbyName, string password)
+    public void RequestCreate(string lobbyName, string password)
     {
         _ = CreateLobby(lobbyName, password);
     }
 
-    /// <summary>새로고침 의도를 받는다.</summary>
-    private void HandleRefreshRequested()
+    /// <summary>새로고침 요청을 받는다.</summary>
+    public void RequestRefresh()
     {
         _ = OnRefreshButtonClicked();
     }
 
     /// <summary>
-    /// 리스트 셀의 Join 의도를 받는다. 비밀번호 방이면 팝업을 열고, 공개 방이면 곧바로 입장한다.
+    /// 리스트 셀의 Join 요청을 받는다. 비밀번호 방이면 팝업을 열고, 공개 방이면 곧바로 입장한다.
     /// </summary>
     /// <param name="lobby">대상 로비</param>
-    private void HandleLobbyJoinRequested(Lobby lobby)
+    public void RequestJoin(Lobby lobby)
     {
         if (LobbyDataKeys.HasPassword(lobby))
         {
@@ -122,26 +113,24 @@ public class LobbyManager : MonoBehaviour
         _ = JoinLobbyById(lobby.Id, "");
     }
 
-    /// <summary>팝업의 Join 확정 의도를 받는다.</summary>
+    /// <summary>비밀번호 팝업의 Join 확정 요청을 받는다.</summary>
     /// <param name="password">입력된 비밀번호</param>
-    private void HandlePasswordJoinConfirmed(string password)
+    public void ConfirmPasswordJoin(string password)
     {
         if (string.IsNullOrEmpty(selectedLobbyIdForPopup)) return;
 
         _ = JoinLobbyById(selectedLobbyIdForPopup, password);
     }
 
-    /// <summary>팝업 취소 의도를 받아 겨냥 중이던 로비를 놓는다.</summary>
-    private void HandlePasswordJoinCancelled()
+    /// <summary>비밀번호 팝업 취소 요청을 받아 겨냥 중이던 로비를 놓는다.</summary>
+    public void CancelPasswordJoin()
     {
         selectedLobbyIdForPopup = "";
     }
 
-    /// <summary>세션 종료 통지를 받아 로비 화면을 되살리고 목록을 새로 받는다.</summary>
+    /// <summary>세션 종료 통지를 받아 목록을 새로 받는다. 화면 복귀는 UIMenuManager 몫이다.</summary>
     private void HandleSessionEnded()
     {
-        uiLobby.ResetUI();
-        uiLobby.Show();
         _ = RefreshLobbyList();
     }
 
@@ -297,10 +286,8 @@ public class LobbyManager : MonoBehaviour
 
         try
         {
+            // 성공 시 화면 전환(SessionStarted)은 UIMenuManager 가 처리한다
             await session.CreateAsync(lobbyName, maxPlayersPerLobby, password);
-
-            uiLobby.ResetUI();
-            uiLobby.Hide();
         }
         catch (Exception e)
         {
@@ -322,9 +309,8 @@ public class LobbyManager : MonoBehaviour
             return;
         }
 
-        uiLobby.HidePasswordPopup();
+        // 성공 시 팝업 정리·화면 전환(SessionStarted)은 UIMenuManager 가 처리한다
         selectedLobbyIdForPopup = "";
-        uiLobby.Hide();
     }
 
     #endregion
