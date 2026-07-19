@@ -38,17 +38,17 @@ public class UILobby : MonoBehaviour
     [SerializeField] private LobbyListCell lobbyListCellPrefab; // 리스트 셀 프리팹
     [SerializeField] private UIGenericButton refreshButton;     // 리스트 새로고침 버튼
 
-    /// <summary>위젯 리스너를 등록하고 자식에 액션을 주입한 뒤 두 팝업을 닫은 상태로 초기화한다.</summary>
+    /// <summary>위젯 리스너를 등록하고 자식 이벤트를 구독한 뒤 두 팝업을 닫은 상태로 초기화한다.</summary>
     private void Awake()
     {
         openCreatePanelButton.Clicked += ShowCreatePanel;
         backButton.Clicked += HideCreatePanel;
         refreshButton.Clicked += RaiseRefreshRequested;
 
-        createContent.CreateConfirmed = HandleCreateConfirmed;
-        createContent.CloseRequested = HideCreatePanel;
-        privateJoinContent.JoinConfirmed = HandlePasswordJoinConfirmed;
-        privateJoinContent.JoinCancelled = HandlePasswordJoinCancelled;
+        createContent.CreateConfirmed += HandleCreateConfirmed;
+        createContent.CloseRequested += HideCreatePanel;
+        privateJoinContent.JoinConfirmed += HandlePasswordJoinConfirmed;
+        privateJoinContent.JoinCancelled += HandlePasswordJoinCancelled;
 
         createContent.Hide();
         privateJoinContent.Hide();
@@ -60,6 +60,11 @@ public class UILobby : MonoBehaviour
         openCreatePanelButton.Clicked -= ShowCreatePanel;
         backButton.Clicked -= HideCreatePanel;
         refreshButton.Clicked -= RaiseRefreshRequested;
+
+        createContent.CreateConfirmed -= HandleCreateConfirmed;
+        createContent.CloseRequested -= HideCreatePanel;
+        privateJoinContent.JoinConfirmed -= HandlePasswordJoinConfirmed;
+        privateJoinContent.JoinCancelled -= HandlePasswordJoinCancelled;
     }
 
     /// <summary>로비 화면을 연다.</summary>

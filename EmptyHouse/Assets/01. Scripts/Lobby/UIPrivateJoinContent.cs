@@ -1,6 +1,6 @@
+using System;
 using TMPro;
 using UnityEngine;
-using UnityEngine.Events;
 
 /// <summary>
 /// 비밀번호 입력 팝업 뷰. 비밀번호 입력창·Join/Back 버튼을 소유하고 확정/취소 의도만 액션으로 올린다.
@@ -13,11 +13,11 @@ public class UIPrivateJoinContent : MonoBehaviour
     [SerializeField] private UIGenericButton cancelButton;    // Back(취소) 버튼
     [SerializeField] private GameObject passwordWarningLabel; // 비밀번호 불일치 경고
 
-    /// <summary>부모가 주입: Join 확정. 입력된 비밀번호를 싣는다.</summary>
-    public UnityAction<string> JoinConfirmed;
+    /// <summary>발행: Join 확정. 입력된 비밀번호를 싣는다.</summary>
+    public event Action<string> JoinConfirmed;
 
-    /// <summary>부모가 주입: 취소.</summary>
-    public UnityAction JoinCancelled;
+    /// <summary>발행: 취소.</summary>
+    public event Action JoinCancelled;
 
     /// <summary>버튼 리스너를 등록한다.</summary>
     private void Awake()

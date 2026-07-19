@@ -22,7 +22,7 @@ public class UIMenuManager : MonoBehaviour
     private Tween menuFade;  // 캐싱된 메뉴 페이드. PlayForward = 표시, PlayBackward = 숨김
     private Tween lobbyFade; // 캐싱된 로비 페이드. 위와 동일
 
-    /// <summary>재사용할 페이드 트윈을 생성하고, 메뉴 버튼 액션을 주입한 뒤 초기 화면을 메뉴로 맞춘다.</summary>
+    /// <summary>재사용할 페이드 트윈을 생성하고, 메뉴 의도를 구독한 뒤 초기 화면을 메뉴로 맞춘다.</summary>
     private void Awake()
     {
         menuFade = CreateFade(menuCanvasGroup);
@@ -37,9 +37,17 @@ public class UIMenuManager : MonoBehaviour
         SetInteractable(menuCanvasGroup, true);
         SetInteractable(lobbyCanvasGroup, false);
 
-        uiMenu.StartClicked = EnableLobby;
-        uiMenu.SettingsClicked = ShowSettings;
-        uiMenu.ExitClicked = ExitGame;
+        uiMenu.StartClicked += EnableLobby;
+        uiMenu.SettingsClicked += ShowSettings;
+        uiMenu.ExitClicked += ExitGame;
+    }
+
+    /// <summary>메뉴 의도 구독을 해제한다.</summary>
+    private void OnDestroy()
+    {
+        uiMenu.StartClicked -= EnableLobby;
+        uiMenu.SettingsClicked -= ShowSettings;
+        uiMenu.ExitClicked -= ExitGame;
     }
 
     /// <summary>메뉴 화면으로 전환한다. 전환 중 재호출되면 진행 중인 트윈의 방향만 뒤집힌다.</summary>

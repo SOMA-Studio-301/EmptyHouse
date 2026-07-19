@@ -73,23 +73,14 @@ public class UIRoom : MonoBehaviour
 
         for (int i = 0; i < MaxRoomSlots; i++)
         {
-            UserPanel userPanel = userPanels[i];
-            var slotButton = userPanel.SlotButton;
-
             if (i < slots.Count)
             {
                 RoomSlotInfo slot = slots[i];
-                userPanel.SetPlayerInfo(slot.PlayerName, slot.IsHost, slot.IsReady, slot.SteamId);
-
-                slotButton.onClick.RemoveAllListeners();
-                slotButton.enabled = false;
+                userPanels[i].SetPlayerInfo(slot.PlayerName, slot.IsHost, slot.IsReady, slot.SteamId);
                 continue;
             }
 
-            userPanel.SetEmptySlot();
-            slotButton.enabled = true;
-            slotButton.onClick.RemoveAllListeners();
-            slotButton.onClick.AddListener(RaiseInviteRequested);
+            userPanels[i].SetEmptySlot();
         }
     }
 
@@ -137,7 +128,9 @@ public class UIRoom : MonoBehaviour
 
         while (userPanels.Count < MaxRoomSlots)
         {
-            userPanels.Add(Instantiate(userPanelPrefab, userListContainer));
+            UserPanel panel = Instantiate(userPanelPrefab, userListContainer);
+            panel.InviteClicked += RaiseInviteRequested; // 풀은 UIRoom 과 수명을 같이하므로 해제 불요
+            userPanels.Add(panel);
         }
     }
 

@@ -1,6 +1,6 @@
+using System;
 using TMPro;
 using UnityEngine;
-using UnityEngine.Events;
 using UnityEngine.UI;
 using Border.Localization;
 
@@ -25,7 +25,7 @@ public class UIGenericButton : MonoBehaviour
     [SerializeField] private SFXEventChannelSO sfxEventChannel;
     [SerializeField] private AudioId clickAudioId = AudioId.Sfx_Ui_Click;    // 버튼별로 교체 가능. None 이면 무음
 
-    public UnityAction Clicked;
+    public event Action Clicked;
 
     /// <summary>버튼 입력 허용 여부. 구독자가 Button 을 따로 참조하지 않아도 되도록 위임한다.</summary>
     public bool Interactable

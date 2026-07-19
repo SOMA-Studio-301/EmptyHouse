@@ -1,6 +1,6 @@
+using System;
 using TMPro;
 using UnityEngine;
-using UnityEngine.Events;
 using UnityEngine.UI;
 
 /// <summary>
@@ -16,11 +16,11 @@ public class UICreateContent : MonoBehaviour
     [SerializeField] private UIGenericButton closeButton;          // 팝업 닫기 버튼
     [SerializeField] private GameObject forbiddenWordWarningLabel; // 금칙어 경고
 
-    /// <summary>부모가 주입: 방 생성 확정. (방 이름, 비밀번호) — 비밀번호를 쓰지 않으면 빈 문자열.</summary>
-    public UnityAction<string, string> CreateConfirmed;
+    /// <summary>발행: 방 생성 확정. (방 이름, 비밀번호) — 비밀번호를 쓰지 않으면 빈 문자열.</summary>
+    public event Action<string, string> CreateConfirmed;
 
-    /// <summary>부모가 주입: 팝업 닫기.</summary>
-    public UnityAction CloseRequested;
+    /// <summary>발행: 팝업 닫기.</summary>
+    public event Action CloseRequested;
 
     /// <summary>버튼·토글 리스너를 등록한다.</summary>
     private void Awake()

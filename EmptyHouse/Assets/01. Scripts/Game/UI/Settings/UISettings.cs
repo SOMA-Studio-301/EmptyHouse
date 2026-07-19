@@ -31,14 +31,14 @@ public class UISettings : MonoBehaviour
     /// <summary>BACK 버튼으로 닫기를 요청했음을 알린다. 실제로 창을 끄는 것은 UIManager 다.</summary>
     public event UnityAction CloseRequested;
 
-    private UnityAction[] tabClickHandlers;
+    private Action[] tabClickHandlers;
 
     /// <summary>버튼 구독을 걸고 첫 번째 탭을 연 상태로 시작한다.</summary>
     private void OnEnable()
     {
         backButton.Clicked += RequestClose;
 
-        tabClickHandlers = new UnityAction[tabs.Length];
+        tabClickHandlers = new Action[tabs.Length];
         for (int i = 0; i < tabs.Length; i++)
         {
             int index = i;
