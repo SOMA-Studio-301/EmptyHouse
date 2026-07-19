@@ -1,6 +1,7 @@
 using System;
+using Border.Localization;
+using TMPro;
 using UnityEngine;
-using UnityEngine.UI;
 using Unity.Services.Lobbies.Models;
 
 /// <summary>
@@ -12,11 +13,10 @@ public class LobbyListCell : MonoBehaviour
     /// <summary>발행: Join 버튼 클릭. 표시 중인 로비를 싣는다.</summary>
     public event Action<Lobby> JoinClicked;
 
-    [SerializeField] private Text lobbyNameText;         // 방 이름 라벨
-    [SerializeField] private Text playerCountText;       // 인원 수 라벨
-    [SerializeField] private GameObject passwordIcon;    // 비밀번호 방 자물쇠 아이콘
-    [SerializeField] private UIGenericButton joinButton; // 입장 버튼
-    [SerializeField] private Text joinText;              // 입장 버튼 라벨(Join/Full) — TODO: TMP 전환 시 로컬라이즈 키로 대체
+    [SerializeField] private UILocalizeText lobbyNameText; // 방 이름 라벨. 키 미등록 문자열은 원문 그대로 출력된다
+    [SerializeField] private TMP_Text playerCountText;     // 인원 수 라벨
+    [SerializeField] private GameObject passwordIcon;      // 비밀번호 방 자물쇠 표시
+    [SerializeField] private UIGenericButton joinButton;   // 입장 버튼. 라벨은 SetButton 으로 갱신
 
     private Lobby lobby; // 표시 중인 로비
 
@@ -38,13 +38,13 @@ public class LobbyListCell : MonoBehaviour
     {
         this.lobby = lobby;
 
-        lobbyNameText.text = lobby.Name;
+        lobbyNameText.SetKey(lobby.Name); // 방 이름은 동적 문자열 — 키 미스 폴백으로 원문이 표시된다
         playerCountText.text = $"{lobby.Players.Count}/{lobby.MaxPlayers}";
         passwordIcon.SetActive(LobbyDataKeys.HasPassword(lobby));
 
         bool isFull = lobby.Players.Count >= lobby.MaxPlayers;
         joinButton.Interactable = !isFull;
-        joinText.text = isFull ? "Full" : "Join";
+        joinButton.SetButton(isFull ? "Full" : "Join"); // TODO: 로컬라이즈 테이블에 키 등록 시 실제 키로 교체
     }
 
     /// <summary>Join 의도를 올린다.</summary>
