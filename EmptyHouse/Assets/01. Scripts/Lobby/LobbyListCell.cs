@@ -8,8 +8,18 @@ public class LobbyListCell : MonoBehaviour
     [SerializeField] private Text lobbyNameText;
     [SerializeField] private Text playerCountText;
     [SerializeField] private GameObject passwordIcon;
-    [SerializeField] private Button joinButton;
-    [SerializeField] private Text joinText;
+    [SerializeField] private UIGenericButton joinButton;
+
+    private void OnEnable()
+    {
+        
+    }
+
+    private void OnDisable()
+    {
+        
+    }
+
     public void SetLobbyInfo(Lobby lobby, Action<Lobby> onJoinClick)
     {
         if (lobby == null) return;
