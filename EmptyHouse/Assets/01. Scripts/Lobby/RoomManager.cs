@@ -1,31 +1,23 @@
 using System;
 using System.Collections.Generic;
+using System.Threading;
 using System.Threading.Tasks;
-using System.Linq;
 using Border.Core;
 using UnityEngine;
-using UnityEngine.SceneManagement;
 using Unity.Services.Authentication;
 using Unity.Services.Lobbies;
 using Unity.Services.Lobbies.Models;
-using Unity.Services.Relay;
-using Unity.Services.Relay.Models;
-using Unity.Netcode;
-using Unity.Netcode.Transports.UTP;
-using Unity.Networking.Transport.Relay;
 using Steamworks;
 
 /// <summary>
-/// 방(Room) 화면 프레젠터 겸 게임 시작 오케스트레이터. 로비 폴링·Relay 할당·Netcode 연결·게임 씬 전환을 담당한다.
+/// 방(Room) 화면 프레젠터. 로비 폴링과 게임 시작/퇴장 요청 라우팅을 담당한다.
 /// 버튼 의도 배선과 화면 전환은 UIMenuManager 가 하고, 여기서는 공개 요청 API 로 받아 뷰에 데이터만 내려 그린다.
-/// 세션 상태(현재 로비·게임 시작 플래그·하트비트)는 LobbySession 이 단독 소유하며, 여기서는 읽기와 쓰기 경유만 한다.
+/// Relay/NGO 수명·게임 시작 절차·방 정리는 영속 SessionCoordinator(LobbySession 경유) 몫이다.
 /// </summary>
 public class RoomManager : MonoBehaviour
 {
-    private const string RelayConnectionType = "dtls";
-
     [Header("Session")]
-    [SerializeField] private LobbySession session; // 세션 단일 소유자
+    [SerializeField] private LobbySession session; // 메뉴 씬 세션 파사드
 
     [Header("View")]
     [SerializeField] private UIRoom uiRoom; // 방 화면 뷰
@@ -42,11 +34,8 @@ public class RoomManager : MonoBehaviour
 
     private bool isReady;
     private bool isInRoom;
-    private bool isPolling;
-
-    // 씬 전환 시작 시점의 기대 인원 수를 저장해두고, 전원 로드 완료 시 로비 삭제
-    private int expectedPlayerCount;
-    private bool isSceneLoadEventSubscribed;
+    private bool isStartingGame; // 게임 시작 절차 진행 중 UI 잠금 플래그
+    private CancellationTokenSource lobbyPollCts;
 
     private Callback<AvatarImageLoaded_t> avatarLoadedCallback;
     private Callback<PersonaStateChange_t> personaStateCallback;
@@ -78,18 +67,25 @@ public class RoomManager : MonoBehaviour
         }
     }
 
+    /// <summary>씬 전환·파괴 시 폴링을 정리한다. 퇴장/방 정리는 SessionCoordinator 가 담당한다.</summary>
+    private void OnDestroy()
+    {
+        CancelLobbyPolling();
+    }
+
     #region Session Events
 
-    /// <summary>세션 시작(방 생성/입장)을 받아 슬롯을 그리고 폴링을 시작한다. 방 화면 열기는 UIMenuManager 몫이다.</summary>
+    /// <summary>세션 시작(방 생성/입장/복귀)을 받아 슬롯을 그리고 폴링·방 네트워크 준비를 시작한다.</summary>
     /// <param name="lobby">입장한 로비</param>
     private void HandleSessionStarted(Lobby lobby)
     {
         isReady = false;
         isInRoom = true;
+        isStartingGame = false;
 
         UpdateRoomUI();
-
-        _ = PollLobbyData();
+        StartLobbyPolling();
+        _ = PrepareRoomEntryAsync();
 
         Log.D($"[ROOM] Entered room: {lobby.Name}");
 
@@ -113,6 +109,26 @@ public class RoomManager : MonoBehaviour
     {
         isInRoom = false;
         isReady = false;
+        isStartingGame = false;
+        CancelLobbyPolling();
+    }
+
+    /// <summary>한 판 상태를 초기화하고, 진행 중인 방이면 기존 Relay 에 미리 연결한다.</summary>
+    /// <returns>준비 완료를 기다리는 Task</returns>
+    private async Task PrepareRoomEntryAsync()
+    {
+        await session.NotifyReturnedToRoomAsync();
+        if (this == null || !isInRoom) return;
+
+        try
+        {
+            // 한 판 이상 진행된 방에 새로 들어온 경우 Room 에서 기존 Relay 에 미리 연결한다
+            await session.ConnectToRoomNetworkIfNeededAsync();
+        }
+        catch (Exception e)
+        {
+            Log.E($"[ROOM] 기존 Room 네트워크 연결 실패: {e.Message}", this);
+        }
     }
 
     #endregion
@@ -134,7 +150,12 @@ public class RoomManager : MonoBehaviour
     /// <summary>방 나가기 요청을 받는다. 게임 시작 중이면 버튼 잠금을 우회해도 막는다.</summary>
     public void RequestExitRoom()
     {
-        if (session.IsStartingGame) return;
+        if (isStartingGame) return;
+        if (session.IsCleaningUp) return;
+
+        isInRoom = false;
+        CancelLobbyPolling();
+        uiRoom.SetExitInteractable(false);
 
         _ = session.LeaveAsync();
     }
@@ -152,66 +173,108 @@ public class RoomManager : MonoBehaviour
 
     #region Lobby Polling
 
-    /// <summary>방에 있는 동안 로비를 주기적으로 조회해 세션에 반영하고, Relay 코드가 뜨면 게임에 합류한다.</summary>
-    /// <returns>폴링 종료를 기다리는 Task</returns>
-    private async Task PollLobbyData()
+    /// <summary>현재 세션 기준으로 폴링을 (재)시작한다.</summary>
+    private void StartLobbyPolling()
     {
-        if (isPolling) return;
-        isPolling = true;
+        CancelLobbyPolling();
+        lobbyPollCts = new CancellationTokenSource();
+        _ = PollLobbyData(lobbyPollCts, session.CurrentLobby.Id, session.Generation);
+    }
+
+    /// <summary>진행 중인 폴링을 취소한다.</summary>
+    private void CancelLobbyPolling()
+    {
+        CancellationTokenSource cts = lobbyPollCts;
+        lobbyPollCts = null;
+        if (cts == null) return;
+
+        cts.Cancel();
+        cts.Dispose();
+    }
+
+    /// <summary>
+    /// 방에 있는 동안 로비를 주기적으로 조회해 세션에 반영한다. 게스트는 Relay 코드가 뜨면 미리 연결해 둔다.
+    /// 세대 가드로 스테일 응답을 버리고, 404 는 방 소멸 정리 경로로 보낸다.
+    /// </summary>
+    /// <param name="pollingSource">이 폴링 루프의 취소 소스</param>
+    /// <param name="expectedLobbyId">폴링 시작 시점의 로비 ID</param>
+    /// <param name="expectedGeneration">폴링 시작 시점의 세션 세대</param>
+    /// <returns>폴링 종료를 기다리는 Task</returns>
+    private async Task PollLobbyData(
+        CancellationTokenSource pollingSource,
+        string expectedLobbyId,
+        int expectedGeneration)
+    {
+        CancellationToken cancellationToken = pollingSource.Token;
+        int rateLimitAttempt = 0;
 
         try
         {
-            while (isInRoom && session.IsInSession)
+            while (!cancellationToken.IsCancellationRequested && isInRoom && session.IsInSession)
             {
                 try
                 {
-                    Lobby updated = await LobbyService.Instance.GetLobbyAsync(session.CurrentLobby.Id);
-                    if (updated == null) continue;
+                    Lobby polledLobby = await LobbyService.Instance.GetLobbyAsync(expectedLobbyId);
+                    cancellationToken.ThrowIfCancellationRequested();
+                    if (this == null || !isInRoom || session.IsCleaningUp) break;
 
-                    // 세션 경유 반영 — LobbyUpdated 이벤트로 화면이 갱신되고, 방장 승격 시 하트비트가 재가동된다
-                    session.UpdateLobby(updated);
+                    // 세대가 어긋나면(그 사이 방이 바뀜) 이 루프는 수명을 다했다
+                    if (!session.TryApplyLobbySnapshot(polledLobby, expectedLobbyId, expectedGeneration)) break;
 
-                    if (!session.IsLocalPlayerHost
-                        && updated.Data != null
-                        && updated.Data.TryGetValue(LobbyDataKeys.RelayJoinCode, out DataObject relayData))
+                    rateLimitAttempt = 0;
+
+                    if (!session.IsLocalPlayerHost)
                     {
-                        string joinCode = relayData.Value;
-                        if (!string.IsNullOrEmpty(joinCode) && !session.IsStartingGame)
+                        try
                         {
-                            session.MarkGameStarting();
-                            uiRoom.SetExitInteractable(false); // 게임 조인 시작 시 Exit 잠금
-                            _ = JoinGameAsync(joinCode);
-                            break;
+                            await session.ConnectToRoomNetworkIfNeededAsync();
+                            cancellationToken.ThrowIfCancellationRequested();
+                        }
+                        catch (OperationCanceledException)
+                        {
+                            throw;
+                        }
+                        catch (Exception e)
+                        {
+                            Log.E($"[ROOM] Relay 연결 실패: {e.Message}", this);
                         }
                     }
                 }
                 catch (LobbyServiceException e)
                 {
-                    if (e.ErrorCode == 404 || e.Message.ToLower().Contains("not found"))
+                    if (e.ErrorCode == 404
+                        || (!string.IsNullOrEmpty(e.Message)
+                            && e.Message.IndexOf("not found", StringComparison.OrdinalIgnoreCase) >= 0))
                     {
-                        // 호스트가 게임 시작 후 정상적으로 로비를 삭제한 경우도 여기로 들어온다.
-                        // 게임 시작 중이면 정상 흐름이라 경고를 띄우지 않고, 세션도 종료 이벤트를 억제한다.
-                        if (!session.IsStartingGame)
+                        // 호스트의 방 파괴와 비정상 종료 후 로비 소멸을 같은 정리 경로로 처리한다
+                        if (!isStartingGame)
                         {
                             Log.W("[ROOM] 로비가 이미 서버에서 삭제됐다.", this);
                         }
                         isInRoom = false;
-                        session.NotifyLobbyGone();
+                        await session.HandleRoomDestroyedAsync();
                         break;
                     }
 
                     if (e.ErrorCode == 429)
                     {
-                        await Task.Delay(3000); // 잠깐 쉬고 루프는 계속 진행
+                        rateLimitAttempt++;
+                        float retryDelay = Mathf.Min(30f, 3f * Mathf.Pow(2f, rateLimitAttempt - 1));
+                        await Task.Delay(TimeSpan.FromSeconds(retryDelay), cancellationToken);
+                        continue;
                     }
-                    else
-                    {
-                        Log.E($"[ROOM] 로비 데이터 갱신 실패: {e.Message}", this);
-                    }
+
+                    Log.E($"[ROOM] 로비 데이터 갱신 실패: {e.Message}", this);
                 }
 
-                await Task.Delay(TimeSpan.FromSeconds(Mathf.Max(0.25f, lobbyPollInterval)));
+                await Task.Delay(
+                    TimeSpan.FromSeconds(Mathf.Max(0.25f, lobbyPollInterval)),
+                    cancellationToken);
             }
+        }
+        catch (OperationCanceledException)
+        {
+            // 방 퇴장·씬 전환에 따른 정상 종료
         }
         catch (Exception e)
         {
@@ -219,7 +282,10 @@ public class RoomManager : MonoBehaviour
         }
         finally
         {
-            isPolling = false;
+            if (ReferenceEquals(lobbyPollCts, pollingSource))
+                lobbyPollCts = null;
+
+            pollingSource.Dispose();
         }
     }
 
@@ -264,12 +330,12 @@ public class RoomManager : MonoBehaviour
 
         if (!isHost)
         {
-            uiRoom.SetReadyInteractable(!session.IsStartingGame); // 게임 시작 중이면 Ready 도 잠금
+            uiRoom.SetReadyInteractable(!isStartingGame); // 게임 시작 중이면 Ready 도 잠금
             return;
         }
 
         // 게임 시작 중일 때는 allReady 여부와 상관없이 버튼 비활성 유지
-        if (session.IsStartingGame) return;
+        if (isStartingGame) return;
 
         uiRoom.SetStartInteractable(IsEveryGuestReady()); // 게스트가 없으면(혼자) 참 — 솔로 시작 허용
     }
@@ -300,6 +366,9 @@ public class RoomManager : MonoBehaviour
     {
         isReady = !isReady;
 
+        string lobbyId = session.CurrentLobby.Id;
+        int generation = session.Generation;
+
         try
         {
             string playerId = AuthenticationService.Instance.PlayerId;
@@ -311,8 +380,8 @@ public class RoomManager : MonoBehaviour
                 }
             };
 
-            Lobby updated = await LobbyService.Instance.UpdatePlayerAsync(session.CurrentLobby.Id, playerId, options);
-            session.UpdateLobby(updated); // LobbyUpdated 이벤트로 화면 갱신
+            Lobby updated = await LobbyService.Instance.UpdatePlayerAsync(lobbyId, playerId, options);
+            session.TryApplyLobbySnapshot(updated, lobbyId, generation); // 반영 성공 시 LobbyUpdated 로 화면 갱신
         }
         catch (Exception e)
         {
@@ -321,217 +390,32 @@ public class RoomManager : MonoBehaviour
         }
     }
 
-    /// <summary>방장이 Relay 를 할당하고 호스트를 띄운 뒤 전원 접속을 기다렸다가 게임 씬으로 넘어간다.</summary>
+    /// <summary>방장이 게임 세션 시작을 요청한다. Relay/NGO 절차는 SessionCoordinator 가 수행한다.</summary>
     /// <returns>시작 절차 완료를 기다리는 Task</returns>
     private async Task StartGame()
     {
         if (!session.IsLocalPlayerHost) return;
-        if (session.IsStartingGame) return;
+        if (isStartingGame) return;
 
-        session.MarkGameStarting();
+        isStartingGame = true;
         uiRoom.SetStartInteractable(false);
         uiRoom.SetExitInteractable(false); // Start 누르는 순간 Exit 잠금
 
         sfxEventChannel.RaisePlayEvent(gameStartAudioId, transform.position);
 
-        Log.D("[ROOM] Host가 Relay 서버 생성을 시작한다...");
+        Log.D("[ROOM] Host가 게임 세션 시작을 요청한다...");
 
         try
         {
-            Allocation allocation = await RelayService.Instance.CreateAllocationAsync(session.CurrentLobby.MaxPlayers - 1);
-            string relayJoinCode = await RelayService.Instance.GetJoinCodeAsync(allocation.AllocationId);
-            Log.D($"[ROOM] Relay 생성 완료! JoinCode: {relayJoinCode}");
-
-            RelayServerData serverData = BuildRelayServerData(allocation, RelayConnectionType);
-            GetUnityTransport().SetRelayServerData(serverData);
-
-            UpdateLobbyOptions options = new UpdateLobbyOptions
-            {
-                Data = new Dictionary<string, DataObject>
-                {
-                    { LobbyDataKeys.RelayJoinCode, new DataObject(DataObject.VisibilityOptions.Member, relayJoinCode) }
-                }
-            };
-            Lobby updated = await LobbyService.Instance.UpdateLobbyAsync(session.CurrentLobby.Id, options);
-            session.UpdateLobby(updated);
-
-            expectedPlayerCount = updated.Players.Count;
-
-            NetworkManager.Singleton.StartHost();
-
-            // 바로 LoadScene 하지 않고 전원 Netcode 연결될 때까지 로비에서 대기한다
-            //   -> 세션이 안 죽으니 하트비트도 안 끊긴다
-            await WaitForClientsToConnect(expectedPlayerCount, 15f);
-
-            if (!isSceneLoadEventSubscribed)
-            {
-                NetworkManager.Singleton.SceneManager.OnLoadEventCompleted += OnAllClientsLoaded;
-                isSceneLoadEventSubscribed = true;
-            }
-
-            NetworkManager.Singleton.SceneManager.LoadScene(gameSceneName, LoadSceneMode.Single);
+            await session.StartGameAsHostAsync(gameSceneName);
         }
         catch (Exception e)
         {
-            Log.E($"[ROOM] 게임 시작 실패 (Relay 에러): {e.Message}", this);
-            session.ClearGameStarting();
+            Log.E($"[ROOM] 게임 시작 실패: {e.Message}", this);
+            isStartingGame = false;
             uiRoom.SetStartInteractable(true);
             uiRoom.SetExitInteractable(true);
         }
-    }
-
-    /// <summary>전원이 Netcode 에 붙을 때까지 기다린다. 타임아웃돼도 진행한다.</summary>
-    /// <param name="expectedClients">호스트를 포함한 기대 인원</param>
-    /// <param name="timeoutSec">최대 대기 시간(초)</param>
-    /// <returns>대기 완료를 기다리는 Task</returns>
-    private async Task WaitForClientsToConnect(int expectedClients, float timeoutSec = 15f)
-    {
-        float elapsed = 0f;
-        while (NetworkManager.Singleton.ConnectedClientsList.Count < expectedClients && elapsed < timeoutSec)
-        {
-            await Task.Delay(200);
-            elapsed += 0.2f;
-        }
-
-        if (NetworkManager.Singleton.ConnectedClientsList.Count < expectedClients)
-            Log.W($"[ROOM] 타임아웃: {NetworkManager.Singleton.ConnectedClientsList.Count}/{expectedClients}명만 연결됨. 그래도 진행한다.", this);
-        else
-            Log.D($"[ROOM] 전원({expectedClients}명) 연결 완료. 씬 전환 시작.");
-    }
-
-    #endregion
-
-    #region Game Scene Transition (Host)
-
-    /// <summary>
-    /// 전원 씬 로드가 끝나면 세션에 로비 삭제를 맡긴다.
-    /// 캐릭터 스폰은 GameScene 전용 스포너 몫이라 여기서는 로비 정리만 한다.
-    /// </summary>
-    /// <param name="sceneName">로드된 씬 이름</param>
-    /// <param name="loadSceneMode">로드 모드</param>
-    /// <param name="clientsCompleted">로드를 마친 클라이언트</param>
-    /// <param name="clientsTimedOut">타임아웃된 클라이언트</param>
-    private async void OnAllClientsLoaded(string sceneName, LoadSceneMode loadSceneMode,
-        List<ulong> clientsCompleted, List<ulong> clientsTimedOut)
-    {
-        if (!NetworkManager.Singleton.IsServer) return;
-
-        if (clientsTimedOut != null && clientsTimedOut.Count > 0)
-        {
-            Log.W($"[ROOM] 씬 로드에 실패(타임아웃)한 클라이언트가 있다: {clientsTimedOut.Count}명. " +
-                             $"그래도 로비를 정리하고 게임을 진행한다.");
-        }
-
-        Log.D($"[ROOM] 씬 로드 완료 클라이언트 수: {clientsCompleted.Count} / 예상 인원: {expectedPlayerCount}");
-
-        NetworkManager.Singleton.SceneManager.OnLoadEventCompleted -= OnAllClientsLoaded;
-        isSceneLoadEventSubscribed = false;
-
-        isInRoom = false;
-
-        await session.DeleteAsync();
-    }
-
-    #endregion
-
-    #region Game Start (Client)
-
-    /// <summary>게스트가 Relay 코드로 호스트에 붙는다.</summary>
-    /// <param name="joinCode">호스트가 로비에 실은 Relay Join 코드</param>
-    /// <returns>연결 시도 완료를 기다리는 Task</returns>
-    private async Task JoinGameAsync(string joinCode)
-    {
-        Log.D($"[ROOM] Client가 Relay 연결을 시도한다. 코드: {joinCode}");
-
-        try
-        {
-            JoinAllocation joinAllocation = await RelayService.Instance.JoinAllocationAsync(joinCode);
-
-            RelayServerData clientServerData = BuildRelayServerData(joinAllocation, RelayConnectionType);
-            GetUnityTransport().SetRelayServerData(clientServerData);
-
-            NetworkManager.Singleton.OnClientConnectedCallback += OnNetcodeConnected;
-            NetworkManager.Singleton.OnClientDisconnectCallback += OnNetcodeDisconnected;
-
-            NetworkManager.Singleton.StartClient();
-            isInRoom = false;
-        }
-        catch (Exception e)
-        {
-            Log.E($"[ROOM] Relay 연결 실패: {e.Message}", this);
-            session.ClearGameStarting();
-            uiRoom.SetExitInteractable(true); // 실패 시 Exit 복구
-        }
-    }
-
-    /// <summary>호스트와 연결됐다.</summary>
-    /// <param name="clientId">내 클라이언트 ID</param>
-    private void OnNetcodeConnected(ulong clientId)
-    {
-        Log.D($"[NETCODE] 호스트와 연결 성공! 내 ID: {clientId}");
-        UnsubscribeNetcodeEvents();
-    }
-
-    /// <summary>호스트와 연결이 끊겼다. 방에 남을 수 있도록 Exit 를 되살린다.</summary>
-    /// <param name="clientId">끊긴 클라이언트 ID</param>
-    private void OnNetcodeDisconnected(ulong clientId)
-    {
-        Log.E("[NETCODE] 호스트와의 연결에 실패했거나 끊어졌다!", this);
-        session.ClearGameStarting();
-        uiRoom.SetExitInteractable(true);
-        UnsubscribeNetcodeEvents();
-    }
-
-    /// <summary>Netcode 연결 콜백을 해제한다.</summary>
-    private void UnsubscribeNetcodeEvents()
-    {
-        if (NetworkManager.Singleton != null)
-        {
-            NetworkManager.Singleton.OnClientConnectedCallback -= OnNetcodeConnected;
-            NetworkManager.Singleton.OnClientDisconnectCallback -= OnNetcodeDisconnected;
-        }
-    }
-
-    #endregion
-
-    #region Relay Helpers
-
-    /// <summary>호스트 할당에서 dtls 엔드포인트를 찾아 RelayServerData 를 만든다.</summary>
-    /// <param name="allocation">Relay 할당</param>
-    /// <param name="connectionType">연결 방식</param>
-    /// <returns>구성된 RelayServerData</returns>
-    private RelayServerData BuildRelayServerData(Allocation allocation, string connectionType = "dtls")
-    {
-        var endpoint = allocation.ServerEndpoints.First(ep => ep.ConnectionType == connectionType);
-
-        return new RelayServerData(
-            endpoint.Host,
-            (ushort)endpoint.Port,
-            allocation.AllocationIdBytes,
-            allocation.ConnectionData,
-            allocation.ConnectionData,
-            allocation.Key,
-            endpoint.Secure // isSecure 를 엔드포인트에서 그대로 가져와 불일치를 막는다
-        );
-    }
-
-    /// <summary>게스트 할당에서 dtls 엔드포인트를 찾아 RelayServerData 를 만든다.</summary>
-    /// <param name="joinAllocation">Relay 조인 할당</param>
-    /// <param name="connectionType">연결 방식</param>
-    /// <returns>구성된 RelayServerData</returns>
-    private RelayServerData BuildRelayServerData(JoinAllocation joinAllocation, string connectionType = "dtls")
-    {
-        var endpoint = joinAllocation.ServerEndpoints.First(ep => ep.ConnectionType == connectionType);
-
-        return new RelayServerData(
-            endpoint.Host,
-            (ushort)endpoint.Port,
-            joinAllocation.AllocationIdBytes,
-            joinAllocation.ConnectionData,
-            joinAllocation.HostConnectionData,
-            joinAllocation.Key,
-            endpoint.Secure
-        );
     }
 
     #endregion
@@ -569,16 +453,6 @@ public class RoomManager : MonoBehaviour
         return true;
     }
 
-    /// <summary>NetworkManager 의 UnityTransport 를 가져온다.</summary>
-    /// <returns>구성된 UnityTransport</returns>
-    /// <exception cref="InvalidOperationException">NetworkManager 에 UnityTransport 가 없을 때</exception>
-    private static UnityTransport GetUnityTransport()
-    {
-        UnityTransport transport = NetworkManager.Singleton?.NetworkConfig.NetworkTransport as UnityTransport;
-        if (transport == null) throw new InvalidOperationException("UnityTransport is not configured on NetworkManager.");
-        return transport;
-    }
-
     #endregion
 
     #region 스팀 콜백 핸들러 리전
@@ -604,13 +478,4 @@ public class RoomManager : MonoBehaviour
     }
 
     #endregion
-
-    /// <summary>씬 로드 구독을 정리한다. 퇴장 처리는 세션(LobbySession.OnDestroy)이 담당한다.</summary>
-    private void OnDestroy()
-    {
-        if (isSceneLoadEventSubscribed && NetworkManager.Singleton != null)
-        {
-            NetworkManager.Singleton.SceneManager.OnLoadEventCompleted -= OnAllClientsLoaded;
-        }
-    }
 }

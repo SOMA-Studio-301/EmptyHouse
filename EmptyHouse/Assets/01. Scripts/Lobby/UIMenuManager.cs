@@ -128,6 +128,10 @@ public class UIMenuManager : MonoBehaviour
     /// <param name="lobby">입장한 로비</param>
     private void HandleSessionStarted(Lobby lobby)
     {
+        // Game -> Lobby 복귀(부팅 직후 세션 복귀) 경로에서도 로비 캔버스를 표시 가능 상태로 맞춘다.
+        // 일반 경로(메뉴->로비->방)에서는 이미 로비 상태라 사실상 no-op 이다.
+        EnableLobby();
+
         lobbyPanel.ResetUI();
         lobbyPanel.Hide();
         roomPanel.Show();

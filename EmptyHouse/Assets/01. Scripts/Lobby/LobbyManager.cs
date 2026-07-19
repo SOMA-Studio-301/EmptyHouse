@@ -9,12 +9,12 @@ using Unity.Services.Lobbies.Models;
 /// <summary>
 /// 로비 목록 화면 프레젠터. 목록 조회·새로고침 쿨다운·금칙어 필터와 생성/입장 요청 처리를 담당한다.
 /// 버튼 의도 배선과 화면 전환은 UIMenuManager 가 하고, 여기서는 공개 요청 API 로 받아 뷰에 데이터만 내려 그린다.
-/// 세션 상태(현재 로비·하트비트·인증)는 LobbySession 이 단독 소유하며, 여기서는 읽기와 요청만 한다.
+/// 세션 상태(현재 로비·하트비트·인증)는 LobbySession(→SessionCoordinator) 이 소유하며, 여기서는 읽기와 요청만 한다.
 /// </summary>
 public class LobbyManager : MonoBehaviour
 {
     [Header("Session")]
-    [SerializeField] private LobbySession session; // 세션 단일 소유자
+    [SerializeField] private LobbySession session; // 메뉴 씬 세션 파사드
 
     [Header("View")]
     [SerializeField] private UILobby uiLobby; // 로비 화면 뷰
@@ -47,7 +47,7 @@ public class LobbyManager : MonoBehaviour
         session.SessionEnded -= HandleSessionEnded;
     }
 
-    /// <summary>금칙어를 읽고 세션을 초기화한 뒤 첫 목록을 불러온다.</summary>
+    /// <summary>금칙어를 읽고 세션을 초기화한 뒤, 남아 있는 방 세션에 복귀하거나 첫 목록을 불러온다.</summary>
     private async void Start()
     {
         LoadForbiddenWords();
@@ -56,8 +56,15 @@ public class LobbyManager : MonoBehaviour
         {
             await session.InitializeAsync();
 
-            Log.D("[INIT] Loading initial lobby list...");
-            await RefreshLobbyList();
+            // Game -> Lobby 복귀: 씬 UI는 새로 만들어졌지만 방 세션은 SessionCoordinator 에 남아 있다.
+            // 복귀에 성공하면 SessionStarted 가 발행돼 UIMenuManager 가 방 화면을 연다.
+            bool resumed = await session.TryResumeSessionAsync();
+
+            if (!resumed)
+            {
+                Log.D("[INIT] Loading initial lobby list...");
+                await RefreshLobbyList();
+            }
 
             nextRefreshTime = Time.time + lobbyRefreshInterval;
         }
