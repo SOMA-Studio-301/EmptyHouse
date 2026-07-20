@@ -5,7 +5,7 @@ using UnityEngine;
 using Unity.Services.Lobbies.Models;
 
 /// <summary>
-/// 로비 목록 엔트리 뷰. 방 이름·인원·비밀번호 아이콘을 그리고 입장 클릭 의도만 이벤트로 올린다.
+/// 로비 목록 엔트리 뷰. 방 이름·인원을 그리고 입장 클릭 의도만 이벤트로 올린다.
 /// 입장 위젯은 하나만 뜬다 — 공개방은 입장 버튼, 비밀번호 방은 슬라이드 입력창(자체 토글·Enter 확정)이다.
 /// 만석은 예외로 잠긴 버튼을 써서 상태를 알린다. 입장 가능 여부 판정은 표시 수준에서만 하고, 실제 입장 로직은 상위 몫이다.
 /// </summary>
@@ -22,7 +22,6 @@ public class UILobbyEntry : MonoBehaviour
 
     [SerializeField] private TMP_Text lobbyNameText;             // 방 이름 라벨. 키 미등록 문자열은 원문 그대로 출력된다
     [SerializeField] private TMP_Text playerCountText;           // 인원 수 라벨
-    [SerializeField] private GameObject passwordIcon;            // 비밀번호 방 자물쇠 표시
     [SerializeField] private UIGenericButton joinButton;         // 입장 버튼. 공개방과 만석에서만 노출된다
     [SerializeField] private UIPasswordSlideField passwordField; // 슬라이드 비밀번호 입력. 비밀번호 방에서만 노출된다
 
@@ -57,8 +56,6 @@ public class UILobbyEntry : MonoBehaviour
 
         lobbyNameText.text = lobby.Name; // 방 이름은 동적 문자열 — 키 미스 폴백으로 원문이 표시된다
         playerCountText.text = $"{lobby.Players.Count}/{lobby.MaxPlayers}";
-        passwordIcon.SetActive(hasPassword);
-
         passwordField.ResetField();
 
         bool isFull = lobby.Players.Count >= lobby.MaxPlayers;
