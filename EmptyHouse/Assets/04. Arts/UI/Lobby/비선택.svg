@@ -1,0 +1,61 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg id="_레이어_2" data-name="레이어 2" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" viewBox="0 0 1185.45 107">
+  <defs>
+    <style>
+      .cls-1 {
+        opacity: .55;
+        stroke: url(#_무제_그라디언트_27);
+      }
+
+      .cls-1, .cls-2, .cls-3 {
+        fill: none;
+        stroke-miterlimit: 10;
+      }
+
+      .cls-2 {
+        opacity: .29;
+        stroke: url(#_무제_그라디언트_27-2);
+      }
+
+      .cls-4 {
+        fill: #3f3f3f;
+      }
+
+      .cls-5 {
+        opacity: .22;
+      }
+
+      .cls-3 {
+        filter: url(#outer-glow-1);
+        stroke: #c6ffd1;
+        stroke-width: 2px;
+      }
+
+      .cls-6 {
+        fill: #545454;
+      }
+    </style>
+    <linearGradient id="_무제_그라디언트_27" data-name="무제 그라디언트 27" x1="-197.65" y1="53.61" x2="743.79" y2="53.61" gradientTransform="translate(977.39) rotate(-180) scale(1 -1)" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#c6ffd1" stop-opacity=".8"/>
+      <stop offset=".16" stop-color="#c6ffd1" stop-opacity=".5"/>
+      <stop offset=".34" stop-color="#c6ffd1" stop-opacity="0"/>
+    </linearGradient>
+    <linearGradient id="_무제_그라디언트_27-2" data-name="무제 그라디언트 27" x1="780.28" x2="1721.71" gradientTransform="translate(-780.28)" xlink:href="#_무제_그라디언트_27"/>
+    <filter id="outer-glow-1" filterUnits="userSpaceOnUse">
+      <feOffset dx="0" dy="0"/>
+      <feGaussianBlur result="blur" stdDeviation="3"/>
+      <feFlood flood-color="#c6ffd1" flood-opacity=".75"/>
+      <feComposite in2="blur" operator="in"/>
+      <feComposite in="SourceGraphic"/>
+    </filter>
+  </defs>
+  <g id="_레이어_1-2" data-name="레이어 1">
+    <g class="cls-5">
+      <rect class="cls-4" x="1" y="10.06" width="1173" height="87"/>
+      <path class="cls-6" d="m1173.5,10.56v86H1.5V10.56h1172m1-1H.5v88h1174V9.56h0Z"/>
+    </g>
+    <path class="cls-1" d="m233.6,97.61c313.65,0,627.29,0,940.94,0V9.61H235.58"/>
+    <path class="cls-2" d="m941.44,97.61c-313.65,0-627.29,0-940.94,0V9.61h938.97"/>
+    <line class="cls-3" x1="1174.5" y1="9.56" x2="1174.5" y2="97.56"/>
+  </g>
+</svg>
