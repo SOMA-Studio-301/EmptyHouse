@@ -1,3 +1,4 @@
+using System.Collections;
 using System.Text;
 using TMPro;
 using UnityEngine;
@@ -14,6 +15,9 @@ namespace Border.Localization
     /// </summary>
     public class UILocalizeText : MonoBehaviour
     {
+        // provider 등장을 기다리는 최대 프레임 수. 초과하면 경고 후 키 원문으로 폴백한다.
+        private const int BindWaitFrameLimit = 60;
+
         [SerializeField] private bool usePrefix;
         [LocalizeKey][SerializeField] private string prefixKey;
 
@@ -41,6 +45,11 @@ namespace Border.Localization
         // 본문(이름)에 적용할 리치텍스트 색 여는 태그(예: "<color=#4FC3F7>"). null 이면 색 미적용.
         private string bodyColorOpenTag;
 
+        // 실제로 구독한 provider. OnDisable 에서 Current 를 재조회하지 않고 이 참조로 해제해 구독 누수를 막는다.
+        private ILocalizationProvider boundProvider;
+        // provider 등장 대기 코루틴 핸들. 대기 중이 아니면 null.
+        private Coroutine bindRoutine;
+
         // 합성 출력 전용 버퍼. SetText(StringBuilder) 로 전달해 string 할당을 피한다.
         private readonly StringBuilder composeBuilder = new StringBuilder(128);
 
@@ -56,30 +65,77 @@ namespace Border.Localization
         }
 
         /// <summary>
-        /// 언어 변경 이벤트를 구독하고 즉시 텍스트를 갱신한다.
+        /// provider 에 바인딩한다. 아직 없으면 등장할 때까지 대기 후 바인딩한다.
+        /// 스크립트 실행 순서가 미지정이라 UI 가 LocalizationManager 보다 먼저 깨는 경우가 있다.
         /// </summary>
         private void OnEnable()
         {
             ILocalizationProvider localizationManager = LocalizationManager.Current;
             if (localizationManager != null)
             {
-                localizationManager.OnLanguageChanged += OnLanguageChanged;
+                Bind(localizationManager);
+                return;
             }
+
+            bindRoutine = StartCoroutine(BindWhenReady());
+        }
+
+        /// <summary>
+        /// 대기 코루틴을 정지하고, 구독했던 provider 에서 언어 변경 이벤트 구독을 해제한다.
+        /// </summary>
+        private void OnDisable()
+        {
+            if (bindRoutine != null)
+            {
+                StopCoroutine(bindRoutine);
+                bindRoutine = null;
+            }
+
+            if (boundProvider != null)
+            {
+                boundProvider.OnLanguageChanged -= OnLanguageChanged;
+                boundProvider = null;
+            }
+        }
+
+        /// <summary>
+        /// provider 를 보관하고 언어 변경 이벤트를 구독한 뒤 즉시 텍스트를 갱신한다.
+        /// </summary>
+        /// <param name="provider">바인딩할 로컬라이즈 provider.</param>
+        private void Bind(ILocalizationProvider provider)
+        {
+            boundProvider = provider;
+            boundProvider.OnLanguageChanged += OnLanguageChanged;
 
             RefreshLocalizedCache();
             Apply();
         }
 
         /// <summary>
-        /// 언어 변경 이벤트 구독을 해제한다.
+        /// provider 가 등장할 때까지 프레임 단위로 대기한 뒤 바인딩한다.
+        /// 제한 프레임을 넘기면 경고를 남기고 키 원문을 출력한다(매니저 미배치 상황을 드러내기 위함).
         /// </summary>
-        private void OnDisable()
+        /// <returns>대기 코루틴 열거자.</returns>
+        private IEnumerator BindWhenReady()
         {
-            ILocalizationProvider localizationManager = LocalizationManager.Current;
-            if (localizationManager != null)
+            for (int frame = 0; frame < BindWaitFrameLimit; frame++)
             {
-                localizationManager.OnLanguageChanged -= OnLanguageChanged;
+                yield return null;
+
+                ILocalizationProvider localizationManager = LocalizationManager.Current;
+                if (localizationManager != null)
+                {
+                    bindRoutine = null;
+                    Bind(localizationManager);
+                    yield break;
+                }
             }
+
+            bindRoutine = null;
+            Log.W($"[UILocalizeText] '{name}' 이(가) {BindWaitFrameLimit} 프레임 안에 LocalizationManager 를 찾지 못해 키 원문을 출력합니다.");
+
+            RefreshLocalizedCache();
+            Apply();
         }
 
         /// <summary>
