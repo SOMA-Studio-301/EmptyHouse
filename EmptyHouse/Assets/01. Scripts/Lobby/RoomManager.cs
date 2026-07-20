@@ -241,7 +241,8 @@ public class RoomManager : MonoBehaviour
                 }
                 catch (LobbyServiceException e)
                 {
-                    if (e.ErrorCode == 404
+                    if (e.Reason == LobbyExceptionReason.LobbyNotFound
+                        || e.Reason == LobbyExceptionReason.EntityNotFound
                         || (!string.IsNullOrEmpty(e.Message)
                             && e.Message.IndexOf("not found", StringComparison.OrdinalIgnoreCase) >= 0))
                     {
@@ -255,7 +256,7 @@ public class RoomManager : MonoBehaviour
                         break;
                     }
 
-                    if (e.ErrorCode == 429)
+                    if (e.Reason == LobbyExceptionReason.RateLimited)
                     {
                         rateLimitAttempt++;
                         float retryDelay = Mathf.Min(30f, 3f * Mathf.Pow(2f, rateLimitAttempt - 1));

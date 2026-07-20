@@ -177,7 +177,9 @@ public class LobbySession : MonoBehaviour
             SessionStarted?.Invoke(lobby);
             return true;
         }
-        catch (LobbyServiceException e) when (e.ErrorCode == 404)
+        catch (LobbyServiceException e) when (
+            e.Reason == LobbyExceptionReason.LobbyNotFound
+            || e.Reason == LobbyExceptionReason.EntityNotFound)
         {
             await coordinator.HandleRoomDestroyedAsync();
             return false;

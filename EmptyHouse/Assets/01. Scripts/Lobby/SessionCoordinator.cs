@@ -321,7 +321,9 @@ public sealed class SessionCoordinator : MonoBehaviour
                         Log.D("[SESSION] 클라이언트가 방에서 나갔습니다.");
                     }
                 }
-                catch (LobbyServiceException e) when (e.ErrorCode == 404)
+                catch (LobbyServiceException e) when (
+                    e.Reason == LobbyExceptionReason.LobbyNotFound
+                    || e.Reason == LobbyExceptionReason.EntityNotFound)
                 {
                     // 호스트가 먼저 방을 삭제한 정상 경쟁 조건이다.
                 }
@@ -540,7 +542,12 @@ public sealed class SessionCoordinator : MonoBehaviour
         {
             await LobbyService.Instance.SendHeartbeatPingAsync(lobbyId);
         }
-        catch (LobbyServiceException e) when (e.ErrorCode == 400 || e.ErrorCode == 403 || e.ErrorCode == 404)
+        catch (LobbyServiceException e) when (
+            e.Reason == LobbyExceptionReason.ValidationError
+            || e.Reason == LobbyExceptionReason.BadRequest
+            || e.Reason == LobbyExceptionReason.Forbidden
+            || e.Reason == LobbyExceptionReason.LobbyNotFound
+            || e.Reason == LobbyExceptionReason.EntityNotFound)
         {
             StopHeartbeat();
         }
