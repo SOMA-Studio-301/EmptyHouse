@@ -18,9 +18,9 @@ public class UIRoom : MonoBehaviour
     [SerializeField] private UIGenericButton startButton; // 게임 시작 (방장)
 
     [Header("User List")]
-    [SerializeField] private Transform userListContainer; // 슬롯이 붙는 부모. 자식으로 UserPanel 이 미리 배치돼 있다
+    [SerializeField] private Transform userListContainer; // 슬롯이 붙는 부모. 자식으로 UIUserPanel 이 미리 배치돼 있다
 
-    private readonly List<UserPanel> userPanels = new List<UserPanel>();
+    private readonly List<UIUserPanel> userPanels = new List<UIUserPanel>();
 
     /// <summary>버튼 리스너를 등록하고 미리 배치된 유저 슬롯을 수집한다.</summary>
     private void Awake()
@@ -30,7 +30,7 @@ public class UIRoom : MonoBehaviour
 
         foreach (Transform child in userListContainer)
         {
-            UserPanel panel = child.GetComponent<UserPanel>();
+            UIUserPanel panel = child.GetComponent<UIUserPanel>();
             if (panel == null) continue;
 
             panel.InviteClicked += RaiseInviteRequested; // 슬롯은 UIRoom 과 수명을 같이하므로 해제 불요

@@ -10,7 +10,7 @@ using TMPro;
 /// 방 유저 슬롯 뷰. 유저 정보/빈 슬롯 표시를 전환하고, 빈 슬롯 클릭(친구 초대) 의도만 이벤트로 올린다.
 /// 스팀 아바타는 슬롯이 스스로 로드해 그린다.
 /// </summary>
-public class UserPanel : MonoBehaviour
+public class UIUserPanel : MonoBehaviour
 {
     // TODO: 실제 로컬라이즈 키 확정 시 교체
     [LocalizeKey] public string DriverRoleKey;       // 방장 역할 라벨 키
@@ -114,7 +114,7 @@ public class UserPanel : MonoBehaviour
         catch (Exception e)
         {
             SetAvatarTexture(null);
-            Log.E($"[UserPanel] 아바타 로딩 중 예외 발생: {e.Message}", this);
+            Log.E($"[UIUserPanel] 아바타 로딩 중 예외 발생: {e.Message}", this);
         }
     }
 

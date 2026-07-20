@@ -1,7 +1,7 @@
 using Unity.Services.Lobbies.Models;
 
 /// <summary>
-/// UGS 로비 커스텀 데이터 키의 단일 출처. LobbyManager·RoomManager·LobbyListCell 에 복제돼 있던 문자열을 모은다.
+/// UGS 로비 커스텀 데이터 키의 단일 출처. LobbyManager·RoomManager·UILobbyEntry 에 복제돼 있던 문자열을 모은다.
 /// </summary>
 public static class LobbyDataKeys
 {
