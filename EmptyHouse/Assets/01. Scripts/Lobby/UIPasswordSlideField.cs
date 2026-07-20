@@ -18,6 +18,11 @@ public class UIPasswordSlideField : MonoBehaviour
     [SerializeField] private float shakeDuration = 0.4f;   // 경고 흔들기 시간(초)
     [SerializeField] private float shakeStrength = 14f;    // 경고 흔들기 세기(px)
 
+    [Header("Warning")]
+    [SerializeField] private TMP_Text warningText;             // 오입력 경고 문구. 선택 의존성 — 미할당이면 경고 연출만 생략된다
+    [SerializeField] private float warningHoldDuration = 2f;   // 경고 문구를 그대로 두는 시간(초)
+    [SerializeField] private float warningFadeDuration = 0.8f; // 경고 문구 페이드 아웃 시간(초)
+
     public event Action<bool> ToggleChanged; // 발행: 토글 상태 변경. 열림 여부를 싣는다
     public event Action Submitted;           // 발행: 입력창에서 Enter 로 확정
 
@@ -27,6 +32,7 @@ public class UIPasswordSlideField : MonoBehaviour
     private RectTransform inputRect; // 폭을 여닫는 입력창 RectTransform
     private Tween slideTween;        // 재사용하는 폭 트윈. PlayForward = 펼침, PlayBackwards = 접힘
     private Tween shakeTween;        // 경고 흔들기 트윈. 실패 시에만 만들어 쓴다
+    private Tween warningTween;      // 경고 문구 페이드 아웃 트윈. 유지 시간만큼 지연 뒤 알파 1 → 0. warningText 미할당이면 null
 
     /// <summary>폭 트윈을 미리 만들고 입력창을 접힌 상태로 맞춘다.</summary>
     private void Awake()
@@ -47,6 +53,31 @@ public class UIPasswordSlideField : MonoBehaviour
         // 접힌 상태(0)를 시작값으로 확정시킨다. 건너뛰면 첫 재생 시점의 폭이 시작값으로 잡힌다
         slideTween.Complete();
         slideTween.Rewind();
+
+        BuildWarningTween();
+    }
+
+    /// <summary>
+    /// 경고 문구 페이드 아웃 트윈을 1회 만들어 캐싱한다. warningText 가 없으면 만들지 않는다.
+    /// DOTween 의 TMP 모듈이 꺼져 있어 DOFade 대신 알파를 직접 트윈한다.
+    /// </summary>
+    private void BuildWarningTween()
+    {
+        if (warningText == null) return;
+
+        warningText.alpha = 1f;
+
+        warningTween = DOTween.To(() => warningText.alpha, value => warningText.alpha = value, 0f, warningFadeDuration)
+            .SetDelay(warningHoldDuration)
+            .SetAutoKill(false)
+            .SetLink(gameObject)
+            .SetUpdate(true)
+            .OnComplete(() => warningText.gameObject.SetActive(false)) // 다 사라진 뒤에 꺼서 레이아웃 비용을 없앤다
+            .Pause();
+
+        // 알파 1 을 시작값으로 확정시킨다. 건너뛰면 첫 재생 시점의 알파가 시작값으로 잡힌다
+        warningTween.Complete();
+        warningText.gameObject.SetActive(false); // Complete 는 콜백을 타지 않으므로 직접 끈다
     }
 
     /// <summary>토글·입력창 리스너를 등록한다.</summary>
@@ -86,6 +117,7 @@ public class UIPasswordSlideField : MonoBehaviour
         passwordInput.DeactivateInputField();
         secretToggle.SetIsOnWithoutNotify(false);
         slideTween.Rewind(); // OnRewind 가 입력창을 비활성화한다
+        HideWarning();
     }
 
     /// <summary>비밀번호가 틀렸음을 알린다. 입력창을 흔들고 비운 뒤 다시 포커스를 준다.</summary>
@@ -102,13 +134,36 @@ public class UIPasswordSlideField : MonoBehaviour
             .SetUpdate(true)
             .OnComplete(() => inputRect.anchoredPosition = homePosition);
 
+        ShowWarning();
+
         passwordInput.ActivateInputField();
+    }
+
+    /// <summary>경고 문구를 띄우고 페이드 아웃 트윈을 처음부터 재생한다. 연속 오입력이면 유지 시간부터 다시 센다.</summary>
+    private void ShowWarning()
+    {
+        if (warningTween == null) return;
+
+        warningText.gameObject.SetActive(true);
+        warningText.alpha = 1f;
+        warningTween.Restart(); // 캐싱한 트윈을 되감아 재생한다 — 지연(유지 시간)도 함께 초기화된다
+    }
+
+    /// <summary>경고 문구를 연출 없이 즉시 감춘다. 입력창을 접거나 초기화할 때 남은 문구를 지운다.</summary>
+    private void HideWarning()
+    {
+        if (warningTween == null) return;
+
+        warningTween.Pause(); // 다음 ShowWarning 의 Restart 가 위치를 되돌리므로 되감기까지는 필요 없다
+        warningText.gameObject.SetActive(false);
     }
 
     /// <summary>토글 상태에 따라 입력창을 펼치거나 접고, 상태 변경을 올린다.</summary>
     /// <param name="isOn">열림 여부</param>
     private void HandleToggleChanged(bool isOn)
     {
+        HideWarning(); // 여닫는 순간 이전 시도의 경고가 남아 있으면 지운다
+
         if (isOn)
         {
             passwordInput.gameObject.SetActive(true);
