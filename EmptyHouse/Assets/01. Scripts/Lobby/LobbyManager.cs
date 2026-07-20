@@ -17,7 +17,8 @@ public class LobbyManager : MonoBehaviour
     [SerializeField] private LobbySession session; // 메뉴 씬 세션 파사드
 
     [Header("View")]
-    [SerializeField] private UILobby uiLobby; // 로비 화면 뷰
+    [SerializeField] private UIRoomList roomListPanel;      // 목록 화면 뷰. 셀을 직접 그린다
+    [SerializeField] private UICreateContent createContent; // 방 만들기 팝업 뷰. 금칙어 경고만 건드린다
 
     [Header("Forbidden Word Filter")]
     [SerializeField] private TextAsset forbiddenWordsCsv; // 금칙어 목록 CSV (콤마 또는 줄바꿈 구분)
@@ -30,7 +31,6 @@ public class LobbyManager : MonoBehaviour
     private List<Lobby> availableLobbies = new List<Lobby>();
     private float nextRefreshTime;
     private bool isRefreshing = false;
-    private string selectedLobbyIdForPopup; // 비밀번호 팝업이 겨냥 중인 로비 ID
 
     private HashSet<string> forbiddenWords = new HashSet<string>(); // 로드된 금칙어 집합
     private bool isRefreshButtonOnCooldown = false;                 // Refresh 버튼 쿨다운 상태
@@ -103,36 +103,14 @@ public class LobbyManager : MonoBehaviour
     }
 
     /// <summary>
-    /// 리스트 셀의 Join 요청을 받는다. 비밀번호 방이면 팝업을 열고, 공개 방이면 곧바로 입장한다.
+    /// 리스트 셀의 입장 확정을 받는다. 비밀번호는 셀이 이미 받아 실어 보내므로 여기서는 그대로 넘긴다.
     /// </summary>
     /// <param name="lobby">대상 로비</param>
-    public void RequestJoin(Lobby lobby)
+    /// <param name="password">입력된 비밀번호. 공개 방이면 빈 문자열</param>
+    public void RequestJoin(Lobby lobby, string password)
     {
-        if (LobbyDataKeys.HasPassword(lobby))
-        {
-            Log.D($"[JOIN] '{lobby.Name}' 방은 비밀번호 방이다. 입력 팝업을 연다.");
-            selectedLobbyIdForPopup = lobby.Id;
-            uiLobby.ShowPasswordPopup();
-            return;
-        }
-
-        Log.D($"[JOIN] '{lobby.Name}' 방은 공개 방이다. 즉시 입장을 시도한다.");
-        _ = JoinLobbyById(lobby.Id, "");
-    }
-
-    /// <summary>비밀번호 팝업의 Join 확정 요청을 받는다.</summary>
-    /// <param name="password">입력된 비밀번호</param>
-    public void ConfirmPasswordJoin(string password)
-    {
-        if (string.IsNullOrEmpty(selectedLobbyIdForPopup)) return;
-
-        _ = JoinLobbyById(selectedLobbyIdForPopup, password);
-    }
-
-    /// <summary>비밀번호 팝업 취소 요청을 받아 겨냥 중이던 로비를 놓는다.</summary>
-    public void CancelPasswordJoin()
-    {
-        selectedLobbyIdForPopup = "";
+        Log.D($"[JOIN] '{lobby.Name}' 방 입장을 시도한다.");
+        _ = JoinLobbyById(lobby.Id, password);
     }
 
     /// <summary>세션 종료 통지를 받아 목록을 새로 받는다. 화면 복귀는 UIMenuManager 몫이다.</summary>
@@ -222,7 +200,7 @@ public class LobbyManager : MonoBehaviour
             availableLobbies = queryResponse.Results;
             Log.D($"[REFRESH] Found {availableLobbies.Count} lobbies");
 
-            uiLobby.ShowLobbyList(availableLobbies);
+            roomListPanel.ShowLobbyList(availableLobbies);
         }
         catch (Exception e)
         {
@@ -244,7 +222,7 @@ public class LobbyManager : MonoBehaviour
         }
 
         isRefreshButtonOnCooldown = true;
-        uiLobby.SetRefreshInteractable(false);
+        roomListPanel.SetRefreshInteractable(false);
 
         await RefreshLobbyList();
 
@@ -263,7 +241,7 @@ public class LobbyManager : MonoBehaviour
         if (this == null) return; // 오브젝트가 파괴된 경우 방어
 
         isRefreshButtonOnCooldown = false;
-        uiLobby.SetRefreshInteractable(true);
+        roomListPanel.SetRefreshInteractable(true);
     }
 
     #endregion
@@ -285,11 +263,11 @@ public class LobbyManager : MonoBehaviour
         if (ContainsForbiddenWord(lobbyName, out string matchedWord))
         {
             Log.W($"[CREATE] 방 제목에 금칙어가 포함돼 생성이 차단됐다: '{matchedWord}'", this);
-            uiLobby.SetForbiddenWordWarning(true);
+            createContent.SetForbiddenWordWarning(true);
             return;
         }
 
-        uiLobby.SetForbiddenWordWarning(false);
+        createContent.SetForbiddenWordWarning(false);
 
         try
         {
@@ -298,11 +276,12 @@ public class LobbyManager : MonoBehaviour
         }
         catch (Exception e)
         {
-            Log.E($"Failed to create lobby: {e.Message}", this);
+            // SessionStarted 구독자에서 터진 예외도 여기로 올라온다 — 원인 줄을 잃지 않게 스택째 남긴다
+            Log.E($"Failed to create lobby: {e}", this);
         }
     }
 
-    /// <summary>ID 로 방 입장을 요청한다. 실패하면 비밀번호 경고를 띄운다.</summary>
+    /// <summary>ID 로 방 입장을 요청한다. 실패하면 열려 있는 셀의 비밀번호 입력창을 흔든다.</summary>
     /// <param name="lobbyId">대상 로비 ID</param>
     /// <param name="password">입력된 비밀번호</param>
     /// <returns>입장 완료를 기다리는 Task</returns>
@@ -310,14 +289,8 @@ public class LobbyManager : MonoBehaviour
     {
         LobbySession.JoinResult result = await session.JoinByIdAsync(lobbyId, password);
 
-        if (result != LobbySession.JoinResult.Success)
-        {
-            uiLobby.SetPasswordWarning(true);
-            return;
-        }
-
-        // 성공 시 팝업 정리·화면 전환(SessionStarted)은 UIMenuManager 가 처리한다
-        selectedLobbyIdForPopup = "";
+        // 성공 시 UI 정리·화면 전환(SessionStarted)은 UIMenuManager 가 처리한다
+        if (result != LobbySession.JoinResult.Success) roomListPanel.RejectPassword();
     }
 
     #endregion

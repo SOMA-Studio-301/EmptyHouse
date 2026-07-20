@@ -1,8 +1,10 @@
 using System;
 using Border.Core;
+using Border.Localization;
 using UnityEngine;
 using UnityEngine.UI;
 using Steamworks;
+using TMPro;
 
 /// <summary>
 /// 방 유저 슬롯 뷰. 유저 정보/빈 슬롯 표시를 전환하고, 빈 슬롯 클릭(친구 초대) 의도만 이벤트로 올린다.
@@ -10,6 +12,12 @@ using Steamworks;
 /// </summary>
 public class UserPanel : MonoBehaviour
 {
+    // TODO: 실제 로컬라이즈 키 확정 시 교체
+    [LocalizeKey] public string DriverRoleKey;       // 방장 역할 라벨 키
+    [LocalizeKey] public string PassengerRoleKey; // 일반 참가자 역할 라벨 키
+    [LocalizeKey] public string ReadyKey;         // 준비 완료 라벨 키
+    [LocalizeKey] public string NotReadyKey;      // 준비 미완료 라벨 키
+
     /// <summary>발행: 빈 슬롯 클릭(친구 초대). 채워진 슬롯에서는 발행하지 않는다.</summary>
     public event Action InviteClicked;
 
@@ -18,9 +26,9 @@ public class UserPanel : MonoBehaviour
     [SerializeField] private GameObject userContent;  // 유저 정보용 패널
 
     [Header("User UI Elements")]
-    [SerializeField] private Text nameText;
-    [SerializeField] private Text hostText;
-    [SerializeField] private Text readyText;
+    [SerializeField] private UILocalizeText roleText; // 방장/참가자 역할 라벨
+    [SerializeField] private TMP_Text nameText;
+    [SerializeField] private UILocalizeText readyText; // 준비 상태 라벨
     [SerializeField] private RawImage avatarImage;       // 아바타를 그릴 RawImage
     [SerializeField] private UIGenericButton slotButton; // 슬롯 전체를 덮는 초대 버튼
 
@@ -55,11 +63,11 @@ public class UserPanel : MonoBehaviour
         userContent.SetActive(true);
 
         nameText.text = playerName;
-        hostText.text = isHost ? "Host" : "";
+        roleText.SetKey(isHost ? DriverRoleKey : PassengerRoleKey);
 
         // 방장은 항상 준비 상태로 취급하므로 Ready 라벨 자체를 숨긴다
         readyText.gameObject.SetActive(!isHost);
-        readyText.text = isReady ? "Ready" : "Not Ready";
+        readyText.SetKey(isReady ? ReadyKey : NotReadyKey);
 
         LoadSteamAvatar(steamId);
     }

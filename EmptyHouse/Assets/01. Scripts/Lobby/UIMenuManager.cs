@@ -16,8 +16,10 @@ public class UIMenuManager : MonoBehaviour
 
     [Header("Views")]
     [SerializeField] private UIMenu menuPanel;   // 메뉴 패널 뷰
-    [SerializeField] private UILobby lobbyPanel; // 로비 패널 뷰
-    [SerializeField] private UIRoom roomPanel;   // 방 패널 뷰
+    [SerializeField] private UILobby lobbyPanel; // 로비 패널 뷰. 방 화면은 이 뷰가 자식으로 품는다
+
+    [Header("Input")]
+    [SerializeField] private InputReader inputReader; // ESC(UI/Cancel) 수신. 입력 소스는 이 매니저만 안다
 
     [Header("Managers")]
     [SerializeField] private LobbyManager lobbyManager; // 로비 목록 프레젠터
@@ -30,9 +32,15 @@ public class UIMenuManager : MonoBehaviour
     private Tween menuFade;  // 캐싱된 메뉴 페이드. PlayForward = 표시, PlayBackward = 숨김
     private Tween lobbyFade; // 캐싱된 로비 페이드. 위와 동일
 
-    /// <summary>재사용할 페이드 트윈을 생성하고, 뷰 의도와 세션 이벤트를 배선한 뒤 초기 화면을 메뉴로 맞춘다.</summary>
+    /// <summary>
+    /// 재사용할 페이드 트윈을 생성하고, 뷰 의도와 세션 이벤트를 배선한 뒤 초기 화면을 메뉴로 맞춘다.
+    /// 이 씬에는 게임플레이 입력 주체가 없으므로 InputReader 의 액션맵을 UI 로 돌려놓는다.
+    /// </summary>
     private void OnEnable()
     {
+        inputReader.EnableUIInput();
+        inputReader.CancelEvent += HandleCancelInput;
+
         // 트윈 미리 제작해서 캐싱하기 - 메모리 절약/GC방지
         menuFade = CreateFade(menuCanvasGroup);
         lobbyFade = CreateFade(lobbyCanvasGroup);
@@ -49,7 +57,6 @@ public class UIMenuManager : MonoBehaviour
         // UI 활성화 설정
         menuPanel.gameObject.SetActive(true);
         lobbyPanel.gameObject.SetActive(false);
-        roomPanel.gameObject.SetActive(false);
 
         // 메뉴 패널 액션 설정
         menuPanel.StartClicked += EnableLobby;
@@ -59,14 +66,12 @@ public class UIMenuManager : MonoBehaviour
         lobbyPanel.CreateRequested += lobbyManager.RequestCreate;
         lobbyPanel.RefreshRequested += lobbyManager.RequestRefresh;
         lobbyPanel.LobbyJoinRequested += lobbyManager.RequestJoin;
-        lobbyPanel.PasswordJoinConfirmed += lobbyManager.ConfirmPasswordJoin;
-        lobbyPanel.PasswordJoinCancelled += lobbyManager.CancelPasswordJoin;
         lobbyPanel.BackButtonClicked += EnableMenu;
-        // 룸 패널 액션 설정
-        roomPanel.ReadyRequested += roomManager.RequestToggleReady;
-        roomPanel.StartRequested += roomManager.RequestStartGame;
-        roomPanel.ExitRequested += roomManager.RequestExitRoom;
-        roomPanel.InviteRequested += roomManager.OpenInviteOverlay;
+        // 룸 패널 액션 설정. 방 화면은 UILobby 가 품고 있어 의도도 UILobby 를 거쳐 올라온다
+        lobbyPanel.RoomReadyRequested += roomManager.RequestToggleReady;
+        lobbyPanel.RoomStartRequested += roomManager.RequestStartGame;
+        lobbyPanel.RoomExitRequested += roomManager.RequestExitRoom;
+        lobbyPanel.RoomInviteRequested += roomManager.OpenInviteOverlay;
 
         session.SessionStarted += HandleSessionStarted;
         session.SessionEnded += HandleSessionEnded;
@@ -75,23 +80,42 @@ public class UIMenuManager : MonoBehaviour
     /// <summary>배선을 해제한다.</summary>
     private void OnDisable()
     {
+        inputReader.CancelEvent -= HandleCancelInput;
+
         session.SessionStarted -= HandleSessionStarted;
         session.SessionEnded -= HandleSessionEnded;
 
-        roomPanel.ReadyRequested -= roomManager.RequestToggleReady;
-        roomPanel.StartRequested -= roomManager.RequestStartGame;
-        roomPanel.ExitRequested -= roomManager.RequestExitRoom;
-        roomPanel.InviteRequested -= roomManager.OpenInviteOverlay;
+        lobbyPanel.RoomReadyRequested -= roomManager.RequestToggleReady;
+        lobbyPanel.RoomStartRequested -= roomManager.RequestStartGame;
+        lobbyPanel.RoomExitRequested -= roomManager.RequestExitRoom;
+        lobbyPanel.RoomInviteRequested -= roomManager.OpenInviteOverlay;
 
         lobbyPanel.CreateRequested -= lobbyManager.RequestCreate;
         lobbyPanel.RefreshRequested -= lobbyManager.RequestRefresh;
         lobbyPanel.LobbyJoinRequested -= lobbyManager.RequestJoin;
-        lobbyPanel.PasswordJoinConfirmed -= lobbyManager.ConfirmPasswordJoin;
-        lobbyPanel.PasswordJoinCancelled -= lobbyManager.CancelPasswordJoin;
+        lobbyPanel.BackButtonClicked -= EnableMenu;
 
         menuPanel.StartClicked -= EnableLobby;
         menuPanel.SettingsClicked -= ShowSettings;
         menuPanel.ExitClicked -= ExitGame;
+    }
+
+    /// <summary>
+    /// ESC 입력을 처리한다. 설정 창이 최상위라 열려 있으면 그것부터 닫고 끝낸다.
+    /// 그 외에는 로비 뷰의 뒤로 가기로 넘긴다. 방 화면도 로비 뷰 자식이라 같은 경로를 탄다
+    /// (팝업 스택 → 방 이탈 → 메뉴). 메뉴 화면에서는 로비 뷰가 꺼져 있어 무시된다.
+    /// </summary>
+    private void HandleCancelInput()
+    {
+        if (menuPanel.IsSettingsOpen)
+        {
+            menuPanel.HideSettings();
+            return;
+        }
+
+        if (!lobbyPanel.gameObject.activeSelf) return;
+
+        lobbyPanel.Back();
     }
 
     /// <summary>메뉴 화면으로 전환한다. 전환 중 재호출되면 진행 중인 트윈의 방향만 뒤집힌다.</summary>
@@ -100,7 +124,6 @@ public class UIMenuManager : MonoBehaviour
         // UI 활성화 설정
         menuPanel.gameObject.SetActive(true);
         lobbyPanel.gameObject.SetActive(false);
-        roomPanel.gameObject.SetActive(false);
 
         menuFade.PlayForward();
         lobbyFade.PlayBackwards();
@@ -115,7 +138,6 @@ public class UIMenuManager : MonoBehaviour
         // UI 활성화 설정
         menuPanel.gameObject.SetActive(false);
         lobbyPanel.gameObject.SetActive(true);
-        roomPanel.gameObject.SetActive(false);
 
         lobbyFade.PlayForward();
         menuFade.PlayBackwards();
@@ -133,22 +155,22 @@ public class UIMenuManager : MonoBehaviour
         EnableLobby();
 
         lobbyPanel.ResetUI();
-        lobbyPanel.Hide();
-        roomPanel.Show();
+        lobbyPanel.ShowRoom();
     }
 
-    /// <summary>세션 종료를 받아 방 화면을 접고 로비 화면을 되살린다.</summary>
+    /// <summary>세션 종료를 받아 방 화면을 접고 목록 화면을 되살린다.</summary>
     private void HandleSessionEnded()
     {
-        roomPanel.Hide();
         lobbyPanel.ResetUI();
-        lobbyPanel.Show();
+        lobbyPanel.HideRoom();
     }
 
-    /// <summary>설정 화면을 연다. 추후 구현 예정.</summary>
+    /// <summary>설정 화면을 연다. 창의 수명은 메뉴 뷰가 소유한다.</summary>
     private void ShowSettings()
     {
-        Log.D("[UIMenuManager] ShowSettings (미구현)");
+        Log.D("[UIMenuManager] ShowSettings");
+
+        menuPanel.ShowSettings();
     }
 
     /// <summary>게임을 종료한다. 에디터에서는 플레이 모드를 멈춘다.</summary>

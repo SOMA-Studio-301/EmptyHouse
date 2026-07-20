@@ -277,18 +277,54 @@ MonoBehaviour:
       value: "\uB4A4\uB85C\uAC00\uAE30"
     - languageCode: tw
       value: "\u8FD4\u56DE"
+  - key: UI_LOBBY_BUS_NAME_PLACEHOLDER
+    translations:
+    - languageCode: cn
+      value: "\u8F93\u5165\u5DF4\u58EB\u540D\u79F0"
+    - languageCode: en
+      value: Enter bus name
+    - languageCode: jp
+      value: "\u30D0\u30B9\u540D\u3092\u5165\u529B"
+    - languageCode: ko
+      value: "\uBC84\uC2A4 \uC774\uB984 \uC785\uB825"
+    - languageCode: tw
+      value: "\u8F38\u5165\u5DF4\u58EB\u540D\u7A31"
   - key: UI_LOBBY_CREATE_ROOM
     translations:
     - languageCode: cn
-      value: "\u521B\u5EFA\u623F\u95F4"
+      value: "\u521B\u5EFA\u5DF4\u58EB"
     - languageCode: en
-      value: Create
+      value: Create Bus
     - languageCode: jp
-      value: "\u30EB\u30FC\u30E0\u4F5C\u6210"
+      value: "\u30D0\u30B9\u4F5C\u6210"
     - languageCode: ko
-      value: "\uBC29\uB9CC\uB4E4\uAE30"
+      value: "\uBC84\uC2A4 \uB9CC\uB4E4\uAE30"
     - languageCode: tw
-      value: "\u5EFA\u7ACB\u623F\u9593"
+      value: "\u5EFA\u7ACB\u5DF4\u58EB"
+  - key: UI_LOBBY_ENTER
+    translations:
+    - languageCode: cn
+      value: "\u52A0\u5165"
+    - languageCode: en
+      value: Join
+    - languageCode: jp
+      value: "\u53C2\u52A0"
+    - languageCode: ko
+      value: "\uC785\uC7A5"
+    - languageCode: tw
+      value: "\u52A0\u5165"
+  - key: UI_LOBBY_PASSWORD
+    translations:
+    - languageCode: cn
+      value: "\u5BC6\u7801"
+    - languageCode: en
+      value: Password
+    - languageCode: jp
+      value: "\u30D1\u30B9\u30EF\u30FC\u30C9"
+    - languageCode: ko
+      value: "\uBE44\uBC00\uBC88\uD638"
+    - languageCode: tw
+      value: "\u5BC6\u78BC"
   - key: UI_LOBBY_REFRESH
     translations:
     - languageCode: cn
@@ -530,6 +566,54 @@ MonoBehaviour:
       value: "\uD0C0\uC774\uD2C0\uB85C \uB3CC\uC544\uAC00\uAE30"
     - languageCode: tw
       value: "\u8FD4\u56DE\u6A19\u984C"
+  - key: UI_ROOM_DEPART
+    translations:
+    - languageCode: cn
+      value: "\u51FA\u53D1"
+    - languageCode: en
+      value: Depart
+    - languageCode: jp
+      value: "\u51FA\u767A"
+    - languageCode: ko
+      value: "\uCD9C\uBC1C"
+    - languageCode: tw
+      value: "\u51FA\u767C"
+  - key: UI_ROOM_DRIVER
+    translations:
+    - languageCode: cn
+      value: "\u53F8\u673A"
+    - languageCode: en
+      value: Driver
+    - languageCode: jp
+      value: "\u904B\u8EE2\u624B"
+    - languageCode: ko
+      value: "\uBC84\uC2A4 \uAE30\uC0AC"
+    - languageCode: tw
+      value: "\u53F8\u6A5F"
+  - key: UI_ROOM_PASSENGER
+    translations:
+    - languageCode: cn
+      value: "\u4E58\u5BA2"
+    - languageCode: en
+      value: Passenger
+    - languageCode: jp
+      value: "\u4E57\u5BA2"
+    - languageCode: ko
+      value: "\uC2B9\uAC1D"
+    - languageCode: tw
+      value: "\u4E58\u5BA2"
+  - key: UI_ROOM_READY
+    translations:
+    - languageCode: cn
+      value: "\u51C6\u5907"
+    - languageCode: en
+      value: Ready
+    - languageCode: jp
+      value: "\u6E96\u5099\u5B8C\u4E86"
+    - languageCode: ko
+      value: "\uC900\uBE44"
+    - languageCode: tw
+      value: "\u6E96\u5099"
   - key: UI_TITLE_CONTINUE
     translations:
     - languageCode: cn

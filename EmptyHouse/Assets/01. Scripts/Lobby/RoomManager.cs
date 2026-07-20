@@ -147,7 +147,7 @@ public class RoomManager : MonoBehaviour
         _ = StartGame();
     }
 
-    /// <summary>방 나가기 요청을 받는다. 게임 시작 중이면 버튼 잠금을 우회해도 막는다.</summary>
+    /// <summary>방 나가기 요청을 받는다. 게임 시작 중이거나 정리 중이면 무시한다(ESC 연타 방어).</summary>
     public void RequestExitRoom()
     {
         if (isStartingGame) return;
@@ -155,7 +155,6 @@ public class RoomManager : MonoBehaviour
 
         isInRoom = false;
         CancelLobbyPolling();
-        uiRoom.SetExitInteractable(false);
 
         _ = session.LeaveAsync();
     }
@@ -278,7 +277,7 @@ public class RoomManager : MonoBehaviour
         }
         catch (Exception e)
         {
-            Log.E($"[ROOM] 일반 에러: {e.Message}", this);
+            Log.E($"[ROOM] 일반 에러: {e}", this); // 폴링 응답이 UI 를 건드리다 터지는 경우가 있어 원인 줄을 남긴다
         }
         finally
         {
@@ -297,6 +296,10 @@ public class RoomManager : MonoBehaviour
     private void UpdateRoomUI()
     {
         if (!session.IsInSession) return;
+
+        // 게스트는 StartGame 을 타지 않아 씬 언로드와 폴링 응답이 겹칠 수 있다.
+        // 선택적 의존이라서가 아니라 수명이 끝났는지 보는 것 — PollLobbyData 의 `this == null` 가드와 같은 계열이다
+        if (uiRoom == null) return;
 
         uiRoom.ShowPlayers(BuildSlots());
         UpdateInteractionButtons();
@@ -398,8 +401,10 @@ public class RoomManager : MonoBehaviour
         if (isStartingGame) return;
 
         isStartingGame = true;
-        uiRoom.SetStartInteractable(false);
-        uiRoom.SetExitInteractable(false); // Start 누르는 순간 Exit 잠금
+        uiRoom.SetStartInteractable(false); // 이탈은 RequestExitRoom 의 isStartingGame 가드가 막는다
+
+        // 시작이 확정되면 방 UI 갱신은 의미가 없다. 씬이 언로드된 뒤 응답이 돌아와 파괴된 위젯을 건드리는 것을 막는다
+        CancelLobbyPolling();
 
         sfxEventChannel.RaisePlayEvent(gameStartAudioId, transform.position);
 
@@ -414,7 +419,6 @@ public class RoomManager : MonoBehaviour
             Log.E($"[ROOM] 게임 시작 실패: {e.Message}", this);
             isStartingGame = false;
             uiRoom.SetStartInteractable(true);
-            uiRoom.SetExitInteractable(true);
         }
     }
 
