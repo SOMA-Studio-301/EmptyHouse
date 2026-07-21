@@ -15,51 +15,30 @@ using UnityEngine;
 [RequireComponent(typeof(PlayerReturn))]
 public class PlayerSpectatorController : NetworkBehaviour
 {
-    /// <summary>관전 진입 시 발행할 클라 상태 채널. Spectating 을 실어 ClientGameManager 가 입력 모드를 전환한다.</summary>
     [Header("State")]
-    [SerializeField] private GameStateEventChannelSO gameStateChanged;
+    [SerializeField] private GameStateEventChannelSO gameStateChanged; // 관전 진입 시 발행할 클라 상태 채널. Spectating 을 실어 ClientGameManager 가 입력 모드를 전환한다
 
-    /// <summary>관전 입력 소스. 마우스 Look(궤도 회전)·Next/Previous(대상 순환)를 여기서 받는다. PlayerController 와 같은 SO 를 참조한다.</summary>
     [Header("Input")]
-    [SerializeField] private InputReader inputReader;
+    [SerializeField] private InputReader inputReader; // 관전 입력 소스. 마우스 Look(궤도 회전)·Next/Previous(대상 순환) 수신. PlayerController 와 같은 SO
 
-    /// <summary>대상 중심에서 카메라까지의 거리(m). 대상을 뒤에서 보는 3인칭이지 1인칭 승계가 아니다. ⚪ 플레이테스트 튜닝값.</summary>
+    [Header("Spectator UI")]
+    [SerializeField] private SpectatorEventChannelSO spectator; // 관전 HUD 양방향 채널. 대상 변경 발행 · HUD 좌우 버튼 순환 요청 수신(←/→ 키와 같은 경로)
+
     [Header("Spectator Camera")]
-    [SerializeField] private float orbitDistance = 3.5f;
+    [SerializeField] private float orbitDistance = 3.5f;   // 대상 중심에서 카메라까지의 거리(m). 3인칭이지 1인칭 승계가 아니다. ⚪ 튜닝값
+    [SerializeField] private float orbitHeight = 1.5f;     // 궤도 중심을 대상 발밑에서 올릴 높이(m). 대상 몸통을 겨눈다. ⚪ 튜닝값
+    [SerializeField] private float lookSensitivity = 0.1f; // 마우스 Look 델타 → 궤도 회전 각도 배율. PlayerController 시선 감도와 맞춘다. ⚪ 튜닝값
+    [SerializeField] private float pitchClamp = 80f;       // 궤도 피치 상한(도). ±값으로 제한해 카메라가 뒤집히지 않게 한다. ⚪ 튜닝값
+    [SerializeField] private float initialPitch = 10f;     // 대상 전환 직후의 초기 하향 피치(도). 살짝 내려다본 상태로 시작한다. ⚪ 튜닝값
 
-    /// <summary>궤도 중심을 대상 발밑에서 얼마나 올릴지(m). 대상 몸통을 겨눈다. ⚪ 튜닝값.</summary>
-    [SerializeField] private float orbitHeight = 1.5f;
-
-    /// <summary>마우스 Look 델타 → 궤도 회전 각도 배율. PlayerController 시선 감도와 맞춘다. ⚪ 튜닝값.</summary>
-    [SerializeField] private float lookSensitivity = 0.1f;
-
-    /// <summary>궤도 피치 상한(도). ±값으로 위아래를 제한해 카메라가 뒤집히지 않게 한다. ⚪ 튜닝값.</summary>
-    [SerializeField] private float pitchClamp = 80f;
-
-    /// <summary>대상 전환 직후의 초기 하향 피치(도). 대상을 살짝 내려다본 상태로 시작한다. ⚪ 튜닝값.</summary>
-    [SerializeField] private float initialPitch = 10f;
-
-    // 사망 상태 소스. 같은 프리팹의 형제 컴포넌트다.
-    private PlayerDeathHandler deathHandler;
-
-    // 귀환 상태 소스. 같은 프리팹의 형제 컴포넌트다.
-    private PlayerReturn playerReturn;
-
-    // 현재 관전 대상 인덱스. 생존자 순환의 커서다.
-    private int currentTargetIndex;
-
-    // 관전 중 여부. Look/Next/Previous 소비와 카메라 추적을 관전 상태로만 게이팅한다.
-    private bool isSpectating;
-
-    // 현재 관전 대상. LateUpdate 가 이 대상의 위치를 매 프레임 추적한다.
-    private NetworkObject currentTarget;
-
-    // 궤도 각도 — 마우스 Look 이 누적한다. yaw 는 대상 주위 수평각, pitch 는 상하각.
-    private float orbitYaw;
-    private float orbitPitch;
-
-    // 관전 카메라 트랜스폼. EnterSpectate 에서 Camera.main 을 캐시한다(매 프레임 Camera.main 조회 회피).
-    private Transform spectatorCamera;
+    private PlayerDeathHandler deathHandler; // 사망 상태 소스. 같은 프리팹의 형제 컴포넌트
+    private PlayerReturn playerReturn;       // 귀환 상태 소스. 같은 프리팹의 형제 컴포넌트
+    private int currentTargetIndex;          // 현재 관전 대상 인덱스. 생존자 순환의 커서
+    private bool isSpectating;               // 관전 중 여부. Look/Next/Previous 소비와 카메라 추적을 관전 상태로만 게이팅한다
+    private NetworkObject currentTarget;     // 현재 관전 대상. LateUpdate 가 매 프레임 위치를 추적한다
+    private float orbitYaw;                  // 궤도 수평각(도). 마우스 Look 이 누적한다
+    private float orbitPitch;                // 궤도 상하각(도). 마우스 Look 이 누적하고 pitchClamp 로 제한된다
+    private Transform spectatorCamera;       // 관전 카메라 트랜스폼. EnterSpectate 에서 Camera.main 을 캐시(매 프레임 조회 회피)
 
     /// <summary>형제 PlayerDeathHandler·PlayerReturn 참조를 캐시한다.</summary>
     private void Awake()
@@ -78,6 +57,7 @@ public class PlayerSpectatorController : NetworkBehaviour
         inputReader.LookEvent += OnLook;
         inputReader.NextEvent += OnNext;
         inputReader.PreviousEvent += OnPrevious;
+        spectator.OnCycleRequested += HandleCycleRequested;
     }
 
     /// <summary>비활성 상태·관전 입력 구독을 해제한다. OnNetworkSpawn 과 짝을 맞춘다.</summary>
@@ -90,6 +70,7 @@ public class PlayerSpectatorController : NetworkBehaviour
         inputReader.LookEvent -= OnLook;
         inputReader.NextEvent -= OnNext;
         inputReader.PreviousEvent -= OnPrevious;
+        spectator.OnCycleRequested -= HandleCycleRequested;
     }
 
     /// <summary>관전 중 매 프레임 대상의 현재 위치를 추적해 궤도 카메라를 갱신한다. 대상 이동을 반영하려 LateUpdate 에서 처리한다.</summary>
@@ -125,6 +106,15 @@ public class PlayerSpectatorController : NetworkBehaviour
         if (!isSpectating) return;
 
         CycleTarget(-1);
+    }
+
+    /// <summary>관전 HUD 좌우 버튼의 순환 요청을 받아 대상을 바꾼다. ←/→ 키와 동일한 경로다. 관전 중에만 반응한다.</summary>
+    /// <param name="direction">순환 방향(+1 다음 / -1 이전).</param>
+    private void HandleCycleRequested(int direction)
+    {
+        if (!isSpectating) return;
+
+        CycleTarget(direction);
     }
 
     /// <summary>
@@ -195,6 +185,9 @@ public class PlayerSpectatorController : NetworkBehaviour
         orbitYaw = target.transform.eulerAngles.y;
         orbitPitch = initialPitch;
         PositionCamera();
+
+        // 관전 HUD 가 대상 닉네임을 갱신할 수 있도록 방송한다. HUD 는 폰을 직접 참조하지 않는다.
+        spectator.RaiseTargetChanged(target.OwnerClientId);
     }
 
     /// <summary>궤도 각도(yaw/pitch)와 대상 위치로 카메라를 대상 뒤 3인칭에 배치한다.</summary>

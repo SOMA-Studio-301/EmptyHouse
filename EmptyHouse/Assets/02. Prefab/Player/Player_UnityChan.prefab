@@ -27,6 +27,7 @@ GameObject:
   - component: {fileID: 7697173771500124627}
   - component: {fileID: 6212539197787962726}
   - component: {fileID: 910000000000000002}
+  - component: {fileID: 8607324735264274788}
   m_Layer: 0
   m_Name: Player_UnityChan
   m_TagString: Untagged
@@ -317,6 +318,7 @@ MonoBehaviour:
   ShowTopMostFoldoutHeaderGroup: 1
   gameStateChanged: {fileID: 11400000, guid: 7f1e63d814caec84581f1352109175df, type: 2}
   inputReader: {fileID: 11400000, guid: eaa08e0560934b24b9f7d5f7d9f863dd, type: 2}
+  spectator: {fileID: 11400000, guid: 5f392c62579d2504a86ae2161d8ebfb5, type: 2}
   orbitDistance: 3.5
   orbitHeight: 1.5
   lookSensitivity: 0.1
@@ -435,7 +437,7 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: c1f48fbd7d4b4d33a5a1c7e6b7f10002, type: 3}
-  m_Name:
+  m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::PlayerDisguise
   ShowTopMostFoldoutHeaderGroup: 1
   inputReader: {fileID: 11400000, guid: eaa08e0560934b24b9f7d5f7d9f863dd, type: 2}
@@ -443,6 +445,19 @@ MonoBehaviour:
   disguiseRefillRequested: {fileID: 11400000, guid: c1f48fbd7d4b4d33a5a1c7e6b7f10006, type: 2}
   maxGauge: 100
   drainPerSecond: 10
+--- !u!114 &8607324735264274788
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2490874660187570032}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: abc1c492ff2e71d4fa47b2944c04714f, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::PlayerIdentity
+  ShowTopMostFoldoutHeaderGroup: 1
 --- !u!1 &2490874660187570100
 GameObject:
   m_ObjectHideFlags: 0

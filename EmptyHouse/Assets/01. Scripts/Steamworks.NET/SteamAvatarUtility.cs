@@ -28,6 +28,33 @@ public static class SteamAvatarUtility
         }
     }
 
+    /// <summary>
+    /// 해당 스팀 ID의 아바타를 지금 그릴 수 있는지 본다. 아직이면 스팀에 유저 정보 요청을 걸어 둔다.
+    /// 스팀 미초기화·ID 없음처럼 애초에 기다릴 대상이 아니면 true 로 취급한다.
+    /// </summary>
+    /// <param name="steamId">대상 스팀 ID 문자열.</param>
+    /// <returns>더 기다릴 필요가 없으면 true, 이미지 도착 대기 중이면 false.</returns>
+    public static bool IsAvatarReady(string steamId)
+    {
+        if (!SteamManager.Initialized || !ulong.TryParse(steamId, out ulong steamIdValue)) return true;
+
+        try
+        {
+            CSteamID targetId = new CSteamID(steamIdValue);
+
+            // -1 은 "이미지가 아직 안 왔다"는 뜻. 0(아바타 없음)이나 유효 핸들은 더 기다릴 게 없다
+            if (SteamFriends.GetMediumFriendAvatar(targetId) != -1) return true;
+
+            SteamFriends.RequestUserInformation(targetId, false); // 아바타까지 받아오도록 요청만 걸어 둔다
+            return false;
+        }
+        catch (Exception e)
+        {
+            Log.E($"[SteamAvatarUtility] 아바타 준비 상태 확인 중 예외 발생: {e.Message}");
+            return true;
+        }
+    }
+
     /// <summary>스팀 이미지 핸들에서 상하 반전을 보정한 텍스처를 만든다.</summary>
     /// <param name="avatarHandle">스팀 이미지 핸들.</param>
     /// <returns>생성된 텍스처. 핸들 무효·크기 조회 실패면 null.</returns>
