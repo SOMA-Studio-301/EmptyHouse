@@ -11,11 +11,12 @@ public sealed class ZombiePerceptionSource : NetworkBehaviour, IZombiePerception
     [SerializeField] private Transform eyeAnchor;
     [SerializeField] private Transform flashlightAimAnchor;
     [SerializeField] private PlayerDeathHandler deathHandler; // 같은 프리팹의 사망 권위 — IsSpectator 를 여기서 직접 읽는다
+    [SerializeField] private DisguiseStateChangedEventChannelSO disguiseStateChanged;
     [SerializeField, Min(0f)] private float movingSpeedThreshold = 0.05f;
     [SerializeField, Range(0f, 90f)] private float flashlightAimTolerance = 10f;
 
     [Header("Server-owned perception flags")]
-    [SerializeField] private bool isDisguised;
+    private bool isDisguised;
     [SerializeField] private bool isCrouching;
     [SerializeField] private bool isFlashlightActive;
 
@@ -35,6 +36,15 @@ public sealed class ZombiePerceptionSource : NetworkBehaviour, IZombiePerception
         previousPosition = transform.position;
         if (!IsServer) return;
 
+        if (disguiseStateChanged == null)
+        {
+            Debug.LogError($"[{nameof(ZombiePerceptionSource)}] Disguise state channel is not assigned on {name}.", this);
+            enabled = false;
+            return;
+        }
+
+        disguiseStateChanged.OnEventRaised += HandleDisguiseStateChanged;
+
         if (runtimeRegistry == null)
         {
             Debug.LogError($"[{nameof(ZombiePerceptionSource)}] Runtime registry is not assigned on {name}.", this);
@@ -47,7 +57,16 @@ public sealed class ZombiePerceptionSource : NetworkBehaviour, IZombiePerception
 
     public override void OnNetworkDespawn()
     {
+        if (disguiseStateChanged != null)
+            disguiseStateChanged.OnEventRaised -= HandleDisguiseStateChanged;
+
         runtimeRegistry?.UnregisterPerceptionSource(this);
+    }
+
+    private void HandleDisguiseStateChanged(DisguiseStateChangedEvent evt)
+    {
+        if (!IsServer || evt.PlayerNetworkObjectId != NetworkObjectId) return;
+        isDisguised = evt.IsDisguised;
     }
 
     private void FixedUpdate()
@@ -68,7 +87,6 @@ public sealed class ZombiePerceptionSource : NetworkBehaviour, IZombiePerception
         return Vector3.Angle(flashlightAimAnchor.forward, direction) <= flashlightAimTolerance;
     }
 
-    public void ServerSetDisguised(bool value) { if (IsServer) isDisguised = value; }
     public void ServerSetCrouching(bool value) { if (IsServer) isCrouching = value; }
     public void ServerSetFlashlightActive(bool value) { if (IsServer) isFlashlightActive = value; }
 }

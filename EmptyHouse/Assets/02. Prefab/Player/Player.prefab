@@ -26,6 +26,7 @@ GameObject:
   - component: {fileID: 3727432936774746135}
   - component: {fileID: 5351568001240086071}
   - component: {fileID: 5582944470091195495}
+  - component: {fileID: 910000000000000001}
   m_Layer: 0
   m_Name: Player
   m_TagString: Untagged
@@ -411,11 +412,26 @@ MonoBehaviour:
   eyeAnchor: {fileID: 0}
   flashlightAimAnchor: {fileID: 0}
   deathHandler: {fileID: 5679039205233311701}
+  disguiseStateChanged: {fileID: 11400000, guid: c1f48fbd7d4b4d33a5a1c7e6b7f10003, type: 2}
   movingSpeedThreshold: 0.05
   flashlightAimTolerance: 10
-  isDisguised: 0
   isCrouching: 0
   isFlashlightActive: 0
+--- !u!114 &910000000000000001
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2490874660187570032}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: c1f48fbd7d4b4d33a5a1c7e6b7f10002, type: 3}
+  m_Name:
+  m_EditorClassIdentifier: Assembly-CSharp::PlayerDisguise
+  ShowTopMostFoldoutHeaderGroup: 1
+  inputReader: {fileID: 11400000, guid: eaa08e0560934b24b9f7d5f7d9f863dd, type: 2}
+  disguiseStateChanged: {fileID: 11400000, guid: c1f48fbd7d4b4d33a5a1c7e6b7f10003, type: 2}
 --- !u!114 &5351568001240086071
 MonoBehaviour:
   m_ObjectHideFlags: 0

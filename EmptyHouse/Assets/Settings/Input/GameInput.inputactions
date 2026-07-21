@@ -122,6 +122,15 @@
                     "processors": "",
                     "interactions": "",
                     "initialStateCheck": false
+                },
+                {
+                    "name": "Disguise",
+                    "type": "Button",
+                    "id": "8a6f1d24-37c9-4eb2-a10d-62e3915f4801",
+                    "expectedControlType": "Button",
+                    "processors": "",
+                    "interactions": "",
+                    "initialStateCheck": false
                 }
             ],
             "bindings": [
@@ -419,6 +428,17 @@
                     "processors": "",
                     "groups": "Keyboard&Mouse",
                     "action": "Drop",
+                    "isComposite": false,
+                    "isPartOfComposite": false
+                },
+                {
+                    "name": "",
+                    "id": "8a6f1d24-37c9-4eb2-a10d-62e3915f4802",
+                    "path": "<Keyboard>/v",
+                    "interactions": "",
+                    "processors": "",
+                    "groups": "Keyboard&Mouse",
+                    "action": "Disguise",
                     "isComposite": false,
                     "isPartOfComposite": false
                 },

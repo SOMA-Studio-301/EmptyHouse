@@ -208,6 +208,15 @@ public partial class @GameInput: IInputActionCollection2, IDisposable
                     ""processors"": """",
                     ""interactions"": """",
                     ""initialStateCheck"": false
+                },
+                {
+                    ""name"": ""Disguise"",
+                    ""type"": ""Button"",
+                    ""id"": ""8a6f1d24-37c9-4eb2-a10d-62e3915f4801"",
+                    ""expectedControlType"": ""Button"",
+                    ""processors"": """",
+                    ""interactions"": """",
+                    ""initialStateCheck"": false
                 }
             ],
             ""bindings"": [
@@ -505,6 +514,17 @@ public partial class @GameInput: IInputActionCollection2, IDisposable
                     ""processors"": """",
                     ""groups"": ""Keyboard&Mouse"",
                     ""action"": ""Drop"",
+                    ""isComposite"": false,
+                    ""isPartOfComposite"": false
+                },
+                {
+                    ""name"": """",
+                    ""id"": ""8a6f1d24-37c9-4eb2-a10d-62e3915f4802"",
+                    ""path"": ""<Keyboard>/v"",
+                    ""interactions"": """",
+                    ""processors"": """",
+                    ""groups"": ""Keyboard&Mouse"",
+                    ""action"": ""Disguise"",
                     ""isComposite"": false,
                     ""isPartOfComposite"": false
                 },
@@ -1292,6 +1312,7 @@ public partial class @GameInput: IInputActionCollection2, IDisposable
         m_Gameplay_Next = m_Gameplay.FindAction("Next", throwIfNotFound: true);
         m_Gameplay_Previous = m_Gameplay.FindAction("Previous", throwIfNotFound: true);
         m_Gameplay_Drop = m_Gameplay.FindAction("Drop", throwIfNotFound: true);
+        m_Gameplay_Disguise = m_Gameplay.FindAction("Disguise", throwIfNotFound: true);
         // UI
         m_UI = asset.FindActionMap("UI", throwIfNotFound: true);
         m_UI_Navigate = m_UI.FindAction("Navigate", throwIfNotFound: true);
@@ -1398,6 +1419,7 @@ public partial class @GameInput: IInputActionCollection2, IDisposable
     private readonly InputAction m_Gameplay_Next;
     private readonly InputAction m_Gameplay_Previous;
     private readonly InputAction m_Gameplay_Drop;
+    private readonly InputAction m_Gameplay_Disguise;
     /// <summary>
     /// Provides access to input actions defined in input action map "Gameplay".
     /// </summary>
@@ -1461,6 +1483,10 @@ public partial class @GameInput: IInputActionCollection2, IDisposable
         /// Provides access to the underlying input action "Gameplay/Drop".
         /// </summary>
         public InputAction @Drop => m_Wrapper.m_Gameplay_Drop;
+        /// <summary>
+        /// Provides access to the underlying input action "Gameplay/Disguise".
+        /// </summary>
+        public InputAction @Disguise => m_Wrapper.m_Gameplay_Disguise;
         /// <summary>
         /// Provides access to the underlying input action map instance.
         /// </summary>
@@ -1526,6 +1552,9 @@ public partial class @GameInput: IInputActionCollection2, IDisposable
             @Drop.started += instance.OnDrop;
             @Drop.performed += instance.OnDrop;
             @Drop.canceled += instance.OnDrop;
+            @Disguise.started += instance.OnDisguise;
+            @Disguise.performed += instance.OnDisguise;
+            @Disguise.canceled += instance.OnDisguise;
         }
 
         /// <summary>
@@ -1576,6 +1605,9 @@ public partial class @GameInput: IInputActionCollection2, IDisposable
             @Drop.started -= instance.OnDrop;
             @Drop.performed -= instance.OnDrop;
             @Drop.canceled -= instance.OnDrop;
+            @Disguise.started -= instance.OnDisguise;
+            @Disguise.performed -= instance.OnDisguise;
+            @Disguise.canceled -= instance.OnDisguise;
         }
 
         /// <summary>
@@ -1967,6 +1999,13 @@ public partial class @GameInput: IInputActionCollection2, IDisposable
         /// <seealso cref="UnityEngine.InputSystem.InputAction.performed" />
         /// <seealso cref="UnityEngine.InputSystem.InputAction.canceled" />
         void OnDrop(InputAction.CallbackContext context);
+        /// <summary>
+        /// Method invoked when associated input action "Disguise" is either <see cref="UnityEngine.InputSystem.InputAction.started" />, <see cref="UnityEngine.InputSystem.InputAction.performed" /> or <see cref="UnityEngine.InputSystem.InputAction.canceled" />.
+        /// </summary>
+        /// <seealso cref="UnityEngine.InputSystem.InputAction.started" />
+        /// <seealso cref="UnityEngine.InputSystem.InputAction.performed" />
+        /// <seealso cref="UnityEngine.InputSystem.InputAction.canceled" />
+        void OnDisguise(InputAction.CallbackContext context);
     }
     /// <summary>
     /// Interface to implement callback methods for all input action callbacks associated with input actions defined by "UI" which allows adding and removing callbacks.
