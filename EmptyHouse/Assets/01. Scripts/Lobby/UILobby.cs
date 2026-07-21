@@ -17,6 +17,9 @@ public class UILobby : MonoBehaviour
     [SerializeField] private UIGenericButton backButton; // 뒤로 가기 버튼(공용 헤더). ESC 와 같은 경로를 탄다
     [SerializeField] private TMP_Text subTitleText;      // 공용 헤더의 부제목. 떠 있는 서브뷰에 따라 갈아 끼운다
 
+    [Header("Broadcasting on")]
+    [SerializeField] private PopupEventChannelSO popupRequested; // 방 나가기 확인 팝업 요청
+
     [Header("Sub Views")]
     [SerializeField] private UIRoomList roomListPanel;      // 목록 화면(툴바 포함). 방에 들어가면 통째로 끈다
     [SerializeField] private UICreateContent createContent; // 방 만들기 팝업
@@ -91,10 +94,10 @@ public class UILobby : MonoBehaviour
             return;
         }
 
-        // TODO: 이탈 확인 팝업이 만들어지면 여기서 팝업을 띄우고, 확정 시 RoomExitRequested 를 올리도록 바꾼다
+        // 방은 오조작 이탈이 손해가 커 확인 팝업을 한 겹 둔다. 확인을 눌러야 이탈 의도가 올라간다
         if (roomPanel.gameObject.activeSelf)
         {
-            RoomExitRequested?.Invoke(); // 화면 복귀는 세션 종료 통지를 받은 UIMenuManager 가 HideRoom 으로 처리한다
+            popupRequested.RaiseEvent(PopupType.ExitRoom, RaiseRoomExitRequested);
             return;
         }
 
@@ -200,6 +203,12 @@ public class UILobby : MonoBehaviour
     private void RaiseRoomStartRequested()
     {
         RoomStartRequested?.Invoke();
+    }
+
+    /// <summary>방 이탈 의도를 매니저용 이벤트로 올린다. 확인 팝업의 확인 콜백으로 넘어간다.</summary>
+    private void RaiseRoomExitRequested()
+    {
+        RoomExitRequested?.Invoke(); // 화면 복귀는 세션 종료 통지를 받은 UIMenuManager 가 HideRoom 으로 처리한다
     }
 
     /// <summary>방 친구 초대 의도를 매니저용 이벤트로 올린다.</summary>

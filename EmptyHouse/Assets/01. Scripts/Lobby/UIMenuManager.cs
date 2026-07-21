@@ -17,6 +17,7 @@ public class UIMenuManager : MonoBehaviour
     [Header("Views")]
     [SerializeField] private UIMenu menuPanel;   // 메뉴 패널 뷰
     [SerializeField] private UILobby lobbyPanel; // 로비 패널 뷰. 방 화면은 이 뷰가 자식으로 품는다
+    [SerializeField] private UIPopup popupPanel; // 공용 확인 팝업. 수명은 스스로 관리하고 이 매니저는 ESC 우선순위만 준다
 
     [Header("Input")]
     [SerializeField] private InputReader inputReader; // ESC(UI/Cancel) 수신. 입력 소스는 이 매니저만 안다
@@ -101,12 +102,18 @@ public class UIMenuManager : MonoBehaviour
     }
 
     /// <summary>
-    /// ESC 입력을 처리한다. 설정 창이 최상위라 열려 있으면 그것부터 닫고 끝낸다.
+    /// ESC 입력을 처리한다. 공용 팝업이 가장 위라 떠 있으면 그것부터 닫고 끝낸다. 그다음이 설정 창이다.
     /// 그 외에는 로비 뷰의 뒤로 가기로 넘긴다. 방 화면도 로비 뷰 자식이라 같은 경로를 탄다
     /// (팝업 스택 → 방 이탈 → 메뉴). 메뉴 화면에서는 로비 뷰가 꺼져 있어 무시된다.
     /// </summary>
     private void HandleCancelInput()
     {
+        if (popupPanel.IsOpen)
+        {
+            popupPanel.Close();
+            return;
+        }
+
         if (menuPanel.IsSettingsOpen)
         {
             menuPanel.HideSettings();

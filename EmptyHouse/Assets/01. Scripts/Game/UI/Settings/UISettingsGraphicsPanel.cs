@@ -1,6 +1,7 @@
 using System.Collections.Generic;
 using UnityEngine;
 using Border.Events;
+using Border.Localization;
 using Border.Settings;
 
 /// <summary>
@@ -10,15 +11,17 @@ using Border.Settings;
 /// </summary>
 public class UISettingsGraphicsPanel : MonoBehaviour
 {
-    /// <summary>창 모드 드롭다운 표기. 순서는 SettingsGraphicsUtility 의 인덱스 상수(0 전체화면 / 1 창모드 / 2 테두리없는 창)와 일치해야 한다.</summary>
-    private static readonly string[] WindowModeNames = { "Fullscreen", "Windowed", "Borderless" };
-
     [Header("Save")]
     [SerializeField] private SaveLoadSystem saveLoadSystem;
 
     [Header("Dropdowns")]
     [SerializeField] private UISettingsDropdown resolutionDropdown;
     [SerializeField] private UISettingsDropdown windowModeDropdown;
+
+    [Header("Localization")]
+    [LocalizeKey][SerializeField] private string fullscreenKey = "UI_OPT_WINMODE_FULLSCREEN";  // 창 모드 0 — 전체화면
+    [LocalizeKey][SerializeField] private string windowedKey = "UI_OPT_WINMODE_WINDOWED";      // 창 모드 1 — 창모드
+    [LocalizeKey][SerializeField] private string borderlessKey = "UI_OPT_WINMODE_BORDERLESS";  // 창 모드 2 — 테두리없는 창
 
     [Header("Broadcasting on")]
     [SerializeField] private IntEventChannelSO changeResolutionEvent;
@@ -64,11 +67,20 @@ public class UISettingsGraphicsPanel : MonoBehaviour
         resolutionDropdown.AddOptions(options);
     }
 
-    /// <summary>창 모드 드롭다운 옵션을 채운다.</summary>
+    /// <summary>로컬라이즈 테이블에서 창 모드 표기를 읽어 드롭다운 옵션을 채운다. 추가 순서가 곧 SettingsGraphicsUtility 의 창 모드 인덱스(0/1/2)다.</summary>
     private void BuildWindowModeOptions()
     {
+        ILocalizationProvider localization = LocalizationManager.Current;
+
+        List<string> options = new List<string>(3)
+        {
+            localization.Get(fullscreenKey),
+            localization.Get(windowedKey),
+            localization.Get(borderlessKey),
+        };
+
         windowModeDropdown.ClearOptions();
-        windowModeDropdown.AddOptions(new List<string>(WindowModeNames));
+        windowModeDropdown.AddOptions(options);
     }
 
     /// <summary>해상도를 프로필에 쓰고 화면에 적용한 뒤 방송한다.</summary>

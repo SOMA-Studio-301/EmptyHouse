@@ -4,7 +4,9 @@ using UnityEngine;
 
 /// <summary>
 /// 상태 구동 화면 루트를 토글하는 매니저 — 퍼즈/설정(입력 구동)과 결과창(결과 방송 구동)을 소유
-/// 퍼즈/설정은 입력(PauseEvent/CancelEvent)과 화면 의도 이벤트를 받아 GameState(Pause/Game) 를 발행하고 패널을 연다.
+/// 퍼즈/설정은 입력(PauseEvent)과 화면 의도 이벤트를 받아 GameState(Pause/Game) 를 발행하고 패널을 연다.
+/// Cancel(Esc) 입력은 이 매니저만 소유한다 — 패널은 버튼만 담당하고, Esc 와 버튼은 같은 Resume/Close 경로로 합류한다.
+/// Cancel 구독은 Pause 상태 동안에만 살아 있다(퍼즈 진입 시 구독, 게임 복귀 시 해제). 설정 창도 Pause 안이라 그대로 유지된다.
 /// 결과창은 반대로 구독이다 — GameResultEventChannelSO 를 받아 결과 패널을 켜고 확정 사유를 UIResult 에 넘긴다.
 /// 결과의 GameState(Result) 발행은 같은 채널을 듣는 ClientGameManager 가 하므로 여기서는 상태를 발행하지 않는다(이중 발행 방지)
 /// 설정 창은 퍼즈 위에 겹치는 것이 아니라 퍼즈를 대체한다 — 두 화면은 동시에 켜지지 않으며 둘 다 Pause 상태에 속한다.
@@ -27,12 +29,12 @@ public class UIManager : MonoBehaviour
     [SerializeField] private UIPause pausePanel;
     [SerializeField] private UISettings settingsPanel;
     [SerializeField] private UIResult resultPanel;
+    [SerializeField] private UIPopup popupPanel; // 공용 확인 팝업. 수명은 스스로 관리하고 이 매니저는 Esc 우선순위만 준다
 
     /// <summary>입력·화면 의도 이벤트·결과 방송을 구독하고 모든 화면을 닫은 상태로 초기화한다. 씬 진입 상태는 결코 Pause 나 Result 가 아니다.</summary>
     private void OnEnable()
     {
         inputReader.PauseEvent += HandlePauseInput;
-        inputReader.CancelEvent += HandleCancelInput;
 
         pausePanel.ResumeRequested += ResumeGame;
         pausePanel.SettingsRequested += OpenSettings;
@@ -46,7 +48,10 @@ public class UIManager : MonoBehaviour
         resultPanel.gameObject.SetActive(false);
     }
 
-    /// <summary>구독을 해제한다. InputReader·이벤트 채널은 SO 라 씬 밖에서 살아남으므로 죽은 델리게이트를 남기지 않는다.</summary>
+    /// <summary>
+    /// 구독을 해제한다. InputReader·이벤트 채널은 SO 라 씬 밖에서 살아남으므로 죽은 델리게이트를 남기지 않는다.
+    /// Pause 상태에서 씬이 내려갈 수도 있으므로 Cancel 도 함께 떼어낸다(구독 중이 아니면 -= 는 무해하다).
+    /// </summary>
     private void OnDisable()
     {
         inputReader.PauseEvent -= HandlePauseInput;
@@ -60,11 +65,38 @@ public class UIManager : MonoBehaviour
         gameResultChanged.OnEventRaised -= HandleGameResult;
     }
 
-    /// <summary>Gameplay 맵의 Pause 입력을 받아 Pause 상태를 발행하고 퍼즈 패널을 연다.</summary>
+    /// <summary>
+    /// Gameplay 맵의 Pause 입력을 받아 Pause 상태를 발행하고 퍼즈 패널을 연다.
+    /// 이 시점부터 Esc 가 의미를 가지므로 Cancel 구독도 여기서 시작한다(해제는 <see cref="ResumeGame"/>).
+    /// Pause 중에는 Gameplay 맵이 꺼져 Pause 입력이 다시 들어오지 않으므로 중복 구독은 발생하지 않는다.
+    /// </summary>
     private void HandlePauseInput()
     {
         gameStateChanged.RaiseEvent(GameState.Pause);
         pausePanel.gameObject.SetActive(true);
+
+        inputReader.CancelEvent += HandleCancelInput;
+    }
+
+    /// <summary>
+    /// UI 맵의 Cancel 입력. 팝업이 최상위라 떠 있으면 그것부터 닫고, 설정 창이 열려 있으면 퍼즈로 한 단계만 되돌리고, 아니면 게임으로 복귀한다.
+    /// Pause 상태에서만 구독돼 있으므로 게임 중 Esc 로는 도달하지 않는다.
+    /// </summary>
+    private void HandleCancelInput()
+    {
+        if (popupPanel.IsOpen)
+        {
+            popupPanel.Close();
+            return;
+        }
+
+        if (settingsPanel.gameObject.activeSelf)
+        {
+            CloseSettings();
+            return;
+        }
+
+        ResumeGame();
     }
 
     /// <summary>
@@ -81,25 +113,15 @@ public class UIManager : MonoBehaviour
     }
 
     /// <summary>
-    /// UI 맵의 Cancel 입력. 설정 창이 열려 있으면 퍼즈로 한 단계만 되돌리고, 아니면 게임으로 복귀한다.
-    /// Pause 상태에서만 도달한다.
+    /// Game 상태를 발행하고 퍼즈 패널을 닫는다. Esc 복귀와 계속하기·뒤로가기 버튼이 함께 쓰는 유일한 경로다.
+    /// Pause 를 벗어나므로 <see cref="HandlePauseInput"/> 에서 건 Cancel 구독을 여기서 해제한다.
     /// </summary>
-    private void HandleCancelInput()
-    {
-        if (settingsPanel.gameObject.activeSelf)
-        {
-            CloseSettings();
-            return;
-        }
-
-        ResumeGame();
-    }
-
-    /// <summary>Game 상태를 발행하고 퍼즈 패널을 닫는다. Esc 복귀와 계속하기 버튼이 함께 쓰는 유일한 경로다.</summary>
     private void ResumeGame()
     {
         gameStateChanged.RaiseEvent(GameState.Game);
         pausePanel.gameObject.SetActive(false);
+
+        inputReader.CancelEvent -= HandleCancelInput;
     }
 
     /// <summary>
