@@ -199,7 +199,7 @@ MonoBehaviour:
   m_OnCullStateChanged:
     m_PersistentCalls:
       m_Calls: []
-  m_Sprite: {fileID: 21300000, guid: f4d1adca440ccad4d904f6ac703e4634, type: 3}
+  m_Sprite: {fileID: 3286163911610860551, guid: c8993417bf7a45241b3227dcf2f224da, type: 3}
   m_Type: 0
   m_PreserveAspect: 0
   m_FillCenter: 1
@@ -865,6 +865,14 @@ PrefabInstance:
       propertyPath: m_LocalEulerAnglesHint.z
       value: 0
       objectReference: {fileID: 0}
+    - target: {fileID: 2022852294894015646, guid: bbca1bbedd1178a459e212bc8b227aba, type: 3}
+      propertyPath: m_SizeDelta.x
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 2022852294894015646, guid: bbca1bbedd1178a459e212bc8b227aba, type: 3}
+      propertyPath: m_SizeDelta.y
+      value: 0
+      objectReference: {fileID: 0}
     - target: {fileID: 2066800645240657143, guid: bbca1bbedd1178a459e212bc8b227aba, type: 3}
       propertyPath: m_Name
       value: PasswordSlideField
@@ -1284,7 +1292,8 @@ PrefabInstance:
       propertyPath: m_fontColor32.rgba
       value: 4291617481
       objectReference: {fileID: 0}
-    m_RemovedComponents: []
+    m_RemovedComponents:
+    - {fileID: 9133578924384569489, guid: 85d3c76d8f8220644883d71b1c5370f0, type: 3}
     m_RemovedGameObjects: []
     m_AddedGameObjects: []
     m_AddedComponents:

@@ -30,6 +30,7 @@ public class UIPasswordSlideField : MonoBehaviour
     public string Password => passwordInput.text.Trim(); // 입력된 비밀번호
 
     private RectTransform inputRect; // 폭을 여닫는 입력창 RectTransform
+    private float openWidth;         // 펼쳤을 때 폭. 프리팹에 작성된 너비를 그대로 읽는다
     private Tween slideTween;        // 재사용하는 폭 트윈. PlayForward = 펼침, PlayBackwards = 접힘
     private Tween shakeTween;        // 경고 흔들기 트윈. 실패 시에만 만들어 쓴다
     private Tween warningTween;      // 경고 문구 페이드 아웃 트윈. 유지 시간만큼 지연 뒤 알파 1 → 0. warningText 미할당이면 null
@@ -40,10 +41,10 @@ public class UIPasswordSlideField : MonoBehaviour
         inputRect = passwordInput.GetComponent<RectTransform>();
 
         // 프리팹에 작성된 너비가 곧 열림 폭이다 — 코드에 폭 상수를 두지 않는다
-        Vector2 openSize = inputRect.sizeDelta;
-        inputRect.sizeDelta = new Vector2(0f, openSize.y);
+        openWidth = inputRect.sizeDelta.x;
+        SetInputWidth(0f);
 
-        slideTween = inputRect.DOSizeDelta(openSize, slideDuration)
+        slideTween = DOTween.To(() => inputRect.sizeDelta.x, SetInputWidth, openWidth, slideDuration)
             .SetAutoKill(false)
             .SetLink(gameObject)
             .SetUpdate(true)
@@ -55,6 +56,13 @@ public class UIPasswordSlideField : MonoBehaviour
         slideTween.Rewind();
 
         BuildWarningTween();
+    }
+
+    /// <summary>입력창 폭만 바꾼다. 세로는 stretch 오프셋이라 sizeDelta.y 를 건드리지 않는다.</summary>
+    /// <param name="width">적용할 폭(px)</param>
+    private void SetInputWidth(float width)
+    {
+        inputRect.sizeDelta = new Vector2(width, inputRect.sizeDelta.y);
     }
 
     /// <summary>
