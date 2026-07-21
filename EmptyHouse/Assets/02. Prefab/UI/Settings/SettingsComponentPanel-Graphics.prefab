@@ -297,6 +297,10 @@ PrefabInstance:
       propertyPath: m_Name
       value: SettingsComponentPanel-Graphics
       objectReference: {fileID: 0}
+    - target: {fileID: 5387860191725645794, guid: c2e42258e59b16d4883b68a4178395fd, type: 3}
+      propertyPath: m_IsActive
+      value: 0
+      objectReference: {fileID: 0}
     - target: {fileID: 5537595386452297476, guid: c2e42258e59b16d4883b68a4178395fd, type: 3}
       propertyPath: m_AnchorMax.x
       value: 0
@@ -421,6 +425,9 @@ MonoBehaviour:
   saveLoadSystem: {fileID: 11400000, guid: 60c2f10eb6c3bed4c9bcb10231fb16d6, type: 2}
   resolutionDropdown: {fileID: 3589732535827528690}
   windowModeDropdown: {fileID: 2021775245301245354}
+  fullscreenKey: UI_OPT_WINMODE_FULLSCREEN
+  windowedKey: UI_OPT_WINMODE_WINDOWED
+  borderlessKey: UI_OPT_WINMODE_BORDERLESS
   changeResolutionEvent: {fileID: 11400000, guid: 6ef97d0fce2742a469de3d1321ae40cd, type: 2}
 --- !u!224 &8668898562481964293 stripped
 RectTransform:

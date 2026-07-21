@@ -19,6 +19,13 @@ public class UIMenuManager : MonoBehaviour
     [SerializeField] private UILobby lobbyPanel; // 로비 패널 뷰. 방 화면은 이 뷰가 자식으로 품는다
     [SerializeField] private UIPopup popupPanel; // 공용 확인 팝업. 수명은 스스로 관리하고 이 매니저는 ESC 우선순위만 준다
 
+    [Header("Broadcasting on")]
+    [SerializeField] private PopupEventChannelSO popupRequested; // 발행: 게임 종료 확인 팝업 요청
+
+    [Header("Audio")]
+    [SerializeField] private SFXEventChannelSO sfxEventChannel;
+    [SerializeField] private AudioId cancelAudioId = AudioId.Sfx_Ui_TabClose; // ESC 로 한 겹 걷어낼 때의 입력 피드백
+
     [Header("Input")]
     [SerializeField] private InputReader inputReader; // ESC(UI/Cancel) 수신. 입력 소스는 이 매니저만 안다
 
@@ -62,7 +69,7 @@ public class UIMenuManager : MonoBehaviour
         // 메뉴 패널 액션 설정
         menuPanel.StartClicked += EnableLobby;
         menuPanel.SettingsClicked += ShowSettings;
-        menuPanel.ExitClicked += ExitGame;
+        menuPanel.ExitClicked += RequestExitGame;
         // 로비 패널 액션 설정
         lobbyPanel.CreateRequested += lobbyManager.RequestCreate;
         lobbyPanel.RefreshRequested += lobbyManager.RequestRefresh;
@@ -98,16 +105,23 @@ public class UIMenuManager : MonoBehaviour
 
         menuPanel.StartClicked -= EnableLobby;
         menuPanel.SettingsClicked -= ShowSettings;
-        menuPanel.ExitClicked -= ExitGame;
+        menuPanel.ExitClicked -= RequestExitGame;
     }
 
     /// <summary>
     /// ESC 입력을 처리한다. 공용 팝업이 가장 위라 떠 있으면 그것부터 닫고 끝낸다. 그다음이 설정 창이다.
     /// 그 외에는 로비 뷰의 뒤로 가기로 넘긴다. 방 화면도 로비 뷰 자식이라 같은 경로를 탄다
     /// (팝업 스택 → 방 이탈 → 메뉴). 메뉴 화면에서는 로비 뷰가 꺼져 있어 무시된다.
+    /// 사운드는 실제로 한 겹 걷어낼 때만 한 번 낸다 — 소비하지 못한 ESC 에 소리가 나면 거짓 피드백이고,
+    /// 분기 안에서 내면 헤더 Back 버튼과 경로가 같아 UIGenericButton 클릭음과 이중으로 울린다.
     /// </summary>
     private void HandleCancelInput()
     {
+        bool willHandle = popupPanel.IsOpen || menuPanel.IsSettingsOpen || lobbyPanel.gameObject.activeSelf;
+        if (!willHandle) return;
+
+        sfxEventChannel.RaisePlayEvent(cancelAudioId, transform.position);
+
         if (popupPanel.IsOpen)
         {
             popupPanel.Close();
@@ -180,7 +194,13 @@ public class UIMenuManager : MonoBehaviour
         menuPanel.ShowSettings();
     }
 
-    /// <summary>게임을 종료한다. 에디터에서는 플레이 모드를 멈춘다.</summary>
+    /// <summary>게임 종료 확인 팝업을 띄운다. 오조작 종료가 손해가 커 확인을 한 겹 둔다.</summary>
+    private void RequestExitGame()
+    {
+        popupRequested.RaiseEvent(PopupType.ExitGame, ExitGame);
+    }
+
+    /// <summary>게임을 종료한다. 에디터에서는 플레이 모드를 멈춘다. 확인 팝업의 확인 콜백으로만 도달한다.</summary>
     private void ExitGame()
     {
         Log.D("[UIMenuManager] ExitGame");

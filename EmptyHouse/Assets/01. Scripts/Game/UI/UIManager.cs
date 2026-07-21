@@ -17,6 +17,10 @@ public class UIManager : MonoBehaviour
     [Header("Input")]
     [SerializeField] private InputReader inputReader;
 
+    [Header("Audio")]
+    [SerializeField] private SFXEventChannelSO sfxEventChannel;
+    [SerializeField] private AudioId cancelAudioId = AudioId.Sfx_Ui_TabClose; // Esc 로 한 겹 걷어낼 때의 입력 피드백
+
     [Header("State")]
     [SerializeField] private GameStateEventChannelSO gameStateChanged;   // 발행: Pause/Game
     [SerializeField] private GameResultEventChannelSO gameResultChanged; // 구독: 결과창 열기 트리거
@@ -80,10 +84,13 @@ public class UIManager : MonoBehaviour
 
     /// <summary>
     /// UI 맵의 Cancel 입력. 팝업이 최상위라 떠 있으면 그것부터 닫고, 설정 창이 열려 있으면 퍼즈로 한 단계만 되돌리고, 아니면 게임으로 복귀한다.
-    /// Pause 상태에서만 구독돼 있으므로 게임 중 Esc 로는 도달하지 않는다.
+    /// Pause 상태에서만 구독돼 있으므로 게임 중 Esc 로는 도달하지 않는다 — 어느 분기를 타든 한 겹은 걷어내므로 사운드를 먼저 낸다.
+    /// 분기 안에서 내면 같은 경로를 쓰는 버튼들과 UIGenericButton 클릭음이 이중으로 울린다.
     /// </summary>
     private void HandleCancelInput()
     {
+        sfxEventChannel.RaisePlayEvent(cancelAudioId, transform.position);
+
         if (popupPanel.IsOpen)
         {
             popupPanel.Close();

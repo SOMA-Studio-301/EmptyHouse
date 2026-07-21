@@ -184,16 +184,16 @@ RectTransform:
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 3844472989915724564}
-  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
   m_LocalPosition: {x: 0, y: 0, z: 0}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
-  m_Father: {fileID: 3283320831601855383}
+  m_Father: {fileID: 7142490815686067266}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0.5, y: 0.5}
   m_AnchorMax: {x: 0.5, y: 0.5}
-  m_AnchoredPosition: {x: 0, y: -36.36}
+  m_AnchoredPosition: {x: 0, y: 0.000015258789}
   m_SizeDelta: {x: 1300, y: 400}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!222 &3124596387221835711
@@ -263,8 +263,7 @@ RectTransform:
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children:
-  - {fileID: 3551759067542141271}
-  - {fileID: 8368880116475714392}
+  - {fileID: 7142490815686067266}
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0, y: 0}
@@ -285,26 +284,26 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::UIPopup
   popupRequested: {fileID: 11400000, guid: 395ad7a5572e45a43b0c24080822e787, type: 2}
-  popupRoot: {fileID: 0}
+  popupRoot: {fileID: 5898850168493360155}
   bodyText: {fileID: 4470631968032945504}
   confirmButton: {fileID: 2847749174022868292}
   cancelButton: {fileID: 1800152368528198860}
   presets:
-  - Type: 0
-    BodyKey: 
-    ConfirmKey: 
-    CancelKey: 
-    ShowCancel: 0
-  - Type: 0
-    BodyKey: 
-    ConfirmKey: 
-    CancelKey: 
-    ShowCancel: 0
-  - Type: 0
-    BodyKey: 
-    ConfirmKey: 
-    CancelKey: 
-    ShowCancel: 0
+  - Type: 1
+    BodyKey: UI_OPT_DELETE_DATA_CONFIRM
+    ConfirmKey: UI_CMN_DELETE
+    CancelKey: UI_CMN_CANCEL
+    ShowCancel: 1
+  - Type: 2
+    BodyKey: UI_ROOM_LEAVE_CONFIRM
+    ConfirmKey: UI_CMN_CONFIRM
+    CancelKey: UI_CMN_CANCEL
+    ShowCancel: 1
+  - Type: 3
+    BodyKey: UI_TITLE_QUIT_CONFIRM
+    ConfirmKey: UI_CMN_QUIT
+    CancelKey: UI_CMN_CANCEL
+    ShowCancel: 1
 --- !u!1 &5356426011527000204
 GameObject:
   m_ObjectHideFlags: 0
@@ -394,18 +393,18 @@ RectTransform:
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 5801393280078136755}
-  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
   m_LocalPosition: {x: 0, y: 0, z: 0}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children:
   - {fileID: 5730280973393434771}
   - {fileID: 6979703223001329713}
-  m_Father: {fileID: 3283320831601855383}
+  m_Father: {fileID: 7142490815686067266}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0.5, y: 0.5}
   m_AnchorMax: {x: 0.5, y: 0.5}
-  m_AnchoredPosition: {x: 0, y: 0}
+  m_AnchoredPosition: {x: 0, y: 36.359985}
   m_SizeDelta: {x: 1174, y: 88}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!222 &116804615350645076
@@ -446,6 +445,43 @@ MonoBehaviour:
   m_FillOrigin: 0
   m_UseSpriteMesh: 0
   m_PixelsPerUnitMultiplier: 1
+--- !u!1 &5898850168493360155
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 7142490815686067266}
+  m_Layer: 0
+  m_Name: Wrap
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!224 &7142490815686067266
+RectTransform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 5898850168493360155}
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children:
+  - {fileID: 3551759067542141271}
+  - {fileID: 8368880116475714392}
+  m_Father: {fileID: 3283320831601855383}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+  m_AnchorMin: {x: 0, y: 0}
+  m_AnchorMax: {x: 1, y: 1}
+  m_AnchoredPosition: {x: 0, y: 0}
+  m_SizeDelta: {x: 0, y: 0}
+  m_Pivot: {x: 0.5, y: 0.5}
 --- !u!1001 &5253389583527251233
 PrefabInstance:
   m_ObjectHideFlags: 0

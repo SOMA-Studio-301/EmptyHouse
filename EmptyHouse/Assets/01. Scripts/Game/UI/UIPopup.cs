@@ -10,6 +10,7 @@ public enum PopupType
     None = 0,
     DeleteRunData = 1, // 저장된 런 데이터 삭제 확인
     ExitRoom = 2,      // 방 나가기 확인
+    ExitGame = 3,      // 게임 종료 확인
 }
 
 /// <summary>
