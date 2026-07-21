@@ -116,11 +116,5 @@ public class UIGenericButton : MonoBehaviour
         {
             return;
         }
-
-        buttonLocalizeText = tmpText.GetComponent<UILocalizeText>();
-        if (buttonLocalizeText == null)
-        {
-            buttonLocalizeText = tmpText.gameObject.AddComponent<UILocalizeText>();
-        }
     }
 }
