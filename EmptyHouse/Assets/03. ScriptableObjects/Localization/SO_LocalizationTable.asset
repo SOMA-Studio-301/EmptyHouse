@@ -150,7 +150,7 @@ MonoBehaviour:
     - languageCode: cn
       value: "\u7ED3\u7B97"
     - languageCode: en
-      value: Settle
+      value: Cash Out
     - languageCode: jp
       value: "\u7CBE\u7B97"
     - languageCode: ko
@@ -638,6 +638,30 @@ MonoBehaviour:
       value: "\uD0C0\uC774\uD2C0\uB85C \uB3CC\uC544\uAC00\uAE30"
     - languageCode: tw
       value: "\u8FD4\u56DE\u6A19\u984C"
+  - key: UI_RESULT_RETURN_COUNTDOWN
+    translations:
+    - languageCode: cn
+      value: "\u79D2\u540E\u8FD4\u56DE\u5927\u5385"
+    - languageCode: en
+      value: seconds until lobby
+    - languageCode: jp
+      value: "\u79D2\u5F8C\u306B\u30ED\u30D3\u30FC\u306B\u623B\u308A\u307E\u3059"
+    - languageCode: ko
+      value: "\uCD08 \uB4A4 \uB85C\uBE44\uB85C \uC774\uB3D9\uD569\uB2C8\uB2E4"
+    - languageCode: tw
+      value: "\u79D2\u5F8C\u8FD4\u56DE\u5927\u5EF3"
+  - key: UI_RESULT_TITLE
+    translations:
+    - languageCode: cn
+      value: "\u7ED3\u7B97"
+    - languageCode: en
+      value: Results
+    - languageCode: jp
+      value: "\u30EA\u30B6\u30EB\u30C8"
+    - languageCode: ko
+      value: "\uC815\uC0B0"
+    - languageCode: tw
+      value: "\u7D50\u7B97"
   - key: UI_ROOM_DEPART
     translations:
     - languageCode: cn
