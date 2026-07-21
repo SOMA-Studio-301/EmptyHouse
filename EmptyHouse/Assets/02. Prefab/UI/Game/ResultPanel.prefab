@@ -314,6 +314,14 @@ PrefabInstance:
       propertyPath: m_fontSizeBase
       value: 32
       objectReference: {fileID: 0}
+    - target: {fileID: 8150399973515287640, guid: 85d3c76d8f8220644883d71b1c5370f0, type: 3}
+      propertyPath: m_fontColor32.rgba
+      value: 4278190080
+      objectReference: {fileID: 0}
+    - target: {fileID: 9133578924384569489, guid: 85d3c76d8f8220644883d71b1c5370f0, type: 3}
+      propertyPath: key
+      value: UI_RESULT_RETURN_COUNTDOWN
+      objectReference: {fileID: 0}
     m_RemovedComponents: []
     m_RemovedGameObjects: []
     m_AddedGameObjects: []
@@ -620,6 +628,10 @@ PrefabInstance:
       propertyPath: m_sharedMaterial
       value: 
       objectReference: {fileID: 2100000, guid: e2c97ab517c3ef544acbf99e3ec2a4e7, type: 2}
+    - target: {fileID: 9133578924384569489, guid: 85d3c76d8f8220644883d71b1c5370f0, type: 3}
+      propertyPath: key
+      value: UI_RESULT_TITLE
+      objectReference: {fileID: 0}
     m_RemovedComponents: []
     m_RemovedGameObjects: []
     m_AddedGameObjects: []
