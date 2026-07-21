@@ -1,9 +1,7 @@
 using System;
-using Border.Core;
 using Border.Localization;
 using UnityEngine;
 using UnityEngine.UI;
-using Steamworks;
 using TMPro;
 
 /// <summary>
@@ -12,7 +10,6 @@ using TMPro;
 /// </summary>
 public class UIUserPanel : MonoBehaviour
 {
-    // TODO: 실제 로컬라이즈 키 확정 시 교체
     [LocalizeKey] public string DriverRoleKey;       // 방장 역할 라벨 키
     [LocalizeKey] public string PassengerRoleKey; // 일반 참가자 역할 라벨 키
     [LocalizeKey] public string ReadyKey;         // 준비 완료 라벨 키
@@ -100,55 +97,7 @@ public class UIUserPanel : MonoBehaviour
         if (currentSteamId == steamIdString && runtimeAvatarTexture != null) return;
         currentSteamId = steamIdString;
 
-        if (!SteamManager.Initialized || !ulong.TryParse(steamIdString, out ulong steamIdValue))
-        {
-            SetAvatarTexture(null);
-            return;
-        }
-
-        try
-        {
-            int avatarHandle = SteamFriends.GetMediumFriendAvatar(new CSteamID(steamIdValue));
-            SetAvatarTexture(CreateSteamAvatarTexture(avatarHandle));
-        }
-        catch (Exception e)
-        {
-            SetAvatarTexture(null);
-            Log.E($"[UIUserPanel] 아바타 로딩 중 예외 발생: {e.Message}", this);
-        }
-    }
-
-    /// <summary>스팀 아바타 핸들에서 상하 반전을 보정한 Texture2D를 만든다.</summary>
-    /// <param name="avatarHandle">스팀 이미지 핸들</param>
-    /// <returns>생성된 텍스처. 실패 시 null</returns>
-    private static Texture2D CreateSteamAvatarTexture(int avatarHandle)
-    {
-        // 핸들러 ID가 0 이하이거나 이미지 사이즈를 가져오지 못하면 실패
-        if (avatarHandle <= 0) return null;
-
-        if (SteamUtils.GetImageSize(avatarHandle, out uint width, out uint height))
-        {
-            // RGBA 데이터 크기만큼 버퍼 할당 (가로 * 세로 * 4바이트)
-            byte[] imageBuffer = new byte[width * height * 4];
-
-            if (SteamUtils.GetImageRGBA(avatarHandle, imageBuffer, imageBuffer.Length))
-            {
-                Texture2D texture = new Texture2D((int)width, (int)height, TextureFormat.RGBA32, false);
-
-                // 스팀 텍스처 데이터는 상하가 뒤집혀서 들어오므로 완벽하게 뒤집어서 보정 작업 수행
-                byte[] flippedBuffer = new byte[imageBuffer.Length];
-                int rowLength = (int)width * 4;
-                for (int y = 0; y < height; y++)
-                {
-                    Array.Copy(imageBuffer, y * rowLength, flippedBuffer, ((int)height - 1 - y) * rowLength, rowLength);
-                }
-
-                texture.LoadRawTextureData(flippedBuffer);
-                texture.Apply();
-                return texture;
-            }
-        }
-        return null;
+        SetAvatarTexture(SteamAvatarUtility.Load(steamIdString));
     }
 
     /// <summary>아바타 텍스처를 교체하고 이전 런타임 텍스처를 파괴한다.</summary>
