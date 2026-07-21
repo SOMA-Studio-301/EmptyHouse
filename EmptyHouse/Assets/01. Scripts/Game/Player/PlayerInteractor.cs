@@ -15,6 +15,7 @@ public class PlayerInteractor : MonoBehaviour
     /// <summary>같은 플레이어 프리팹 안의 인벤토리 — 프리팹 내부 참조이므로 자기완결 원칙에 어긋나지 않는다.</summary>
     [Header("Player")]
     [SerializeField] private PlayerInventory inventory;
+    [SerializeField] private PlayerDisguise disguise;
 
     [Header("UI")]
     [SerializeField] private UIInteractPrompt promptUI;
@@ -54,6 +55,7 @@ public class PlayerInteractor : MonoBehaviour
     /// 위장 게이지 등 주체 상태가 더 필요해지면 여기에 프로퍼티를 추가해 컨텍스트를 넓힌다.
     /// </summary>
     public PlayerInventory Inventory => inventory;
+    public PlayerDisguise Disguise => disguise;
 
     /// <summary>진행 중인 홀드의 진행률(0~1). 홀드 중이 아니거나 대상이 소멸했으면 0이다. 조준선 게이지가 이 값을 그린다.</summary>
     public float HoldProgress01 => activeHold == null ? 0f : activeHold.Progress01;

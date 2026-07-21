@@ -26,7 +26,8 @@ public class InputReader : ScriptableObject, GameInput.IGameplayActions, GameInp
     public event UnityAction NextEvent     = delegate { }; // 관전 대상 다음 순환(→). 관전 중에만 소비된다
     public event UnityAction PreviousEvent = delegate { }; // 관전 대상 이전 순환(←). 관전 중에만 소비된다
     public event UnityAction DropEvent = delegate { }; // 버리기(G) 버튼이 눌렸을 때 발행
-    public event UnityAction DisguiseToggleEvent = delegate { }; // 위장(V) 토글 요청. 실제 상태 변경은 서버 권위 PlayerDisguise가 수행
+    public event UnityAction DisguisePressedEvent = delegate { }; // 위장(V) 누름. 실제 상태 변경은 서버 권위 PlayerDisguise가 수행
+    public event UnityAction DisguiseCanceledEvent = delegate { }; // 위장(V) 해제. 누르는 동안만 위장을 유지하기 위한 종료 신호
 
     private GameInput gameInput;
 
@@ -297,14 +298,18 @@ public class InputReader : ScriptableObject, GameInput.IGameplayActions, GameInp
         }
     }
 
-    /// <summary>Disguise 액션 콜백. V 눌림을 위장 토글 요청으로 중계한다.</summary>
+    /// <summary>Disguise 액션 콜백. V 누름/해제를 위장 유지 시작/종료 신호로 중계한다.</summary>
     public void OnDisguise(InputAction.CallbackContext context)
     {
         RememberDevice(context);
 
         if (context.phase == InputActionPhase.Performed)
         {
-            DisguiseToggleEvent.Invoke();
+            DisguisePressedEvent.Invoke();
+        }
+        else if (context.phase == InputActionPhase.Canceled)
+        {
+            DisguiseCanceledEvent.Invoke();
         }
     }
 

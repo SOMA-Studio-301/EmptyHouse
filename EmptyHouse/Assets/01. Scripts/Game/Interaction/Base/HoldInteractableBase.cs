@@ -29,6 +29,7 @@ public abstract class HoldInteractableBase : InteractableBase
         holder = interactor;
         elapsedSeconds = 0f;
         Progress01 = 0f;
+        OnHoldStarted(interactor);
     }
 
     /// <summary>
@@ -39,8 +40,18 @@ public abstract class HoldInteractableBase : InteractableBase
     {
         Log.D($"[HoldInteractableBase] CancelHold on {name}");
 
+        PlayerInteractor canceledBy = holder;
         ResetHold();
+
+        if (canceledBy != null)
+            OnHoldCanceled(canceledBy);
     }
+
+    /// <summary>홀드 시작을 네트워크에 알릴 필요가 있는 리프가 선택적으로 재정의한다.</summary>
+    protected virtual void OnHoldStarted(PlayerInteractor interactor) { }
+
+    /// <summary>홀드 취소를 네트워크에 알릴 필요가 있는 리프가 선택적으로 재정의한다.</summary>
+    protected virtual void OnHoldCanceled(PlayerInteractor interactor) { }
 
     /// <summary>
     /// 진행 중일 때 매 프레임 시간을 누적해 Progress01을 갱신하고, HoldDurationSeconds에 도달하면
