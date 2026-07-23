@@ -161,7 +161,10 @@ public class ZombieChaseState : IZombieState
     {
         ZombieController controller = machine.Controller;
 
-        if (!controller.HasTrackingStimulus)
+        // 추격 상실 판정은 "타겟 본인을 지각했는가"(HasTargetStimulus)로 한다.
+        // "아무 자극"(HasTrackingStimulus)으로 판정하면 다른 플레이어의 소음이 타이머를
+        // 매 프레임 리셋해 좀비가 Chase 에서 영영 내려오지 못한다.
+        if (!controller.HasTargetStimulus)
         {
             machine.MoveToInvestigationPoint();
             controller.AdvanceChaseLostTimer(deltaTime);
@@ -204,29 +207,39 @@ public class ZombieAttackState : IZombieState
         ZombieController controller = machine.Controller;
         controller.AdvanceAttackTimer(deltaTime);
 
-        if (controller.CurrentTarget == null)
+        if (!caught)
         {
-            machine.SwitchState(ZombieStateKind.Investigate);
+            // 타격 전에 대상을 잃으면(사망·위장·디스폰) 조사로 내려간다.
+            if (controller.CurrentTarget == null)
+            {
+                machine.SwitchState(ZombieStateKind.Investigate);
+                return;
+            }
+
+            if (Vector3.Distance(controller.AttackOrigin.position, controller.CurrentTarget.position) > controller.Data.AttackRange)
+            {
+                machine.SwitchState(ZombieStateKind.Chase);
+                return;
+            }
+
+            if (controller.AttackTimer >= controller.Data.AttackWindupSeconds)
+            {
+                caught = true;
+                machine.NotifyPlayerCaught();
+
+                // 타격이 확정되면 대상은 사망한다. 시신을 계속 물고 있으면 추격 상실 타이머가
+                // 리셋되고 다음 목표로 전이하지 못하므로, 여기서 즉시 타겟을 놓는다.
+                controller.ServerReleaseTarget();
+            }
             return;
         }
 
-        float distance = Vector3.Distance(controller.AttackOrigin.position, controller.CurrentTarget.position);
-        if (!caught && distance > controller.Data.AttackRange)
-        {
-            machine.SwitchState(ZombieStateKind.Chase);
-            return;
-        }
+        // 타격 락은 연출 고정 구간이라 타겟이 사라져도 끝까지 채운다.
+        if (controller.AttackTimer < controller.Data.AttackLockSeconds) return;
 
-        if (!caught && controller.AttackTimer >= controller.Data.AttackWindupSeconds)
-        {
-            caught = true;
-            machine.NotifyPlayerCaught();
-        }
-
-        if (caught && controller.AttackTimer >= controller.Data.AttackLockSeconds)
-        {
-            machine.SwitchState(ZombieStateKind.Chase);
-        }
+        machine.SwitchState(controller.CurrentTarget != null
+            ? ZombieStateKind.Chase
+            : ZombieStateKind.Investigate);
     }
 
     public void Exit(ZombieStateMachine machine) { }

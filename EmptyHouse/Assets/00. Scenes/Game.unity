@@ -351,7 +351,7 @@ MonoBehaviour:
   _tokens:
     _tokens: []
   _range: 10
-  _roomName: Global
+  _roomName: Proximity
   _useTrigger: 0
   _roomExpanded: 1
   _tokensExpanded: 0
@@ -371,7 +371,7 @@ MonoBehaviour:
   _tokens:
     _tokens: []
   _range: 10
-  _roomName: Global
+  _roomName: Proximity
   _useTrigger: 0
   _roomExpanded: 1
   _metadataExpanded: 1
@@ -538,52 +538,8 @@ PrefabInstance:
     m_RemovedComponents: []
     m_RemovedGameObjects: []
     m_AddedGameObjects: []
-    m_AddedComponents:
-    - targetCorrespondingSourceObject: {fileID: 824823894133727453, guid: 2c50758a6d3b8114a8ce30a2fd9e4380, type: 3}
-      insertIndex: 1
-      addedObject: {fileID: 1517633058}
+    m_AddedComponents: []
   m_SourcePrefab: {fileID: 100100000, guid: 2c50758a6d3b8114a8ce30a2fd9e4380, type: 3}
---- !u!1 &1517633057 stripped
-GameObject:
-  m_CorrespondingSourceObject: {fileID: 824823894133727453, guid: 2c50758a6d3b8114a8ce30a2fd9e4380, type: 3}
-  m_PrefabInstance: {fileID: 1517633056}
-  m_PrefabAsset: {fileID: 0}
---- !u!114 &1517633058
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1517633057}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 6a066ddbf125f9546bcadc947418566b, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: DissonanceVoip::Dissonance.VoiceBroadcastTrigger
-  _tokens:
-    _tokens: []
-  _channelTypeExpanded: 1
-  _metadataExpanded: 1
-  _activationModeExpanded: 1
-  _tokensExpanded: 1
-  _ampExpanded: 1
-  _activationFaderSettings:
-    _volume: 1
-    _fadeInTicks: 0
-    _fadeOutTicks: 1500000
-  _triggerFaderSettings:
-    _volume: 1
-    _fadeInTicks: 7500000
-    _fadeOutTicks: 11500000
-  _broadcastPosition: 1
-  _channelType: 0
-  _inputName: 
-  _mode: 1
-  _muted: 0
-  _playerId: 
-  _useTrigger: 0
-  _roomName: Global
-  _priority: -2
 --- !u!1 &1637087097
 GameObject:
   m_ObjectHideFlags: 0

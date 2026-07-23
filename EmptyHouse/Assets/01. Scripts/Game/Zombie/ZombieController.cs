@@ -45,9 +45,11 @@ public class ZombieController : NetworkBehaviour
     private float investigationStimulusDb;
     private Vector3 lastKnownPosition;
     private Vector3 homePosition;
+    private IZombiePerceptionSource currentTargetSource;
     private Transform currentTarget;
     private ulong currentTargetNetworkObjectId;
     private bool hasTrackingStimulus;
+    private bool hasTargetStimulus;
     private bool hadStimulusThisFrame;
 
     public ZombieDataSO Data => zombieData;
@@ -58,12 +60,20 @@ public class ZombieController : NetworkBehaviour
     public Vector3 HomePosition => homePosition;
     public Vector3 LastKnownPosition => lastKnownPosition;
     public Transform CurrentTarget => currentTarget;
+    public IZombiePerceptionSource CurrentTargetSource => currentTargetSource;
     public ulong CurrentTargetNetworkObjectId => currentTargetNetworkObjectId;
     public float SuspicionValue => suspicion.Value;
     public bool IsLatched => suspicionLatched.Value;
     public ZombieStateKind CurrentState => stateKind.Value;
     public bool IsFollower => squadSync != null && squadSync.IsFollower;
     public bool HasTrackingStimulus => hasTrackingStimulus;
+
+    /// <summary>
+    /// 이번 프레임에 <see cref="CurrentTarget"/> 본인을 지각했는가. 추격 유지 판정은 이 값으로 한다 —
+    /// "아무 자극"(<see cref="HasTrackingStimulus"/>)으로 판정하면 다른 플레이어의 소음이
+    /// 추격 상실 타이머를 영구히 리셋해 좀비가 Chase 에서 영영 못 내려온다.
+    /// </summary>
+    public bool HasTargetStimulus => hasTargetStimulus;
     public bool HadStimulusThisFrame => hadStimulusThisFrame;
     public float InvestigationStimulusDb => investigationStimulusDb;
     public ZombieController SquadLeader => squadSync != null ? squadSync.Leader : null;
@@ -115,11 +125,21 @@ public class ZombieController : NetworkBehaviour
     {
         if (!IsServer || zombieData == null || stateMachine == null) return;
 
+        float deltaTime = Time.deltaTime;
+
+        // 지각·상태 갱신보다 타겟 유효성이 먼저다. 사망(관전)·위장·파괴된 대상을 계속 물고 있으면
+        // Attack 의 탈출 조건(CurrentTarget == null)이 성립하지 않고 추격 상실 타이머도 리셋돼
+        // 좀비가 시신에 영구 고착된다.
+        ServerValidateTarget();
+
         if (stateMachine.CurrentStateKind == ZombieStateKind.Attack)
         {
+            // 타격 락 동안은 지각을 멈춘다(연출 고정). 자극 플래그도 함께 내려 잔상이 남지 않게 한다.
             hadStimulusThisFrame = false;
             hasTrackingStimulus = false;
-            stateMachine.ServerTick(Time.deltaTime);
+            hasTargetStimulus = false;
+            stateMachine.ServerTick(deltaTime);
+            squadSync?.ServerReleaseFollowersIfSettled(deltaTime);
             return;
         }
 
@@ -130,11 +150,11 @@ public class ZombieController : NetworkBehaviour
         else
         {
             ZombiePerceptionFrame perception = sensorySystem.ServerCollectPerception();
-            ServerApplyPerception(perception, Time.deltaTime);
+            ServerApplyPerception(perception, deltaTime);
         }
 
-        stateMachine.ServerTick(Time.deltaTime);
-        squadSync?.ServerReleaseFollowersIfSettled();
+        stateMachine.ServerTick(deltaTime);
+        squadSync?.ServerReleaseFollowersIfSettled(deltaTime);
     }
 
     private void ServerApplyPerception(ZombiePerceptionFrame frame, float deltaTime)
@@ -145,22 +165,27 @@ public class ZombieController : NetworkBehaviour
         hasTrackingStimulus = frame.HasTrackingStimulus;
         float nextSuspicion = suspicion.Value;
 
+        // 추격 중에는 소리에 타겟을 뺏기지 않는다. 단 물고 있던 타겟이 이미 해제된 뒤라면
+        // (사망·위장으로 ServerReleaseTarget 이 돈 경우) 청각으로 새 대상을 잡을 수 있어야 한다 —
+        // 이 예외가 없으면 Chase 상태에 갇힌 채 아무도 새로 타겟팅하지 못한다.
+        bool chaseHoldsValidTarget = CurrentState == ZombieStateKind.Chase && currentTargetSource != null;
+
         // 명세 3-5 고정 순서: 즉시 발각 → 시각 가산 → 청각 pull-up → 냉각 → clamp → latch.
         if (frame.HasInstantVisualDetection)
         {
             nextSuspicion = 100f;
-            AcceptTarget(frame.PreferredTarget, frame.PreferredTargetNetworkObjectId, frame.VisualPosition);
+            AcceptTarget(frame.PreferredTarget, frame.VisualPosition);
         }
         else
         {
             if (frame.VisualGainPerSecond > 0f)
             {
                 nextSuspicion += frame.VisualGainPerSecond * deltaTime;
-                AcceptTarget(frame.PreferredTarget, frame.PreferredTargetNetworkObjectId, frame.VisualPosition);
+                AcceptTarget(frame.PreferredTarget, frame.VisualPosition);
                 investigationStimulusDb = 0f;
             }
 
-            if (frame.HasAuditoryStimulus && CurrentState != ZombieStateKind.Chase)
+            if (frame.HasAuditoryStimulus && !chaseHoldsValidTarget)
             {
                 float previous = nextSuspicion;
                 float pullUp = frame.AuditoryEffectiveDb >= zombieData.HearDetectDb
@@ -175,9 +200,11 @@ public class ZombieController : NetworkBehaviour
                     investigationStimulusDb = frame.AuditoryEffectiveDb;
                 }
 
-                if (frame.AuditoryEffectiveDb >= zombieData.HearDetectDb && frame.PreferredTarget != null)
+                if (frame.AuditoryEffectiveDb >= zombieData.HearDetectDb
+                    && frame.PreferredTarget != null
+                    && frame.PreferredTarget.Root != null)
                 {
-                    AcceptTarget(frame.PreferredTarget, frame.PreferredTargetNetworkObjectId, frame.PreferredTarget.position);
+                    AcceptTarget(frame.PreferredTarget, frame.PreferredTarget.Root.position);
                 }
             }
 
@@ -197,9 +224,14 @@ public class ZombieController : NetworkBehaviour
 
         nextSuspicion = Mathf.Clamp(nextSuspicion, 0f, 100f);
 
-        // 청각 발각이어도 비위장 타겟이 없으면 E8에 따라 조사만 한다.
-        bool canLatch = frame.HasInstantVisualDetection || frame.PreferredTarget != null;
-        if (nextSuspicion >= 100f && canLatch)
+        // 발각(latch)은 대상을 "지각"한 게 아니라 "확보"했을 때만 성립한다 —
+        // 불변식: IsLatched ⇒ CurrentTarget != null.
+        // 확보는 즉시 발각·시야 가산·HearDetectDb 이상 청각에서만 일어나는데(AcceptTarget),
+        // 지각만으로 latch 를 세우면 IsLatched 는 true 인데 CurrentTarget 은 null 인 상태가 된다.
+        // 그러면 RoarTransition 조건(IsLatched && CurrentTarget != null)이 영원히 성립하지 않고,
+        // latch 가 냉각까지 막아 의심도가 100 에 고정돼 좀비가 조사 상태로 대상에게 붙어 서성이기만 한다.
+        bool holdsTarget = currentTargetSource != null;
+        if (nextSuspicion >= 100f && holdsTarget)
         {
             suspicionLatched.Value = true;
             if (squadSync != null && !squadSync.IsFollower)
@@ -207,22 +239,62 @@ public class ZombieController : NetworkBehaviour
                 squadSync.ServerFormSquadSnapshot();
             }
         }
-        else if (nextSuspicion >= 100f && !suspicionLatched.Value)
+        else if (nextSuspicion >= 100f)
         {
+            // 타겟 없는 100 은 유지하지 않는다. 조사 단계로 눌러 두고 재확보를 기다린다(좀비AI E8).
+            suspicionLatched.Value = false;
             nextSuspicion = zombieData.ThInvestigate;
         }
 
         suspicion.Value = nextSuspicion;
+
+        // 추격 유지 판정. 이 프레임에 지각한 대상이 지금 물고 있는 타겟 본인일 때만 참이다.
+        hasTargetStimulus = currentTargetSource != null
+            && ReferenceEquals(frame.PreferredTarget, currentTargetSource);
     }
 
-    private void AcceptTarget(Transform target, ulong targetNetworkObjectId, Vector3 position)
+    private void AcceptTarget(IZombiePerceptionSource target, Vector3 position)
     {
         lastKnownPosition = position;
-        if (target != null)
-        {
-            currentTarget = target;
-            currentTargetNetworkObjectId = targetNetworkObjectId;
-        }
+        if (target == null || target.Root == null) return;
+
+        currentTargetSource = target;
+        currentTarget = target.Root;
+        currentTargetNetworkObjectId = target.NetworkObjectId;
+    }
+
+    /// <summary>
+    /// 물고 있는 타겟이 아직 유효한지 검사한다. Transform 은 Unity 의 == 오버로드로 파괴까지 걸러지므로
+    /// 인터페이스 참조보다 먼저 확인한다 — 파괴된 컴포넌트의 프로퍼티를 읽으면 예외가 난다.
+    /// </summary>
+    private static bool IsTargetable(IZombiePerceptionSource source, Transform root)
+    {
+        if (source == null || root == null) return false;
+        return !source.IsSpectator && !source.IsDisguised;
+    }
+
+    /// <summary>매 서버 프레임 타겟 유효성을 검증하고, 사망(관전)·위장·파괴된 대상이면 즉시 놓는다.</summary>
+    private void ServerValidateTarget()
+    {
+        if (currentTargetSource == null && currentTarget == null) return;
+        if (IsTargetable(currentTargetSource, currentTarget)) return;
+
+        ServerReleaseTarget();
+    }
+
+    /// <summary>
+    /// 타겟을 놓는다. latch 도 함께 푼다 — latch 가 선 채로 남으면 의심도 냉각이 막혀
+    /// (<see cref="ServerApplyPerception"/> 의 냉각 분기) 좀비가 영영 평상시로 돌아오지 못한다.
+    /// </summary>
+    public void ServerReleaseTarget()
+    {
+        if (!IsServer) return;
+
+        currentTargetSource = null;
+        currentTarget = null;
+        currentTargetNetworkObjectId = 0UL;
+        hasTargetStimulus = false;
+        suspicionLatched.Value = false;
     }
 
     public void ServerSetState(ZombieStateKind nextState)
@@ -234,10 +306,8 @@ public class ZombieController : NetworkBehaviour
     public void ServerDowngradeToInvestigation()
     {
         if (!IsServer) return;
-        suspicionLatched.Value = false;
+        ServerReleaseTarget();
         suspicion.Value = Mathf.Clamp(zombieData.ThInvestigate, 0f, 100f);
-        currentTarget = null;
-        currentTargetNetworkObjectId = 0UL;
         hasTrackingStimulus = false;
         investigationStimulusDb = zombieData.HearMinDb;
         silenceTimer = 0f;
@@ -255,16 +325,18 @@ public class ZombieController : NetworkBehaviour
         // reach AttackRange.
         bool leaderIsAttacking = leader.CurrentState == ZombieStateKind.Attack;
         stateKind.Value = leaderIsAttacking ? ZombieStateKind.Chase : leader.CurrentState;
+        currentTargetSource = leader.CurrentTargetSource;
         currentTarget = leader.CurrentTarget;
         currentTargetNetworkObjectId = leader.CurrentTargetNetworkObjectId;
         lastKnownPosition = leader.LastKnownPosition;
         investigationStimulusDb = leader.InvestigationStimulusDb;
-        hasTrackingStimulus = leaderIsAttacking
-            ? leader.CurrentTarget != null
-            : leader.HasTrackingStimulus;
-        hadStimulusThisFrame = leaderIsAttacking
-            ? leader.CurrentTarget != null
-            : leader.HadStimulusThisFrame;
+
+        // 공유 타겟이 이미 죽었으면 자극이 있다고 속이지 않는다 — 그래야 팔로워도
+        // 추격 상실 타이머를 굴려 조사 단계로 내려올 수 있다.
+        bool sharedTargetAlive = IsTargetable(currentTargetSource, currentTarget);
+        hasTrackingStimulus = leaderIsAttacking ? sharedTargetAlive : leader.HasTrackingStimulus;
+        hadStimulusThisFrame = leaderIsAttacking ? sharedTargetAlive : leader.HadStimulusThisFrame;
+        hasTargetStimulus = leaderIsAttacking ? sharedTargetAlive : leader.HasTargetStimulus;
     }
 
     public void BeginInvestigateTimer() => investigateTimer = 0f;
@@ -341,8 +413,8 @@ public class ZombieController : NetworkBehaviour
             string leaderName = SquadLeader != null ? SquadLeader.name : "None";
             Handles.Label(visionPos + Vector3.up * 0.5f,
                 $"{stateKind.Value} | Suspicion {suspicion.Value:0.0}\n" +
-                $"Latched {suspicionLatched.Value} | Signal {hasTrackingStimulus}\n" +
-                $"Target {(currentTarget != null ? currentTarget.name : "None")} | Leader {leaderName}");
+                $"Latched {suspicionLatched.Value} | Signal {hasTrackingStimulus} | OnTarget {hasTargetStimulus}\n" +
+                $"Target {(currentTarget != null ? currentTarget.name : "None")} | Lost {chaseLostTimer:0.0}s | Leader {leaderName}");
 #endif
         }
     }

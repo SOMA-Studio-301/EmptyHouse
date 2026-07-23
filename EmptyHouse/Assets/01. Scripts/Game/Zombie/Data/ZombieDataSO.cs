@@ -60,4 +60,7 @@ public class ZombieDataSO : ScriptableObject
     public float ThInvestigate = 60f;
     public float CoolRate = 8f;
     public float SyncRadius = 15f;
+
+    [Tooltip("스쿼드 스냅샷 최대 유지 시간. 리더가 고착돼도 이 시간이 지나면 팔로워를 강제 해제한다.")]
+    [Min(0f)] public float SquadLeashSeconds = 15f;
 }
