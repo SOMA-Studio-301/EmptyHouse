@@ -217,6 +217,15 @@ public partial class @GameInput: IInputActionCollection2, IDisposable
                     ""processors"": """",
                     ""interactions"": """",
                     ""initialStateCheck"": false
+                },
+                {
+                    ""name"": ""Radio"",
+                    ""type"": ""Button"",
+                    ""id"": ""1db39684-93d0-4cbd-a92e-24797579fb78"",
+                    ""expectedControlType"": ""Button"",
+                    ""processors"": """",
+                    ""interactions"": """",
+                    ""initialStateCheck"": false
                 }
             ],
             ""bindings"": [
@@ -525,6 +534,17 @@ public partial class @GameInput: IInputActionCollection2, IDisposable
                     ""processors"": """",
                     ""groups"": ""Keyboard&Mouse"",
                     ""action"": ""Disguise"",
+                    ""isComposite"": false,
+                    ""isPartOfComposite"": false
+                },
+                {
+                    ""name"": """",
+                    ""id"": ""8f96e68d-b4f9-46b0-9bcb-866eb35e9d45"",
+                    ""path"": ""<Keyboard>/j"",
+                    ""interactions"": """",
+                    ""processors"": """",
+                    ""groups"": ""Keyboard&Mouse"",
+                    ""action"": ""Radio"",
                     ""isComposite"": false,
                     ""isPartOfComposite"": false
                 },
@@ -1313,6 +1333,7 @@ public partial class @GameInput: IInputActionCollection2, IDisposable
         m_Gameplay_Previous = m_Gameplay.FindAction("Previous", throwIfNotFound: true);
         m_Gameplay_Drop = m_Gameplay.FindAction("Drop", throwIfNotFound: true);
         m_Gameplay_Disguise = m_Gameplay.FindAction("Disguise", throwIfNotFound: true);
+        m_Gameplay_Radio = m_Gameplay.FindAction("Radio", throwIfNotFound: true);
         // UI
         m_UI = asset.FindActionMap("UI", throwIfNotFound: true);
         m_UI_Navigate = m_UI.FindAction("Navigate", throwIfNotFound: true);
@@ -1420,6 +1441,7 @@ public partial class @GameInput: IInputActionCollection2, IDisposable
     private readonly InputAction m_Gameplay_Previous;
     private readonly InputAction m_Gameplay_Drop;
     private readonly InputAction m_Gameplay_Disguise;
+    private readonly InputAction m_Gameplay_Radio;
     /// <summary>
     /// Provides access to input actions defined in input action map "Gameplay".
     /// </summary>
@@ -1488,6 +1510,10 @@ public partial class @GameInput: IInputActionCollection2, IDisposable
         /// </summary>
         public InputAction @Disguise => m_Wrapper.m_Gameplay_Disguise;
         /// <summary>
+        /// Provides access to the underlying input action "Gameplay/Radio".
+        /// </summary>
+        public InputAction @Radio => m_Wrapper.m_Gameplay_Radio;
+        /// <summary>
         /// Provides access to the underlying input action map instance.
         /// </summary>
         public InputActionMap Get() { return m_Wrapper.m_Gameplay; }
@@ -1555,6 +1581,9 @@ public partial class @GameInput: IInputActionCollection2, IDisposable
             @Disguise.started += instance.OnDisguise;
             @Disguise.performed += instance.OnDisguise;
             @Disguise.canceled += instance.OnDisguise;
+            @Radio.started += instance.OnRadio;
+            @Radio.performed += instance.OnRadio;
+            @Radio.canceled += instance.OnRadio;
         }
 
         /// <summary>
@@ -1608,6 +1637,9 @@ public partial class @GameInput: IInputActionCollection2, IDisposable
             @Disguise.started -= instance.OnDisguise;
             @Disguise.performed -= instance.OnDisguise;
             @Disguise.canceled -= instance.OnDisguise;
+            @Radio.started -= instance.OnRadio;
+            @Radio.performed -= instance.OnRadio;
+            @Radio.canceled -= instance.OnRadio;
         }
 
         /// <summary>
@@ -2006,6 +2038,13 @@ public partial class @GameInput: IInputActionCollection2, IDisposable
         /// <seealso cref="UnityEngine.InputSystem.InputAction.performed" />
         /// <seealso cref="UnityEngine.InputSystem.InputAction.canceled" />
         void OnDisguise(InputAction.CallbackContext context);
+        /// <summary>
+        /// Method invoked when associated input action "Radio" is either <see cref="UnityEngine.InputSystem.InputAction.started" />, <see cref="UnityEngine.InputSystem.InputAction.performed" /> or <see cref="UnityEngine.InputSystem.InputAction.canceled" />.
+        /// </summary>
+        /// <seealso cref="UnityEngine.InputSystem.InputAction.started" />
+        /// <seealso cref="UnityEngine.InputSystem.InputAction.performed" />
+        /// <seealso cref="UnityEngine.InputSystem.InputAction.canceled" />
+        void OnRadio(InputAction.CallbackContext context);
     }
     /// <summary>
     /// Interface to implement callback methods for all input action callbacks associated with input actions defined by "UI" which allows adding and removing callbacks.

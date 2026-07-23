@@ -28,6 +28,8 @@ public class InputReader : ScriptableObject, GameInput.IGameplayActions, GameInp
     public event UnityAction DropEvent = delegate { }; // 버리기(G) 버튼이 눌렸을 때 발행
     public event UnityAction DisguisePressedEvent = delegate { }; // 위장(V) 누름. 실제 상태 변경은 서버 권위 PlayerDisguise가 수행
     public event UnityAction DisguiseCanceledEvent = delegate { }; // 위장(V) 해제. 누르는 동안만 위장을 유지하기 위한 종료 신호
+    public event UnityAction RadioPressedEvent = delegate { }; // 무전 Push-To-Talk(J) 누름
+    public event UnityAction RadioCanceledEvent = delegate { }; // 무전 Push-To-Talk(J) 해제
 
     private GameInput gameInput;
 
@@ -86,6 +88,11 @@ public class InputReader : ScriptableObject, GameInput.IGameplayActions, GameInp
     {
         // 그룹(=컨트롤 스킴)으로 거르지 않으면 Interact 에 걸린 모든 바인딩이 "E | Y" 처럼 이어붙어 나온다.
         return gameInput.Gameplay.Interact.GetBindingDisplayString(group: ResolveActiveBindingGroup());
+    }
+
+    public string GetRadioBindingDisplayString()
+    {
+        return gameInput.Gameplay.Radio.GetBindingDisplayString(group: ResolveActiveBindingGroup());
     }
 
     /// <summary>
@@ -310,6 +317,21 @@ public class InputReader : ScriptableObject, GameInput.IGameplayActions, GameInp
         else if (context.phase == InputActionPhase.Canceled)
         {
             DisguiseCanceledEvent.Invoke();
+        }
+    }
+
+    /// <summary>Radio 액션 콜백. J 누름/해제를 Push-To-Talk 시작/종료 신호로 중계한다.</summary>
+    public void OnRadio(InputAction.CallbackContext context)
+    {
+        RememberDevice(context);
+
+        if (context.phase == InputActionPhase.Performed)
+        {
+            RadioPressedEvent.Invoke();
+        }
+        else if (context.phase == InputActionPhase.Canceled)
+        {
+            RadioCanceledEvent.Invoke();
         }
     }
 
