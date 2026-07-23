@@ -4,7 +4,9 @@ using UnityEngine;
 using UnityEngine.SceneManagement;
 
 /// <summary>
-/// 퍼즈 「게임 나가기」 실행자. 클라이언트는 개인 이탈하고 호스트는 방 전체를 파괴한다.
+/// 퍼즈 「게임 나가기」 실행자. 호스트든 게스트든 자기만 방에서 빠진다.
+/// 호스트가 나가도 남은 인원이 있으면 방은 살아남고 UGS 가 방장을 이관하며,
+/// 남은 인원은 Room 으로 돌아가 새 방장 아래에서 다시 시작한다.
 /// Lobby/Relay/NGO 정리 순서는 영속 SessionCoordinator가 담당한다.
 /// </summary>
 public class SessionExitHandler : MonoBehaviour
@@ -33,7 +35,7 @@ public class SessionExitHandler : MonoBehaviour
     }
 
     /// <summary>
-    /// 클라이언트는 현재 방에서 나가고, 호스트는 Lobby 전체를 파괴한 뒤 메인 메뉴로 이동한다.
+    /// 현재 방에서 빠진 뒤 메인 메뉴로 이동한다. 방 파괴는 마지막 인원일 때만 일어난다.
     /// NGO Shutdown 완료까지 기다려 다음 방의 StartHost/StartClient와 겹치지 않게 한다.
     /// </summary>
     private async void HandleSessionExit()

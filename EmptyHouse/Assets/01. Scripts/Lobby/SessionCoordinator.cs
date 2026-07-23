@@ -37,6 +37,13 @@ public sealed class SessionCoordinator : MonoBehaviour
     private bool suppressDisconnectHandling;
     private bool isConnecting;
     private bool isCleaningUp;
+    private bool isMigratingHost;
+
+    /// <summary>
+    /// 지금 붙어 있는(또는 직접 연) Relay 세션의 MatchEpoch. 방장이 바뀌면 이전 Relay 는 죽으므로
+    /// 로비의 epoch 가 이 값보다 클 때만 재접속한다 — 끊긴 Relay 코드로 다시 붙는 것을 막는 표식이다.
+    /// </summary>
+    private int connectedMatchEpoch = -1;
 
     public static SessionCoordinator Instance
     {
@@ -155,6 +162,19 @@ public sealed class SessionCoordinator : MonoBehaviour
         return true;
     }
 
+    /// <summary>
+    /// 내가 방장인데 방의 Relay/NGO 세션이 끊겨 있어 다시 열어야 하는 상태인지 본다.
+    /// 한 판도 시작한 적 없는 방(epoch 0)은 아직 Relay 자체가 없으므로 대상이 아니다.
+    /// </summary>
+    private bool NeedsRelayRehost()
+    {
+        if (!IsCurrentLobbyHost) return false;
+        if (GetMatchEpoch(CurrentLobby) <= 0) return false;
+
+        BindNetworkManager();
+        return networkManager != null && !networkManager.IsListening;
+    }
+
     private bool IsCurrentSession(string lobbyId, int generation)
     {
         return !isCleaningUp
@@ -167,6 +187,7 @@ public sealed class SessionCoordinator : MonoBehaviour
     {
         SessionGeneration++;
         CurrentLobby = null;
+        connectedMatchEpoch = -1;
         StopHeartbeat();
     }
 
@@ -240,19 +261,73 @@ public sealed class SessionCoordinator : MonoBehaviour
         await WaitForClientsToConnectAsync(CurrentLobby.Players.Count, connectTimeoutSeconds);
 
         await UpdateLobbySessionDataAsync(GetRelayJoinCode(CurrentLobby), "InGame", nextEpoch, true);
+        connectedMatchEpoch = nextEpoch;
 
         SceneEventProgressStatus status = networkManager.SceneManager.LoadScene(gameSceneName, LoadSceneMode.Single);
         if (status != SceneEventProgressStatus.Started)
             throw new InvalidOperationException($"NGO scene load did not start: {status}");
     }
 
+    /// <summary>
+    /// Room 에 있는 동안 방 네트워크를 현재 방장 기준으로 맞춘다.
+    /// 방장은 끊긴 Relay 를 다시 열고, 게스트는 아직 붙지 않은 Relay 에 붙는다.
+    /// 방장 이관 직후에도 같은 진입점을 타므로 호출자는 누가 방장인지 알 필요가 없다.
+    /// </summary>
+    public Task EnsureRoomNetworkAsync()
+    {
+        return IsCurrentLobbyHost
+            ? RehostRoomNetworkIfNeededAsync()
+            : ConnectToRoomNetworkIfNeededAsync();
+    }
+
+    /// <summary>
+    /// 이관받은 방장이 끊긴 Relay/NGO 세션을 다시 연다. Relay 를 만든 적 없는 방(epoch 0)은 아직 필요 없으므로 건너뛴다.
+    /// 새 코드와 올라간 epoch 를 로비에 실어, 게스트가 죽은 이전 코드로 재접속하지 않게 한다.
+    /// 게임 중이던 방이었다면 잠금도 함께 풀어 Room 상태로 되돌린다.
+    /// </summary>
+    public async Task RehostRoomNetworkIfNeededAsync()
+    {
+        if (CurrentLobby == null || isCleaningUp || isMigratingHost || isConnecting) return;
+        if (!NeedsRelayRehost()) return;
+
+        int currentEpoch = GetMatchEpoch(CurrentLobby);
+        string lobbyId = CurrentLobby.Id;
+        int generation = SessionGeneration;
+
+        isConnecting = true;
+        try
+        {
+            Allocation allocation = await RelayService.Instance.CreateAllocationAsync(CurrentLobby.MaxPlayers - 1);
+            string joinCode = await RelayService.Instance.GetJoinCodeAsync(allocation.AllocationId);
+            if (!IsCurrentSession(lobbyId, generation)) return;
+
+            GetUnityTransport().SetRelayServerData(BuildRelayServerData(allocation));
+            if (!networkManager.StartHost())
+                throw new InvalidOperationException("NetworkManager.StartHost returned false.");
+
+            int nextEpoch = currentEpoch + 1;
+            await UpdateLobbySessionDataAsync(joinCode, "Room", nextEpoch, false);
+            connectedMatchEpoch = nextEpoch;
+
+            Log.D($"[SESSION] 새 방장이 Relay 를 다시 열었다. (epoch {nextEpoch})");
+        }
+        finally
+        {
+            isConnecting = false;
+        }
+    }
+
     /// <summary>Lobby에 Relay가 있고 아직 NGO에 연결되지 않은 참가자를 현재 방의 NGO 세션에 연결한다.</summary>
     public async Task ConnectToRoomNetworkIfNeededAsync()
     {
-        if (CurrentLobby == null || isCleaningUp || isConnecting) return;
+        if (CurrentLobby == null || isCleaningUp || isConnecting || isMigratingHost) return;
 
         BindNetworkManager();
         if (networkManager == null || networkManager.IsListening) return;
+
+        // 이미 소비한 epoch 의 코드는 방장이 바뀌며 죽은 Relay 다. 새 방장이 코드를 갱신할 때까지 기다린다
+        int lobbyEpoch = GetMatchEpoch(CurrentLobby);
+        if (lobbyEpoch <= connectedMatchEpoch) return;
 
         string joinCode = GetRelayJoinCode(CurrentLobby);
         if (string.IsNullOrEmpty(joinCode)) return;
@@ -266,6 +341,7 @@ public sealed class SessionCoordinator : MonoBehaviour
             if (!IsCurrentSession(lobbyId, generation)) return;
             GetUnityTransport().SetRelayServerData(BuildRelayServerData(allocation));
             await StartClientAndWaitAsync(15f);
+            connectedMatchEpoch = lobbyEpoch;
         }
         finally
         {
@@ -281,6 +357,10 @@ public sealed class SessionCoordinator : MonoBehaviour
         await ResetLocalReadyAsync();
         if (!IsCurrentLobbyHost) return;
 
+        // 이관받아 Relay 를 다시 열어야 하는 상황이면 죽은 코드를 다시 게시하지 않는다.
+        // 상태 전환과 잠금 해제는 RehostRoomNetworkIfNeededAsync 가 새 코드와 함께 처리한다
+        if (NeedsRelayRehost()) return;
+
         try
         {
             await UpdateLobbySessionDataAsync(GetRelayJoinCode(CurrentLobby), "Room", GetMatchEpoch(CurrentLobby), false);
@@ -291,7 +371,11 @@ public sealed class SessionCoordinator : MonoBehaviour
         }
     }
 
-    /// <summary>클라이언트는 방에서 나가고, 호스트는 방 전체를 파괴한다.</summary>
+    /// <summary>
+    /// 방에서 나간다. 남은 사람이 있으면 방장이라도 방을 파괴하지 않고 자기만 빠져,
+    /// UGS 가 다음 플레이어를 방장으로 올리게 둔다 — 방은 살아남고 남은 인원은 Room 에서 이어간다.
+    /// 마지막 한 명(혼자인 방장)일 때만 방을 삭제한다.
+    /// </summary>
     public async Task ExitCurrentRoomAsync()
     {
         if (isCleaningUp) return;
@@ -300,6 +384,7 @@ public sealed class SessionCoordinator : MonoBehaviour
 
         Lobby leavingLobby = CurrentLobby;
         bool wasHost = IsCurrentLobbyHost;
+        bool isLastMember = leavingLobby?.Players == null || leavingLobby.Players.Count <= 1;
         InvalidateCurrentRoom();
 
         try
@@ -308,17 +393,19 @@ public sealed class SessionCoordinator : MonoBehaviour
             {
                 try
                 {
-                    if (wasHost)
+                    if (wasHost && isLastMember)
                     {
                         await LobbyService.Instance.DeleteLobbyAsync(leavingLobby.Id);
-                        Log.D("[SESSION] 호스트가 방을 파괴했습니다.");
+                        Log.D("[SESSION] 마지막 인원이 나가 방을 파괴했습니다.");
                     }
                     else
                     {
                         await LobbyService.Instance.RemovePlayerAsync(
                             leavingLobby.Id,
                             AuthenticationService.Instance.PlayerId);
-                        Log.D("[SESSION] 클라이언트가 방에서 나갔습니다.");
+                        Log.D(wasHost
+                            ? "[SESSION] 호스트가 방에서 나갔습니다. 방장은 UGS 가 남은 인원에게 이관합니다."
+                            : "[SESSION] 클라이언트가 방에서 나갔습니다.");
                     }
                 }
                 catch (LobbyServiceException e) when (
@@ -502,13 +589,85 @@ public sealed class SessionCoordinator : MonoBehaviour
         suppressDisconnectHandling = previousSuppress;
     }
 
+    /// <summary>
+    /// NGO 연결 종료를 받는다. 게스트 입장에서 서버(호스트)가 사라진 경우에만 방장 이관 경로로 넘긴다.
+    /// 다른 게스트의 이탈 통지도 같은 콜백으로 오므로 대상 clientId 를 구분해야 한다.
+    /// </summary>
     private void HandleClientDisconnected(ulong clientId)
     {
-        if (suppressDisconnectHandling || isConnecting || isCleaningUp || CurrentLobby == null) return;
-        if (IsCurrentLobbyHost) return;
+        if (suppressDisconnectHandling || isConnecting || isCleaningUp || isMigratingHost) return;
+        if (CurrentLobby == null || networkManager == null) return;
+        if (networkManager.IsServer || IsCurrentLobbyHost) return;
 
-        Log.W("[SESSION] 호스트 연결이 종료되어 방을 나갑니다.", this);
-        _ = HandleRoomDestroyedAsync();
+        // 내가 끊겼거나 서버가 내려간 경우만 호스트 상실이다. 옆 게스트의 이탈은 무시한다
+        if (clientId != networkManager.LocalClientId && clientId != NetworkManager.ServerClientId) return;
+
+        Log.W("[SESSION] 호스트 연결이 끊겼습니다. 방장 이관을 기다립니다.", this);
+        _ = HandleHostLostAsync();
+    }
+
+    /// <summary>
+    /// 호스트가 사라졌을 때 NGO 만 정리하고 방(Lobby)은 유지한 채 Room 으로 돌려보낸다.
+    /// UGS 가 다음 플레이어를 방장으로 올리면 그 방장이 Relay 를 다시 열고, 나머지는 Room 폴링에서 새 코드에 붙는다.
+    /// 호스트가 비정상 종료해 이관이 일어나지 않으면 하트비트가 끊겨 로비가 만료되고,
+    /// Room 폴링의 404 경로(HandleRoomDestroyedAsync)가 기존처럼 방 소멸을 처리한다.
+    /// </summary>
+    private async Task HandleHostLostAsync()
+    {
+        if (isCleaningUp || isMigratingHost || CurrentLobby == null) return;
+
+        isMigratingHost = true;
+        suppressDisconnectHandling = true;
+
+        string lobbyId = CurrentLobby.Id;
+        int generation = SessionGeneration;
+        bool roomGone = false;
+
+        try
+        {
+            // 죽은 Relay 세션을 끊는다. 새 방장이 여는 Relay 에 다시 붙어야 하기 때문이다
+            await ShutdownNetworkAsync();
+            if (!IsCurrentSession(lobbyId, generation)) return;
+
+            // 게임 중에는 폴링이 멈춰 있어 로컬 스냅샷의 epoch 가 뒤처져 있을 수 있다.
+            // 서버 값을 받아 기준선을 잡아야 죽은 Relay 코드로 재접속을 시도하지 않는다
+            try
+            {
+                Lobby refreshed = await LobbyService.Instance.GetLobbyAsync(lobbyId);
+                if (!IsCurrentSession(lobbyId, generation)) return;
+                TryUpdateLobby(refreshed, lobbyId, generation);
+                connectedMatchEpoch = GetMatchEpoch(refreshed);
+            }
+            catch (LobbyServiceException e) when (
+                e.Reason == LobbyExceptionReason.LobbyNotFound
+                || e.Reason == LobbyExceptionReason.EntityNotFound)
+            {
+                roomGone = true;
+            }
+            catch (Exception e)
+            {
+                // 조회에 실패해도 로컬 스냅샷 기준으로는 막아 둔다. 부족하면 Room 폴링이 따라잡는다
+                Log.W($"[SESSION] 방장 이관 확인용 로비 조회 실패: {e.Message}", this);
+                if (CurrentLobby != null) connectedMatchEpoch = GetMatchEpoch(CurrentLobby);
+            }
+        }
+        finally
+        {
+            isMigratingHost = false;
+            suppressDisconnectHandling = false;
+            ResetFrontendInput();
+        }
+
+        // 방까지 사라졌다면(호스트가 마지막 인원이었거나 로비 만료) 기존 소멸 경로로 넘긴다
+        if (roomGone)
+        {
+            await HandleRoomDestroyedAsync();
+            return;
+        }
+
+        // 게임 중이었다면 Room 으로 돌아간다. 방 세션은 살아 있어 LobbyManager 가 복귀시킨다
+        if (SceneManager.GetActiveScene().name != "Lobby")
+            SceneManager.LoadScene("Lobby");
     }
 
     private void RefreshHeartbeatOwnership()

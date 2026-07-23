@@ -122,12 +122,13 @@ public class RoomManager : MonoBehaviour
 
         try
         {
-            // 한 판 이상 진행된 방에 새로 들어온 경우 Room 에서 기존 Relay 에 미리 연결한다
-            await session.ConnectToRoomNetworkIfNeededAsync();
+            // 한 판 이상 진행된 방에 새로 들어온 경우 Room 에서 기존 Relay 에 미리 연결한다.
+            // 방장을 이관받은 상태로 들어왔다면 여기서 Relay 를 다시 연다
+            await session.EnsureRoomNetworkAsync();
         }
         catch (Exception e)
         {
-            Log.E($"[ROOM] 기존 Room 네트워크 연결 실패: {e.Message}", this);
+            Log.E($"[ROOM] Room 네트워크 정합 실패: {e.Message}", this);
         }
     }
 
@@ -222,21 +223,19 @@ public class RoomManager : MonoBehaviour
 
                     rateLimitAttempt = 0;
 
-                    if (!session.IsLocalPlayerHost)
+                    // 게스트는 새 Relay 코드에 붙고, 이관받은 방장은 끊긴 Relay 를 다시 연다
+                    try
                     {
-                        try
-                        {
-                            await session.ConnectToRoomNetworkIfNeededAsync();
-                            cancellationToken.ThrowIfCancellationRequested();
-                        }
-                        catch (OperationCanceledException)
-                        {
-                            throw;
-                        }
-                        catch (Exception e)
-                        {
-                            Log.E($"[ROOM] Relay 연결 실패: {e.Message}", this);
-                        }
+                        await session.EnsureRoomNetworkAsync();
+                        cancellationToken.ThrowIfCancellationRequested();
+                    }
+                    catch (OperationCanceledException)
+                    {
+                        throw;
+                    }
+                    catch (Exception e)
+                    {
+                        Log.E($"[ROOM] Relay 정합 실패: {e.Message}", this);
                     }
                 }
                 catch (LobbyServiceException e)

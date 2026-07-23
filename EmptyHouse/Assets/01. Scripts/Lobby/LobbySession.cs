@@ -222,6 +222,16 @@ public class LobbySession : MonoBehaviour
         return coordinator.ConnectToRoomNetworkIfNeededAsync();
     }
 
+    /// <summary>
+    /// 방 네트워크를 현재 방장 기준으로 맞춘다. 방장이면 끊긴 Relay 를 다시 열고, 게스트면 새 코드에 붙는다.
+    /// 방장 이관 직후 복구도 이 경로를 탄다.
+    /// </summary>
+    /// <returns>정합 완료를 기다리는 Task</returns>
+    public Task EnsureRoomNetworkAsync()
+    {
+        return coordinator.EnsureRoomNetworkAsync();
+    }
+
     /// <summary>호스트가 게임을 시작한다. 첫 판만 Relay/NGO 를 만들고 이후에는 연결을 재사용한다.</summary>
     /// <param name="gameSceneName">로드할 게임 씬 이름</param>
     /// <returns>시작 절차 완료를 기다리는 Task</returns>
