@@ -79,7 +79,7 @@ namespace Dissonance.Integrations.Unity_NFGO
 
             _playerId.OnValueChanged += OnNetworkVariablePlayerIdChanged;
 
-            if (IsLocalPlayer)
+            if (IsOwner || IsLocalPlayer)
             {
                 Log.Debug("Tracking `NetworkStart` for local player. Name={0}", _comms.LocalPlayerName);
 
@@ -89,11 +89,37 @@ namespace Dissonance.Integrations.Unity_NFGO
 
                 // It's possible the name will change in the future (if Dissonance is restarted)
                 _comms.LocalPlayerNameChanged += OnLocalPlayerIdChanged;
+
+                // On a host, assigning the server-owned NetworkVariable above does not
+                // reliably invoke OnValueChanged for the local instance. Ensure the
+                // local player is registered as a Dissonance position tracker now that
+                // it has a valid ID. Without this, proximity rooms never open.
+                if (!_playerId.Value.IsEmpty && !IsTracking)
+                    StartTracking();
             }
             else
             {
                 if (!_playerId.Value.IsEmpty)
                     StartTracking();
+            }
+        }
+
+        private void LateUpdate()
+        {
+            // Self-heal owner/host instances if a NetworkVariable notification was
+            // missed during spawn ordering. Proximity chat requires this tracker.
+            bool matchesLocalDissonancePlayer = _comms != null
+                && _comms.LocalPlayerName != null
+                && !_playerId.Value.IsEmpty
+                && _playerId.Value.Equals(_comms.LocalPlayerName);
+
+            if (IsSpawned
+                && !IsTracking
+                && _comms != null
+                && !_playerId.Value.IsEmpty
+                && (IsOwner || IsLocalPlayer || matchesLocalDissonancePlayer))
+            {
+                StartTracking();
             }
         }
 
@@ -110,7 +136,7 @@ namespace Dissonance.Integrations.Unity_NFGO
                 StopTracking();
 
             //Inform the server the name has changed
-            if (IsLocalPlayer)
+            if (IsOwner || IsLocalPlayer)
                 SetNameServerRpc(_comms.LocalPlayerName);
 
             // Restart tracking

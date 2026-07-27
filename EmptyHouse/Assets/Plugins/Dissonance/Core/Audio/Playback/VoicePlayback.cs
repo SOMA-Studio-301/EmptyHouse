@@ -24,6 +24,7 @@ namespace Dissonance.Audio.Playback
 
         private SamplePlaybackComponent _player;
         private float? _savedSpatialBlend;
+        private AudioListener _audioListener;
 
         public override float Amplitude => _player == null ? 0 : _player.ARV;
         #endregion
@@ -160,12 +161,17 @@ namespace Dissonance.Audio.Playback
 
                 if (((IVoicePlaybackInternal)this).AllowPositionalPlayback && isPositional)
                 {
-                    if (_savedSpatialBlend.HasValue)
+                    // Keep voice centered in both ears. Unity couples its built-in
+                    // distance attenuation to 3D panning, so attenuation is applied
+                    // manually below while spatialBlend remains 2D.
+                    AudioSource.spatialBlend = 0;
+
+                    if (_audioListener == null)
                     {
-                        Log.Debug("Changing to positional playback for {0}", PlayerName);
-                        AudioSource.spatialBlend = _savedSpatialBlend.Value;
-                        _savedSpatialBlend = null;
+                        _audioListener = FindAnyObjectByType<AudioListener>();
                     }
+
+                    AudioSource.volume = CalculateDistanceVolume(_audioListener);
                 }
                 else
                 {
@@ -175,8 +181,27 @@ namespace Dissonance.Audio.Playback
                         _savedSpatialBlend = AudioSource.spatialBlend;
                         AudioSource.spatialBlend = 0;
                     }
+
+                    AudioSource.volume = 1;
                 }
             }
+        }
+
+        private float CalculateDistanceVolume(AudioListener listener)
+        {
+            if (listener == null)
+                return 1;
+
+            var distance = Vector3.Distance(transform.position, listener.transform.position);
+            var minDistance = AudioSource.minDistance;
+            var maxDistance = Mathf.Max(minDistance, AudioSource.maxDistance);
+
+            if (distance <= minDistance)
+                return 1;
+            if (distance >= maxDistance)
+                return 0;
+
+            return 1 - Mathf.InverseLerp(minDistance, maxDistance, distance);
         }
 
         protected override void ForceReset()
