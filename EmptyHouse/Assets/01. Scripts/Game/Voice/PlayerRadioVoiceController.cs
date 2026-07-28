@@ -24,9 +24,13 @@ public sealed class PlayerRadioVoiceController : NetworkBehaviour
     private RoomChannel? transmitChannel;
     private bool pushToTalkHeld;
     private bool subscribed;
+    private readonly NetworkVariable<bool> isTransmitting = new(
+        false,
+        NetworkVariableReadPermission.Everyone,
+        NetworkVariableWritePermission.Owner);
 
     public bool HasRadio => radioSlot != null && radioSlot.IsFilled;
-    public bool IsTransmitting => transmitChannel.HasValue;
+    public bool IsTransmitting => isTransmitting.Value;
 
     private void Awake()
     {
@@ -154,15 +158,27 @@ public sealed class PlayerRadioVoiceController : NetworkBehaviour
                 new RoomName(radioRoomName),
                 positional: false,
                 priority: priority);
+            SetTransmitting(true);
         }
     }
 
     private void CloseTransmitChannel()
     {
-        if (!transmitChannel.HasValue) return;
+        if (transmitChannel.HasValue)
+        {
+            transmitChannel.Value.Dispose();
+            transmitChannel = null;
+        }
 
-        transmitChannel.Value.Dispose();
-        transmitChannel = null;
+        SetTransmitting(false);
+    }
+
+    private void SetTransmitting(bool value)
+    {
+        if (IsSpawned && IsOwner && isTransmitting.Value != value)
+        {
+            isTransmitting.Value = value;
+        }
     }
 
     private void LeaveRadioRoom()

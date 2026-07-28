@@ -13,6 +13,7 @@ GameObject:
   - component: {fileID: 82279272996311362}
   - component: {fileID: 114316682808651866}
   - component: {fileID: 6362357847714811055}
+  - component: {fileID: 114000010155069867}
   m_Layer: 0
   m_Name: CustomPlaybackPrefab
   m_TagString: Untagged
@@ -182,3 +183,15 @@ AudioLowPassFilter:
     m_PreInfinity: 2
     m_PostInfinity: 2
     m_RotationOrder: 4
+--- !u!114 &114000010155069867
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1000010352696724}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: ca3b82d0ea8da6c45a0abc0cd8a684ca, type: 3}
+  m_Name:
+  m_EditorClassIdentifier:

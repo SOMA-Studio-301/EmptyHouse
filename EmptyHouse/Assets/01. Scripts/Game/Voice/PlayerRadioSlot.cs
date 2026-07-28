@@ -18,7 +18,12 @@ public sealed class PlayerRadioSlot : NetworkBehaviour
     [SerializeField] private Color emptyColor = new(0f, 0f, 0f, 0.5f);
     [SerializeField] private Color filledColor = new(0.1f, 0.55f, 0.2f, 0.8f);
 
-    public bool IsFilled { get; private set; }
+    private readonly NetworkVariable<bool> isFilled = new(
+        false,
+        NetworkVariableReadPermission.Everyone,
+        NetworkVariableWritePermission.Owner);
+
+    public bool IsFilled => isFilled.Value;
     public event Action Changed;
 
     private Image slotBackground;
@@ -27,10 +32,18 @@ public sealed class PlayerRadioSlot : NetworkBehaviour
     public override void OnNetworkSpawn()
     {
         base.OnNetworkSpawn();
+        isFilled.OnValueChanged += OnFilledChanged;
+
         if (!IsOwner) return;
 
         BuildHud();
         RefreshView();
+    }
+
+    public override void OnNetworkDespawn()
+    {
+        isFilled.OnValueChanged -= OnFilledChanged;
+        base.OnNetworkDespawn();
     }
 
     /// <summary>전용 칸이 비어 있을 때만 무전기를 장착한다.</summary>
@@ -38,10 +51,20 @@ public sealed class PlayerRadioSlot : NetworkBehaviour
     {
         if (!IsOwner || IsFilled) return false;
 
-        IsFilled = true;
+        isFilled.Value = true;
         RefreshView();
         Changed?.Invoke();
         return true;
+    }
+
+    private void OnFilledChanged(bool previousValue, bool newValue)
+    {
+        if (IsOwner)
+        {
+            RefreshView();
+        }
+
+        Changed?.Invoke();
     }
 
     private void RefreshView()
