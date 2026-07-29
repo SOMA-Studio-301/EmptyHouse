@@ -1,4 +1,3 @@
-using Dissonance;
 using Unity.Netcode;
 using UnityEngine;
 
@@ -15,13 +14,6 @@ public sealed class PlayerRadioVoiceController : NetworkBehaviour
     [SerializeField] private InputReader inputReader;
     [SerializeField] private PlayerRadioSlot radioSlot;
 
-    [Header("Dissonance")]
-    [SerializeField] private string radioRoomName = "Radio";
-    [SerializeField] private ChannelPriority priority = ChannelPriority.Default;
-
-    private DissonanceComms comms;
-    private RoomMembership? membership;
-    private RoomChannel? transmitChannel;
     private bool pushToTalkHeld;
     private bool subscribed;
     private readonly NetworkVariable<bool> isTransmitting = new(
@@ -58,8 +50,7 @@ public sealed class PlayerRadioVoiceController : NetworkBehaviour
     {
         Unsubscribe();
         pushToTalkHeld = false;
-        CloseTransmitChannel();
-        LeaveRadioRoom();
+        SetTransmitting(false);
         base.OnNetworkDespawn();
     }
 
@@ -78,8 +69,7 @@ public sealed class PlayerRadioVoiceController : NetworkBehaviour
 
         Unsubscribe();
         pushToTalkHeld = false;
-        CloseTransmitChannel();
-        LeaveRadioRoom();
+        SetTransmitting(false);
     }
 
     private void Update()
@@ -88,7 +78,6 @@ public sealed class PlayerRadioVoiceController : NetworkBehaviour
 
         // DissonanceSetup은 씬 오브젝트라 플레이어보다 늦게 초기화될 수 있다.
         // 준비 전에는 대기하고, 시작된 직후 보유/입력 상태를 다시 적용한다.
-        if (!TryResolveComms()) return;
         ReconcileRadioState();
     }
 
@@ -101,7 +90,7 @@ public sealed class PlayerRadioVoiceController : NetworkBehaviour
     private void OnRadioCanceled()
     {
         pushToTalkHeld = false;
-        CloseTransmitChannel();
+        SetTransmitting(false);
     }
 
     private void Subscribe()
@@ -124,53 +113,26 @@ public sealed class PlayerRadioVoiceController : NetworkBehaviour
         subscribed = false;
     }
 
-    private bool TryResolveComms()
-    {
-        if (comms == null)
-        {
-            comms = FindAnyObjectByType<DissonanceComms>();
-        }
-
-        return comms != null && comms.IsNetworkInitialized;
-    }
-
     private void ReconcileRadioState()
     {
-        if (!IsOwner || !TryResolveComms()) return;
+        if (!IsOwner) return;
 
         if (!HasRadio)
         {
             pushToTalkHeld = false;
-            CloseTransmitChannel();
-            LeaveRadioRoom();
+            SetTransmitting(false);
             return;
         }
 
-        if (!membership.HasValue)
+        if (pushToTalkHeld && !IsTransmitting)
         {
-            membership = comms.Rooms.Join(radioRoomName);
-        }
-
-        if (pushToTalkHeld && !transmitChannel.HasValue)
-        {
-            // 무전은 발신자 위치와 무관하게 들려야 하므로 positional=false.
-            transmitChannel = comms.RoomChannels.Open(
-                new RoomName(radioRoomName),
-                positional: false,
-                priority: priority);
             SetTransmitting(true);
+            Debug.Log($"[RadioVoice] PTT started owner={OwnerClientId}");
         }
-    }
-
-    private void CloseTransmitChannel()
-    {
-        if (transmitChannel.HasValue)
+        else if (!pushToTalkHeld && IsTransmitting)
         {
-            transmitChannel.Value.Dispose();
-            transmitChannel = null;
+            SetTransmitting(false);
         }
-
-        SetTransmitting(false);
     }
 
     private void SetTransmitting(bool value)
@@ -178,18 +140,11 @@ public sealed class PlayerRadioVoiceController : NetworkBehaviour
         if (IsSpawned && IsOwner && isTransmitting.Value != value)
         {
             isTransmitting.Value = value;
+            if (!value)
+            {
+                Debug.Log($"[RadioVoice] PTT stopped owner={OwnerClientId}");
+            }
         }
     }
 
-    private void LeaveRadioRoom()
-    {
-        if (!membership.HasValue) return;
-
-        if (comms != null)
-        {
-            comms.Rooms.Leave(membership.Value);
-        }
-
-        membership = null;
-    }
 }

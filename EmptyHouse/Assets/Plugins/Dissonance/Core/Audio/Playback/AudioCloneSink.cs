@@ -67,6 +67,11 @@ namespace Dissonance.Audio.Playback
 
             if (AutoPlay)
                 _audioSource.Play();
+
+            // Source may already be assigned before this component is enabled
+            // (for example for dynamically constructed radio speakers). Subscribe
+            // immediately instead of waiting for the next main-thread Update.
+            Subscribe(Source);
         }
 
         private void OnDisable()

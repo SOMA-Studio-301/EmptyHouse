@@ -68,7 +68,7 @@ public sealed class RadioVoiceLeakRouter : MonoBehaviour
             }
 
             PlayerRadioVoiceController transmitter = FindRadio(speaker.Name, radios);
-            if (transmitter == null || !transmitter.IsTransmitting)
+            if (!IsRadioTransmission(speaker, transmitter))
             {
                 continue;
             }
@@ -112,12 +112,23 @@ public sealed class RadioVoiceLeakRouter : MonoBehaviour
         return null;
     }
 
-    private static bool IsSpeakerTransmitting(
+    private bool IsSpeakerTransmitting(
         string playerId,
         PlayerRadioVoiceController[] radios)
     {
         PlayerRadioVoiceController radio = FindRadio(playerId, radios);
-        return radio != null && radio.IsTransmitting;
+        VoicePlayerState speaker = comms != null ? comms.FindPlayer(playerId) : null;
+        return speaker != null && IsRadioTransmission(speaker, radio);
+    }
+
+    private static bool IsRadioTransmission(
+        VoicePlayerState speaker,
+        PlayerRadioVoiceController transmitter)
+    {
+        return speaker != null
+            && transmitter != null
+            && transmitter.HasRadio
+            && transmitter.IsTransmitting;
     }
 
     private bool HasLeak(string speakerId, PlayerRadioVoiceController receiver)
@@ -139,6 +150,7 @@ public sealed class RadioVoiceLeakRouter : MonoBehaviour
         PlayerRadioVoiceController receiver)
     {
         GameObject leakObject = new GameObject($"RadioLeak_{speakerId}");
+        leakObject.SetActive(false);
         leakObject.transform.SetParent(receiver.transform, false);
         leakObject.transform.localPosition = new Vector3(0f, 1.2f, 0f);
 
@@ -146,6 +158,8 @@ public sealed class RadioVoiceLeakRouter : MonoBehaviour
         audioSource.playOnAwake = false;
         audioSource.loop = true;
         audioSource.spatialBlend = 0f;
+        audioSource.priority = 0;
+        audioSource.ignoreListenerPause = true;
         audioSource.bypassReverbZones = true;
 
         AudioLowPassFilter radioFilter = leakObject.AddComponent<AudioLowPassFilter>();
@@ -154,13 +168,14 @@ public sealed class RadioVoiceLeakRouter : MonoBehaviour
 
         RadioLeakDistanceAttenuation attenuation =
             leakObject.AddComponent<RadioLeakDistanceAttenuation>();
-        attenuation.BaseVolume = 0.45f;
+        attenuation.BaseVolume = 0.8f;
         attenuation.MinDistance = 1f;
         attenuation.MaxDistance = 8f;
 
         AudioCloneSink sink = leakObject.AddComponent<AudioCloneSink>();
         sink.Source = source;
         sink.AutoPlay = true;
+        leakObject.SetActive(true);
 
         leaks.Add(new Leak
         {
@@ -168,6 +183,9 @@ public sealed class RadioVoiceLeakRouter : MonoBehaviour
             Receiver = receiver,
             Object = leakObject
         });
+
+        Debug.Log(
+            $"[RadioLeak] Created speaker={speakerId} receiverOwner={receiver.OwnerClientId}");
     }
 
     private void OnDestroy()

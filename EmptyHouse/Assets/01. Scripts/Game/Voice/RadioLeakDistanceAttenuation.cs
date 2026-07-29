@@ -21,9 +21,9 @@ public sealed class RadioLeakDistanceAttenuation : MonoBehaviour
 
     private void LateUpdate()
     {
-        if (listener == null)
+        if (listener == null || !listener.enabled || !listener.gameObject.activeInHierarchy)
         {
-            listener = FindAnyObjectByType<AudioListener>();
+            listener = FindActiveListener();
         }
 
         if (listener == null)
@@ -40,5 +40,22 @@ public sealed class RadioLeakDistanceAttenuation : MonoBehaviour
                 : 1f - Mathf.InverseLerp(MinDistance, MaxDistance, distance);
 
         source.volume = BaseVolume * attenuation;
+    }
+
+    private static AudioListener FindActiveListener()
+    {
+        AudioListener[] listeners = FindObjectsByType<AudioListener>(
+            FindObjectsInactive.Exclude,
+            FindObjectsSortMode.None);
+
+        for (int i = 0; i < listeners.Length; i++)
+        {
+            if (listeners[i].enabled && listeners[i].gameObject.activeInHierarchy)
+            {
+                return listeners[i];
+            }
+        }
+
+        return null;
     }
 }
