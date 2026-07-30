@@ -30,6 +30,8 @@ public class InputReader : ScriptableObject, GameInput.IGameplayActions, GameInp
     public event UnityAction DisguiseCanceledEvent = delegate { }; // 위장(V) 해제. 누르는 동안만 위장을 유지하기 위한 종료 신호
     public event UnityAction RadioPressedEvent = delegate { }; // 무전 Push-To-Talk(J) 누름
     public event UnityAction RadioCanceledEvent = delegate { }; // 무전 Push-To-Talk(J) 해제
+    public event UnityAction AimPressedEvent = delegate { }; // 투척 조준(우클릭) 누름. 누르는 동안만 궤적이 유지된다
+    public event UnityAction AimCanceledEvent = delegate { }; // 투척 조준(우클릭) 해제. 궤적을 즉시 지운다
 
     private GameInput gameInput;
 
@@ -332,6 +334,25 @@ public class InputReader : ScriptableObject, GameInput.IGameplayActions, GameInp
         else if (context.phase == InputActionPhase.Canceled)
         {
             RadioCanceledEvent.Invoke();
+        }
+    }
+
+    /// <summary>
+    /// Aim 액션 콜백(우클릭 홀드). 누름/뗌을 투척 조준 시작/종료 신호로 중계한다.
+    /// 홀드 방식이라 Attack 과 달리 두 시점이 모두 의미를 가진다 — 뗌은 곧 조준 취소다.
+    /// </summary>
+    /// <param name="context">Input System 이 전달하는 콜백 컨텍스트.</param>
+    public void OnAim(InputAction.CallbackContext context)
+    {
+        RememberDevice(context);
+
+        if (context.phase == InputActionPhase.Performed)
+        {
+            AimPressedEvent.Invoke();
+        }
+        else if (context.phase == InputActionPhase.Canceled)
+        {
+            AimCanceledEvent.Invoke();
         }
     }
 

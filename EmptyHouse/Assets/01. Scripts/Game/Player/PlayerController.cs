@@ -39,6 +39,12 @@ public class PlayerController : NetworkBehaviour
     [SerializeField] private PlayerInteractor interactor;
     [SerializeField] private PlayerInventory inventory;
 
+    /// <summary>좌·우클릭 아이템 사용 라우팅. InputReader 가 전역 SO 라, 끄지 않으면 남의 캐릭터가 내 클릭에 반응한다.</summary>
+    [SerializeField] private PlayerItemUser itemUser;
+
+    /// <summary>투척 조준 궤적. 로컬 표시물이므로 비소유자 인스턴스에서는 그릴 이유가 없다.</summary>
+    [SerializeField] private ThrowAimIndicator aimIndicator;
+
     /// <summary>상호작용 프롬프트 전용 Canvas. 다른 HUD 요소와 분리해 두어, 프롬프트가 매 프레임 갱신돼도 그쪽 Canvas 는 리빌드되지 않는다.</summary>
     [SerializeField] private Canvas promptCanvas;
 
@@ -101,6 +107,8 @@ public class PlayerController : NetworkBehaviour
         interactor.enabled = IsOwner;
         promptCanvas.enabled = IsOwner;
         inventory.enabled = IsOwner;
+        itemUser.enabled = IsOwner;
+        aimIndicator.enabled = IsOwner;
 
         if (!IsOwner) return;
 
@@ -176,6 +184,8 @@ public class PlayerController : NetworkBehaviour
         interactor.enabled = false;
         inventory.enabled = false;
         promptCanvas.enabled = false;
+        itemUser.enabled = false;
+        aimIndicator.enabled = false; // OnDisable 에서 궤적선을 스스로 지운다 — 관전 화면에 남지 않는다
         body.linearVelocity = Vector3.zero;
     }
 
