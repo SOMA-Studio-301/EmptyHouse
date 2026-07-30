@@ -232,13 +232,16 @@ namespace EmptyHouse.EditorTools
             bool prevPostProcessing = camData.renderPostProcessing;
             camData.renderPostProcessing = true;
 
-            RenderTexture full = RenderTexture.GetTemporary(width * supersample, height * supersample, 24, RenderTextureFormat.ARGB32);
+            // URP는 targetTexture 포맷을 내부 버퍼로 상속하므로 HDR 포맷이어야 블룸·톤매핑이 유지된다
+            RenderTexture full = RenderTexture.GetTemporary(width * supersample, height * supersample, 24, RenderTextureFormat.DefaultHDR);
             RenderCamera(cam, full);
             camData.renderPostProcessing = prevPostProcessing;
 
             RenderTexture final = Downscale(full, width, height);
+            RenderTexture ldr = RenderTexture.GetTemporary(width, height, 0, RenderTextureFormat.ARGB32); // PNG 인코딩용 sRGB 변환 버퍼
+            Graphics.Blit(final, ldr);
             RenderTexture prevActive = RenderTexture.active;
-            RenderTexture.active = final;
+            RenderTexture.active = ldr;
             Texture2D tex = new Texture2D(width, height, TextureFormat.RGBA32, false);
             tex.ReadPixels(new Rect(0f, 0f, width, height), 0, 0);
             tex.Apply();
@@ -246,6 +249,7 @@ namespace EmptyHouse.EditorTools
 
             byte[] png = tex.EncodeToPNG();
             DestroyImmediate(tex);
+            RenderTexture.ReleaseTemporary(ldr);
             if (final != full) RenderTexture.ReleaseTemporary(final);
             RenderTexture.ReleaseTemporary(full);
 
@@ -323,14 +327,14 @@ namespace EmptyHouse.EditorTools
         }
 
         /// <summary>
-        /// URP 렌더 요청(SingleCameraRequest)으로 카메라를 destination에 렌더한다.
+        /// 렌더 요청(StandardRequest, 포스트프로세싱 포함 풀 스택)으로 카메라를 destination에 렌더한다.
         /// 미지원 환경이면 Camera.Render() 폴백을 사용한다.
         /// </summary>
         /// <param name="cam">렌더할 카메라.</param>
         /// <param name="destination">출력 RenderTexture.</param>
         private static void RenderCamera(Camera cam, RenderTexture destination)
         {
-            UniversalRenderPipeline.SingleCameraRequest request = new UniversalRenderPipeline.SingleCameraRequest
+            RenderPipeline.StandardRequest request = new RenderPipeline.StandardRequest
             {
                 destination = destination,
             };
@@ -358,7 +362,7 @@ namespace EmptyHouse.EditorTools
             {
                 int w = Mathf.Max(targetW, current.width / 2);
                 int h = Mathf.Max(targetH, current.height / 2);
-                RenderTexture next = RenderTexture.GetTemporary(w, h, 0, RenderTextureFormat.ARGB32);
+                RenderTexture next = RenderTexture.GetTemporary(w, h, 0, src.format); // 다운스케일 중 HDR 정밀도 유지
                 Graphics.Blit(current, next);
                 if (current != src) RenderTexture.ReleaseTemporary(current);
                 current = next;
