@@ -59,7 +59,9 @@ public class GameScenePlayerSpawner : MonoBehaviour
             return;
         }
 
-        NetworkObject player = Instantiate(playerPrefab, Vector3.zero, Quaternion.identity);
+        // 스포너의 자식 Transform들이 스폰 포인트다. 씬에서 위치만 잡아 두면 된다.
+        Transform spawnPoint = transform.GetChild(Random.Range(0, transform.childCount));
+        NetworkObject player = Instantiate(playerPrefab, spawnPoint.position, spawnPoint.rotation);
         // PlayerObject는 한 판에만 속한다. Lobby 복귀 시 함께 Despawn하고 다음 판에 새로 만든다.
         player.SpawnAsPlayerObject(clientId, true);
         spawnedClients.Add(clientId);

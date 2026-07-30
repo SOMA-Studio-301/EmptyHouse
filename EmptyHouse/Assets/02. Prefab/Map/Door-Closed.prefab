@@ -192,6 +192,8 @@ GameObject:
   - component: {fileID: 1511996270929166415}
   - component: {fileID: 6615363804659139351}
   - component: {fileID: 7861411837060422974}
+  - component: {fileID: 922202824467970403}
+  - component: {fileID: 3150522340387189433}
   m_Layer: 0
   m_Name: Hall_Door_R
   m_TagString: Untagged
@@ -292,6 +294,42 @@ BoxCollider:
   serializedVersion: 3
   m_Size: {x: 1.1855774, y: 2.505661, z: 0.07451848}
   m_Center: {x: 0.5826007, y: 1.2528329, z: -0.028435549}
+--- !u!114 &922202824467970403
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 6793837164684742993}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 1e3fdca004f2d45fe8abbed571a8abd5, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Unity.AI.Navigation::Unity.AI.Navigation.NavMeshModifier
+  m_SerializedVersion: 0
+  m_OverrideArea: 0
+  m_Area: 0
+  m_OverrideGenerateLinks: 0
+  m_GenerateLinks: 0
+  m_IgnoreFromBuild: 1
+  m_ApplyToChildren: 1
+  m_AffectedAgents: ffffffff
+--- !u!208 &3150522340387189433
+NavMeshObstacle:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 6793837164684742993}
+  m_Enabled: 1
+  serializedVersion: 3
+  m_Shape: 1
+  m_Extents: {x: 0.5927887, y: 1.2528305, z: 0.03725924}
+  m_MoveThreshold: 0.1
+  m_Carve: 1
+  m_CarveOnlyStationary: 1
+  m_Center: {x: 0.5826007, y: 1.2528329, z: -0.028435549}
+  m_TimeToStationary: 0.5
 --- !u!1 &8559629834610093962
 GameObject:
   m_ObjectHideFlags: 0
@@ -421,6 +459,8 @@ GameObject:
   - component: {fileID: 4758937428639794930}
   - component: {fileID: 4052734939487440354}
   - component: {fileID: 2253366860816355700}
+  - component: {fileID: 1426113716063707120}
+  - component: {fileID: 779780884711040339}
   m_Layer: 0
   m_Name: Hall_Door_L
   m_TagString: Untagged
@@ -521,3 +561,39 @@ BoxCollider:
   serializedVersion: 3
   m_Size: {x: 1.1855774, y: 2.505661, z: 0.074518494}
   m_Center: {x: -0.5826007, y: 1.2528329, z: -0.028434772}
+--- !u!114 &1426113716063707120
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 8846930811523247900}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 1e3fdca004f2d45fe8abbed571a8abd5, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Unity.AI.Navigation::Unity.AI.Navigation.NavMeshModifier
+  m_SerializedVersion: 0
+  m_OverrideArea: 0
+  m_Area: 0
+  m_OverrideGenerateLinks: 0
+  m_GenerateLinks: 0
+  m_IgnoreFromBuild: 1
+  m_ApplyToChildren: 1
+  m_AffectedAgents: ffffffff
+--- !u!208 &779780884711040339
+NavMeshObstacle:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 8846930811523247900}
+  m_Enabled: 1
+  serializedVersion: 3
+  m_Shape: 1
+  m_Extents: {x: 0.5927887, y: 1.2528305, z: 0.037259247}
+  m_MoveThreshold: 0.1
+  m_Carve: 1
+  m_CarveOnlyStationary: 1
+  m_Center: {x: -0.5826007, y: 1.2528329, z: -0.028434772}
+  m_TimeToStationary: 0.5
