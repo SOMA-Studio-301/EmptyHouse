@@ -19,9 +19,9 @@ namespace EmptyHouse.EditorTools
     /// </summary>
     public static class MapRoomSwapper
     {
-        private const string mapSceneName = "Map";
-        private const string mapScenePath = "Assets/00. Scenes/Map.unity";
-        private const string backupScenePath = "Assets/00. Scenes/Map_backup_swap.unity";
+        private const string mapSceneName = "Game";
+        private const string mapScenePath = "Assets/00. Scenes/Game.unity";
+        private const string backupScenePath = "Assets/00. Scenes/Game_backup_swap.unity";
         private const string decoratedFolder = "Assets/02. Prefab/Map/DecoratedRooms";
         private const string generatedRootName = "GeneratedProps";
         private const string propSetName = "PropSet";

@@ -18,8 +18,8 @@ namespace EmptyHouse.EditorTools
     /// </summary>
     public static class MapPropSetDistributor
     {
-        private const string mapSceneName = "Map";
-        private const string mapScenePath = "Assets/00. Scenes/Map.unity";
+        private const string mapSceneName = "Game";
+        private const string mapScenePath = "Assets/00. Scenes/Game.unity";
         private const string propSetsScenePath = "Assets/00. Scenes/PropSets.unity";
         private const string propSetChildName = "PropSet";
         private const string generatedRootName = "GeneratedProps";
