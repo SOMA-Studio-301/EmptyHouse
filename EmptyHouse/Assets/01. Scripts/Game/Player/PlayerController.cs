@@ -189,6 +189,22 @@ public class PlayerController : NetworkBehaviour
         body.linearVelocity = Vector3.zero;
     }
 
+    /// <summary>
+    /// 앱 포커스를 잃는 순간 입력 캐시를 전부 리셋한다.
+    /// 포커스 이탈 시 키 release 이벤트가 게임에 도착하지 않아 마지막 입력이 눌린 채로 박제되고,
+    /// 이후 새 입력과 합성돼 유령 이동·방향 오염이 생기는 문제 방지(멀티 창 테스트·알트탭 공통).
+    /// </summary>
+    /// <param name="hasFocus">앱 포커스 획득 여부.</param>
+    private void OnApplicationFocus(bool hasFocus)
+    {
+        if (hasFocus) return;
+
+        moveInput = Vector2.zero;
+        lookInput = Vector2.zero;
+        jumpRequested = false;
+        isCrouching = false;
+    }
+
     // ── 입력 콜백 — 캐시 갱신만 한다 ────────────────────────────
     // Move 는 Value 액션이라 값이 바뀔 때만 콜백이 온다. 키를 누른 채 정지해 있으면
     // 콜백이 더는 오지 않으므로, 콜백에서 직접 이동시키면 한 프레임만 움직인다.
@@ -270,7 +286,10 @@ public class PlayerController : NetworkBehaviour
     /// </summary>
     private void HandleMove()
     {
-        Vector3 dir = transform.right * moveInput.x + transform.forward * moveInput.y;
+        // transform 의 회전은 Rigidbody 보간이 매 프레임 물리 몸체의 옛 회전으로 되돌려 쓸 수 있어
+        // FixedUpdate 시점에 낡은 값이 걸린다(시선은 꺾였는데 이동은 이전 방향으로 가는 간헐 버그).
+        // 카메라와 같은 근원인 yaw 필드로 직접 방향을 계산해 시선·이동을 항상 일치시킨다.
+        Vector3 dir = Quaternion.Euler(0f, yaw, 0f) * new Vector3(moveInput.x, 0f, moveInput.y);
         float speed = isCrouching ? moveSpeed * crouchSpeedMultiplier : moveSpeed;
         Vector3 v = dir.normalized * speed;
         body.linearVelocity = new Vector3(v.x, body.linearVelocity.y, v.z);
