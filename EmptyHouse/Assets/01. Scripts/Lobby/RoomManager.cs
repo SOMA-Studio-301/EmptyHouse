@@ -418,6 +418,10 @@ public class RoomManager : MonoBehaviour
 
         isStartingGame = true;
 
+        // 호스트는 서버 절차(클라 접속 대기·로비 갱신 등)를 기다리지 않고 즉시 연출을 띄운다.
+        // 게스트는 씬 로드 시작(GameStarting)에 맞춰 뜬다 — 그쪽은 버튼을 누른 주체가 아니라 즉시일 수 없다.
+        uiRoom.ShowDepartText();
+
         // 시작이 확정되면 방 UI 갱신은 의미가 없다. 씬이 언로드된 뒤 응답이 돌아와 파괴된 위젯을 건드리는 것을 막는다
         CancelLobbyPolling();
 
@@ -433,6 +437,7 @@ public class RoomManager : MonoBehaviour
         {
             Log.E($"[ROOM] 게임 시작 실패: {e.Message}", this);
             isStartingGame = false;
+            uiRoom.HideDepartText(); // 시작 실패 시 연출 원복
         }
     }
 

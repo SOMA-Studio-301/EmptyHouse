@@ -256,11 +256,19 @@ public class UIRoom : MonoBehaviour
         StartRequested?.Invoke();
     }
 
-    /// <summary>Depart 연출 텍스트를 켠다. 전원 준비 후 실제 씬 전환이 시작될 때 RoomManager 가 호출한다(전 클라이언트).</summary>
+    /// <summary>Depart 연출 텍스트를 켠다. 호스트는 준비 확정 즉시, 게스트는 씬 로드 시작 시 호출된다. 이미 떠 있으면 재설정하지 않는다(호스트 즉시표시 후 GameStarting 중복 방지).</summary>
     public void ShowDepartText()
     {
+        if (departText.gameObject.activeSelf) return;
+
         departText.gameObject.SetActive(true);
         departText.SetText(BuildDepartText());
+    }
+
+    /// <summary>Depart 연출 텍스트를 끈다. 게임 시작 실패 시 원복용.</summary>
+    public void HideDepartText()
+    {
+        departText.gameObject.SetActive(false);
     }
 
     /// <summary>Depart 로컬라이즈 문자열을 현재 언어로 해석해 애니메이션 태그로 감싼다. TMP 직접 출력이 아니라 TextAnimator 파싱용이다.</summary>
