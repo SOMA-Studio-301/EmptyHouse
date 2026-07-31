@@ -34,6 +34,9 @@ public class LobbySession : MonoBehaviour
     /// <summary>발행: 세션 종료(퇴장·로비 소멸). SessionCoordinator.RoomCleared 를 중계한다.</summary>
     public event Action SessionEnded;
 
+    /// <summary>발행: 게임 씬 로드 시작(전 클라이언트). SessionCoordinator.GameStarting 을 중계한다.</summary>
+    public event Action GameStarting;
+
     public Lobby CurrentLobby => coordinator.CurrentLobby;           // 현재 세션 로비. 없으면 null
     public bool IsInSession => coordinator.HasRoom;                  // 세션 참여 여부
     public bool IsLocalPlayerHost => coordinator.IsCurrentLobbyHost; // 내가 현재 로비의 방장인지
@@ -51,6 +54,7 @@ public class LobbySession : MonoBehaviour
     {
         coordinator = SessionCoordinator.Instance;
         coordinator.RoomCleared += HandleRoomCleared;
+        coordinator.GameStarting += HandleGameStarting;
     }
 
     /// <summary>구독을 해제한다.</summary>
@@ -59,6 +63,7 @@ public class LobbySession : MonoBehaviour
         if (coordinator != null)
         {
             coordinator.RoomCleared -= HandleRoomCleared;
+            coordinator.GameStarting -= HandleGameStarting;
         }
     }
 
@@ -251,6 +256,12 @@ public class LobbySession : MonoBehaviour
     private void HandleRoomCleared()
     {
         SessionEnded?.Invoke();
+    }
+
+    /// <summary>코디네이터의 게임 시작 신호를 중계한다.</summary>
+    private void HandleGameStarting()
+    {
+        GameStarting?.Invoke();
     }
 
     /// <summary>UGS 에 실을 로컬 플레이어 정보를 만든다.</summary>

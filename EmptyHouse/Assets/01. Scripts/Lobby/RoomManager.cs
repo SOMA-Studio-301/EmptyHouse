@@ -25,6 +25,7 @@ public class RoomManager : MonoBehaviour
     [Header("Audio")]
     [SerializeField] private SFXEventChannelSO sfxEventChannel;
     [SerializeField] private AudioId gameStartAudioId = AudioId.Sfx_Ui_GameStart; // 결과 피드백 — 클릭음(버튼 컴포넌트 담당)이 아니라 시작이 확정된 뒤 울린다
+    [SerializeField] private AudioId startDeniedAudioId = AudioId.Sfx_Ui_Click;    // TODO: 전용 거부음으로 교체할 임시 사운드. 전원 준비 전 Start 시 재생
 
     [Header("Settings")]
     [SerializeField] private float lobbyPollInterval = 1.5f;
@@ -46,6 +47,7 @@ public class RoomManager : MonoBehaviour
         session.SessionStarted += HandleSessionStarted;
         session.LobbyUpdated += HandleLobbyUpdated;
         session.SessionEnded += HandleSessionEnded;
+        session.GameStarting += HandleGameStarting;
     }
 
     /// <summary>구독을 해제한다.</summary>
@@ -54,6 +56,7 @@ public class RoomManager : MonoBehaviour
         session.SessionStarted -= HandleSessionStarted;
         session.LobbyUpdated -= HandleLobbyUpdated;
         session.SessionEnded -= HandleSessionEnded;
+        session.GameStarting -= HandleGameStarting;
     }
 
     /// <summary>스팀 콜백을 등록한다. 아바타·닉네임이 늦게 도착하면 슬롯을 다시 그려야 한다.</summary>
@@ -102,6 +105,12 @@ public class RoomManager : MonoBehaviour
     private void HandleLobbyUpdated(Lobby lobby)
     {
         UpdateRoomUI();
+    }
+
+    /// <summary>게임 씬 로드 시작(전 클라이언트)을 받아 Depart 연출 텍스트를 켠다. 씬 전환이 곧 이 화면을 걷어간다.</summary>
+    private void HandleGameStarting()
+    {
+        uiRoom.ShowDepartText();
     }
 
     /// <summary>세션 종료(퇴장·로비 소멸)를 받아 방 상태를 초기화한다. 방 화면 닫기는 UIMenuManager 몫이다.</summary>
@@ -334,13 +343,12 @@ public class RoomManager : MonoBehaviour
         if (!isHost)
         {
             uiRoom.SetReadyInteractable(!isStartingGame); // 게임 시작 중이면 Ready 도 잠금
+            uiRoom.SetReadyLabel(isReady);                // 준비 상태에 맞춰 버튼 문구 토글
             return;
         }
 
-        // 게임 시작 중일 때는 allReady 여부와 상관없이 버튼 비활성 유지
-        if (isStartingGame) return;
-
-        uiRoom.SetStartInteractable(IsEveryGuestReady()); // 게스트가 없으면(혼자) 참 — 솔로 시작 허용
+        // 방장 Start 버튼은 항상 활성이다. 전원 준비 판정은 클릭 시점(StartGame)에 하고,
+        // 미준비면 경고+거부음을 낸다 — 잠긴 버튼은 왜 안 눌리는지 알려주지 못하기 때문이다.
     }
 
     /// <summary>방장을 뺀 전원이 준비됐는지 판정한다.</summary>
@@ -400,8 +408,15 @@ public class RoomManager : MonoBehaviour
         if (!session.IsLocalPlayerHost) return;
         if (isStartingGame) return;
 
+        // 전원 준비 전이면 시작하지 않고 경고+거부음만 낸다
+        if (!IsEveryGuestReady())
+        {
+            uiRoom.FlashAllReadyWarning();
+            sfxEventChannel.RaisePlayEvent(startDeniedAudioId, transform.position);
+            return;
+        }
+
         isStartingGame = true;
-        uiRoom.SetStartInteractable(false); // 이탈은 RequestExitRoom 의 isStartingGame 가드가 막는다
 
         // 시작이 확정되면 방 UI 갱신은 의미가 없다. 씬이 언로드된 뒤 응답이 돌아와 파괴된 위젯을 건드리는 것을 막는다
         CancelLobbyPolling();
@@ -418,7 +433,6 @@ public class RoomManager : MonoBehaviour
         {
             Log.E($"[ROOM] 게임 시작 실패: {e.Message}", this);
             isStartingGame = false;
-            uiRoom.SetStartInteractable(true);
         }
     }
 

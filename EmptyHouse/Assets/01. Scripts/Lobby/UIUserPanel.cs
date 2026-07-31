@@ -29,14 +29,20 @@ public class UIUserPanel : MonoBehaviour
     [SerializeField] private RawImage avatarImage;       // 아바타를 그릴 RawImage
     [SerializeField] private UIGenericButton slotButton; // 슬롯 전체를 덮는 초대 버튼
 
+    [Header("Ready State Colors")]
+    [SerializeField] private Color readyTextColor = Color.green;   // 준비 완료 시 라벨 색
+    [SerializeField] private Color notReadyTextColor = Color.gray; // 준비 미완료 시 라벨 색
+
+    private TMP_Text readyTextGraphic; // readyText 의 TMP. 색상만 직접 제어한다(문구는 readyText 가 SetKey 로 관리)
     private Texture2D runtimeAvatarTexture;
     private string currentSteamId;
     private bool isEmptySlot; // 빈 슬롯 여부. 초대 클릭 발행 게이트
 
-    /// <summary>버튼 리스너를 등록한다.</summary>
+    /// <summary>버튼 리스너를 등록하고 준비 라벨 TMP 를 캐싱한다.</summary>
     private void Awake()
     {
         slotButton.Clicked += RaiseInviteClicked;
+        readyTextGraphic = readyText.GetComponent<TMP_Text>();
     }
 
     /// <summary>리스너를 해제하고 런타임 아바타 텍스처를 정리한다.</summary>
@@ -65,6 +71,7 @@ public class UIUserPanel : MonoBehaviour
         // 방장은 항상 준비 상태로 취급하므로 Ready 라벨 자체를 숨긴다
         readyText.gameObject.SetActive(!isHost);
         readyText.SetKey(isReady ? ReadyKey : NotReadyKey);
+        readyTextGraphic.color = isReady ? readyTextColor : notReadyTextColor;
 
         LoadSteamAvatar(steamId);
     }

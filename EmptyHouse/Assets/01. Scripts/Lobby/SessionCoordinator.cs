@@ -68,6 +68,11 @@ public sealed class SessionCoordinator : MonoBehaviour
 
     public event Action RoomCleared;
 
+    /// <summary>발행: 게임 씬 로드가 시작됨(전 클라이언트). 방→게임 전환 연출용. 준비 미완이면 애초에 시작되지 않아 발행되지 않는다.</summary>
+    public event Action GameStarting;
+
+    private bool sceneEventsSubscribed; // NGO SceneManager.OnSceneEvent 구독 여부. SceneManager 는 접속 이후 생기므로 별도 게이트
+
     [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.BeforeSceneLoad)]
     private static void CreateInstance() => _ = Instance;
 
@@ -119,14 +124,22 @@ public sealed class SessionCoordinator : MonoBehaviour
     private void BindNetworkManager()
     {
         NetworkManager current = NetworkManager.Singleton;
-        if (current == networkManager && networkEventsSubscribed) return;
+        if (current == networkManager && networkEventsSubscribed)
+        {
+            TryBindSceneManager(); // SceneManager 는 접속 이후 생기므로 이미 바인딩된 상태에서도 재시도한다
+            return;
+        }
 
         UnbindNetworkManager();
         networkManager = current;
         if (networkManager == null) return;
 
         networkManager.OnClientDisconnectCallback += HandleClientDisconnected;
+        networkManager.OnServerStarted += TryBindSceneManager;
+        networkManager.OnClientStarted += TryBindSceneManager;
         networkEventsSubscribed = true;
+
+        TryBindSceneManager(); // 이미 리스닝 중(재입장 등)이면 즉시 바인딩
     }
 
     private void UnbindNetworkManager()
@@ -134,10 +147,42 @@ public sealed class SessionCoordinator : MonoBehaviour
         if (networkManager != null && networkEventsSubscribed)
         {
             networkManager.OnClientDisconnectCallback -= HandleClientDisconnected;
+            networkManager.OnServerStarted -= TryBindSceneManager;
+            networkManager.OnClientStarted -= TryBindSceneManager;
         }
 
+        RemoveSceneManagerBinding();
         networkEventsSubscribed = false;
         networkManager = null;
+    }
+
+    /// <summary>NGO SceneManager 가 준비되면 씬 이벤트를 한 번 구독한다. 접속마다 SceneManager 가 새로 생겨 재구독이 필요하다.</summary>
+    private void TryBindSceneManager()
+    {
+        if (networkManager == null || networkManager.SceneManager == null || sceneEventsSubscribed) return;
+
+        networkManager.SceneManager.OnSceneEvent += HandleNgoSceneEvent;
+        sceneEventsSubscribed = true;
+    }
+
+    /// <summary>씬 이벤트 구독을 해제한다.</summary>
+    private void RemoveSceneManagerBinding()
+    {
+        if (networkManager != null && networkManager.SceneManager != null && sceneEventsSubscribed)
+        {
+            networkManager.SceneManager.OnSceneEvent -= HandleNgoSceneEvent;
+        }
+
+        sceneEventsSubscribed = false;
+    }
+
+    /// <summary>NGO 씬 로드 시작을 받아 게임 시작 연출 신호를 올린다. 방으로 돌아가는 로컬 로드는 NGO 이벤트가 아니라 타지 않는다.</summary>
+    /// <param name="sceneEvent">NGO 씬 이벤트</param>
+    private void HandleNgoSceneEvent(SceneEvent sceneEvent)
+    {
+        if (sceneEvent.SceneEventType != SceneEventType.Load) return;
+
+        GameStarting?.Invoke();
     }
 
     public void SetCurrentLobby(Lobby lobby)
@@ -262,6 +307,8 @@ public sealed class SessionCoordinator : MonoBehaviour
 
         await UpdateLobbySessionDataAsync(GetRelayJoinCode(CurrentLobby), "InGame", nextEpoch, true);
         connectedMatchEpoch = nextEpoch;
+
+        TryBindSceneManager(); // 호스트가 자기 Load 이벤트를 놓치지 않도록 로드 직전 구독을 보장한다
 
         SceneEventProgressStatus status = networkManager.SceneManager.LoadScene(gameSceneName, LoadSceneMode.Single);
         if (status != SceneEventProgressStatus.Started)
