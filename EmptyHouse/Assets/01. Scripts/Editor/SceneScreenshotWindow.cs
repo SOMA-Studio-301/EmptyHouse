@@ -372,30 +372,47 @@ namespace EmptyHouse.EditorTools
 
         /// <summary>
         /// 렌더 요청 경로는 카메라 스택 합성이 RT에 반영되지 않으므로, 스택의 활성 오버레이 카메라를
-        /// 같은 RT에 순서대로 덧그린다. PP 이중 적용을 막기 위해 오버레이의 PP는 끈 채 렌더한다.
+        /// 각각 투명 배경 RT에 렌더한 뒤 베이스 결과 위에 알파 합성한다.
+        /// PP 이중 적용을 막기 위해 오버레이의 PP는 끈 채 렌더한다.
         /// </summary>
         /// <param name="baseData">베이스 카메라의 URP 카메라 데이터.</param>
         /// <param name="destination">베이스 렌더 결과가 담긴 RenderTexture.</param>
         private static void CompositeOverlays(UniversalAdditionalCameraData baseData, RenderTexture destination)
         {
             if (baseData.renderType != CameraRenderType.Base) return;
+            Material blendMat = null;
             foreach (Camera overlay in baseData.cameraStack)
             {
                 if (overlay == null || !overlay.isActiveAndEnabled) continue;
                 UniversalAdditionalCameraData overlayData = overlay.GetUniversalAdditionalCameraData();
                 bool prevPostProcessing = overlayData.renderPostProcessing;
                 CameraRenderType prevRenderType = overlayData.renderType;
+                CameraClearFlags prevClearFlags = overlay.clearFlags;
+                Color prevBackground = overlay.backgroundColor;
                 overlayData.renderPostProcessing = false;
                 overlayData.renderType = CameraRenderType.Base; // 렌더 요청 경로가 오버레이를 스킵하므로 렌더 동안만 Base로 위장
+                overlay.clearFlags = CameraClearFlags.SolidColor; // 투명 배경 위에 UI만 남긴다
+                overlay.backgroundColor = Color.clear;
+
+                RenderTexture overlayRT = RenderTexture.GetTemporary(destination.width, destination.height, 24, destination.format);
                 UniversalRenderPipeline.SingleCameraRequest request = new UniversalRenderPipeline.SingleCameraRequest
                 {
-                    destination = destination,
+                    destination = overlayRT,
                 };
                 if (RenderPipeline.SupportsRenderRequest(overlay, request))
+                {
                     RenderPipeline.SubmitRenderRequest(overlay, request);
+                    if (blendMat == null) blendMat = new Material(Shader.Find("Sprites/Default")); // 프리멀티플라이 알파 합성용
+                    Graphics.Blit(overlayRT, destination, blendMat);
+                }
+                RenderTexture.ReleaseTemporary(overlayRT);
+
+                overlay.backgroundColor = prevBackground;
+                overlay.clearFlags = prevClearFlags;
                 overlayData.renderType = prevRenderType;
                 overlayData.renderPostProcessing = prevPostProcessing;
             }
+            if (blendMat != null) DestroyImmediate(blendMat);
         }
 
         /// <summary>src를 목표 해상도까지 절반씩 단계적으로 블릿해 다운스케일한다. 이미 목표 크기면 src를 그대로 반환.</summary>
