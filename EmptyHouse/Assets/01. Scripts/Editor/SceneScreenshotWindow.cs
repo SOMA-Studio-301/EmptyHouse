@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.IO;
 using Border.Core;
 using UnityEditor;
@@ -218,7 +219,8 @@ namespace EmptyHouse.EditorTools
 
         /// <summary>
         /// 카메라를 지정 해상도로 렌더해 Screenshots 폴더에 PNG로 저장한다.
-        /// 렌더 동안 카메라 포스트프로세싱을 강제 활성화 후 원복한다. 배치 캡처용으로 외부 호출 가능.
+        /// 오버레이 카메라가 지정되면 베이스로 자동 전환하고, 렌더 동안 스택 전체(베이스+오버레이)의
+        /// 포스트프로세싱을 강제 활성화 후 원복한다. 배치 캡처용으로 외부 호출 가능.
         /// </summary>
         /// <param name="cam">렌더할 카메라.</param>
         /// <param name="width">저장 가로 해상도.</param>
@@ -228,14 +230,27 @@ namespace EmptyHouse.EditorTools
         /// <returns>저장된 파일의 절대 경로.</returns>
         public static string Capture(Camera cam, int width, int height, int supersample, string label)
         {
-            UniversalAdditionalCameraData camData = cam.GetUniversalAdditionalCameraData();
-            bool prevPostProcessing = camData.renderPostProcessing;
-            camData.renderPostProcessing = true;
+            cam = ResolveBaseCamera(cam);
+
+            // URP 스택은 마지막 활성 카메라가 PP 적용을 결정하므로 스택 전체를 강제 활성화한다
+            UniversalAdditionalCameraData baseData = cam.GetUniversalAdditionalCameraData();
+            List<UniversalAdditionalCameraData> stackData = new List<UniversalAdditionalCameraData> { baseData };
+            foreach (Camera overlay in baseData.cameraStack)
+            {
+                if (overlay != null) stackData.Add(overlay.GetUniversalAdditionalCameraData());
+            }
+            bool[] prevPostProcessing = new bool[stackData.Count];
+            for (int i = 0; i < stackData.Count; i++)
+            {
+                prevPostProcessing[i] = stackData[i].renderPostProcessing;
+                stackData[i].renderPostProcessing = true;
+            }
 
             // URP는 targetTexture 포맷을 내부 버퍼로 상속하므로 HDR 포맷이어야 블룸·톤매핑이 유지된다
             RenderTexture full = RenderTexture.GetTemporary(width * supersample, height * supersample, 24, RenderTextureFormat.DefaultHDR);
             RenderCamera(cam, full);
-            camData.renderPostProcessing = prevPostProcessing;
+            for (int i = 0; i < stackData.Count; i++)
+                stackData[i].renderPostProcessing = prevPostProcessing[i];
 
             RenderTexture final = Downscale(full, width, height);
             RenderTexture ldr = RenderTexture.GetTemporary(width, height, 0, RenderTextureFormat.ARGB32); // PNG 인코딩용 sRGB 변환 버퍼
@@ -277,6 +292,22 @@ namespace EmptyHouse.EditorTools
         private Camera ResolveCamera()
         {
             return targetCamera != null ? targetCamera : Camera.main;
+        }
+
+        /// <summary>오버레이 카메라면 그 카메라를 스택에 포함한 베이스 카메라를 찾아 반환한다. 못 찾으면 입력 그대로.</summary>
+        /// <param name="cam">기준 카메라.</param>
+        /// <returns>캡처에 사용할 베이스 카메라.</returns>
+        private static Camera ResolveBaseCamera(Camera cam)
+        {
+            if (cam.GetUniversalAdditionalCameraData().renderType == CameraRenderType.Base) return cam;
+            foreach (Camera candidate in FindObjectsByType<Camera>(FindObjectsSortMode.None))
+            {
+                UniversalAdditionalCameraData data = candidate.GetUniversalAdditionalCameraData();
+                if (data.renderType == CameraRenderType.Base && data.cameraStack != null && data.cameraStack.Contains(cam))
+                    return candidate;
+            }
+            Log.D($"[Screenshot] {cam.name}은(는) 오버레이지만 베이스 카메라를 찾지 못해 그대로 캡처합니다.");
+            return cam;
         }
 
         /// <summary>DoF용 임시 전역 볼륨(HideAndDontSave)을 생성한다. 이미 있으면 무시.</summary>
