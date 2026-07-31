@@ -1,5 +1,4 @@
 using System;
-using System.Collections.Generic;
 using System.IO;
 using Border.Core;
 using UnityEditor;
@@ -219,8 +218,8 @@ namespace EmptyHouse.EditorTools
 
         /// <summary>
         /// 카메라를 지정 해상도로 렌더해 Screenshots 폴더에 PNG로 저장한다.
-        /// 오버레이 카메라가 지정되면 베이스로 자동 전환하고, 렌더 동안 스택 전체(베이스+오버레이)의
-        /// 포스트프로세싱을 강제 활성화 후 원복한다. 배치 캡처용으로 외부 호출 가능.
+        /// 오버레이 카메라가 지정되면 베이스로 자동 전환하고, 베이스 렌더(PP 강제 활성화 후 원복) 뒤
+        /// 스택의 활성 오버레이를 같은 RT에 덧그린다. 배치 캡처용으로 외부 호출 가능.
         /// </summary>
         /// <param name="cam">렌더할 카메라.</param>
         /// <param name="width">저장 가로 해상도.</param>
@@ -232,25 +231,15 @@ namespace EmptyHouse.EditorTools
         {
             cam = ResolveBaseCamera(cam);
 
-            // URP 스택은 마지막 활성 카메라가 PP 적용을 결정하므로 스택 전체를 강제 활성화한다
             UniversalAdditionalCameraData baseData = cam.GetUniversalAdditionalCameraData();
-            List<UniversalAdditionalCameraData> stackData = new List<UniversalAdditionalCameraData> { baseData };
-            foreach (Camera overlay in baseData.cameraStack)
-            {
-                if (overlay != null) stackData.Add(overlay.GetUniversalAdditionalCameraData());
-            }
-            bool[] prevPostProcessing = new bool[stackData.Count];
-            for (int i = 0; i < stackData.Count; i++)
-            {
-                prevPostProcessing[i] = stackData[i].renderPostProcessing;
-                stackData[i].renderPostProcessing = true;
-            }
+            bool prevPostProcessing = baseData.renderPostProcessing;
+            baseData.renderPostProcessing = true;
 
             // URP는 targetTexture 포맷을 내부 버퍼로 상속하므로 HDR 포맷이어야 블룸·톤매핑이 유지된다
             RenderTexture full = RenderTexture.GetTemporary(width * supersample, height * supersample, 24, RenderTextureFormat.DefaultHDR);
             RenderCamera(cam, full);
-            for (int i = 0; i < stackData.Count; i++)
-                stackData[i].renderPostProcessing = prevPostProcessing[i];
+            baseData.renderPostProcessing = prevPostProcessing;
+            CompositeOverlays(baseData, full);
 
             RenderTexture final = Downscale(full, width, height);
             RenderTexture ldr = RenderTexture.GetTemporary(width, height, 0, RenderTextureFormat.ARGB32); // PNG 인코딩용 sRGB 변환 버퍼
@@ -379,6 +368,34 @@ namespace EmptyHouse.EditorTools
             cam.targetTexture = destination;
             cam.Render();
             cam.targetTexture = prev;
+        }
+
+        /// <summary>
+        /// 렌더 요청 경로는 카메라 스택 합성이 RT에 반영되지 않으므로, 스택의 활성 오버레이 카메라를
+        /// 같은 RT에 순서대로 덧그린다. PP 이중 적용을 막기 위해 오버레이의 PP는 끈 채 렌더한다.
+        /// </summary>
+        /// <param name="baseData">베이스 카메라의 URP 카메라 데이터.</param>
+        /// <param name="destination">베이스 렌더 결과가 담긴 RenderTexture.</param>
+        private static void CompositeOverlays(UniversalAdditionalCameraData baseData, RenderTexture destination)
+        {
+            if (baseData.renderType != CameraRenderType.Base) return;
+            foreach (Camera overlay in baseData.cameraStack)
+            {
+                if (overlay == null || !overlay.isActiveAndEnabled) continue;
+                UniversalAdditionalCameraData overlayData = overlay.GetUniversalAdditionalCameraData();
+                bool prevPostProcessing = overlayData.renderPostProcessing;
+                CameraRenderType prevRenderType = overlayData.renderType;
+                overlayData.renderPostProcessing = false;
+                overlayData.renderType = CameraRenderType.Base; // 렌더 요청 경로가 오버레이를 스킵하므로 렌더 동안만 Base로 위장
+                UniversalRenderPipeline.SingleCameraRequest request = new UniversalRenderPipeline.SingleCameraRequest
+                {
+                    destination = destination,
+                };
+                if (RenderPipeline.SupportsRenderRequest(overlay, request))
+                    RenderPipeline.SubmitRenderRequest(overlay, request);
+                overlayData.renderType = prevRenderType;
+                overlayData.renderPostProcessing = prevPostProcessing;
+            }
         }
 
         /// <summary>src를 목표 해상도까지 절반씩 단계적으로 블릿해 다운스케일한다. 이미 목표 크기면 src를 그대로 반환.</summary>
