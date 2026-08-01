@@ -28,11 +28,12 @@ public class UICreateContent : MonoBehaviour
         createButton.Clicked -= RaiseCreateConfirmed;
     }
 
-    /// <summary>팝업을 연다. 이전 입력이 남지 않도록 매번 비운다.</summary>
+    /// <summary>팝업을 연다. 이전 입력이 남지 않도록 매번 비우고, 방 이름 입력에 바로 포커스를 준다.</summary>
     public void Show()
     {
         ResetInputs();
         gameObject.SetActive(true);
+        lobbyNameInput.ActivateInputField(); // 활성화 뒤에 호출해야 포커스가 잡힌다
     }
 
     /// <summary>팝업을 닫는다.</summary>
