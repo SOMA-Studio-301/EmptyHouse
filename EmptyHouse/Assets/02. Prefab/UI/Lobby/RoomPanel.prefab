@@ -1044,6 +1044,14 @@ PrefabInstance:
     serializedVersion: 3
     m_TransformParent: {fileID: 8205508605612661371}
     m_Modifications:
+    - target: {fileID: 1066148531315319684, guid: 035443400bd16014f9aa0229714104b7, type: 3}
+      propertyPath: m_fontSize
+      value: 20
+      objectReference: {fileID: 0}
+    - target: {fileID: 1066148531315319684, guid: 035443400bd16014f9aa0229714104b7, type: 3}
+      propertyPath: m_fontSizeBase
+      value: 20
+      objectReference: {fileID: 0}
     - target: {fileID: 1956951777250508464, guid: 035443400bd16014f9aa0229714104b7, type: 3}
       propertyPath: m_Name
       value: DepartText
@@ -1398,6 +1406,10 @@ PrefabInstance:
         \uD569\uB2C8\uB2E4"
       objectReference: {fileID: 0}
     - target: {fileID: 8150399973515287640, guid: 85d3c76d8f8220644883d71b1c5370f0, type: 3}
+      propertyPath: m_fontSize
+      value: 20
+      objectReference: {fileID: 0}
+    - target: {fileID: 8150399973515287640, guid: 85d3c76d8f8220644883d71b1c5370f0, type: 3}
       propertyPath: m_fontColor.b
       value: 0.41585082
       objectReference: {fileID: 0}
@@ -1408,6 +1420,10 @@ PrefabInstance:
     - target: {fileID: 8150399973515287640, guid: 85d3c76d8f8220644883d71b1c5370f0, type: 3}
       propertyPath: m_fontColor.r
       value: 0.8396226
+      objectReference: {fileID: 0}
+    - target: {fileID: 8150399973515287640, guid: 85d3c76d8f8220644883d71b1c5370f0, type: 3}
+      propertyPath: m_fontSizeBase
+      value: 20
       objectReference: {fileID: 0}
     - target: {fileID: 8150399973515287640, guid: 85d3c76d8f8220644883d71b1c5370f0, type: 3}
       propertyPath: m_fontColor32.rgba

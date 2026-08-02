@@ -96,8 +96,8 @@ MonoBehaviour:
   m_fontMaterials: []
   m_fontColor32:
     serializedVersion: 2
-    rgba: 4294967295
-  m_fontColor: {r: 1, g: 1, b: 1, a: 1}
+    rgba: 4293457895
+  m_fontColor: {r: 0.90588236, g: 0.96862745, b: 0.9098039, a: 1}
   m_enableVertexGradient: 0
   m_colorMode: 3
   m_fontColorGradient:
@@ -597,8 +597,8 @@ PrefabInstance:
     serializedVersion: 3
     m_TransformParent: {fileID: 3414538826978129378}
     m_Modifications:
-    - target: {fileID: 914940788961781246, guid: 4553ab2f96ee21744b0ea7fb347ebc7c, type: 3}
-      propertyPath: m_Enabled
+    - target: {fileID: 644335628741831587, guid: 4553ab2f96ee21744b0ea7fb347ebc7c, type: 3}
+      propertyPath: m_IsActive
       value: 0
       objectReference: {fileID: 0}
     - target: {fileID: 1612200549603230954, guid: 4553ab2f96ee21744b0ea7fb347ebc7c, type: 3}
@@ -634,25 +634,9 @@ PrefabInstance:
       value: UI_OPT_DELETE_DATA
       objectReference: {fileID: 0}
     - target: {fileID: 5614163767353796743, guid: 4553ab2f96ee21744b0ea7fb347ebc7c, type: 3}
-      propertyPath: m_Type
-      value: 0
-      objectReference: {fileID: 0}
-    - target: {fileID: 5614163767353796743, guid: 4553ab2f96ee21744b0ea7fb347ebc7c, type: 3}
       propertyPath: m_Sprite
       value: 
-      objectReference: {fileID: 0}
-    - target: {fileID: 5614163767353796743, guid: 4553ab2f96ee21744b0ea7fb347ebc7c, type: 3}
-      propertyPath: m_Color.b
-      value: 0
-      objectReference: {fileID: 0}
-    - target: {fileID: 5614163767353796743, guid: 4553ab2f96ee21744b0ea7fb347ebc7c, type: 3}
-      propertyPath: m_Color.g
-      value: 0
-      objectReference: {fileID: 0}
-    - target: {fileID: 5614163767353796743, guid: 4553ab2f96ee21744b0ea7fb347ebc7c, type: 3}
-      propertyPath: m_Color.r
-      value: 0
-      objectReference: {fileID: 0}
+      objectReference: {fileID: 21300000, guid: 582a2c977b9c11c48ad33e115a060965, type: 3}
     - target: {fileID: 5614163767353796743, guid: 4553ab2f96ee21744b0ea7fb347ebc7c, type: 3}
       propertyPath: m_Enabled
       value: 1

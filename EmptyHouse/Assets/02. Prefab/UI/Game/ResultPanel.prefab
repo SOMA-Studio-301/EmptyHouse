@@ -12,7 +12,7 @@ GameObject:
   - component: {fileID: 8799897916724207952}
   - component: {fileID: 3988265281440560464}
   m_Layer: 5
-  m_Name: Bg
+  m_Name: TitleBg
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
@@ -59,7 +59,82 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: UnityEngine.UI::UnityEngine.UI.Image
   m_Material: {fileID: 0}
-  m_Color: {r: 0, g: 0, b: 0, a: 1}
+  m_Color: {r: 0.20247418, g: 0.24528301, b: 0.20506865, a: 0.48235294}
+  m_RaycastTarget: 1
+  m_RaycastPadding: {x: 0, y: 0, z: 0, w: 0}
+  m_Maskable: 1
+  m_OnCullStateChanged:
+    m_PersistentCalls:
+      m_Calls: []
+  m_Sprite: {fileID: 0}
+  m_Type: 0
+  m_PreserveAspect: 0
+  m_FillCenter: 1
+  m_FillMethod: 4
+  m_FillAmount: 1
+  m_FillClockwise: 1
+  m_FillOrigin: 0
+  m_UseSpriteMesh: 0
+  m_PixelsPerUnitMultiplier: 1
+--- !u!1 &3295788374762077391
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 5909477763959448196}
+  - component: {fileID: 4240524917342500129}
+  - component: {fileID: 2905958019610482080}
+  m_Layer: 5
+  m_Name: Bg
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!224 &5909477763959448196
+RectTransform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 3295788374762077391}
+  m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 479165977162741528}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+  m_AnchorMin: {x: 0, y: 0}
+  m_AnchorMax: {x: 1, y: 1}
+  m_AnchoredPosition: {x: 0, y: 0}
+  m_SizeDelta: {x: 0, y: 0}
+  m_Pivot: {x: 0.5, y: 0.5}
+--- !u!222 &4240524917342500129
+CanvasRenderer:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 3295788374762077391}
+  m_CullTransparentMesh: 1
+--- !u!114 &2905958019610482080
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 3295788374762077391}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: fe87c0e1cc204ed48ad3b37840f39efc, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: UnityEngine.UI::UnityEngine.UI.Image
+  m_Material: {fileID: 0}
+  m_Color: {r: 0.04285334, g: 0.084905684, b: 0.048109885, a: 0.98039216}
   m_RaycastTarget: 1
   m_RaycastPadding: {x: 0, y: 0, z: 0, w: 0}
   m_Maskable: 1
@@ -105,6 +180,7 @@ RectTransform:
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children:
+  - {fileID: 5909477763959448196}
   - {fileID: 157941124639950562}
   - {fileID: 7208194828124946555}
   - {fileID: 5919743001082017368}
@@ -288,7 +364,7 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 4805921727747155879, guid: 85d3c76d8f8220644883d71b1c5370f0, type: 3}
       propertyPath: m_AnchoredPosition.y
-      value: 120
+      value: 80
       objectReference: {fileID: 0}
     - target: {fileID: 4805921727747155879, guid: 85d3c76d8f8220644883d71b1c5370f0, type: 3}
       propertyPath: m_LocalEulerAnglesHint.x
@@ -307,8 +383,24 @@ PrefabInstance:
       value: CountdownText
       objectReference: {fileID: 0}
     - target: {fileID: 8150399973515287640, guid: 85d3c76d8f8220644883d71b1c5370f0, type: 3}
+      propertyPath: m_text
+      value: "3\uCD08 \uB4A4 \uB85C\uBE44\uB85C \uC774\uB3D9\uD569\uB2C8\uB2E4"
+      objectReference: {fileID: 0}
+    - target: {fileID: 8150399973515287640, guid: 85d3c76d8f8220644883d71b1c5370f0, type: 3}
       propertyPath: m_fontSize
       value: 32
+      objectReference: {fileID: 0}
+    - target: {fileID: 8150399973515287640, guid: 85d3c76d8f8220644883d71b1c5370f0, type: 3}
+      propertyPath: m_fontColor.b
+      value: 0.9098039
+      objectReference: {fileID: 0}
+    - target: {fileID: 8150399973515287640, guid: 85d3c76d8f8220644883d71b1c5370f0, type: 3}
+      propertyPath: m_fontColor.g
+      value: 0.96862745
+      objectReference: {fileID: 0}
+    - target: {fileID: 8150399973515287640, guid: 85d3c76d8f8220644883d71b1c5370f0, type: 3}
+      propertyPath: m_fontColor.r
+      value: 0.90588236
       objectReference: {fileID: 0}
     - target: {fileID: 8150399973515287640, guid: 85d3c76d8f8220644883d71b1c5370f0, type: 3}
       propertyPath: m_fontSizeBase
@@ -316,7 +408,7 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 8150399973515287640, guid: 85d3c76d8f8220644883d71b1c5370f0, type: 3}
       propertyPath: m_fontColor32.rgba
-      value: 4278190080
+      value: 4293457895
       objectReference: {fileID: 0}
     - target: {fileID: 9133578924384569489, guid: 85d3c76d8f8220644883d71b1c5370f0, type: 3}
       propertyPath: key
@@ -614,15 +706,15 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 8150399973515287640, guid: 85d3c76d8f8220644883d71b1c5370f0, type: 3}
       propertyPath: m_fontColor.b
-      value: 1
+      value: 0.5647059
       objectReference: {fileID: 0}
     - target: {fileID: 8150399973515287640, guid: 85d3c76d8f8220644883d71b1c5370f0, type: 3}
       propertyPath: m_fontColor.g
-      value: 1
+      value: 0.64705884
       objectReference: {fileID: 0}
     - target: {fileID: 8150399973515287640, guid: 85d3c76d8f8220644883d71b1c5370f0, type: 3}
       propertyPath: m_fontColor.r
-      value: 1
+      value: 0.5529412
       objectReference: {fileID: 0}
     - target: {fileID: 8150399973515287640, guid: 85d3c76d8f8220644883d71b1c5370f0, type: 3}
       propertyPath: m_fontSizeBase
@@ -632,6 +724,10 @@ PrefabInstance:
       propertyPath: m_sharedMaterial
       value: 
       objectReference: {fileID: 2100000, guid: e2c97ab517c3ef544acbf99e3ec2a4e7, type: 2}
+    - target: {fileID: 8150399973515287640, guid: 85d3c76d8f8220644883d71b1c5370f0, type: 3}
+      propertyPath: m_fontColor32.rgba
+      value: 4287669645
+      objectReference: {fileID: 0}
     - target: {fileID: 9133578924384569489, guid: 85d3c76d8f8220644883d71b1c5370f0, type: 3}
       propertyPath: key
       value: UI_RESULT_TITLE
