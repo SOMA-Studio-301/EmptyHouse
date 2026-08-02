@@ -18,7 +18,7 @@ public class ItemWorldSfx : NetworkBehaviour
     /// <summary>스폰 시 버리기 소리를 낸다. 레벨에 미리 배치된 픽업은 제외한다.</summary>
     public override void OnNetworkSpawn()
     {
-        Log.D($"[ItemWorldSfx] OnNetworkSpawn {name} sceneObject={NetworkObject.IsSceneObject}");
+        //Log.D($"[ItemWorldSfx] OnNetworkSpawn {name} sceneObject={NetworkObject.IsSceneObject}");
 
         // 씬 배치 픽업도 세션 시작 시 한꺼번에 스폰된다 — 그건 누가 떨군 게 아니다.
         // 동적 스폰(=떨군 것)만 false 이므로, 판정 불가(null)는 배치품으로 보고 울리지 않는다.
@@ -30,7 +30,7 @@ public class ItemWorldSfx : NetworkBehaviour
     /// <summary>소멸 시 줍기 소리를 낸다. 세션 종료로 인한 일괄 소멸은 제외한다.</summary>
     public override void OnNetworkDespawn()
     {
-        Log.D($"[ItemWorldSfx] OnNetworkDespawn {name}");
+        //Log.D($"[ItemWorldSfx] OnNetworkDespawn {name}");
 
         // 세션이 끝나면 월드의 전 픽업이 despawn 된다 — 그건 회수가 아니다.
         // 종료 중에는 NetworkManager 가 이미 사라졌을 수 있어 여기서만 null 을 의도적으로 허용한다.

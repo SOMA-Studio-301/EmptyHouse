@@ -2,6 +2,7 @@ using System.Text;
 using Dissonance;
 using Dissonance.Integrations.Unity_NFGO;
 using UnityEngine;
+using Border.Core;
 
 /// <summary>
 /// 에디터 및 개발 빌드에서 Dissonance 음성 경로를 한 줄로 진단한다.
@@ -47,7 +48,7 @@ public sealed class VoiceChatDiagnostics : MonoBehaviour
 
         if (comms == null)
         {
-            Debug.LogWarning("[VoiceDiag] DissonanceComms not found");
+            //Log.W("[VoiceDiag] DissonanceComms not found");
             return;
         }
 
@@ -96,7 +97,7 @@ public sealed class VoiceChatDiagnostics : MonoBehaviour
             builder.Append(']');
         }
 
-        Debug.Log(builder.ToString());
+        //Border.Core.Log.D(builder.ToString());
 #endif
     }
 }

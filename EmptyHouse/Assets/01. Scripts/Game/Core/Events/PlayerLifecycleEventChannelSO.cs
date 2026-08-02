@@ -28,7 +28,7 @@ public class PlayerLifecycleEventChannelSO : ScriptableObject
     /// <param name="clientId">합류한 클라이언트 ID.</param>
     public void RaiseJoined(ulong clientId)
     {
-        Log.D($"[PlayerLifecycleEventChannelSO] RaiseJoined {clientId}");
+        //Log.D($"[PlayerLifecycleEventChannelSO] RaiseJoined {clientId}");
         OnJoined.Invoke(clientId);
     }
 
@@ -36,7 +36,7 @@ public class PlayerLifecycleEventChannelSO : ScriptableObject
     /// <param name="clientId">사망한 클라이언트 ID.</param>
     public void RaiseDied(ulong clientId)
     {
-        Log.D($"[PlayerLifecycleEventChannelSO] RaiseDied {clientId}");
+        //Log.D($"[PlayerLifecycleEventChannelSO] RaiseDied {clientId}");
         OnDied.Invoke(clientId);
     }
 
@@ -44,7 +44,7 @@ public class PlayerLifecycleEventChannelSO : ScriptableObject
     /// <param name="clientId">귀환한 클라이언트 ID.</param>
     public void RaiseExtracted(ulong clientId)
     {
-        Log.D($"[PlayerLifecycleEventChannelSO] RaiseExtracted {clientId}");
+        //Log.D($"[PlayerLifecycleEventChannelSO] RaiseExtracted {clientId}");
         OnExtracted.Invoke(clientId);
     }
 
@@ -52,7 +52,7 @@ public class PlayerLifecycleEventChannelSO : ScriptableObject
     /// <param name="clientId">포기한 클라이언트 ID.</param>
     public void RaiseLeft(ulong clientId)
     {
-        Log.D($"[PlayerLifecycleEventChannelSO] RaiseLeft {clientId}");
+        //Log.D($"[PlayerLifecycleEventChannelSO] RaiseLeft {clientId}");
         OnLeft.Invoke(clientId);
     }
 }
