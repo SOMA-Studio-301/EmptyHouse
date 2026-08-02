@@ -1,4 +1,5 @@
 using Border.Core;
+using Border.Events;
 using Unity.Netcode;
 using UnityEngine;
 
@@ -13,8 +14,12 @@ public class PlayerController : NetworkBehaviour
 
     [Header("Look")]
     [SerializeField] private Transform cameraPivot;
-    [SerializeField] private float lookSensitivity = 0.1f;
+    [SerializeField] private float lookSensitivity = 0.1f; // 기본 시선 감도(튜닝값). 설정창의 배율이 여기에 곱해진다
     [SerializeField] private float pitchClamp = 89f;
+
+    [Header("Settings")]
+    [SerializeField] private SaveLoadSystem saveLoadSystem;                     // 스폰 시 저장된 감도 배율을 읽어오는 원본
+    [SerializeField] private FloatEventChannelSO changeMouseSensitivityEvent;   // 설정창에서 감도를 바꾸면 방송되는 라이브 채널
 
     [Header("Movement")]
     [SerializeField] private float moveSpeed = 3f;
@@ -76,6 +81,9 @@ public class PlayerController : NetworkBehaviour
     private float pitch;
     private float yaw;
 
+    // 시선 감도 배율 — 스폰 시 Profile 에서 읽고, 설정창 변경 시 채널로 갱신된다. lookSensitivity 에 곱해 실효 감도를 만든다.
+    private float sensitivityMultiplier = 1f;
+
     // ── 애니메이션 노출 (읽기 전용) — PlayerAnimator 가 소유자에서 참조한다 ──
 
     /// <summary>수평(XZ) 이동 속력. 이동 블렌드 파라미터용. 단위 m/s.</summary>
@@ -122,6 +130,10 @@ public class PlayerController : NetworkBehaviour
         deathHandler.IsDead.OnValueChanged += HandleInactiveChanged;
         playerReturn.HasExtracted.OnValueChanged += HandleInactiveChanged;
 
+        // 저장된 감도 배율을 스폰 시점에 읽어 1차 반영하고, 이후 변경은 채널로 받는다.
+        sensitivityMultiplier = saveLoadSystem.Profile.MouseSensitivity;
+        changeMouseSensitivityEvent.OnEventRaised += HandleMouseSensitivityChanged;
+
         // 씬의 Main Camera 를 cameraPivot 아래로 붙여 pitch 회전을 따라가게 한다.
         cameraTransform = Camera.main.transform;
         cameraTransform.SetParent(cameraPivot, false);
@@ -143,6 +155,7 @@ public class PlayerController : NetworkBehaviour
         inputReader.AttackCanceledEvent -= OnAttackCanceledInput;
         deathHandler.IsDead.OnValueChanged -= HandleInactiveChanged;
         playerReturn.HasExtracted.OnValueChanged -= HandleInactiveChanged;
+        changeMouseSensitivityEvent.OnEventRaised -= HandleMouseSensitivityChanged;
 
         // 카메라를 다시 분리한다. 이걸 생략하면 플레이어 NetworkObject 파괴 시
         // 자식으로 붙어 있는 씬의 Main Camera 가 함께 파괴된다(리스폰·로비 복귀·호스트 이주는 씬을 유지한 채 despawn 한다).
@@ -258,6 +271,13 @@ public class PlayerController : NetworkBehaviour
         //Log.D("[PlayerController] Attack canceled");
     }
 
+    /// <summary>설정창에서 감도가 바뀌면 배율을 갱신한다. 다음 프레임 HandleLook 부터 즉시 반영된다.</summary>
+    /// <param name="multiplier">새 감도 배율.</param>
+    private void HandleMouseSensitivityChanged(float multiplier)
+    {
+        sensitivityMultiplier = multiplier;
+    }
+
     // ── 실제 행동 ───────────────────────────────────────────────
 
     /// <summary>
@@ -267,8 +287,9 @@ public class PlayerController : NetworkBehaviour
     /// </summary>
     private void HandleLook()
     {
-        yaw += lookInput.x * lookSensitivity;
-        pitch -= lookInput.y * lookSensitivity;
+        float sensitivity = lookSensitivity * sensitivityMultiplier;
+        yaw += lookInput.x * sensitivity;
+        pitch -= lookInput.y * sensitivity;
         pitch = Mathf.Clamp(pitch, -pitchClamp, pitchClamp);
 
         transform.rotation = Quaternion.Euler(0f, yaw, 0f);

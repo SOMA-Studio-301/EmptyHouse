@@ -5,8 +5,10 @@ using Border.Localization;
 using Border.Settings;
 
 /// <summary>
-/// 설정 창 GAMEPLAY 탭. 언어 선택 드롭다운과 세이브 데이터 삭제를 담당한다.
-/// 언어는 선택 즉시 프로필에 쓰고 언어 채널로 방송한다 — LocalizationManager 가 이를 듣고 화면의 모든 UILocalizeText 를 갱신한다.
+/// 설정 창 GAMEPLAY 탭. 마우스 감도 슬라이더, 언어 선택 드롭다운, 세이브 데이터 삭제를 담당한다.
+/// 마우스 감도는 배율이다 — 절대 감도가 아니라 플레이어 기본 lookSensitivity 에 곱해지는 값이다.
+/// 값이 바뀌면 즉시 프로필에 쓰고 감도 채널로 방송한다 — 스폰돼 있는 오너 플레이어가 이를 듣고 바로 반영한다.
+/// 언어도 선택 즉시 프로필에 쓰고 언어 채널로 방송한다 — LocalizationManager 가 이를 듣고 화면의 모든 UILocalizeText 를 갱신한다.
 /// 디스크 저장은 창이 닫힐 때 UISettings 가 한다.
 /// 드롭다운 표기는 각 언어의 자기 이름(한국어/English/日本語…)이라 언어를 바꿔도 다시 만들 필요가 없다.
 /// 데이터 삭제는 되돌릴 수 없으므로 공용 팝업에 확인을 한 단계 거친다 — 버튼 한 번으로는 절대 지워지지 않는다.
@@ -15,6 +17,9 @@ using Border.Settings;
 /// </summary>
 public class UISettingsGameplayPanel : MonoBehaviour
 {
+    /// <summary>감도 슬라이더 눈금과 배율의 환산 계수. 슬라이더 10~300 ↔ 배율 0.1~3.0 (눈금/100).</summary>
+    private const float SensitivityScale = 100f;
+
     /// <summary>지원 언어 코드. 표기 키(LanguageNameKeys)와 순서가 일치해야 한다.</summary>
     private static readonly string[] LanguageCodes = { "ko", "en", "jp", "cn", "tw" };
 
@@ -27,6 +32,9 @@ public class UISettingsGameplayPanel : MonoBehaviour
     [Header("Save")]
     [SerializeField] private SaveLoadSystem saveLoadSystem;
 
+    [Header("Slider")]
+    [SerializeField] private UISettingsSlider mouseSensitivitySlider;
+
     [Header("Dropdown")]
     [SerializeField] private UISettingsDropdown languageDropdown;
 
@@ -34,26 +42,39 @@ public class UISettingsGameplayPanel : MonoBehaviour
     [SerializeField] private UIGenericButton deleteDataButton;
 
     [Header("Broadcasting on")]
+    [SerializeField] private FloatEventChannelSO changeMouseSensitivityEvent;
     [SerializeField] private StringEventChannelSO changeLanguageEvent;
     [SerializeField] private PopupEventChannelSO popupRequested;
 
-    /// <summary>드롭다운 옵션을 만들고 현재 언어를 표시한 뒤 구독을 건다.</summary>
+    /// <summary>슬라이더·드롭다운에 현재 값을 채우고 구독을 건다. 값 주입이 구독보다 먼저다 — 초기화가 방송을 유발하지 않게 한다.</summary>
     private void OnEnable()
     {
-        BuildOptions();
+        mouseSensitivitySlider.SetSlider(saveLoadSystem.Profile.MouseSensitivity * SensitivityScale);
 
+        BuildOptions();
         languageDropdown.SetValue(GetLanguageIndex(saveLoadSystem.Profile.LanguageCode), false);
         languageDropdown.RefreshShownValue();
 
+        mouseSensitivitySlider.ValueChanged += SetMouseSensitivity;
         languageDropdown.ValueChanged += SetLanguage;
         deleteDataButton.Clicked += RequestDeleteConfirm;
     }
 
-    /// <summary>드롭다운·버튼 구독을 해제한다.</summary>
+    /// <summary>슬라이더·드롭다운·버튼 구독을 해제한다.</summary>
     private void OnDisable()
     {
+        mouseSensitivitySlider.ValueChanged -= SetMouseSensitivity;
         languageDropdown.ValueChanged -= SetLanguage;
         deleteDataButton.Clicked -= RequestDeleteConfirm;
+    }
+
+    /// <summary>감도 배율을 프로필에 쓰고 방송한다. 스폰돼 있는 오너 플레이어가 받아 즉시 반영한다.</summary>
+    /// <param name="sliderValue">슬라이더 눈금값(10~300).</param>
+    private void SetMouseSensitivity(float sliderValue)
+    {
+        float multiplier = sliderValue / SensitivityScale;
+        saveLoadSystem.Profile.MouseSensitivity = multiplier;
+        changeMouseSensitivityEvent.RaiseEvent(multiplier);
     }
 
     /// <summary>로컬라이즈 테이블에서 각 언어의 자기 이름을 읽어 드롭다운 옵션을 채운다.</summary>

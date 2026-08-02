@@ -1,5 +1,6 @@
 using System.Collections.Generic;
 using Border.Core;
+using Border.Events;
 using Unity.Netcode;
 using UnityEngine;
 
@@ -21,13 +22,17 @@ public class PlayerSpectatorController : NetworkBehaviour
     [Header("Input")]
     [SerializeField] private InputReader inputReader; // 관전 입력 소스. 마우스 Look(궤도 회전)·Next/Previous(대상 순환) 수신. PlayerController 와 같은 SO
 
+    [Header("Settings")]
+    [SerializeField] private SaveLoadSystem saveLoadSystem;                     // 스폰 시 저장된 감도 배율을 읽어오는 원본
+    [SerializeField] private FloatEventChannelSO changeMouseSensitivityEvent;   // 설정창에서 감도를 바꾸면 방송되는 라이브 채널. PlayerController 와 같은 채널
+
     [Header("Spectator UI")]
     [SerializeField] private SpectatorEventChannelSO spectator; // 관전 HUD 양방향 채널. 대상 변경 발행 · HUD 좌우 버튼 순환 요청 수신(←/→ 키와 같은 경로)
 
     [Header("Spectator Camera")]
     [SerializeField] private float orbitDistance = 3.5f;   // 대상 중심에서 카메라까지의 거리(m). 3인칭이지 1인칭 승계가 아니다. ⚪ 튜닝값
     [SerializeField] private float orbitHeight = 1.5f;     // 궤도 중심을 대상 발밑에서 올릴 높이(m). 대상 몸통을 겨눈다. ⚪ 튜닝값
-    [SerializeField] private float lookSensitivity = 0.1f; // 마우스 Look 델타 → 궤도 회전 각도 배율. PlayerController 시선 감도와 맞춘다. ⚪ 튜닝값
+    [SerializeField] private float lookSensitivity = 0.1f; // 궤도 회전 기본 감도(튜닝값). orbit 카메라라 1인칭과 base 값은 독립이며, 설정창 배율만 공유한다. ⚪ 튜닝값
     [SerializeField] private float pitchClamp = 80f;       // 궤도 피치 상한(도). ±값으로 제한해 카메라가 뒤집히지 않게 한다. ⚪ 튜닝값
     [SerializeField] private float initialPitch = 10f;     // 대상 전환 직후의 초기 하향 피치(도). 살짝 내려다본 상태로 시작한다. ⚪ 튜닝값
 
@@ -39,6 +44,7 @@ public class PlayerSpectatorController : NetworkBehaviour
     private float orbitYaw;                  // 궤도 수평각(도). 마우스 Look 이 누적한다
     private float orbitPitch;                // 궤도 상하각(도). 마우스 Look 이 누적하고 pitchClamp 로 제한된다
     private Transform spectatorCamera;       // 관전 카메라 트랜스폼. EnterSpectate 에서 Camera.main 을 캐시(매 프레임 조회 회피)
+    private float sensitivityMultiplier = 1f; // 시선 감도 배율. 스폰 시 Profile 에서 읽고 설정창 변경 시 채널로 갱신된다. lookSensitivity 에 곱한다
 
     /// <summary>형제 PlayerDeathHandler·PlayerReturn 참조를 캐시한다.</summary>
     private void Awake()
@@ -58,6 +64,10 @@ public class PlayerSpectatorController : NetworkBehaviour
         inputReader.NextEvent += OnNext;
         inputReader.PreviousEvent += OnPrevious;
         spectator.OnCycleRequested += HandleCycleRequested;
+
+        // 1인칭과 같은 감도 배율을 공유한다. 스폰 시 저장값을 읽고 이후 변경은 채널로 받는다.
+        sensitivityMultiplier = saveLoadSystem.Profile.MouseSensitivity;
+        changeMouseSensitivityEvent.OnEventRaised += HandleMouseSensitivityChanged;
     }
 
     /// <summary>비활성 상태·관전 입력 구독을 해제한다. OnNetworkSpawn 과 짝을 맞춘다.</summary>
@@ -71,6 +81,7 @@ public class PlayerSpectatorController : NetworkBehaviour
         inputReader.NextEvent -= OnNext;
         inputReader.PreviousEvent -= OnPrevious;
         spectator.OnCycleRequested -= HandleCycleRequested;
+        changeMouseSensitivityEvent.OnEventRaised -= HandleMouseSensitivityChanged;
     }
 
     /// <summary>관전 중 매 프레임 대상의 현재 위치를 추적해 궤도 카메라를 갱신한다. 대상 이동을 반영하려 LateUpdate 에서 처리한다.</summary>
@@ -87,9 +98,17 @@ public class PlayerSpectatorController : NetworkBehaviour
     {
         if (!isSpectating) return;
 
-        orbitYaw += delta.x * lookSensitivity;
-        orbitPitch -= delta.y * lookSensitivity;
+        float sensitivity = lookSensitivity * sensitivityMultiplier;
+        orbitYaw += delta.x * sensitivity;
+        orbitPitch -= delta.y * sensitivity;
         orbitPitch = Mathf.Clamp(orbitPitch, -pitchClamp, pitchClamp);
+    }
+
+    /// <summary>설정창에서 감도가 바뀌면 배율을 갱신한다. 다음 OnLook 부터 즉시 반영된다.</summary>
+    /// <param name="multiplier">새 감도 배율.</param>
+    private void HandleMouseSensitivityChanged(float multiplier)
+    {
+        sensitivityMultiplier = multiplier;
     }
 
     /// <summary>Next 입력을 받아 다음 생존 대상으로 순환한다. 관전 중에만 반응한다.</summary>

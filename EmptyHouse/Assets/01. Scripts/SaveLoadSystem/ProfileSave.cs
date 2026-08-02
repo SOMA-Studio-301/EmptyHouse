@@ -18,4 +18,6 @@ public class ProfileSave
     public int WindowModeIndex = SettingsGraphicsUtility.BorderlessWindowModeIndex;
 
     public string LanguageCode = "ko";
+
+    public float MouseSensitivity = 1f; // 시선 감도 배율. 플레이어의 기본 lookSensitivity 에 곱해진다(설정값은 배율일 뿐 절대값이 아니다)
 }

@@ -158,7 +158,7 @@ Rigidbody:
   m_IsKinematic: 0
   m_Interpolate: 1
   m_Constraints: 112
-  m_CollisionDetection: 0
+  m_CollisionDetection: 1
 --- !u!114 &8781348085559410535
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -265,6 +265,8 @@ MonoBehaviour:
   cameraPivot: {fileID: 2490874660187570101}
   lookSensitivity: 0.1
   pitchClamp: 89
+  saveLoadSystem: {fileID: 11400000, guid: 60c2f10eb6c3bed4c9bcb10231fb16d6, type: 2}
+  changeMouseSensitivityEvent: {fileID: 11400000, guid: f5ccd24f9ed66ad49bc139217bacb9ef, type: 2}
   moveSpeed: 5
   crouchSpeedMultiplier: 0.5
   jumpSpeed: 5
@@ -275,6 +277,8 @@ MonoBehaviour:
   groundCheckDistance: 0.7
   interactor: {fileID: -6210736759775564248}
   inventory: {fileID: 7556772348847717246}
+  itemUser: {fileID: 0}
+  aimIndicator: {fileID: 0}
   promptCanvas: {fileID: 2440586985477620737}
 --- !u!114 &-6210736759775564248
 MonoBehaviour:
@@ -373,6 +377,9 @@ MonoBehaviour:
   ShowTopMostFoldoutHeaderGroup: 1
   gameStateChanged: {fileID: 11400000, guid: 7f1e63d814caec84581f1352109175df, type: 2}
   inputReader: {fileID: 11400000, guid: eaa08e0560934b24b9f7d5f7d9f863dd, type: 2}
+  saveLoadSystem: {fileID: 11400000, guid: 60c2f10eb6c3bed4c9bcb10231fb16d6, type: 2}
+  changeMouseSensitivityEvent: {fileID: 11400000, guid: f5ccd24f9ed66ad49bc139217bacb9ef, type: 2}
+  spectator: {fileID: 0}
   orbitDistance: 3.5
   orbitHeight: 1.5
   lookSensitivity: 0.1
@@ -418,24 +425,6 @@ MonoBehaviour:
   flashlightAimTolerance: 10
   isCrouching: 0
   isFlashlightActive: 0
---- !u!114 &910000000000000001
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 2490874660187570032}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: c1f48fbd7d4b4d33a5a1c7e6b7f10002, type: 3}
-  m_Name:
-  m_EditorClassIdentifier: Assembly-CSharp::PlayerDisguise
-  ShowTopMostFoldoutHeaderGroup: 1
-  inputReader: {fileID: 11400000, guid: eaa08e0560934b24b9f7d5f7d9f863dd, type: 2}
-  disguiseStateChanged: {fileID: 11400000, guid: c1f48fbd7d4b4d33a5a1c7e6b7f10003, type: 2}
-  disguiseRefillRequested: {fileID: 11400000, guid: c1f48fbd7d4b4d33a5a1c7e6b7f10006, type: 2}
-  maxGauge: 100
-  drainPerSecond: 10
 --- !u!114 &5351568001240086071
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -464,6 +453,24 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::PlayerItemDropper
   ShowTopMostFoldoutHeaderGroup: 1
+--- !u!114 &910000000000000001
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2490874660187570032}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: c1f48fbd7d4b4d33a5a1c7e6b7f10002, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::PlayerDisguise
+  ShowTopMostFoldoutHeaderGroup: 1
+  inputReader: {fileID: 11400000, guid: eaa08e0560934b24b9f7d5f7d9f863dd, type: 2}
+  disguiseStateChanged: {fileID: 11400000, guid: c1f48fbd7d4b4d33a5a1c7e6b7f10003, type: 2}
+  disguiseRefillRequested: {fileID: 11400000, guid: c1f48fbd7d4b4d33a5a1c7e6b7f10006, type: 2}
+  maxGauge: 100
+  drainPerSecond: 10
 --- !u!1 &2490874660187570100
 GameObject:
   m_ObjectHideFlags: 0

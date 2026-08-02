@@ -260,6 +260,8 @@ MonoBehaviour:
   cameraPivot: {fileID: 2490874660187570101}
   lookSensitivity: 0.1
   pitchClamp: 89
+  saveLoadSystem: {fileID: 11400000, guid: 60c2f10eb6c3bed4c9bcb10231fb16d6, type: 2}
+  changeMouseSensitivityEvent: {fileID: 11400000, guid: f5ccd24f9ed66ad49bc139217bacb9ef, type: 2}
   moveSpeed: 5
   crouchSpeedMultiplier: 0.5
   jumpSpeed: 5
@@ -370,6 +372,8 @@ MonoBehaviour:
   ShowTopMostFoldoutHeaderGroup: 1
   gameStateChanged: {fileID: 11400000, guid: 7f1e63d814caec84581f1352109175df, type: 2}
   inputReader: {fileID: 11400000, guid: eaa08e0560934b24b9f7d5f7d9f863dd, type: 2}
+  saveLoadSystem: {fileID: 11400000, guid: 60c2f10eb6c3bed4c9bcb10231fb16d6, type: 2}
+  changeMouseSensitivityEvent: {fileID: 11400000, guid: f5ccd24f9ed66ad49bc139217bacb9ef, type: 2}
   spectator: {fileID: 11400000, guid: 5f392c62579d2504a86ae2161d8ebfb5, type: 2}
   orbitDistance: 3.5
   orbitHeight: 1.5
