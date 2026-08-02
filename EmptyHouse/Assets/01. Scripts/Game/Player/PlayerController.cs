@@ -1,6 +1,7 @@
 using Border.Core;
 using Border.Events;
 using Unity.Netcode;
+using Unity.Netcode.Components;
 using UnityEngine;
 
 /// <summary>
@@ -55,6 +56,9 @@ public class PlayerController : NetworkBehaviour
 
     private Rigidbody body;
 
+    // Owner 권한 NetworkTransform — 스폰 포즈 강제 적용(Teleport)에 쓴다. Awake 캐시.
+    private NetworkTransform networkTransform;
+
     // 비활성 게이팅 소스 — 형제 PlayerDeathHandler. 사망 시 이동·시선·상호작용·인벤을 차단한다(2-1·관전은 PlayerSpectatorController).
     private PlayerDeathHandler deathHandler;
 
@@ -102,6 +106,7 @@ public class PlayerController : NetworkBehaviour
     private void Awake()
     {
         body = GetComponent<Rigidbody>();
+        networkTransform = GetComponent<NetworkTransform>();
         deathHandler = GetComponent<PlayerDeathHandler>();
         playerReturn = GetComponent<PlayerReturn>();
     }
@@ -139,6 +144,58 @@ public class PlayerController : NetworkBehaviour
         cameraTransform.SetParent(cameraPivot, false);
         cameraTransform.localPosition = Vector3.zero;
         cameraTransform.localRotation = Quaternion.identity;
+    }
+
+    /// <summary>
+    /// 서버가 지정한 스폰 포즈를 소유자에게 전달해 강제 적용한다.
+    /// Owner 권한 NetworkTransform 은 동적 스폰 직후 포스트 스폰 동기화가 스폰 위치를
+    /// 원점 계열로 덮어쓰는 NGO 이슈(#2531 계열)가 있어, 권한자인 소유자가 직접 텔레포트해 바로잡는다.
+    /// </summary>
+    /// <param name="position">서버 지정 스폰 위치.</param>
+    /// <param name="rotation">서버 지정 스폰 회전.</param>
+    [ClientRpc]
+    public void SetSpawnPoseClientRpc(Vector3 position, Quaternion rotation)
+    {
+        if (!IsOwner) return;
+
+        StartCoroutine(EnforceSpawnPose(position, rotation));
+    }
+
+    /// <summary>
+    /// 스폰 포즈를 즉시 적용하고, 이후 3초간 조작으로는 불가능한 순간이동(프레임당 2m 초과)이 감지되면
+    /// 한 번 더 원복한다 — NGO 포스트 스폰 덮어쓰기가 RPC 처리 이후에 올 수 있어서다.
+    /// </summary>
+    /// <param name="position">유지할 스폰 위치.</param>
+    /// <param name="rotation">유지할 스폰 회전.</param>
+    private System.Collections.IEnumerator EnforceSpawnPose(Vector3 position, Quaternion rotation)
+    {
+        ForcePose(position, rotation);
+
+        Vector3 last = transform.position;
+        float end = Time.time + 3f;
+        while (Time.time < end)
+        {
+            yield return null;
+            Vector3 now = transform.position;
+            if ((now - last).sqrMagnitude > 4f)
+            {
+                //Log.D($"[PlayerController] 포스트 스폰 순간이동 원복: {now} → {position}");
+                ForcePose(position, rotation);
+                yield break;
+            }
+            last = transform.position;
+        }
+    }
+
+    /// <summary>권한자(소유자) 기준으로 포즈를 강제 적용한다. NetworkTransform 텔레포트 + Rigidbody 동기화.</summary>
+    /// <param name="position">적용할 위치.</param>
+    /// <param name="rotation">적용할 회전.</param>
+    private void ForcePose(Vector3 position, Quaternion rotation)
+    {
+        networkTransform.Teleport(position, rotation, transform.localScale);
+        body.position = position;
+        body.rotation = rotation;
+        body.linearVelocity = Vector3.zero;
     }
 
     /// <summary>네트워크 디스폰 시 소유자에 한해 구독을 해제한다. 액션맵 비활성화는 ClientGameManager 소관이다.</summary>
