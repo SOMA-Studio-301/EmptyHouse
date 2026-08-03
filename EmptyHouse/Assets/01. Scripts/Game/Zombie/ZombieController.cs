@@ -29,6 +29,8 @@ public class ZombieController : NetworkBehaviour
     [Header("Instance Overrides")]
     [Tooltip("Negative values use ZombieDataSO.PatrolRadius. Set this to customize only this zombie.")]
     [SerializeField] private float patrolRadiusOverride = -1f;
+    [Tooltip("끄면 홈 앵커에 제자리 대기한다. 지각·조사·추격·무리 동조는 정상 동작.")]
+    [SerializeField] private bool wanderEnabled = true; // 배회 여부 (군중 좀비는 OFF)
 
     [Header("Editor Debug")]
     [SerializeField] private bool drawDebugGizmos = true;
@@ -80,6 +82,7 @@ public class ZombieController : NetworkBehaviour
     public float PatrolRadius => patrolRadiusOverride >= 0f
         ? patrolRadiusOverride
         : zombieData != null ? zombieData.PatrolRadius : 0f;
+    public bool WanderEnabled => wanderEnabled; // 배회 여부. OFF면 배회 상태에서 홈 대기
 
     /// <summary>복제된 상태가 바뀔 때 발행된다. 서버·클라이언트 모두에서 발행되므로 애니메이션 구동에 쓴다.</summary>
     public event System.Action<ZombieStateKind> StateChanged;
@@ -301,6 +304,13 @@ public class ZombieController : NetworkBehaviour
     {
         if (!IsServer) return;
         stateKind.Value = nextState;
+    }
+
+    /// <summary>배회 여부를 설정한다. 서버 AI만 읽는 설정 값이라 씬 로드 시(군중 구성)에도 쓸 수 있다.</summary>
+    /// <param name="enabled">배회 허용 여부.</param>
+    public void SetWanderEnabled(bool enabled)
+    {
+        wanderEnabled = enabled;
     }
 
     public void ServerDowngradeToInvestigation()

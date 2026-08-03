@@ -27,6 +27,26 @@ public class ZombieWanderState : IZombieState
 
     public void Tick(ZombieStateMachine machine, float deltaTime)
     {
+        // 배회 OFF: 순찰을 버리고 홈에 제자리 대기한다. 플레이 중 토글 변경도 즉시 반영된다.
+        if (!machine.Controller.WanderEnabled)
+        {
+            if (hasPatrolPoint)
+            {
+                hasPatrolPoint = false;
+                machine.ClearPatrolPoint();
+            }
+            phase = PatrolPhase.ReturningHome;
+
+            if (!machine.IsAtDestination(0.25f))
+            {
+                machine.MoveToHome();
+                return;
+            }
+
+            machine.StopAgent();
+            return;
+        }
+
         if (phase == PatrolPhase.MovingToPatrol)
         {
             if (!machine.IsAtDestination(0.25f))
