@@ -16,6 +16,7 @@ public class PlayerInteractor : MonoBehaviour
     [Header("Player")]
     [SerializeField] private PlayerInventory inventory;
     [SerializeField] private PlayerDisguise disguise;
+    [SerializeField] private PlayerHiding hiding;
 
     [Header("UI")]
     [SerializeField] private UIInteractPrompt promptUI;
@@ -56,6 +57,9 @@ public class PlayerInteractor : MonoBehaviour
     /// </summary>
     public PlayerInventory Inventory => inventory;
     public PlayerDisguise Disguise => disguise;
+
+    /// <summary>이 주체의 은신 상태. 은신 중 상호작용 게이팅(3-8 E9)·컨텍스트 판정이 조회한다.</summary>
+    public PlayerHiding Hiding => hiding;
 
     /// <summary>진행 중인 홀드의 진행률(0~1). 홀드 중이 아니거나 대상이 소멸했으면 0이다. 조준선 게이지가 이 값을 그린다.</summary>
     public float HoldProgress01 => activeHold == null ? 0f : activeHold.Progress01;
