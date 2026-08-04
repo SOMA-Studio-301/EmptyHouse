@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using Border.Core;
 
 namespace EmptyHouse.MapGen.Core
@@ -12,12 +13,59 @@ namespace EmptyHouse.MapGen.Core
         /// 방별 입구 깊이를 BFS 로 계산한다. 잠긴 문도 간선으로 취급한다(AC-06 과 같은 기준).
         /// </summary>
         /// <param name="blueprint">Rooms/Edges 가 채워진 블루프린트.</param>
-        /// <returns>방 인덱스 → 입구로부터의 그래프 깊이.</returns>
+        /// <returns>방 인덱스 → 입구로부터의 그래프 깊이. 미도달 방은 -1(고립 — AC-06 위반 신호).</returns>
         public static int[] ComputeDepths(MapBlueprint blueprint)
         {
-            // TODO(impl):
             Log.D("[DangerGradeCalculator] ComputeDepths");
-            return default;
+            int roomCount = blueprint.Rooms.Count;
+            var depths = new int[roomCount];
+            for (int i = 0; i < roomCount; i++)
+            {
+                depths[i] = -1;
+            }
+
+            if (roomCount == 0)
+            {
+                return depths;
+            }
+
+            var adjacency = new List<int>[roomCount];
+            for (int i = 0; i < roomCount; i++)
+            {
+                adjacency[i] = new List<int>();
+            }
+
+            for (int e = 0; e < blueprint.Edges.Count; e++)
+            {
+                BlueprintEdge edge = blueprint.Edges[e];
+                if (edge.RoomB < 0 || edge.State == EdgeState.BlockedWall)
+                {
+                    continue;
+                }
+
+                adjacency[edge.RoomA].Add(edge.RoomB);
+                adjacency[edge.RoomB].Add(edge.RoomA);
+            }
+
+            var queue = new Queue<int>();
+            depths[0] = 0;
+            queue.Enqueue(0);
+            while (queue.Count > 0)
+            {
+                int room = queue.Dequeue();
+                List<int> neighbors = adjacency[room];
+                for (int i = 0; i < neighbors.Count; i++)
+                {
+                    int next = neighbors[i];
+                    if (depths[next] < 0)
+                    {
+                        depths[next] = depths[room] + 1;
+                        queue.Enqueue(next);
+                    }
+                }
+            }
+
+            return depths;
         }
     }
 }

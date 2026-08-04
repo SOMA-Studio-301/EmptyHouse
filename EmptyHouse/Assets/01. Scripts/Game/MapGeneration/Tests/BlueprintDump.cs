@@ -1,3 +1,5 @@
+using System.Globalization;
+using System.Text;
 using Border.Core;
 
 namespace EmptyHouse.MapGen.Core.Tests
@@ -11,14 +13,48 @@ namespace EmptyHouse.MapGen.Core.Tests
         /// <summary>
         /// 블루프린트 전체(meta 제외한 rooms/edges/spawns)를 정규화 문자열로 덤프한다.
         /// 두 생성 결과의 완전 동일성은 이 문자열 비교로 판정한다.
+        /// 줄바꿈은 \n 고정, 실수는 InvariantCulture — 플랫폼·로케일 무관 동일 문자열 보장.
         /// </summary>
         /// <param name="blueprint">덤프할 블루프린트.</param>
         /// <returns>정규화 덤프 문자열.</returns>
         public static string Dump(MapBlueprint blueprint)
         {
-            // TODO(impl):
             Log.D("[BlueprintDump] Dump");
-            return default;
+            var sb = new StringBuilder();
+
+            for (int i = 0; i < blueprint.Rooms.Count; i++)
+            {
+                BlueprintRoom room = blueprint.Rooms[i];
+                sb.Append("room ").Append(i)
+                  .Append('|').Append(room.TemplateId)
+                  .Append('|').Append(room.Cell.X).Append(',').Append(room.Cell.Y)
+                  .Append('|').Append(room.Rotation)
+                  .Append('\n');
+            }
+
+            for (int i = 0; i < blueprint.Edges.Count; i++)
+            {
+                BlueprintEdge edge = blueprint.Edges[i];
+                sb.Append("edge ").Append(i)
+                  .Append('|').Append(edge.RoomA).Append('.').Append(edge.SocketA)
+                  .Append('-').Append(edge.RoomB).Append('.').Append(edge.SocketB)
+                  .Append('|').Append(edge.State)
+                  .Append("|lock=").Append(edge.LockNumber)
+                  .Append('\n');
+            }
+
+            for (int i = 0; i < blueprint.Spawns.Count; i++)
+            {
+                BlueprintSpawn spawn = blueprint.Spawns[i];
+                sb.Append("spawn ").Append(i)
+                  .Append("|room=").Append(spawn.RoomIndex)
+                  .Append("|marker=").Append(spawn.MarkerId)
+                  .Append('|').Append(spawn.Kind)
+                  .Append("|wander=").Append(spawn.WanderRadiusCells.ToString("0.###", CultureInfo.InvariantCulture))
+                  .Append('\n');
+            }
+
+            return sb.ToString();
         }
     }
 }

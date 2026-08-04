@@ -12,38 +12,203 @@ namespace EmptyHouse.MapGen.Core.Tests
         /// <summary>
         /// 손으로 짠 미니 블루프린트 — 방 6(0 = 입구), 트리 간선 5 + 루프 간선 1,
         /// 자물쇠 2(1번 = 루프 지름길, 2번 = 깊은 가지 관문), 봉인 간선(RoomB = -1) 1개 포함.
-        /// 기대값(R_1, R_2, 깊이)이 수기로 계산 가능한 최소 크기를 유지할 것.
+        ///
+        /// 그래프(간선 인덱스 순):
+        ///   0 ─e0(통로)─ 1 ─e1(문)─ 2 ─e2(잠금2)─ 3
+        ///                           │             │
+        ///                           e3(통로)      e5(잠금1 루프)
+        ///                           │             │
+        ///                           4 ─e4(문)──── 5 ─e6(봉인 RoomB=-1)
+        ///
+        /// 수기 기대값: 깊이 = [0,1,2,3,3,4] · R_1 = {0,1,2,4,5} · R_2 = 전체 · e4 차단 시 = {0,1,2,3,4}.
         /// </summary>
         /// <returns>기대값 검증용 블루프린트.</returns>
         public static MapBlueprint CreateMiniBlueprint()
         {
-            // TODO(impl):
             Log.D("[BlueprintFixtures] CreateMiniBlueprint");
-            return default;
+            var blueprint = new MapBlueprint();
+            blueprint.Meta.Seed = 1;
+            blueprint.Meta.GeneratorVersion = "fixture";
+
+            blueprint.Rooms.Add(new BlueprintRoom { TemplateId = "entrance", Cell = new CellCoord(0, 0), Rotation = Rotation4.Deg0 });
+            blueprint.Rooms.Add(new BlueprintRoom { TemplateId = "room_small", Cell = new CellCoord(0, 3), Rotation = Rotation4.Deg0 });
+            blueprint.Rooms.Add(new BlueprintRoom { TemplateId = "room_small", Cell = new CellCoord(0, 6), Rotation = Rotation4.Deg0 });
+            blueprint.Rooms.Add(new BlueprintRoom { TemplateId = "room_medium", Cell = new CellCoord(4, 6), Rotation = Rotation4.Deg0 });
+            blueprint.Rooms.Add(new BlueprintRoom { TemplateId = "room_small", Cell = new CellCoord(4, 3), Rotation = Rotation4.Deg0 });
+            blueprint.Rooms.Add(new BlueprintRoom { TemplateId = "room_small", Cell = new CellCoord(8, 3), Rotation = Rotation4.Deg0 });
+
+            // 트리 간선 5
+            blueprint.Edges.Add(new BlueprintEdge { RoomA = 0, SocketA = 0, RoomB = 1, SocketB = 0, State = EdgeState.OpenPassage, LockNumber = 0 });
+            blueprint.Edges.Add(new BlueprintEdge { RoomA = 1, SocketA = 1, RoomB = 2, SocketB = 0, State = EdgeState.DoorOpen, LockNumber = 0 });
+            blueprint.Edges.Add(new BlueprintEdge { RoomA = 2, SocketA = 1, RoomB = 3, SocketB = 0, State = EdgeState.DoorLocked, LockNumber = 2 });
+            blueprint.Edges.Add(new BlueprintEdge { RoomA = 2, SocketA = 2, RoomB = 4, SocketB = 0, State = EdgeState.OpenPassage, LockNumber = 0 });
+            blueprint.Edges.Add(new BlueprintEdge { RoomA = 4, SocketA = 1, RoomB = 5, SocketB = 0, State = EdgeState.DoorOpen, LockNumber = 0 });
+            // 루프 간선 1 — 지름길 자물쇠 1번
+            blueprint.Edges.Add(new BlueprintEdge { RoomA = 3, SocketA = 1, RoomB = 4, SocketB = 2, State = EdgeState.DoorLocked, LockNumber = 1 });
+            // 봉인 간선 — 짝 없는 소켓의 막힌 벽(간선 아님)
+            blueprint.Edges.Add(new BlueprintEdge { RoomA = 5, SocketA = 1, RoomB = -1, SocketB = -1, State = EdgeState.BlockedWall, LockNumber = 0 });
+
+            return blueprint;
         }
 
         /// <summary>
-        /// 생성기 구동용 가짜 템플릿 세트 — 입구 앵커 1종 + 방 3~4종(크기·소켓 수 다양) + 복도 1종.
-        /// 마커는 ZombieSpawn·ItemSpawn·GeneratorSlot·CorpseStationSlot·HerdArea 전 종류를 최소 1개씩 포함할 것.
+        /// 생성기 구동용 가짜 템플릿 세트 — 입구 앵커 1종 + 방 4종(크기·소켓 수 다양) + 복도 1종.
+        /// 마커는 ZombieSpawn·ItemSpawn·GeneratorSlot·CorpseStationSlot·HerdArea 전 종류를 최소 1개씩 포함.
         /// </summary>
         /// <returns>M2~M5 property 테스트용 템플릿 목록.</returns>
         public static IReadOnlyList<RoomTemplateDef> CreateFakeTemplates()
         {
-            // TODO(impl):
             Log.D("[BlueprintFixtures] CreateFakeTemplates");
-            return default;
+            return new List<RoomTemplateDef>
+            {
+                new RoomTemplateDef
+                {
+                    TemplateId = "entrance",
+                    WidthCells = 3,
+                    HeightCells = 3,
+                    AllowedFloors = FloorMask.F1,
+                    Tags = RoomTagMask.None,
+                    MinCount = 1,
+                    MaxCount = 1,
+                    IsCorridor = false,
+                    IsEntranceAnchor = true,
+                    Sockets = new[]
+                    {
+                        new SocketDef { Id = 0, LocalCell = new CellCoord(1, 2), Direction = SocketDirection.North },
+                    },
+                    Markers = new MarkerDef[0],
+                },
+                new RoomTemplateDef
+                {
+                    TemplateId = "room_small",
+                    WidthCells = 3,
+                    HeightCells = 3,
+                    AllowedFloors = FloorMask.F1,
+                    Tags = RoomTagMask.None,
+                    MinCount = 0,
+                    MaxCount = 10,
+                    IsCorridor = false,
+                    IsEntranceAnchor = false,
+                    Sockets = new[]
+                    {
+                        new SocketDef { Id = 0, LocalCell = new CellCoord(1, 0), Direction = SocketDirection.South },
+                        new SocketDef { Id = 1, LocalCell = new CellCoord(1, 2), Direction = SocketDirection.North },
+                        new SocketDef { Id = 2, LocalCell = new CellCoord(0, 1), Direction = SocketDirection.West },
+                        new SocketDef { Id = 3, LocalCell = new CellCoord(2, 1), Direction = SocketDirection.East },
+                    },
+                    Markers = new[]
+                    {
+                        new MarkerDef { Id = 0, Kind = MarkerKind.ZombieSpawn, LocalCell = new CellCoord(1, 1), ZombieMask = ZombieTypeMask.Walker | ZombieTypeMask.Listener, WanderRadiusCells = 2f },
+                        new MarkerDef { Id = 1, Kind = MarkerKind.ItemSpawn, LocalCell = new CellCoord(2, 2), ItemMask = ItemCategoryMask.Throwable | ItemCategoryMask.Scrap | ItemCategoryMask.Key },
+                    },
+                },
+                new RoomTemplateDef
+                {
+                    TemplateId = "room_medium",
+                    WidthCells = 5,
+                    HeightCells = 4,
+                    AllowedFloors = FloorMask.F1,
+                    Tags = RoomTagMask.None,
+                    MinCount = 0,
+                    MaxCount = 6,
+                    IsCorridor = false,
+                    IsEntranceAnchor = false,
+                    Sockets = new[]
+                    {
+                        new SocketDef { Id = 0, LocalCell = new CellCoord(2, 0), Direction = SocketDirection.South },
+                        new SocketDef { Id = 1, LocalCell = new CellCoord(0, 2), Direction = SocketDirection.West },
+                        new SocketDef { Id = 2, LocalCell = new CellCoord(4, 2), Direction = SocketDirection.East },
+                    },
+                    Markers = new[]
+                    {
+                        new MarkerDef { Id = 0, Kind = MarkerKind.ZombieSpawn, LocalCell = new CellCoord(2, 2), ZombieMask = ZombieTypeMask.Walker, WanderRadiusCells = 3f },
+                        new MarkerDef { Id = 1, Kind = MarkerKind.ItemSpawn, LocalCell = new CellCoord(1, 3), ItemMask = ItemCategoryMask.Vaccine | ItemCategoryMask.Key | ItemCategoryMask.Oil },
+                        new MarkerDef { Id = 2, Kind = MarkerKind.CorpseStationSlot, LocalCell = new CellCoord(4, 3) },
+                    },
+                },
+                new RoomTemplateDef
+                {
+                    TemplateId = "room_large",
+                    WidthCells = 6,
+                    HeightCells = 5,
+                    AllowedFloors = FloorMask.F1,
+                    Tags = RoomTagMask.None,
+                    MinCount = 1,
+                    MaxCount = 2,
+                    IsCorridor = false,
+                    IsEntranceAnchor = false,
+                    Sockets = new[]
+                    {
+                        new SocketDef { Id = 0, LocalCell = new CellCoord(3, 0), Direction = SocketDirection.South },
+                        new SocketDef { Id = 1, LocalCell = new CellCoord(3, 4), Direction = SocketDirection.North },
+                        new SocketDef { Id = 2, LocalCell = new CellCoord(0, 2), Direction = SocketDirection.West },
+                        new SocketDef { Id = 3, LocalCell = new CellCoord(5, 2), Direction = SocketDirection.East },
+                    },
+                    Markers = new[]
+                    {
+                        new MarkerDef { Id = 0, Kind = MarkerKind.HerdArea, LocalCell = new CellCoord(3, 2) },
+                        new MarkerDef { Id = 1, Kind = MarkerKind.ZombieSpawn, LocalCell = new CellCoord(1, 1), ZombieMask = ZombieTypeMask.Walker, WanderRadiusCells = 2f },
+                        new MarkerDef { Id = 2, Kind = MarkerKind.ItemSpawn, LocalCell = new CellCoord(5, 4), ItemMask = ItemCategoryMask.Vaccine | ItemCategoryMask.Throwable | ItemCategoryMask.Scrap },
+                    },
+                },
+                new RoomTemplateDef
+                {
+                    TemplateId = "room_dark",
+                    WidthCells = 4,
+                    HeightCells = 4,
+                    AllowedFloors = FloorMask.F1,
+                    Tags = RoomTagMask.Dark,
+                    MinCount = 0,
+                    MaxCount = 3,
+                    IsCorridor = false,
+                    IsEntranceAnchor = false,
+                    Sockets = new[]
+                    {
+                        new SocketDef { Id = 0, LocalCell = new CellCoord(2, 0), Direction = SocketDirection.South },
+                        new SocketDef { Id = 1, LocalCell = new CellCoord(0, 2), Direction = SocketDirection.West },
+                    },
+                    Markers = new[]
+                    {
+                        new MarkerDef { Id = 0, Kind = MarkerKind.ZombieSpawn, LocalCell = new CellCoord(2, 2), ZombieMask = ZombieTypeMask.Watcher, WanderRadiusCells = 1f },
+                        new MarkerDef { Id = 1, Kind = MarkerKind.GeneratorSlot, LocalCell = new CellCoord(3, 3) },
+                        new MarkerDef { Id = 2, Kind = MarkerKind.ItemSpawn, LocalCell = new CellCoord(1, 3), ItemMask = ItemCategoryMask.Oil | ItemCategoryMask.Scrap },
+                    },
+                },
+                new RoomTemplateDef
+                {
+                    TemplateId = "corridor_straight",
+                    WidthCells = 1,
+                    HeightCells = 3,
+                    AllowedFloors = FloorMask.F1,
+                    Tags = RoomTagMask.None,
+                    MinCount = 0,
+                    MaxCount = 12,
+                    IsCorridor = true,
+                    IsEntranceAnchor = false,
+                    Sockets = new[]
+                    {
+                        new SocketDef { Id = 0, LocalCell = new CellCoord(0, 0), Direction = SocketDirection.South },
+                        new SocketDef { Id = 1, LocalCell = new CellCoord(0, 2), Direction = SocketDirection.North },
+                    },
+                    Markers = new MarkerDef[0],
+                },
+            };
         }
 
         /// <summary>
-        /// 테스트 스케일 파라미터 — 총 방 수 축소(예: 10~12) 운용, 나머지는 9절 기본값.
+        /// 테스트 스케일 파라미터 — 총 방 수 축소(10~12) 운용, 나머지는 9절 기본값.
         /// </summary>
         /// <param name="seed">확정 시드(0 금지 — X8).</param>
         /// <returns>테스트용 생성 파라미터.</returns>
         public static MapGenParams CreateTestParams(int seed)
         {
-            // TODO(impl):
             Log.D($"[BlueprintFixtures] CreateTestParams 시드={seed}");
-            return default;
+            return new MapGenParams
+            {
+                Seed = seed,
+                RoomsTotalMin = 10,
+                RoomsTotalMax = 12,
+            };
         }
     }
 }
