@@ -292,7 +292,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::UIMenuManager
   menuCanvasGroup: {fileID: 7367932680761263752}
-  lobbyCanvasGroup: {fileID: 3516608138837530498}
+  lobbyCanvasGroup: {fileID: 7418427794338587611}
   menuPanel: {fileID: 5801774624097019526}
   lobbyPanel: {fileID: 3169119635348312597}
   popupPanel: {fileID: 8555883461189449617}
@@ -561,11 +561,6 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 639544ed3cd4c1d469c3b17e3c1111fe, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::UILobby
---- !u!225 &3516608138837530498 stripped
-CanvasGroup:
-  m_CorrespondingSourceObject: {fileID: 4473522374769379421, guid: 2e316c412a055be4aa2c68458a145286, type: 3}
-  m_PrefabInstance: {fileID: 1069785908322803679}
-  m_PrefabAsset: {fileID: 0}
 --- !u!114 &4143760287467611621 stripped
 MonoBehaviour:
   m_CorrespondingSourceObject: {fileID: 3988285583505766970, guid: 2e316c412a055be4aa2c68458a145286, type: 3}
@@ -577,6 +572,11 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 9a3e539c2d6a43b4c8e6d59852cd8569, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::UIRoomList
+--- !u!225 &7418427794338587611 stripped
+CanvasGroup:
+  m_CorrespondingSourceObject: {fileID: 7506137578909940740, guid: 2e316c412a055be4aa2c68458a145286, type: 3}
+  m_PrefabInstance: {fileID: 1069785908322803679}
+  m_PrefabAsset: {fileID: 0}
 --- !u!114 &8555883461189449617 stripped
 MonoBehaviour:
   m_CorrespondingSourceObject: {fileID: 8675127161601566798, guid: 2e316c412a055be4aa2c68458a145286, type: 3}

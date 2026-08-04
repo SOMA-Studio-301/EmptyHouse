@@ -63,8 +63,8 @@ public class UIMenuManager : MonoBehaviour
         SetInteractable(lobbyCanvasGroup, false);
 
         // UI 활성화 설정
-        menuPanel.gameObject.SetActive(true);
-        lobbyPanel.gameObject.SetActive(false);
+        menuCanvasGroup.gameObject.SetActive(true);
+        lobbyCanvasGroup.gameObject.SetActive(false);
 
         // 메뉴 패널 액션 설정
         menuPanel.StartClicked += EnableLobby;
@@ -143,6 +143,8 @@ public class UIMenuManager : MonoBehaviour
     private void EnableMenu()
     {
         // UI 활성화 설정
+        menuCanvasGroup.gameObject.SetActive(true);
+        lobbyCanvasGroup.gameObject.SetActive(false);
         menuPanel.gameObject.SetActive(true);
         lobbyPanel.gameObject.SetActive(false);
 
@@ -157,6 +159,8 @@ public class UIMenuManager : MonoBehaviour
     private void EnableLobby()
     {
         // UI 활성화 설정
+        menuCanvasGroup.gameObject.SetActive(false);
+        lobbyCanvasGroup.gameObject.SetActive(true);
         menuPanel.gameObject.SetActive(false);
         lobbyPanel.gameObject.SetActive(true);
 
@@ -189,8 +193,6 @@ public class UIMenuManager : MonoBehaviour
     /// <summary>설정 화면을 연다. 창의 수명은 메뉴 뷰가 소유한다.</summary>
     private void ShowSettings()
     {
-        Log.D("[UIMenuManager] ShowSettings");
-
         menuPanel.ShowSettings();
     }
 
@@ -203,7 +205,6 @@ public class UIMenuManager : MonoBehaviour
     /// <summary>게임을 종료한다. 에디터에서는 플레이 모드를 멈춘다. 확인 팝업의 확인 콜백으로만 도달한다.</summary>
     private void ExitGame()
     {
-        Log.D("[UIMenuManager] ExitGame");
 #if UNITY_EDITOR
         UnityEditor.EditorApplication.isPlaying = false;
 #else
