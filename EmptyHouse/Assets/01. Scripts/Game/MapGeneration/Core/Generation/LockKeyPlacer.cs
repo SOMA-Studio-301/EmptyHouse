@@ -51,6 +51,13 @@ namespace EmptyHouse.MapGen.Core
                     continue;
                 }
 
+                // 복도↔복도 간선은 자물쇠 부적격 — 복도 단부에는 문틀이 없다(문 배치 불가 물리 제약)
+                if (FindTemplate(templates, blueprint.Rooms[edge.RoomA].TemplateId).IsCorridor
+                    && FindTemplate(templates, blueprint.Rooms[edge.RoomB].TemplateId).IsCorridor)
+                {
+                    continue;
+                }
+
                 HashSet<int> front = ReachabilityAnalyzer.ComputeReachableWithEdgeBlocked(blueprint, e);
                 if (front.Count == roomCount)
                 {

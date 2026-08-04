@@ -191,6 +191,43 @@ namespace EmptyHouse.MapGen.Core.Tests
             AssertBlueprintEquals(first.Blueprint, second.Blueprint);
         }
 
+        /// <summary>복도↔복도 연결 간선에는 문이 없다 — 복도 단부에 문틀이 없어 항상 개방 통로여야 한다.</summary>
+        [Test]
+        public void Generate_복도_사이_간선에는_문이_없다()
+        {
+            var corridorIds = new HashSet<string>();
+            foreach (RoomTemplateDef template in DevTemplateSet.Create())
+            {
+                if (template.IsCorridor)
+                {
+                    corridorIds.Add(template.TemplateId);
+                }
+            }
+
+            int corridorPairEdges = 0;
+            for (int seed = 1; seed <= 20; seed++)
+            {
+                MapGenResult result = GenerateSuccess(seed, out _);
+                MapBlueprint blueprint = result.Blueprint;
+                for (int e = 0; e < blueprint.Edges.Count; e++)
+                {
+                    BlueprintEdge edge = blueprint.Edges[e];
+                    if (edge.RoomB < 0
+                        || !corridorIds.Contains(blueprint.Rooms[edge.RoomA].TemplateId)
+                        || !corridorIds.Contains(blueprint.Rooms[edge.RoomB].TemplateId))
+                    {
+                        continue;
+                    }
+
+                    corridorPairEdges++;
+                    Assert.That(edge.State, Is.EqualTo(EdgeState.OpenPassage),
+                        $"시드 {seed}: 복도 {edge.RoomA}↔복도 {edge.RoomB} 간선이 {edge.State} — 복도 사이엔 문이 올 수 없다");
+                }
+            }
+
+            Assert.That(corridorPairEdges, Is.GreaterThan(0), "시드 20개에서 복도↔복도 간선이 한 번도 안 나와 검증이 공허하다");
+        }
+
         /// <summary>3타입 전부 활성화한 테스트 파라미터를 만든다.</summary>
         /// <param name="seed">확정 시드.</param>
         /// <returns>테스트용 생성 파라미터.</returns>

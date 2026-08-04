@@ -171,13 +171,15 @@ namespace EmptyHouse.MapGen.Core
                     int newRoom = PlaceRoom(template, origin, rotation, blueprint);
                     usedCount[templateIndex]++;
 
+                    // 복도↔복도는 항상 개방 통로 — 복도 단부에는 문틀이 없다(문 배치 불가 물리 제약)
+                    bool corridorPair = placedTemplates[openRoom].IsCorridor && template.IsCorridor;
                     blueprint.Edges.Add(new BlueprintEdge
                     {
                         RoomA = openRoom,
                         SocketA = openSocket.Id,
                         RoomB = newRoom,
                         SocketB = newSocket.Id,
-                        State = rng.Next(2) == 0 ? EdgeState.DoorOpen : EdgeState.OpenPassage,
+                        State = corridorPair ? EdgeState.OpenPassage : (rng.Next(2) == 0 ? EdgeState.DoorOpen : EdgeState.OpenPassage),
                         LockNumber = 0,
                     });
                     usedSockets.Add(SocketKey(openRoom, openSocket.Id));
@@ -271,13 +273,16 @@ namespace EmptyHouse.MapGen.Core
             {
                 int pick = rng.Next(candidates.Count);
                 (int roomA, int socketA, int roomB, int socketB) = candidates[pick];
+
+                // 복도↔복도는 항상 개방 통로 — 복도 단부에는 문틀이 없다(TryAttachRooms 와 동일 규칙)
+                bool corridorPair = placedTemplates[roomA].IsCorridor && placedTemplates[roomB].IsCorridor;
                 blueprint.Edges.Add(new BlueprintEdge
                 {
                     RoomA = roomA,
                     SocketA = socketA,
                     RoomB = roomB,
                     SocketB = socketB,
-                    State = rng.Next(2) == 0 ? EdgeState.DoorOpen : EdgeState.OpenPassage,
+                    State = corridorPair ? EdgeState.OpenPassage : (rng.Next(2) == 0 ? EdgeState.DoorOpen : EdgeState.OpenPassage),
                     LockNumber = 0,
                 });
                 usedSockets.Add(SocketKey(roomA, socketA));

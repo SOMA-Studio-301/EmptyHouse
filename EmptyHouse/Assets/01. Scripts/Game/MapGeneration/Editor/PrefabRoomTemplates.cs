@@ -6,7 +6,9 @@ namespace EmptyHouse.MapGen.Editor
 {
     /// <summary>
     /// 실제 방 프리팹(02. Prefab/Map) 실측 기반 템플릿 세트 — 예시 맵 씬 빌더(MapGenSceneBuilder) 재료.
-    /// 셀 1칸 = 4m(Hall_Floor_4M 실측): 3x3 = 12×12m 방, 5x5 = 20×20m 방, 6x8 = 24×32m 방, 복도 = 8m(2셀).
+    /// 셀 1칸 = 4m(Hall_Floor_4M 실측): 3x3 = 12×12m 방, 5x5 = 20×20m 방, 6x8 = 24×32m 방.
+    /// 복도(실측): Hallway = 4×8m(1×2셀), Hallway x2 = 8×8m(2×2셀) — 둘 다 긴 옆면(동·서)은 벽·아치창으로
+    /// 막혀 있고 <b>남·북 단부만 개구</b>다. 소켓은 반드시 개구 변에만 둔다(벽 뚫린 곳 = 연결 지점).
     /// 소켓 정렬 불변식: 각 벽의 소켓 열 집합은 c ↔ L−1−c 자기 대칭(홀수 변 = 중앙, 짝수 변 = 쌍대칭 —
     /// 6변 {1,4}·8변 {2,5}) — 기존 "모든 변 3의 배수" 규칙을 이 조건으로 일반화했다. 위반 시 루프 간선 후보가 사라진다.
     /// P5(RoomTemplateSO 세트) 전까지의 에디터 전용 브리지 — 게임 런타임 어댑터가 생기면 SO 로 대체한다.
@@ -23,6 +25,7 @@ namespace EmptyHouse.MapGen.Editor
             { "room_5x5", "Assets/02. Prefab/Map/EmptyRoom-5x5.prefab" },
             { "room_6x8", "Assets/02. Prefab/Map/EmptyRoom-6x8.prefab" },
             { "hallway", "Assets/02. Prefab/Map/Hallway.prefab" },
+            { "hallway_x2", "Assets/02. Prefab/Map/Hallway x2.prefab" },
         };
 
         public const string DoorOpenedPath = "Assets/02. Prefab/Map/Door-Opened.prefab"; // 열린 문 프리팹
@@ -140,9 +143,10 @@ namespace EmptyHouse.MapGen.Editor
                 },
                 new RoomTemplateDef
                 {
+                    // 실측: 긴 축 = 로컬 Z(북남), 개구 = 남(0,0)·북(0,1) 단부뿐 — 옆면 소켓 금지
                     TemplateId = "hallway",
-                    WidthCells = 2,
-                    HeightCells = 1,
+                    WidthCells = 1,
+                    HeightCells = 2,
                     AllowedFloors = FloorMask.F1,
                     Tags = RoomTagMask.None,
                     MinCount = 0,
@@ -151,8 +155,29 @@ namespace EmptyHouse.MapGen.Editor
                     IsEntranceAnchor = false,
                     Sockets = new[]
                     {
-                        new SocketDef { Id = 0, LocalCell = new CellCoord(0, 0), Direction = SocketDirection.West },
-                        new SocketDef { Id = 1, LocalCell = new CellCoord(1, 0), Direction = SocketDirection.East },
+                        new SocketDef { Id = 0, LocalCell = new CellCoord(0, 0), Direction = SocketDirection.South },
+                        new SocketDef { Id = 1, LocalCell = new CellCoord(0, 1), Direction = SocketDirection.North },
+                    },
+                    Markers = new MarkerDef[0],
+                },
+                new RoomTemplateDef
+                {
+                    // 실측: 8×8m 광폭 복도 — 남·북 전폭(2셀) 개구, 동·서는 벽·아치창
+                    TemplateId = "hallway_x2",
+                    WidthCells = 2,
+                    HeightCells = 2,
+                    AllowedFloors = FloorMask.F1,
+                    Tags = RoomTagMask.None,
+                    MinCount = 0,
+                    MaxCount = 4,
+                    IsCorridor = true,
+                    IsEntranceAnchor = false,
+                    Sockets = new[]
+                    {
+                        new SocketDef { Id = 0, LocalCell = new CellCoord(0, 0), Direction = SocketDirection.South },
+                        new SocketDef { Id = 1, LocalCell = new CellCoord(1, 0), Direction = SocketDirection.South },
+                        new SocketDef { Id = 2, LocalCell = new CellCoord(0, 1), Direction = SocketDirection.North },
+                        new SocketDef { Id = 3, LocalCell = new CellCoord(1, 1), Direction = SocketDirection.North },
                     },
                     Markers = new MarkerDef[0],
                 },

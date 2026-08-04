@@ -155,6 +155,13 @@ namespace EmptyHouse.MapGen.Editor
             instance.transform.localRotation = Quaternion.Euler(0f, 90f * (int)room.Rotation, 0f);
             instance.transform.localPosition = Vector3.zero;
 
+            // 프리팹 내장 라이트 비활성화 — 맵 5개면 라이트 300개+ 로 URP Forward+ 한도를 넘어
+            // 씬 뷰 렌더 에러(ZBinningJob)가 난다. 그레이박스 시연에 라이팅은 불필요(P5 소관)
+            foreach (Light light in instance.GetComponentsInChildren<Light>(true))
+            {
+                light.enabled = false;
+            }
+
             Bounds floor = FloorBounds(instance);
             float targetX = mapRoot.position.x + (room.Cell.X - minX) * PrefabRoomTemplates.CellMeters;
             float targetZ = mapRoot.position.z + (room.Cell.Y - minY) * PrefabRoomTemplates.CellMeters;
@@ -187,10 +194,10 @@ namespace EmptyHouse.MapGen.Editor
             Vector3 gateCenter = cellCenter + dirVec * (cell * 0.5f);
 
             // 경계선 방향 폭 3.2m(3M 개구부) × 두께 1.6m × 높이 8m 게이트와 교차하는 벽 모듈 비활성화
-            bool alongX = dir == SocketDirection.North || dir == SocketDirection.South;
-            var gate = new Bounds(gateCenter + Vector3.up * 3f, alongX ? new Vector3(3.2f, 8f, 1.6f) : new Vector3(1.6f, 8f, 3.2f));
-            DisableWallsIntersecting(roomInstances[edge.RoomA], gate);
-            DisableWallsIntersecting(roomInstances[edge.RoomB], gate);
+            bool boundaryAlongX = dir == SocketDirection.North || dir == SocketDirection.South;
+            var gate = new Bounds(gateCenter + Vector3.up * 3f, boundaryAlongX ? new Vector3(3.2f, 8f, 1.6f) : new Vector3(1.6f, 8f, 3.2f));
+            DisableWallsIntersecting(roomInstances[edge.RoomA], gate, boundaryAlongX);
+            DisableWallsIntersecting(roomInstances[edge.RoomB], gate, boundaryAlongX);
 
             if (edge.State == EdgeState.OpenPassage)
             {
@@ -230,15 +237,27 @@ namespace EmptyHouse.MapGen.Editor
             sphere.GetComponent<Renderer>().sharedMaterial = MarkerMaterial(spawn.Kind);
         }
 
-        /// <summary>게이트 박스와 교차하는 벽 모듈(이름에 Wall 포함) 렌더러를 비활성화한다.</summary>
+        /// <summary>
+        /// 게이트 박스와 교차하며 통로를 실제로 막는 방향의 벽 모듈만 비활성화한다 —
+        /// 통로 축과 평행한 옆벽(복도 측벽·방 모서리 벽)은 게이트와 모서리가 닿아도 보존한다.
+        /// </summary>
         /// <param name="roomInstance">대상 방 인스턴스.</param>
         /// <param name="gate">개구부 게이트 박스(월드).</param>
-        private static void DisableWallsIntersecting(GameObject roomInstance, Bounds gate)
+        /// <param name="boundaryAlongX">경계선이 X 축 방향인지(개구 방향 N/S = 참).</param>
+        private static void DisableWallsIntersecting(GameObject roomInstance, Bounds gate, bool boundaryAlongX)
         {
             Renderer[] renderers = roomInstance.GetComponentsInChildren<Renderer>(false);
             for (int i = 0; i < renderers.Length; i++)
             {
-                if (renderers[i].name.Contains("Wall") && renderers[i].bounds.Intersects(gate))
+                if (!renderers[i].name.Contains("Wall"))
+                {
+                    continue;
+                }
+
+                // 막는 벽 = 경계선과 같은 축으로 길게 놓인 벽(N/S 개구면 X 로 긴 벽)
+                Vector3 size = renderers[i].bounds.size;
+                bool blocking = boundaryAlongX ? size.x > size.z : size.z > size.x;
+                if (blocking && renderers[i].bounds.Intersects(gate))
                 {
                     renderers[i].gameObject.SetActive(false);
                 }
