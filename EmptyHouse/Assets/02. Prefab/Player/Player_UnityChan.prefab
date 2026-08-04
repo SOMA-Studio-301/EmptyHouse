@@ -101,6 +101,7 @@ GameObject:
   - component: {fileID: 868667955893195295}
   - component: {fileID: 125099242519735681}
   - component: {fileID: 5060746342418038198}
+  - component: {fileID: 3814831168945640586}
   m_Layer: 0
   m_Name: Player_UnityChan
   m_TagString: Untagged
@@ -125,8 +126,6 @@ Transform:
   - {fileID: 6691411905100987897}
   - {fileID: 3162627435837655207}
   - {fileID: 6501918125745249282}
-  - {fileID: 5861688258675524150}
-  - {fileID: 6364257551167612104}
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!136 &924773955647982431
@@ -694,6 +693,33 @@ MonoBehaviour:
   ShowTopMostFoldoutHeaderGroup: 1
   cameraPivot: {fileID: 2490874660187570101}
   eyeAnchor: {fileID: 4004080484864491573}
+  eyeOffset: {x: 0, y: -0.19, z: -0.17}
+--- !u!114 &3814831168945640586
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2490874660187570032}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: db157413342934f4faa036aacc30897c, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::PlayerLocalHeadHider
+  ShowTopMostFoldoutHeaderGroup: 1
+  headParts:
+  - {fileID: 6501918125745733664}
+  - {fileID: 6501918125745733634}
+  - {fileID: 6501918125745733778}
+  - {fileID: 6501918125745733754}
+  - {fileID: 6501918125745733798}
+  - {fileID: 6501918125745733642}
+  - {fileID: 6501918125745733786}
+  - {fileID: 6501918125745733802}
+  - {fileID: 6501918125745733818}
+  - {fileID: 6501918125745733984}
+  - {fileID: 6501918125745733856}
+  hiddenLayer: 31
 --- !u!1 &2490874660187570100
 GameObject:
   m_ObjectHideFlags: 0
@@ -1685,7 +1711,7 @@ SkinnedMeshRenderer:
   m_MaskInteraction: 0
   serializedVersion: 2
   m_Quality: 0
-  m_UpdateWhenOffscreen: 0
+  m_UpdateWhenOffscreen: 1
   m_SkinnedMotionVectors: 1
   m_Mesh: {fileID: 4300024, guid: 8f0565f23a2b58541a475bd3c1393052, type: 3}
   m_Bones:
@@ -2800,11 +2826,14 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::PlayerFlashlightArmIK
   flashlight: {fileID: 125099242519735681}
-  aimTarget: {fileID: 5861688258675524150}
-  elbowHint: {fileID: 6364257551167612104}
-  aimPivotLocal: {x: 0, y: 0.35, z: 0}
+  cameraFollow: {fileID: 5060746342418038198}
+  controller: {fileID: 8915136794142559673}
+  handOffsetFromEye: {x: 0.2, y: -0.08, z: 0.2}
+  handEulerFromView: {x: 0, y: 0, z: 0}
+  elbowHintOffsetFromEye: {x: 0.45, y: -0.45, z: 0}
   maxAimPitchDeg: 60
   maxAimYawOffsetDeg: 70
+  handPositionPitchClampDeg: 35
   lookBodyWeight: 0.4
   lookHeadWeight: 0.7
   blendSpeed: 4
@@ -4765,7 +4794,7 @@ SkinnedMeshRenderer:
   m_MaskInteraction: 0
   serializedVersion: 2
   m_Quality: 0
-  m_UpdateWhenOffscreen: 0
+  m_UpdateWhenOffscreen: 1
   m_SkinnedMotionVectors: 1
   m_Mesh: {fileID: 4300032, guid: 8f0565f23a2b58541a475bd3c1393052, type: 3}
   m_Bones:
@@ -4888,7 +4917,7 @@ SkinnedMeshRenderer:
   m_MaskInteraction: 0
   serializedVersion: 2
   m_Quality: 0
-  m_UpdateWhenOffscreen: 0
+  m_UpdateWhenOffscreen: 1
   m_SkinnedMotionVectors: 1
   m_Mesh: {fileID: 4300020, guid: 8f0565f23a2b58541a475bd3c1393052, type: 3}
   m_Bones:
@@ -5268,7 +5297,7 @@ SkinnedMeshRenderer:
   m_MaskInteraction: 0
   serializedVersion: 2
   m_Quality: 0
-  m_UpdateWhenOffscreen: 0
+  m_UpdateWhenOffscreen: 1
   m_SkinnedMotionVectors: 1
   m_Mesh: {fileID: 4300042, guid: 8f0565f23a2b58541a475bd3c1393052, type: 3}
   m_Bones:
@@ -5371,7 +5400,7 @@ SkinnedMeshRenderer:
   m_MaskInteraction: 0
   serializedVersion: 2
   m_Quality: 0
-  m_UpdateWhenOffscreen: 0
+  m_UpdateWhenOffscreen: 1
   m_SkinnedMotionVectors: 1
   m_Mesh: {fileID: 4300026, guid: 8f0565f23a2b58541a475bd3c1393052, type: 3}
   m_Bones:
@@ -5571,7 +5600,7 @@ SkinnedMeshRenderer:
   m_MaskInteraction: 0
   serializedVersion: 2
   m_Quality: 0
-  m_UpdateWhenOffscreen: 0
+  m_UpdateWhenOffscreen: 1
   m_SkinnedMotionVectors: 1
   m_Mesh: {fileID: 4300018, guid: 8f0565f23a2b58541a475bd3c1393052, type: 3}
   m_Bones:
@@ -5804,7 +5833,7 @@ SkinnedMeshRenderer:
   m_MaskInteraction: 0
   serializedVersion: 2
   m_Quality: 0
-  m_UpdateWhenOffscreen: 0
+  m_UpdateWhenOffscreen: 1
   m_SkinnedMotionVectors: 1
   m_Mesh: {fileID: 4300036, guid: 8f0565f23a2b58541a475bd3c1393052, type: 3}
   m_Bones:
@@ -6010,7 +6039,7 @@ SkinnedMeshRenderer:
   m_MaskInteraction: 0
   serializedVersion: 2
   m_Quality: 0
-  m_UpdateWhenOffscreen: 0
+  m_UpdateWhenOffscreen: 1
   m_SkinnedMotionVectors: 1
   m_Mesh: {fileID: 4300028, guid: 8f0565f23a2b58541a475bd3c1393052, type: 3}
   m_Bones:
@@ -6147,7 +6176,7 @@ SkinnedMeshRenderer:
   m_MaskInteraction: 0
   serializedVersion: 2
   m_Quality: 0
-  m_UpdateWhenOffscreen: 0
+  m_UpdateWhenOffscreen: 1
   m_SkinnedMotionVectors: 1
   m_Mesh: {fileID: 4300040, guid: 8f0565f23a2b58541a475bd3c1393052, type: 3}
   m_Bones:
@@ -6434,7 +6463,7 @@ SkinnedMeshRenderer:
   m_MaskInteraction: 0
   serializedVersion: 2
   m_Quality: 0
-  m_UpdateWhenOffscreen: 0
+  m_UpdateWhenOffscreen: 1
   m_SkinnedMotionVectors: 1
   m_Mesh: {fileID: 4300030, guid: 8f0565f23a2b58541a475bd3c1393052, type: 3}
   m_Bones:
@@ -6768,7 +6797,7 @@ SkinnedMeshRenderer:
   m_MaskInteraction: 0
   serializedVersion: 2
   m_Quality: 0
-  m_UpdateWhenOffscreen: 0
+  m_UpdateWhenOffscreen: 1
   m_SkinnedMotionVectors: 1
   m_Mesh: {fileID: 4300034, guid: 8f0565f23a2b58541a475bd3c1393052, type: 3}
   m_Bones:
@@ -7043,7 +7072,7 @@ SkinnedMeshRenderer:
   m_MaskInteraction: 0
   serializedVersion: 2
   m_Quality: 0
-  m_UpdateWhenOffscreen: 0
+  m_UpdateWhenOffscreen: 1
   m_SkinnedMotionVectors: 1
   m_Mesh: {fileID: 4300044, guid: 8f0565f23a2b58541a475bd3c1393052, type: 3}
   m_Bones:
@@ -7280,7 +7309,7 @@ SkinnedMeshRenderer:
   m_MaskInteraction: 0
   serializedVersion: 2
   m_Quality: 0
-  m_UpdateWhenOffscreen: 0
+  m_UpdateWhenOffscreen: 1
   m_SkinnedMotionVectors: 1
   m_Mesh: {fileID: 4300022, guid: 8f0565f23a2b58541a475bd3c1393052, type: 3}
   m_Bones:
@@ -9358,7 +9387,7 @@ SkinnedMeshRenderer:
   m_MaskInteraction: 0
   serializedVersion: 2
   m_Quality: 0
-  m_UpdateWhenOffscreen: 0
+  m_UpdateWhenOffscreen: 1
   m_SkinnedMotionVectors: 1
   m_Mesh: {fileID: 4300016, guid: 8f0565f23a2b58541a475bd3c1393052, type: 3}
   m_Bones:
@@ -9600,7 +9629,7 @@ SkinnedMeshRenderer:
   m_MaskInteraction: 0
   serializedVersion: 2
   m_Quality: 0
-  m_UpdateWhenOffscreen: 0
+  m_UpdateWhenOffscreen: 1
   m_SkinnedMotionVectors: 1
   m_Mesh: {fileID: 4300038, guid: 8f0565f23a2b58541a475bd3c1393052, type: 3}
   m_Bones:
@@ -10306,68 +10335,6 @@ Transform:
   m_ConstrainProportionsScale: 0
   m_Children: []
   m_Father: {fileID: 6501918125745249546}
-  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
---- !u!1 &7657962017733609946
-GameObject:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  serializedVersion: 6
-  m_Component:
-  - component: {fileID: 5861688258675524150}
-  m_Layer: 0
-  m_Name: FlashlightAimTarget
-  m_TagString: Untagged
-  m_Icon: {fileID: 0}
-  m_NavMeshLayer: 0
-  m_StaticEditorFlags: 0
-  m_IsActive: 1
---- !u!4 &5861688258675524150
-Transform:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 7657962017733609946}
-  serializedVersion: 2
-  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: 0.2, y: 0.35, z: 0.45}
-  m_LocalScale: {x: 1, y: 1, z: 1}
-  m_ConstrainProportionsScale: 0
-  m_Children: []
-  m_Father: {fileID: 1374410532633928955}
-  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
---- !u!1 &8406352544886924943
-GameObject:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  serializedVersion: 6
-  m_Component:
-  - component: {fileID: 6364257551167612104}
-  m_Layer: 0
-  m_Name: FlashlightElbowHint
-  m_TagString: Untagged
-  m_Icon: {fileID: 0}
-  m_NavMeshLayer: 0
-  m_StaticEditorFlags: 0
-  m_IsActive: 1
---- !u!4 &6364257551167612104
-Transform:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 8406352544886924943}
-  serializedVersion: 2
-  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: 0.4, y: -0.1, z: 0.1}
-  m_LocalScale: {x: 1, y: 1, z: 1}
-  m_ConstrainProportionsScale: 0
-  m_Children: []
-  m_Father: {fileID: 1374410532633928955}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1 &8550749424223578566
 GameObject:
