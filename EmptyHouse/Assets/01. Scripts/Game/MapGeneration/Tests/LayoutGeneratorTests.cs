@@ -90,26 +90,113 @@ namespace EmptyHouse.MapGen.Core.Tests
             });
         }
 
-        /// <summary>루프 간선 수가 파라미터 min/max 범위 안이다(AC-07).</summary>
+        /// <summary>
+        /// 랜덤(비복도) 루프 간선 수가 파라미터 min/max 범위 안이다(AC-07).
+        /// 복도 개구 의무 연결은 예산 밖 — 연결 간선은 트리(방-1개) → 루프 순으로 추가된다(생성 순서 계약).
+        /// </summary>
         [Test]
         public void TryGenerate_루프_간선_수가_파라미터_범위_안이다()
         {
             ForEachSeed((seed, blueprint, templates, genParams) =>
             {
-                int connecting = 0;
+                int treeCount = blueprint.Rooms.Count - 1;
+                int connectingSeen = 0;
+                int randomLoops = 0;
                 for (int e = 0; e < blueprint.Edges.Count; e++)
                 {
                     BlueprintEdge edge = blueprint.Edges[e];
-                    if (edge.RoomB >= 0 && edge.State != EdgeState.BlockedWall)
+                    if (edge.RoomB < 0 || edge.State == EdgeState.BlockedWall)
                     {
-                        connecting++;
+                        continue;
+                    }
+
+                    connectingSeen++;
+                    if (connectingSeen <= treeCount)
+                    {
+                        continue; // 트리 간선
+                    }
+
+                    bool corridorInvolved = FindTemplate(templates, blueprint.Rooms[edge.RoomA].TemplateId).IsCorridor
+                        || FindTemplate(templates, blueprint.Rooms[edge.RoomB].TemplateId).IsCorridor;
+                    if (!corridorInvolved)
+                    {
+                        randomLoops++;
                     }
                 }
 
-                int loopCount = connecting - (blueprint.Rooms.Count - 1);
-                Assert.That(loopCount, Is.InRange(genParams.LoopEdgeCountMin, genParams.LoopEdgeCountMax),
-                    $"시드 {seed}: 루프 간선 수 {loopCount} 가 범위 밖이다(AC-07)");
+                Assert.That(randomLoops, Is.InRange(genParams.LoopEdgeCountMin, genParams.LoopEdgeCountMax),
+                    $"시드 {seed}: 랜덤 루프 간선 수 {randomLoops} 가 범위 밖이다(AC-07)");
             });
+        }
+
+        /// <summary>
+        /// 복도 개구는 마주보는 미사용 소켓을 남기지 않는다 — 봉인된 소켓끼리(복도 포함) 마주보면
+        /// 물리 씬의 뚫린 복도 끝이 그래프에 없는 연결처럼 보이게 된다(의무 연결 규칙 검증).
+        /// </summary>
+        [Test]
+        public void TryGenerate_복도_개구는_마주보는_소켓과_반드시_연결된다()
+        {
+            ForEachSeed((seed, blueprint, templates, genParams) =>
+            {
+                // 봉인 간선(RoomB=-1)의 소켓 전역 위치·방향 수집
+                var sealedSockets = new List<(int room, CellCoord cell, SocketDirection dir, bool corridor)>();
+                for (int e = 0; e < blueprint.Edges.Count; e++)
+                {
+                    BlueprintEdge edge = blueprint.Edges[e];
+                    if (edge.RoomB >= 0)
+                    {
+                        continue;
+                    }
+
+                    RoomTemplateDef template = FindTemplate(templates, blueprint.Rooms[edge.RoomA].TemplateId);
+                    SocketDef socket = null;
+                    for (int s = 0; s < template.Sockets.Length; s++)
+                    {
+                        if (template.Sockets[s].Id == edge.SocketA)
+                        {
+                            socket = template.Sockets[s];
+                        }
+                    }
+
+                    sealedSockets.Add((
+                        edge.RoomA,
+                        CellMath.WorldCell(blueprint.Rooms[edge.RoomA], template, socket.LocalCell),
+                        CellMath.RotateDirection(socket.Direction, blueprint.Rooms[edge.RoomA].Rotation),
+                        template.IsCorridor));
+                }
+
+                for (int a = 0; a < sealedSockets.Count; a++)
+                {
+                    for (int b = 0; b < sealedSockets.Count; b++)
+                    {
+                        if (a == b || (!sealedSockets[a].corridor && !sealedSockets[b].corridor))
+                        {
+                            continue;
+                        }
+
+                        (int dx, int dy) = Step(sealedSockets[a].dir);
+                        bool facing = sealedSockets[b].cell.X == sealedSockets[a].cell.X + dx
+                            && sealedSockets[b].cell.Y == sealedSockets[a].cell.Y + dy
+                            && (int)sealedSockets[b].dir == ((int)sealedSockets[a].dir + 2) % 4;
+                        Assert.That(facing, Is.False,
+                            $"시드 {seed}: 복도 포함 봉인 소켓 쌍(방 {sealedSockets[a].room} ↔ 방 {sealedSockets[b].room})이 마주보고 있다 — 의무 연결 누락");
+                    }
+                }
+            });
+        }
+
+        /// <summary>방향의 단위 셀 오프셋(+X=East, +Y=North).</summary>
+        /// <param name="dir">소켓 방향.</param>
+        /// <returns>(dx, dy).</returns>
+        private static (int, int) Step(SocketDirection dir)
+        {
+            switch (dir)
+            {
+                case SocketDirection.North: return (0, 1);
+                case SocketDirection.East: return (1, 0);
+                case SocketDirection.South: return (0, -1);
+                default: return (-1, 0);
+            }
         }
 
         /// <summary>같은 시드 2회 생성 결과가 BlueprintDump 기준 완전 동일하다(AC-01).</summary>

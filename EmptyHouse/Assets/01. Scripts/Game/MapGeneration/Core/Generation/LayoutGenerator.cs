@@ -40,11 +40,9 @@ namespace EmptyHouse.MapGen.Core
                 return false;
             }
 
-            CarveLoopEdges(rng, genParams, blueprint);
-
-            // CarveLoopEdges 는 void — 루프 하한(AC-07)은 여기서 판정한다. 봉인 전이라 모든 간선이 연결 간선이다.
-            int loopCount = blueprint.Edges.Count - (blueprint.Rooms.Count - 1);
-            if (loopCount < genParams.LoopEdgeCountMin)
+            // 루프 하한(AC-07)은 랜덤(비복도) 루프 기준 — 의무 연결(복도 개구)은 예산 밖이다
+            int randomLoops = CarveLoopEdges(rng, genParams, blueprint);
+            if (randomLoops < genParams.LoopEdgeCountMin)
             {
                 return false;
             }
@@ -217,13 +215,16 @@ namespace EmptyHouse.MapGen.Core
         }
 
         /// <summary>
-        /// 인접했는데 연결 안 된 소켓 쌍 일부를 추가로 뚫어 루프 간선을 만든다(3절 3).
-        /// 이 루프 간선이 지름길 자물쇠 후보가 된다(4-2절). 간선 수는 파라미터 범위 안(AC-07).
+        /// 인접했는데 연결 안 된 소켓 쌍을 추가로 뚫어 루프 간선을 만든다(3절 3).
+        /// 1단계(의무): 복도 소켓이 포함된 쌍은 전부 연결한다 — 복도 개구는 벽이 없는 단부라
+        /// 마주보는 소켓을 봉인하면 물리 씬(뚫린 복도 끝)과 그래프가 어긋난다. 루프 예산에 세지 않는다.
+        /// 2단계(랜덤): 남은 비복도 쌍에서 예산(min~max)만큼 선택 — 이 간선이 지름길 자물쇠 후보가 된다(4-2절).
         /// </summary>
         /// <param name="rng">단일 난수 스트림.</param>
         /// <param name="genParams">생성 파라미터(루프 간선 min/max).</param>
         /// <param name="blueprint">대상 블루프린트.</param>
-        private void CarveLoopEdges(DeterministicRng rng, MapGenParams genParams, MapBlueprint blueprint)
+        /// <returns>랜덤 단계 채택 수(AC-07 예산 판정용 — 의무 연결 미포함).</returns>
+        private int CarveLoopEdges(DeterministicRng rng, MapGenParams genParams, MapBlueprint blueprint)
         {
             Log.D("[LayoutGenerator] CarveLoopEdges");
 
@@ -267,22 +268,61 @@ namespace EmptyHouse.MapGen.Core
                 }
             }
 
-            int loopTarget = rng.Next(genParams.LoopEdgeCountMin, genParams.LoopEdgeCountMax + 1);
-            int carved = 0;
-            while (carved < loopTarget && candidates.Count > 0)
+            // 1단계 — 의무 연결: 복도 소켓이 포함된 쌍 전부(수집 순서 = 결정론, 예산 미포함)
+            for (int i = 0; i < candidates.Count; i++)
             {
-                int pick = rng.Next(candidates.Count);
-                (int roomA, int socketA, int roomB, int socketB) = candidates[pick];
+                (int roomA, int socketA, int roomB, int socketB) = candidates[i];
+                bool corridorA = placedTemplates[roomA].IsCorridor;
+                bool corridorB = placedTemplates[roomB].IsCorridor;
+                if (!corridorA && !corridorB)
+                {
+                    continue;
+                }
+
+                if (usedSockets.Contains(SocketKey(roomA, socketA)) || usedSockets.Contains(SocketKey(roomB, socketB)))
+                {
+                    continue; // 앞선 의무 연결이 이미 소비한 소켓
+                }
 
                 // 복도↔복도는 항상 개방 통로 — 복도 단부에는 문틀이 없다(TryAttachRooms 와 동일 규칙)
-                bool corridorPair = placedTemplates[roomA].IsCorridor && placedTemplates[roomB].IsCorridor;
                 blueprint.Edges.Add(new BlueprintEdge
                 {
                     RoomA = roomA,
                     SocketA = socketA,
                     RoomB = roomB,
                     SocketB = socketB,
-                    State = corridorPair ? EdgeState.OpenPassage : (rng.Next(2) == 0 ? EdgeState.DoorOpen : EdgeState.OpenPassage),
+                    State = corridorA && corridorB ? EdgeState.OpenPassage : (rng.Next(2) == 0 ? EdgeState.DoorOpen : EdgeState.OpenPassage),
+                    LockNumber = 0,
+                });
+                usedSockets.Add(SocketKey(roomA, socketA));
+                usedSockets.Add(SocketKey(roomB, socketB));
+            }
+
+            // 소비되었거나 복도가 낀 쌍 제거 — 랜덤 단계 후보는 전부 비복도 쌍만 남는다
+            for (int i = candidates.Count - 1; i >= 0; i--)
+            {
+                (int roomA, int socketA, int roomB, int socketB) = candidates[i];
+                if (placedTemplates[roomA].IsCorridor || placedTemplates[roomB].IsCorridor
+                    || usedSockets.Contains(SocketKey(roomA, socketA)) || usedSockets.Contains(SocketKey(roomB, socketB)))
+                {
+                    candidates.RemoveAt(i);
+                }
+            }
+
+            // 2단계 — 랜덤 예산 채택
+            int loopTarget = rng.Next(genParams.LoopEdgeCountMin, genParams.LoopEdgeCountMax + 1);
+            int carved = 0;
+            while (carved < loopTarget && candidates.Count > 0)
+            {
+                int pick = rng.Next(candidates.Count);
+                (int roomA, int socketA, int roomB, int socketB) = candidates[pick];
+                blueprint.Edges.Add(new BlueprintEdge
+                {
+                    RoomA = roomA,
+                    SocketA = socketA,
+                    RoomB = roomB,
+                    SocketB = socketB,
+                    State = rng.Next(2) == 0 ? EdgeState.DoorOpen : EdgeState.OpenPassage,
                     LockNumber = 0,
                 });
                 usedSockets.Add(SocketKey(roomA, socketA));
@@ -300,6 +340,8 @@ namespace EmptyHouse.MapGen.Core
                     }
                 }
             }
+
+            return carved;
         }
 
         /// <summary>남은 열린 소켓 전부를 막힌 벽으로 봉인한다(3절 3 — 빈 소켓 0, AC-05).</summary>

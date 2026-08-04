@@ -28,8 +28,10 @@ namespace EmptyHouse.MapGen.Editor
             { "hallway_x2", "Assets/02. Prefab/Map/Hallway x2.prefab" },
         };
 
-        public const string DoorOpenedPath = "Assets/02. Prefab/Map/Door-Opened.prefab"; // 열린 문 프리팹
-        public const string DoorClosedPath = "Assets/02. Prefab/Map/Door-Closed.prefab"; // 닫힌(잠긴) 문 프리팹
+        public const string DoorOpenedPath = "Assets/02. Prefab/Map/Door-Opened.prefab"; // 열린 문 프리팹(4m 슬롯 전폭 조립체)
+        public const string DoorClosedPath = "Assets/02. Prefab/Map/Door-Closed.prefab"; // 닫힌(잠긴) 문 프리팹(4m 슬롯 전폭 조립체)
+        public const string SealWallPath = "Assets/04. Arts/Environment/HorrorPack/!Prefabs/Architectural/Hall_Props/Hall_Wall_6M_1Side.prefab"; // 복도 개구 봉인 벽(2×6m)
+        public const string CornerColumnPath = "Assets/Horror_Pack_1/!Prefabs/Architectural/Hall_Props/Hall_Clumn_Large_6M.prefab"; // 코너 이음 기둥(0.86×5.93m)
 
         /// <summary>
         /// 실측 프리팹 크기의 템플릿 세트를 만든다 — 소켓은 각 변 중앙 셀(짝수 변은 중앙 근사 2개),

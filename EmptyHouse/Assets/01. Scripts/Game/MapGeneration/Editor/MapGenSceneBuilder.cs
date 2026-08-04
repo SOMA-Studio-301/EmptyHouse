@@ -116,19 +116,37 @@ namespace EmptyHouse.MapGen.Editor
                 roomInstances[r] = PlaceRoom(blueprint.Rooms[r], FindTemplate(templates, blueprint.Rooms[r].TemplateId), mapRoot.transform, minX, minY);
             }
 
-            // 간선 처리 — 개구부 벽 비활성화 + 문 프리팹
+            // 간선 처리 — 개구부 벽 비활성화 + 문 프리팹 + 복도 개구 봉인 벽
             var doorsRoot = new GameObject("Doors");
             doorsRoot.transform.SetParent(mapRoot.transform, false);
+            var sealsRoot = new GameObject("Seals");
+            sealsRoot.transform.SetParent(mapRoot.transform, false);
             for (int e = 0; e < blueprint.Edges.Count; e++)
             {
                 BlueprintEdge edge = blueprint.Edges[e];
-                if (edge.RoomB < 0 || edge.State == EdgeState.BlockedWall)
+                if (edge.RoomB < 0)
                 {
-                    continue; // 봉인 — 벽 유지
+                    // 방 봉인 소켓 = 벽 유지. 복도 봉인 소켓 = 단부에 벽이 없어 벽 프리팹으로 물리 봉인
+                    if (FindTemplate(templates, blueprint.Rooms[edge.RoomA].TemplateId).IsCorridor)
+                    {
+                        PlaceCorridorSealWall(blueprint, templates, edge, sealsRoot.transform, mapRoot.transform.position, minX, minY);
+                    }
+
+                    continue;
+                }
+
+                if (edge.State == EdgeState.BlockedWall)
+                {
+                    continue;
                 }
 
                 PlaceOpening(blueprint, templates, edge, roomInstances, doorsRoot.transform, mapRoot.transform.position, minX, minY);
             }
+
+            // 코너 기둥 — 서로 다른 방·복도가 만나는 노출 코너의 벽 이음 갭을 가린다
+            var columnsRoot = new GameObject("Columns");
+            columnsRoot.transform.SetParent(mapRoot.transform, false);
+            PlaceCornerColumns(blueprint, templates, columnsRoot.transform, mapRoot.transform.position, minX, minY);
 
             // 스폰 표식
             var spawnsRoot = new GameObject("Spawns");
@@ -193,9 +211,10 @@ namespace EmptyHouse.MapGen.Editor
             Vector3 dirVec = DirectionVector(dir);
             Vector3 gateCenter = cellCenter + dirVec * (cell * 0.5f);
 
-            // 경계선 방향 폭 3.2m(3M 개구부) × 두께 1.6m × 높이 8m 게이트와 교차하는 벽 모듈 비활성화
+            // 경계선 방향 폭 3.9m 게이트 — 셀(4m) 안의 2m 벽 세그먼트 2장을 전부 자르되(문 조립체가 4m 전폭)
+            // 0.05m 여유로 이웃 셀 세그먼트는 보호한다
             bool boundaryAlongX = dir == SocketDirection.North || dir == SocketDirection.South;
-            var gate = new Bounds(gateCenter + Vector3.up * 3f, boundaryAlongX ? new Vector3(3.2f, 8f, 1.6f) : new Vector3(1.6f, 8f, 3.2f));
+            var gate = new Bounds(gateCenter + Vector3.up * 3f, boundaryAlongX ? new Vector3(3.9f, 8f, 1.6f) : new Vector3(1.6f, 8f, 3.9f));
             DisableWallsIntersecting(roomInstances[edge.RoomA], gate, boundaryAlongX);
             DisableWallsIntersecting(roomInstances[edge.RoomB], gate, boundaryAlongX);
 
@@ -210,6 +229,10 @@ namespace EmptyHouse.MapGen.Editor
             door.transform.SetParent(doorsRoot, false);
             door.transform.position = gateCenter;
             door.transform.rotation = Quaternion.Euler(0f, YawFor(dir), 0f);
+
+            // 문 조립체 피벗이 중심이 아니라(Door-Opened X −0.4·Z −2.1) 렌더러 바운드 중심을 게이트 중심에 정렬한다
+            Bounds doorBounds = RendererBounds(door);
+            door.transform.position += new Vector3(gateCenter.x - doorBounds.center.x, 0f, gateCenter.z - doorBounds.center.z);
             door.name = edge.State == EdgeState.DoorLocked ? $"Door_Locked_{edge.LockNumber}_{edge.LockKind}" : "Door_Open";
         }
 
@@ -262,6 +285,143 @@ namespace EmptyHouse.MapGen.Editor
                     renderers[i].gameObject.SetActive(false);
                 }
             }
+        }
+
+        /// <summary>봉인된 복도 소켓의 개구(4m)를 벽 프리팹 2장으로 물리적으로 막는다 — 복도 단부에는 벽이 없다.</summary>
+        /// <param name="blueprint">대상 블루프린트.</param>
+        /// <param name="templates">템플릿 목록.</param>
+        /// <param name="edge">봉인 간선(RoomB = -1, 복도 소켓).</param>
+        /// <param name="sealsRoot">봉인 벽 부모.</param>
+        /// <param name="mapOrigin">맵 원점 월드 좌표.</param>
+        /// <param name="minX">맵 최소 셀 X.</param>
+        /// <param name="minY">맵 최소 셀 Y.</param>
+        private static void PlaceCorridorSealWall(MapBlueprint blueprint, IReadOnlyList<RoomTemplateDef> templates, BlueprintEdge edge, Transform sealsRoot, Vector3 mapOrigin, int minX, int minY)
+        {
+            RoomTemplateDef template = FindTemplate(templates, blueprint.Rooms[edge.RoomA].TemplateId);
+            SocketDef socket = FindSocket(template, edge.SocketA);
+            CellCoord worldCell = CellMath.WorldCell(blueprint.Rooms[edge.RoomA], template, socket.LocalCell);
+            SocketDirection dir = CellMath.RotateDirection(socket.Direction, blueprint.Rooms[edge.RoomA].Rotation);
+
+            float cell = PrefabRoomTemplates.CellMeters;
+            Vector3 cellCenter = mapOrigin + new Vector3((worldCell.X - minX + 0.5f) * cell, 0f, (worldCell.Y - minY + 0.5f) * cell);
+            Vector3 dirVec = DirectionVector(dir);
+            Vector3 boundaryCenter = cellCenter + dirVec * (cell * 0.5f);
+
+            bool boundaryAlongX = dir == SocketDirection.North || dir == SocketDirection.South;
+            Vector3 along = boundaryAlongX ? Vector3.right : Vector3.forward;
+            var prefab = AssetDatabase.LoadAssetAtPath<GameObject>(PrefabRoomTemplates.SealWallPath);
+            for (int k = -1; k <= 1; k += 2)
+            {
+                var piece = (GameObject)PrefabUtility.InstantiatePrefab(prefab);
+                piece.transform.SetParent(sealsRoot, false);
+                piece.transform.rotation = Quaternion.Euler(0f, boundaryAlongX ? 0f : 90f, 0f); // 벽 기본 긴 축 = X
+                Vector3 target = boundaryCenter + along * k;
+                piece.transform.position = target;
+                Bounds bounds = RendererBounds(piece);
+                piece.transform.position += new Vector3(target.x - bounds.center.x, mapOrigin.y - bounds.min.y, target.z - bounds.center.z);
+                piece.name = $"SealWall_{edge.RoomA}_{edge.SocketA}";
+            }
+        }
+
+        /// <summary>
+        /// 서로 다른 방·복도가 만나는 노출 코너(주변 4셀에 빈 셀 존재)마다 코너 기둥을 세워
+        /// 프리팹 벽 이음의 세로 갭을 가린다. 단일 방 자체 코너는 프리팹이 이미 마감돼 있어 제외.
+        /// </summary>
+        /// <param name="blueprint">대상 블루프린트.</param>
+        /// <param name="templates">템플릿 목록.</param>
+        /// <param name="columnsRoot">기둥 부모.</param>
+        /// <param name="mapOrigin">맵 원점 월드 좌표.</param>
+        /// <param name="minX">맵 최소 셀 X.</param>
+        /// <param name="minY">맵 최소 셀 Y.</param>
+        private static void PlaceCornerColumns(MapBlueprint blueprint, IReadOnlyList<RoomTemplateDef> templates, Transform columnsRoot, Vector3 mapOrigin, int minX, int minY)
+        {
+            // 정규화 셀 → 소유 방 맵
+            var owner = new Dictionary<long, int>();
+            int maxX = 0;
+            int maxY = 0;
+            for (int r = 0; r < blueprint.Rooms.Count; r++)
+            {
+                RoomTemplateDef template = FindTemplate(templates, blueprint.Rooms[r].TemplateId);
+                (int w, int h) = CellMath.RotatedSize(template.WidthCells, template.HeightCells, blueprint.Rooms[r].Rotation);
+                for (int x = 0; x < w; x++)
+                {
+                    for (int y = 0; y < h; y++)
+                    {
+                        int cx = blueprint.Rooms[r].Cell.X - minX + x;
+                        int cy = blueprint.Rooms[r].Cell.Y - minY + y;
+                        owner[CellKey(cx, cy)] = r;
+                        maxX = Mathf.Max(maxX, cx);
+                        maxY = Mathf.Max(maxY, cy);
+                    }
+                }
+            }
+
+            var prefab = AssetDatabase.LoadAssetAtPath<GameObject>(PrefabRoomTemplates.CornerColumnPath);
+            float cell = PrefabRoomTemplates.CellMeters;
+            var owners = new HashSet<int>();
+            for (int px = 0; px <= maxX + 1; px++)
+            {
+                for (int py = 0; py <= maxY + 1; py++)
+                {
+                    owners.Clear();
+                    int empty = 0;
+                    for (int ox = -1; ox <= 0; ox++)
+                    {
+                        for (int oy = -1; oy <= 0; oy++)
+                        {
+                            if (owner.TryGetValue(CellKey(px + ox, py + oy), out int room))
+                            {
+                                owners.Add(room);
+                            }
+                            else
+                            {
+                                empty++;
+                            }
+                        }
+                    }
+
+                    if (owners.Count < 2 || empty == 0)
+                    {
+                        continue;
+                    }
+
+                    var column = (GameObject)PrefabUtility.InstantiatePrefab(prefab);
+                    column.transform.SetParent(columnsRoot, false);
+                    column.transform.position = mapOrigin + new Vector3(px * cell, 0f, py * cell);
+                    column.name = $"Column_{px}_{py}";
+                }
+            }
+        }
+
+        /// <summary>인스턴스의 전체 렌더러 합산 월드 바운드(피벗 보정 정렬용).</summary>
+        /// <param name="instance">대상 인스턴스.</param>
+        /// <returns>월드 바운드.</returns>
+        private static Bounds RendererBounds(GameObject instance)
+        {
+            Renderer[] renderers = instance.GetComponentsInChildren<Renderer>(false);
+            Bounds bounds = default;
+            for (int i = 0; i < renderers.Length; i++)
+            {
+                if (i == 0)
+                {
+                    bounds = renderers[i].bounds;
+                }
+                else
+                {
+                    bounds.Encapsulate(renderers[i].bounds);
+                }
+            }
+
+            return bounds;
+        }
+
+        /// <summary>정규화 셀 좌표 → 소유 맵 키.</summary>
+        /// <param name="x">셀 X.</param>
+        /// <param name="y">셀 Y.</param>
+        /// <returns>64비트 키.</returns>
+        private static long CellKey(int x, int y)
+        {
+            return ((long)x << 32) ^ (uint)y;
         }
 
         /// <summary>인스턴스의 바닥 타일(Hall_Floor) 합산 월드 바운드 — 없으면 전체 렌더러 바운드 폴백.</summary>
