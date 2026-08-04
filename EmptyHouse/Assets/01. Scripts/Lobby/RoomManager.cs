@@ -100,11 +100,31 @@ public class RoomManager : MonoBehaviour
         }
     }
 
-    /// <summary>세션 로비 갱신을 받아 화면을 다시 그린다.</summary>
+    /// <summary>세션 로비 갱신을 받아 화면을 다시 그린다. 게임 시작 상태면 '출발중...' 을 조기 표시한다.</summary>
     /// <param name="lobby">최신 로비</param>
     private void HandleLobbyUpdated(Lobby lobby)
     {
         UpdateRoomUI();
+
+        if (!isInRoom) return;
+
+        // 게스트 조기 신호 — NGO 접속·씬 로드 이벤트를 기다리지 않고 폴링 스냅샷만으로 연출을 띄운다.
+        // 중복 호출은 ShowDepartText 의 활성 가드가 거른다. 시작 실패로 Room 원복되면 잔상을 지운다
+        // (호스트는 클릭 직후 스냅샷이 아직 Room 일 수 있어 isStartingGame 동안 끄지 않는다).
+        if (IsGameStartingState(lobby)) uiRoom.ShowDepartText();
+        else if (!isStartingGame) uiRoom.HideDepartText();
+    }
+
+    /// <summary>로비 스냅샷의 세션 상태가 게임 시작 절차 이후(LoadingGame/InGame)인지 판정한다.</summary>
+    /// <param name="lobby">판정할 로비 스냅샷.</param>
+    /// <returns>게임 시작 상태면 true.</returns>
+    private static bool IsGameStartingState(Lobby lobby)
+    {
+        if (lobby?.Data == null) return false;
+        if (!lobby.Data.TryGetValue(SessionCoordinator.SessionStateDataKey, out DataObject state)) return false;
+
+        return state.Value == SessionCoordinator.SessionStateLoadingGame
+            || state.Value == SessionCoordinator.SessionStateInGame;
     }
 
     /// <summary>게임 씬 로드 시작(전 클라이언트)을 받아 Depart 연출 텍스트를 켠다. 씬 전환이 곧 이 화면을 걷어간다.</summary>

@@ -24,6 +24,10 @@ public sealed class SessionCoordinator : MonoBehaviour
     public const string SessionStateDataKey = "SessionState";
     public const string MatchEpochDataKey = "MatchEpoch";
 
+    public const string SessionStateRoom = "Room";               // 세션 상태 — 방 대기
+    public const string SessionStateLoadingGame = "LoadingGame"; // 세션 상태 — 게임 시작 절차(Relay 준비~씬 로드)
+    public const string SessionStateInGame = "InGame";           // 세션 상태 — 게임 중
+
     private const string ReadyDataKey = "IsReady";
     private const string RelayConnectionType = "dtls";
     private const float HeartbeatIntervalSeconds = 15f;
@@ -286,26 +290,40 @@ public sealed class SessionCoordinator : MonoBehaviour
         int nextEpoch = GetMatchEpoch(CurrentLobby) + 1;
         if (!networkManager.IsListening)
         {
-            Allocation allocation = await RelayService.Instance.CreateAllocationAsync(CurrentLobby.MaxPlayers - 1);
-            string joinCode = await RelayService.Instance.GetJoinCodeAsync(allocation.AllocationId);
-            GetUnityTransport().SetRelayServerData(BuildRelayServerData(allocation));
+            // 게스트 폴링이 Relay 준비(수 초)를 기다리지 않고 '출발중...' 을 띄우도록 상태부터 게시한다.
+            // 조인 코드는 아직 없으니 기존 값(첫 판이면 빈 값)을 유지한다 — 게스트 접속은 코드가 실린 다음 게시가 연다.
+            await UpdateLobbySessionDataAsync(GetRelayJoinCode(CurrentLobby), SessionStateLoadingGame, nextEpoch, true);
 
-            await UpdateLobbySessionDataAsync(joinCode, "LoadingGame", nextEpoch, true);
+            try
+            {
+                Allocation allocation = await RelayService.Instance.CreateAllocationAsync(CurrentLobby.MaxPlayers - 1);
+                string joinCode = await RelayService.Instance.GetJoinCodeAsync(allocation.AllocationId);
+                GetUnityTransport().SetRelayServerData(BuildRelayServerData(allocation));
 
-            if (!networkManager.StartHost())
-                throw new InvalidOperationException("NetworkManager.StartHost returned false.");
+                await UpdateLobbySessionDataAsync(joinCode, SessionStateLoadingGame, nextEpoch, true);
+
+                if (!networkManager.StartHost())
+                    throw new InvalidOperationException("NetworkManager.StartHost returned false.");
+            }
+            catch
+            {
+                // 조기 게시 원복 — 방을 Room 으로 되돌려 게스트의 '출발중...' 잔상과 잠금을 푼다.
+                try { await UpdateLobbySessionDataAsync(GetRelayJoinCode(CurrentLobby), SessionStateRoom, nextEpoch, false); }
+                catch (Exception e) { Log.W($"[SESSION] 게임 시작 실패 원복 게시 실패: {e.Message}", this); }
+                throw;
+            }
         }
         else
         {
             if (!networkManager.IsHost)
                 throw new InvalidOperationException("A client connection is still active while trying to start as host.");
 
-            await UpdateLobbySessionDataAsync(GetRelayJoinCode(CurrentLobby), "LoadingGame", nextEpoch, true);
+            await UpdateLobbySessionDataAsync(GetRelayJoinCode(CurrentLobby), SessionStateLoadingGame, nextEpoch, true);
         }
 
         await WaitForClientsToConnectAsync(CurrentLobby.Players.Count, connectTimeoutSeconds);
 
-        await UpdateLobbySessionDataAsync(GetRelayJoinCode(CurrentLobby), "InGame", nextEpoch, true);
+        await UpdateLobbySessionDataAsync(GetRelayJoinCode(CurrentLobby), SessionStateInGame, nextEpoch, true);
         connectedMatchEpoch = nextEpoch;
 
         TryBindSceneManager(); // 호스트가 자기 Load 이벤트를 놓치지 않도록 로드 직전 구독을 보장한다
@@ -353,7 +371,7 @@ public sealed class SessionCoordinator : MonoBehaviour
                 throw new InvalidOperationException("NetworkManager.StartHost returned false.");
 
             int nextEpoch = currentEpoch + 1;
-            await UpdateLobbySessionDataAsync(joinCode, "Room", nextEpoch, false);
+            await UpdateLobbySessionDataAsync(joinCode, SessionStateRoom, nextEpoch, false);
             connectedMatchEpoch = nextEpoch;
 
             Log.D($"[SESSION] 새 방장이 Relay 를 다시 열었다. (epoch {nextEpoch})");
@@ -410,7 +428,7 @@ public sealed class SessionCoordinator : MonoBehaviour
 
         try
         {
-            await UpdateLobbySessionDataAsync(GetRelayJoinCode(CurrentLobby), "Room", GetMatchEpoch(CurrentLobby), false);
+            await UpdateLobbySessionDataAsync(GetRelayJoinCode(CurrentLobby), SessionStateRoom, GetMatchEpoch(CurrentLobby), false);
         }
         catch (Exception e)
         {
