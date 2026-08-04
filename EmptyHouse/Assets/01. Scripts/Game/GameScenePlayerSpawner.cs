@@ -30,12 +30,28 @@ public class GameScenePlayerSpawner : MonoBehaviour
 
     private void Awake()
     {
+        TryInitialize();
+    }
+
+    /// <summary>
+    /// 직접 플레이에서는 같은 씬의 NetworkManager Awake(싱글턴 할당)가 스포너 Awake 보다 늦을 수 있어,
+    /// 모든 Awake 가 끝난 Start 에서 한 번 더 초기화를 시도한다.
+    /// </summary>
+    private void Start()
+    {
+        TryInitialize();
+    }
+
+    /// <summary>
+    /// NetworkManager 를 찾아 1회 초기화한다. 로비 흐름(이미 서버)은 즉시 구독하고,
+    /// 직접 플레이(아직 서버 아님)는 OnServerStarted 를 기다린다 — 클라 인스턴스는 그 콜백이 오지 않아 잠든다.
+    /// </summary>
+    private void TryInitialize()
+    {
+        if (networkManager != null) return;
+
         networkManager = NetworkManager.Singleton;
-        if (networkManager == null)
-        {
-            enabled = false;
-            return;
-        }
+        if (networkManager == null) return; // Awake 시점에 싱글턴이 아직 없으면 Start 재시도에 맡긴다
 
         // Awake에서 생성하면 씬 로딩 중인 동적 Player가 ScenePlacedObject로 수집될 수 있다.
         gameSceneName = gameObject.scene.name;
@@ -50,8 +66,8 @@ public class GameScenePlayerSpawner : MonoBehaviour
             return;
         }
 
-        // 개발용 직접 플레이(DevBootstrap): 씬이 먼저 뜨고 Start 에서 StartHost 하므로 Awake 시점엔 아직 서버가 아니다.
-        // 서버가 되는 순간 초기화한다 — 클라 인스턴스는 이 콜백이 오지 않아 그대로 잠든다.
+        // 개발용 직접 플레이(DevBootstrap): StartHost 는 부트스트랩이 한 프레임 늦게 호출하므로 여기서는 아직 서버가 아니다.
+        // 서버가 되는 순간 초기화한다.
         networkManager.OnServerStarted += HandleServerStarted;
     }
 
