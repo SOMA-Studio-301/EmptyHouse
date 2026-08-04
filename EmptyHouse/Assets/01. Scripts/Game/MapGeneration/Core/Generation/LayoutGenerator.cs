@@ -115,17 +115,20 @@ namespace EmptyHouse.MapGen.Core
                 CellCoord targetCell = Step(openWorldCell, openWorldDir);
                 SocketDirection neededDir = Opposite(openWorldDir);
 
-                // 후보 수집 — MinCount 미달 템플릿이 있으면 그것만 우선(인덱스 순 → 이후 셔플)
+                // 후보 수집 — MinCount 미달분은 남은 예산이 미달 합계 이하로 줄었을 때만 강제한다.
+                // 초장부터 강제하면 MinCount 템플릿이 항상 입구 옆 관문 자리를 차지해
+                // 배치 다양성이 죽고, HerdArea 파훼 쌍(6절) 같은 "앞 구역" 요구가 구조적으로 깨진다.
                 candidates.Clear();
-                bool unmetOnly = false;
+                int minCountDeficit = 0;
                 for (int t = 0; t < templates.Count; t++)
                 {
                     if (!templates[t].IsEntranceAnchor && usedCount[t] < templates[t].MinCount)
                     {
-                        unmetOnly = true;
-                        break;
+                        minCountDeficit += templates[t].MinCount - usedCount[t];
                     }
                 }
+
+                bool unmetOnly = minCountDeficit > 0 && targetRooms - blueprint.Rooms.Count <= minCountDeficit;
 
                 for (int t = 0; t < templates.Count; t++)
                 {

@@ -17,6 +17,18 @@ namespace EmptyHouse.MapGen.Core
         public int ShortcutLockCountMin = 2; // 지름길 자물쇠 최소(레벨디자인 5절 🟢 2~3) — 가치 통과 후보가 부족하면 있는 만큼만 채택
         public int ShortcutLockCountMax = 3; // 지름길 자물쇠 최대(레벨디자인 5절 🟢)
         public int ItemDoorLockCount = 2; // 중요 물품 문 자물쇠 수(레벨디자인 5절 🟢)
+        public int ZombieDensitySafeMin = 1; // 안전 등급 방 좀비 최소(레벨디자인 3-4 ⚪ 데모 수치)
+        public int ZombieDensitySafeMax = 2; // 안전 등급 방 좀비 최대 ⚪
+        public int ZombieDensityMidMin = 2; // 중간 등급 방 좀비 최소 ⚪
+        public int ZombieDensityMidMax = 3; // 중간 등급 방 좀비 최대 ⚪
+        public int ZombieDensityDangerMin = 3; // 위험 등급 방 좀비 최소 ⚪
+        public int ZombieDensityDangerMax = 5; // 위험 등급 방 좀비 최대 ⚪
+        public int ListenerRatioPercent = 25; // 비어둠 방에서 Listener 를 고를 확률 %(⚪ — 타입 게이트로 Listener 꺼지면 무시)
+        public int ThrowableBudget = 4; // 회피 예산분 투척물 개수(D4 — 외출마다 재배치 ⚪)
+        public int OilCount = 3; // 기름 배치 수(⚪ — 깊은 구역 집중, G2)
+        public int ScrapCount = 6; // 스크랩 배치 수(⚪ — 깊이 비례, G2)
+        public int HerdZombieCountMin = 3; // 위장 무대 Walker 무리 최소(⚪ — 레벨디자인 4절)
+        public int HerdZombieCountMax = 5; // 위장 무대 Walker 무리 최대 ⚪
         public ZombieTypeMask EnabledZombieTypes = ZombieTypeMask.Walker; // 배치 활성 좀비 타입 — 현재 Walker만 게임에 구현되어 기본값 Walker. Watcher·Listener 는 구현 후 활성화
     }
 }
