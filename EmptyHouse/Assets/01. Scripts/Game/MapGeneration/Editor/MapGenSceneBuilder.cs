@@ -1,0 +1,437 @@
+using System.Collections.Generic;
+using Border.Core;
+using EmptyHouse.MapGen.Core;
+using UnityEditor;
+using UnityEditor.SceneManagement;
+using UnityEngine;
+
+namespace EmptyHouse.MapGen.Editor
+{
+    /// <summary>
+    /// 예시 맵 씬 빌더 — MapGenerator.Generate 블루프린트를 실제 방 프리팹으로 활성 씬에 조립한다(AC-21 — 동일 생성 라이브러리).
+    /// 그레이박스 시연용: 방 배치·문 개구부(벽 비활성화)·문 프리팹·스폰 표식까지. NavMesh·게임 로직 연결은 어댑터(P5) 소관.
+    /// 재실행 시 기존 GeneratedMaps 루트를 통째로 지우고 다시 만든다(멱등 — 원복 = 루트 삭제).
+    /// </summary>
+    public static class MapGenSceneBuilder
+    {
+        private const int mapCount = 5; // 예시 맵 수
+        private const int roomsMin = 28; // 방 30개 기준 하한
+        private const int roomsMax = 32; // 방 30개 기준 상한
+        private const int baseSeed = 101; // 시드 탐색 시작값(재현 고정)
+        private const float mapSpacing = 280f; // 맵 루트 간 X 간격(m) — 32방 바운드(~160m)와 여유
+        private const float mapZOffset = -400f; // 수작업 맵(Z 0~160)과 겹치지 않는 남쪽 오프셋
+        private const string rootName = "GeneratedMaps"; // 생성물 루트 이름(통째 삭제 = 원복)
+        private const string markerMaterialFolder = "Assets/02. Prefab/Map/MapGenMarkers"; // 표식 머티리얼 폴더
+
+        /// <summary>
+        /// 활성 씬에 방 30개 기준 예시 맵 5개를 생성한다 — baseSeed 부터 성공 시드를 5개 채택해
+        /// X 방향으로 나란히 배치하고 씬을 저장한다.
+        /// </summary>
+        [MenuItem("Tools/Map/절차 예시 맵 5개 생성")]
+        public static void BuildFiveExampleMaps()
+        {
+            Log.D("[MapGenSceneBuilder] BuildFiveExampleMaps");
+            if (EditorApplication.isPlaying)
+            {
+                Log.W("[MapGenSceneBuilder] 플레이 모드에서는 실행할 수 없다 — 정지 후 재실행.");
+                return;
+            }
+
+            UnityEngine.SceneManagement.Scene activeScene = UnityEngine.SceneManagement.SceneManager.GetActiveScene();
+            if (string.IsNullOrEmpty(activeScene.path))
+            {
+                Log.W("[MapGenSceneBuilder] Untitled 씬은 저장 경로가 없어 조립 결과를 보존할 수 없다 — 씬을 먼저 저장한 뒤 재실행.");
+                return;
+            }
+
+            // 비활성 루트·과거 중복 루트까지 전부 제거(멱등) — GameObject.Find 는 비활성을 못 찾고 타 씬까지 검색한다
+            foreach (GameObject sceneRoot in activeScene.GetRootGameObjects())
+            {
+                if (sceneRoot.name == rootName)
+                {
+                    Object.DestroyImmediate(sceneRoot);
+                }
+            }
+
+            var root = new GameObject(rootName);
+            var generator = new MapGenerator();
+            List<RoomTemplateDef> templates = PrefabRoomTemplates.Create();
+
+            int built = 0;
+            int seed = baseSeed;
+            var summary = new System.Text.StringBuilder();
+            while (built < mapCount && seed < baseSeed + 40)
+            {
+                var genParams = new MapGenParams
+                {
+                    Seed = seed,
+                    RoomsTotalMin = roomsMin,
+                    RoomsTotalMax = roomsMax,
+                    EnabledZombieTypes = ZombieTypeMask.Walker | ZombieTypeMask.Listener | ZombieTypeMask.Watcher,
+                };
+                MapGenResult result = generator.Generate(genParams, templates);
+                if (!result.Success)
+                {
+                    Log.D($"[MapGenSceneBuilder] 시드 {seed} 실패 — 다음 시드 시도: {string.Join(" / ", result.FailReasons)}");
+                    seed++;
+                    continue;
+                }
+
+                Vector3 offset = new Vector3(built * mapSpacing, 0f, mapZOffset);
+                BuildMap(result.Blueprint, templates, root.transform, offset, built);
+                summary.AppendLine($"맵 {built}: 시드 {seed} · 방 {result.Blueprint.Rooms.Count} · 리롤 {result.RerollCount} · 경고 {result.LastReport.Warnings.Count}");
+                built++;
+                seed++;
+            }
+
+            EditorSceneManager.MarkSceneDirty(root.scene);
+            if (!EditorSceneManager.SaveScene(root.scene))
+            {
+                Log.E($"[MapGenSceneBuilder] 씬 저장 실패 — 수동 저장(Ctrl+S) 필요. path='{root.scene.path}'");
+            }
+
+            Log.D($"[MapGenSceneBuilder] 완료 — {built}/{mapCount}개 생성\n{summary}");
+        }
+
+        /// <summary>블루프린트 하나를 방 프리팹·문·스폰 표식으로 조립한다.</summary>
+        /// <param name="blueprint">조립할 블루프린트.</param>
+        /// <param name="templates">생성에 사용한 템플릿 목록.</param>
+        /// <param name="parent">루트 부모.</param>
+        /// <param name="offset">맵 원점 월드 오프셋.</param>
+        /// <param name="index">맵 번호(이름용).</param>
+        private static void BuildMap(MapBlueprint blueprint, IReadOnlyList<RoomTemplateDef> templates, Transform parent, Vector3 offset, int index)
+        {
+            Log.D($"[MapGenSceneBuilder] BuildMap {index} 시드={blueprint.Meta.Seed}");
+            var mapRoot = new GameObject($"GeneratedMap_{index}_Seed{blueprint.Meta.Seed}");
+            mapRoot.transform.SetParent(parent, false);
+            mapRoot.transform.position = offset;
+
+            // 셀 바운드 정규화 — 맵 로컬 (0,0) 이 최소 셀에 오게
+            (int minX, int minY) = MinCellBounds(blueprint, templates);
+
+            // 방 배치
+            var roomInstances = new GameObject[blueprint.Rooms.Count];
+            for (int r = 0; r < blueprint.Rooms.Count; r++)
+            {
+                roomInstances[r] = PlaceRoom(blueprint.Rooms[r], FindTemplate(templates, blueprint.Rooms[r].TemplateId), mapRoot.transform, minX, minY);
+            }
+
+            // 간선 처리 — 개구부 벽 비활성화 + 문 프리팹
+            var doorsRoot = new GameObject("Doors");
+            doorsRoot.transform.SetParent(mapRoot.transform, false);
+            for (int e = 0; e < blueprint.Edges.Count; e++)
+            {
+                BlueprintEdge edge = blueprint.Edges[e];
+                if (edge.RoomB < 0 || edge.State == EdgeState.BlockedWall)
+                {
+                    continue; // 봉인 — 벽 유지
+                }
+
+                PlaceOpening(blueprint, templates, edge, roomInstances, doorsRoot.transform, mapRoot.transform.position, minX, minY);
+            }
+
+            // 스폰 표식
+            var spawnsRoot = new GameObject("Spawns");
+            spawnsRoot.transform.SetParent(mapRoot.transform, false);
+            for (int s = 0; s < blueprint.Spawns.Count; s++)
+            {
+                PlaceSpawnMarker(blueprint, templates, blueprint.Spawns[s], spawnsRoot.transform, mapRoot.transform.position, minX, minY);
+            }
+        }
+
+        /// <summary>방 프리팹을 인스턴스화하고 바닥 타일(Hall_Floor) 실측 바운드로 셀 원점에 정렬한다.</summary>
+        /// <param name="room">배치할 방.</param>
+        /// <param name="template">방 템플릿.</param>
+        /// <param name="mapRoot">맵 루트.</param>
+        /// <param name="minX">맵 최소 셀 X(정규화 기준).</param>
+        /// <param name="minY">맵 최소 셀 Y.</param>
+        /// <returns>배치된 인스턴스.</returns>
+        private static GameObject PlaceRoom(BlueprintRoom room, RoomTemplateDef template, Transform mapRoot, int minX, int minY)
+        {
+            var prefab = AssetDatabase.LoadAssetAtPath<GameObject>(PrefabRoomTemplates.PrefabPaths[template.TemplateId]);
+            var instance = (GameObject)PrefabUtility.InstantiatePrefab(prefab);
+            instance.transform.SetParent(mapRoot, false);
+            // 셀 회전은 시계방향(North→East) — 위에서 본 Unity Y+ 회전과 방향 일치
+            instance.transform.localRotation = Quaternion.Euler(0f, 90f * (int)room.Rotation, 0f);
+            instance.transform.localPosition = Vector3.zero;
+
+            Bounds floor = FloorBounds(instance);
+            float targetX = mapRoot.position.x + (room.Cell.X - minX) * PrefabRoomTemplates.CellMeters;
+            float targetZ = mapRoot.position.z + (room.Cell.Y - minY) * PrefabRoomTemplates.CellMeters;
+            instance.transform.position += new Vector3(targetX - floor.min.x, 0f, targetZ - floor.min.z);
+            return instance;
+        }
+
+        /// <summary>
+        /// 간선 개구부를 만든다 — 경계 게이트 박스와 교차하는 양쪽 방의 벽 모듈을 비활성화하고,
+        /// 문 상태(열림/잠김)에 맞는 문 프리팹을 배치한다(잠긴 문 이름에 자물쇠 번호·용도 표기).
+        /// </summary>
+        /// <param name="blueprint">대상 블루프린트.</param>
+        /// <param name="templates">템플릿 목록.</param>
+        /// <param name="edge">처리할 연결 간선.</param>
+        /// <param name="roomInstances">방 인스턴스 배열.</param>
+        /// <param name="doorsRoot">문 부모.</param>
+        /// <param name="mapOrigin">맵 원점 월드 좌표.</param>
+        /// <param name="minX">맵 최소 셀 X.</param>
+        /// <param name="minY">맵 최소 셀 Y.</param>
+        private static void PlaceOpening(MapBlueprint blueprint, IReadOnlyList<RoomTemplateDef> templates, BlueprintEdge edge, GameObject[] roomInstances, Transform doorsRoot, Vector3 mapOrigin, int minX, int minY)
+        {
+            RoomTemplateDef templateA = FindTemplate(templates, blueprint.Rooms[edge.RoomA].TemplateId);
+            SocketDef socketA = FindSocket(templateA, edge.SocketA);
+            CellCoord worldCell = CellMath.WorldCell(blueprint.Rooms[edge.RoomA], templateA, socketA.LocalCell);
+            SocketDirection dir = CellMath.RotateDirection(socketA.Direction, blueprint.Rooms[edge.RoomA].Rotation);
+
+            float cell = PrefabRoomTemplates.CellMeters;
+            Vector3 cellCenter = mapOrigin + new Vector3((worldCell.X - minX + 0.5f) * cell, 0f, (worldCell.Y - minY + 0.5f) * cell);
+            Vector3 dirVec = DirectionVector(dir);
+            Vector3 gateCenter = cellCenter + dirVec * (cell * 0.5f);
+
+            // 경계선 방향 폭 3.2m(3M 개구부) × 두께 1.6m × 높이 8m 게이트와 교차하는 벽 모듈 비활성화
+            bool alongX = dir == SocketDirection.North || dir == SocketDirection.South;
+            var gate = new Bounds(gateCenter + Vector3.up * 3f, alongX ? new Vector3(3.2f, 8f, 1.6f) : new Vector3(1.6f, 8f, 3.2f));
+            DisableWallsIntersecting(roomInstances[edge.RoomA], gate);
+            DisableWallsIntersecting(roomInstances[edge.RoomB], gate);
+
+            if (edge.State == EdgeState.OpenPassage)
+            {
+                return; // 통로 — 문 없이 개구부만
+            }
+
+            string doorPath = edge.State == EdgeState.DoorLocked ? PrefabRoomTemplates.DoorClosedPath : PrefabRoomTemplates.DoorOpenedPath;
+            var doorPrefab = AssetDatabase.LoadAssetAtPath<GameObject>(doorPath);
+            var door = (GameObject)PrefabUtility.InstantiatePrefab(doorPrefab);
+            door.transform.SetParent(doorsRoot, false);
+            door.transform.position = gateCenter;
+            door.transform.rotation = Quaternion.Euler(0f, YawFor(dir), 0f);
+            door.name = edge.State == EdgeState.DoorLocked ? $"Door_Locked_{edge.LockNumber}_{edge.LockKind}" : "Door_Open";
+        }
+
+        /// <summary>스폰 표식(색 구체)을 마커 전역 셀 중심에 놓는다 — 열쇠는 KeyNumber 를 이름에 표기.</summary>
+        /// <param name="blueprint">대상 블루프린트.</param>
+        /// <param name="templates">템플릿 목록.</param>
+        /// <param name="spawn">표식할 스폰.</param>
+        /// <param name="spawnsRoot">표식 부모.</param>
+        /// <param name="mapOrigin">맵 원점 월드 좌표.</param>
+        /// <param name="minX">맵 최소 셀 X.</param>
+        /// <param name="minY">맵 최소 셀 Y.</param>
+        private static void PlaceSpawnMarker(MapBlueprint blueprint, IReadOnlyList<RoomTemplateDef> templates, BlueprintSpawn spawn, Transform spawnsRoot, Vector3 mapOrigin, int minX, int minY)
+        {
+            RoomTemplateDef template = FindTemplate(templates, blueprint.Rooms[spawn.RoomIndex].TemplateId);
+            MarkerDef marker = FindMarker(template, spawn.MarkerId);
+            CellCoord worldCell = CellMath.WorldCell(blueprint.Rooms[spawn.RoomIndex], template, marker.LocalCell);
+
+            float cell = PrefabRoomTemplates.CellMeters;
+            var sphere = GameObject.CreatePrimitive(PrimitiveType.Sphere);
+            Object.DestroyImmediate(sphere.GetComponent<Collider>());
+            sphere.transform.SetParent(spawnsRoot, false);
+            sphere.transform.position = mapOrigin + new Vector3((worldCell.X - minX + 0.5f) * cell, 1.2f, (worldCell.Y - minY + 0.5f) * cell);
+            sphere.transform.localScale = Vector3.one * (spawn.Kind == SpawnKind.HerdArea ? 2f : 1.1f);
+            sphere.name = spawn.Kind == SpawnKind.Key ? $"Spawn_Key_{spawn.KeyNumber}" : $"Spawn_{spawn.Kind}";
+            sphere.GetComponent<Renderer>().sharedMaterial = MarkerMaterial(spawn.Kind);
+        }
+
+        /// <summary>게이트 박스와 교차하는 벽 모듈(이름에 Wall 포함) 렌더러를 비활성화한다.</summary>
+        /// <param name="roomInstance">대상 방 인스턴스.</param>
+        /// <param name="gate">개구부 게이트 박스(월드).</param>
+        private static void DisableWallsIntersecting(GameObject roomInstance, Bounds gate)
+        {
+            Renderer[] renderers = roomInstance.GetComponentsInChildren<Renderer>(false);
+            for (int i = 0; i < renderers.Length; i++)
+            {
+                if (renderers[i].name.Contains("Wall") && renderers[i].bounds.Intersects(gate))
+                {
+                    renderers[i].gameObject.SetActive(false);
+                }
+            }
+        }
+
+        /// <summary>인스턴스의 바닥 타일(Hall_Floor) 합산 월드 바운드 — 없으면 전체 렌더러 바운드 폴백.</summary>
+        /// <param name="instance">방 인스턴스.</param>
+        /// <returns>바닥 월드 바운드.</returns>
+        private static Bounds FloorBounds(GameObject instance)
+        {
+            Renderer[] renderers = instance.GetComponentsInChildren<Renderer>(false);
+            Bounds bounds = default;
+            bool found = false;
+            for (int i = 0; i < renderers.Length; i++)
+            {
+                if (!renderers[i].name.Contains("Hall_Floor"))
+                {
+                    continue;
+                }
+
+                if (!found)
+                {
+                    bounds = renderers[i].bounds;
+                    found = true;
+                }
+                else
+                {
+                    bounds.Encapsulate(renderers[i].bounds);
+                }
+            }
+
+            if (found)
+            {
+                return bounds;
+            }
+
+            for (int i = 0; i < renderers.Length; i++)
+            {
+                if (i == 0)
+                {
+                    bounds = renderers[i].bounds;
+                }
+                else
+                {
+                    bounds.Encapsulate(renderers[i].bounds);
+                }
+            }
+
+            return bounds;
+        }
+
+        /// <summary>블루프린트 전 방 풋프린트의 최소 셀 좌표(정규화 기준점)를 구한다.</summary>
+        /// <param name="blueprint">대상 블루프린트.</param>
+        /// <param name="templates">템플릿 목록.</param>
+        /// <returns>(최소 X, 최소 Y).</returns>
+        private static (int, int) MinCellBounds(MapBlueprint blueprint, IReadOnlyList<RoomTemplateDef> templates)
+        {
+            int minX = int.MaxValue;
+            int minY = int.MaxValue;
+            for (int r = 0; r < blueprint.Rooms.Count; r++)
+            {
+                minX = Mathf.Min(minX, blueprint.Rooms[r].Cell.X);
+                minY = Mathf.Min(minY, blueprint.Rooms[r].Cell.Y);
+            }
+
+            return (minX, minY);
+        }
+
+        /// <summary>스폰 종류별 표식 머티리얼을 가져온다 — 없으면 폴더와 함께 생성해 에셋으로 저장한다.</summary>
+        /// <param name="kind">스폰 종류.</param>
+        /// <returns>공유 머티리얼.</returns>
+        private static Material MarkerMaterial(SpawnKind kind)
+        {
+            (string name, Color color) = kind switch
+            {
+                SpawnKind.ZombieWalker => ("MG_Zombie", new Color(0.85f, 0.15f, 0.15f)),
+                SpawnKind.ZombieListener => ("MG_Listener", new Color(1f, 0.45f, 0.1f)),
+                SpawnKind.ZombieWatcher => ("MG_Watcher", new Color(0.7f, 0.1f, 0.55f)),
+                SpawnKind.VaccineAntigen => ("MG_Vaccine", new Color(0.1f, 0.8f, 0.3f)),
+                SpawnKind.VaccineSerum => ("MG_Vaccine", new Color(0.1f, 0.8f, 0.3f)),
+                SpawnKind.VaccineStabilizer => ("MG_Vaccine", new Color(0.1f, 0.8f, 0.3f)),
+                SpawnKind.Key => ("MG_Key", new Color(1f, 0.85f, 0.1f)),
+                SpawnKind.Oil => ("MG_Oil", new Color(0.55f, 0.35f, 0.1f)),
+                SpawnKind.Scrap => ("MG_Scrap", new Color(0.55f, 0.55f, 0.55f)),
+                SpawnKind.Throwable => ("MG_Throwable", new Color(0.1f, 0.7f, 0.85f)),
+                SpawnKind.CorpseStation => ("MG_Station", new Color(0.5f, 0.2f, 0.8f)),
+                SpawnKind.Generator => ("MG_Generator", new Color(0.15f, 0.4f, 0.95f)),
+                _ => ("MG_Herd", new Color(0.6f, 0.05f, 0.05f)),
+            };
+
+            string path = $"{markerMaterialFolder}/{name}.mat";
+            var material = AssetDatabase.LoadAssetAtPath<Material>(path);
+            if (material != null)
+            {
+                return material;
+            }
+
+            if (!AssetDatabase.IsValidFolder(markerMaterialFolder))
+            {
+                AssetDatabase.CreateFolder("Assets/02. Prefab/Map", "MapGenMarkers");
+            }
+
+            Shader shader = Shader.Find("Universal Render Pipeline/Lit");
+            if (shader == null)
+            {
+                shader = Shader.Find("Standard");
+            }
+
+            material = new Material(shader);
+            material.SetColor("_BaseColor", color);
+            material.SetColor("_Color", color);
+            AssetDatabase.CreateAsset(material, path);
+            return material;
+        }
+
+        /// <summary>소켓 방향의 월드 단위 벡터(+X=East, +Z=North).</summary>
+        /// <param name="dir">소켓 방향.</param>
+        /// <returns>단위 벡터.</returns>
+        private static Vector3 DirectionVector(SocketDirection dir)
+        {
+            switch (dir)
+            {
+                case SocketDirection.North: return Vector3.forward;
+                case SocketDirection.East: return Vector3.right;
+                case SocketDirection.South: return Vector3.back;
+                default: return Vector3.left;
+            }
+        }
+
+        /// <summary>문 프리팹의 Y 회전각 — 통로 축이 소켓 방향과 나란하도록.</summary>
+        /// <param name="dir">개구부 방향.</param>
+        /// <returns>Y 오일러 각.</returns>
+        private static float YawFor(SocketDirection dir)
+        {
+            switch (dir)
+            {
+                case SocketDirection.North: return 0f;
+                case SocketDirection.East: return 90f;
+                case SocketDirection.South: return 180f;
+                default: return 270f;
+            }
+        }
+
+        /// <summary>TemplateId 로 템플릿을 찾는다(없으면 데이터 결함 — NRE 표면화).</summary>
+        /// <param name="templates">템플릿 목록.</param>
+        /// <param name="templateId">찾을 ID.</param>
+        /// <returns>일치 템플릿.</returns>
+        private static RoomTemplateDef FindTemplate(IReadOnlyList<RoomTemplateDef> templates, string templateId)
+        {
+            for (int t = 0; t < templates.Count; t++)
+            {
+                if (templates[t].TemplateId == templateId)
+                {
+                    return templates[t];
+                }
+            }
+
+            return null;
+        }
+
+        /// <summary>템플릿에서 소켓 Id 로 소켓을 찾는다.</summary>
+        /// <param name="template">대상 템플릿.</param>
+        /// <param name="socketId">소켓 Id.</param>
+        /// <returns>소켓 정의.</returns>
+        private static SocketDef FindSocket(RoomTemplateDef template, int socketId)
+        {
+            for (int s = 0; s < template.Sockets.Length; s++)
+            {
+                if (template.Sockets[s].Id == socketId)
+                {
+                    return template.Sockets[s];
+                }
+            }
+
+            return null;
+        }
+
+        /// <summary>템플릿에서 마커 Id 로 마커를 찾는다.</summary>
+        /// <param name="template">대상 템플릿.</param>
+        /// <param name="markerId">마커 Id.</param>
+        /// <returns>마커 정의.</returns>
+        private static MarkerDef FindMarker(RoomTemplateDef template, int markerId)
+        {
+            for (int m = 0; m < template.Markers.Length; m++)
+            {
+                if (template.Markers[m].Id == markerId)
+                {
+                    return template.Markers[m];
+                }
+            }
+
+            return null;
+        }
+    }
+}

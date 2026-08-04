@@ -330,6 +330,7 @@ namespace EmptyHouse.MapGen.Core.Tests
                 Assert.That(actual.Edges[e].SocketB, Is.EqualTo(expected.Edges[e].SocketB), $"간선 {e} SocketB 가 다르다");
                 Assert.That(actual.Edges[e].State, Is.EqualTo(expected.Edges[e].State), $"간선 {e} 상태가 다르다");
                 Assert.That(actual.Edges[e].LockNumber, Is.EqualTo(expected.Edges[e].LockNumber), $"간선 {e} 자물쇠 번호가 다르다");
+                Assert.That(actual.Edges[e].LockKind, Is.EqualTo(expected.Edges[e].LockKind), $"간선 {e} 자물쇠 용도가 다르다");
             }
 
             Assert.That(actual.Spawns.Count, Is.EqualTo(expected.Spawns.Count), "스폰 수가 다르다");
@@ -339,6 +340,7 @@ namespace EmptyHouse.MapGen.Core.Tests
                 Assert.That(actual.Spawns[s].MarkerId, Is.EqualTo(expected.Spawns[s].MarkerId), $"스폰 {s} 마커가 다르다");
                 Assert.That(actual.Spawns[s].Kind, Is.EqualTo(expected.Spawns[s].Kind), $"스폰 {s} 종류가 다르다");
                 Assert.That(actual.Spawns[s].WanderRadiusCells, Is.EqualTo(expected.Spawns[s].WanderRadiusCells), $"스폰 {s} 배회 반경이 다르다");
+                Assert.That(actual.Spawns[s].KeyNumber, Is.EqualTo(expected.Spawns[s].KeyNumber), $"스폰 {s} 열쇠 번호가 다르다");
             }
         }
     }

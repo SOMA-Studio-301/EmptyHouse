@@ -39,7 +39,7 @@ namespace EmptyHouse.MapGen.Core.Tests
                   .Append('|').Append(edge.RoomA).Append('.').Append(edge.SocketA)
                   .Append('-').Append(edge.RoomB).Append('.').Append(edge.SocketB)
                   .Append('|').Append(edge.State)
-                  .Append("|lock=").Append(edge.LockNumber)
+                  .Append("|lock=").Append(edge.LockNumber).Append('.').Append(edge.LockKind)
                   .Append('\n');
             }
 
@@ -51,6 +51,7 @@ namespace EmptyHouse.MapGen.Core.Tests
                   .Append("|marker=").Append(spawn.MarkerId)
                   .Append('|').Append(spawn.Kind)
                   .Append("|wander=").Append(spawn.WanderRadiusCells.ToString("0.###", CultureInfo.InvariantCulture))
+                  .Append("|key=").Append(spawn.KeyNumber)
                   .Append('\n');
             }
 

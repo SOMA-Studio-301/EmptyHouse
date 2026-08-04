@@ -94,6 +94,7 @@ namespace EmptyHouse.MapGen.Core
             // 중요 물품 문 → 지름길 순으로 선택, 선택 순서 = 자물쇠 번호(1부터)
             var lockedEdges = new List<int>();
             PickWeighted(rng, itemDoorCandidates, genParams.ItemDoorLockCount, lockedEdges);
+            int itemDoorCount = lockedEdges.Count;
             int shortcutTarget = rng.Next(genParams.ShortcutLockCountMin, genParams.ShortcutLockCountMax + 1);
             PickWeighted(rng, shortcutCandidates, shortcutTarget, lockedEdges);
 
@@ -102,6 +103,7 @@ namespace EmptyHouse.MapGen.Core
                 BlueprintEdge edge = blueprint.Edges[lockedEdges[n]];
                 edge.State = EdgeState.DoorLocked;
                 edge.LockNumber = n + 1;
+                edge.LockKind = n < itemDoorCount ? LockKind.ItemDoor : LockKind.Shortcut;
             }
         }
 
@@ -245,6 +247,7 @@ namespace EmptyHouse.MapGen.Core
                     MarkerId = markerId,
                     Kind = SpawnKind.Key,
                     WanderRadiusCells = 0f,
+                    KeyNumber = i,
                 });
             }
 

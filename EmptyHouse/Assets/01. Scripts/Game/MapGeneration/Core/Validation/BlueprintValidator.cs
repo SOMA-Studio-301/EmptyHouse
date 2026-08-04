@@ -88,29 +88,43 @@ namespace EmptyHouse.MapGen.Core
                 }
             }
 
-            // 열쇠 스폰은 LockKeyPlacer 가 번호순으로 추가한다 — 목록 순서 = 자물쇠 번호
-            var keyRooms = new List<int>();
+            // 열쇠 ↔ 자물쇠 페어링은 KeyNumber 가 명시한다(스폰 목록 순서에 의존하지 않는다)
+            var keyRoomsByNumber = new Dictionary<int, int>();
+            int keyCount = 0;
             for (int s = 0; s < blueprint.Spawns.Count; s++)
             {
-                if (blueprint.Spawns[s].Kind == SpawnKind.Key)
+                if (blueprint.Spawns[s].Kind != SpawnKind.Key)
                 {
-                    keyRooms.Add(blueprint.Spawns[s].RoomIndex);
+                    continue;
+                }
+
+                keyCount++;
+                if (!keyRoomsByNumber.ContainsKey(blueprint.Spawns[s].KeyNumber))
+                {
+                    keyRoomsByNumber.Add(blueprint.Spawns[s].KeyNumber, blueprint.Spawns[s].RoomIndex);
                 }
             }
 
-            if (keyRooms.Count != lockCount)
+            if (keyCount != lockCount)
             {
-                report.FailReasons.Add($"패스2: 열쇠 수({keyRooms.Count}) ≠ 자물쇠 수({lockCount})");
+                report.FailReasons.Add($"패스2: 열쇠 수({keyCount}) ≠ 자물쇠 수({lockCount})");
                 return false;
             }
 
             bool passed = true;
             for (int i = 1; i <= lockCount; i++)
             {
-                HashSet<int> reachable = ReachabilityAnalyzer.ComputeReachableRooms(blueprint, i);
-                if (!reachable.Contains(keyRooms[i - 1]))
+                if (!keyRoomsByNumber.TryGetValue(i, out int keyRoom))
                 {
-                    report.FailReasons.Add($"패스2: 열쇠_{i} 방 {keyRooms[i - 1]} ∉ R_{i}(AC-08)");
+                    report.FailReasons.Add($"패스2: 열쇠_{i} 부재(KeyNumber 누락 또는 중복)");
+                    passed = false;
+                    continue;
+                }
+
+                HashSet<int> reachable = ReachabilityAnalyzer.ComputeReachableRooms(blueprint, i);
+                if (!reachable.Contains(keyRoom))
+                {
+                    report.FailReasons.Add($"패스2: 열쇠_{i} 방 {keyRoom} ∉ R_{i}(AC-08)");
                     passed = false;
                 }
             }

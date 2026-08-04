@@ -11,6 +11,14 @@ namespace EmptyHouse.MapGen.Core
         BlockedWall
     }
 
+    /// <summary>자물쇠 용도 구분(4-1절 — 중요 물품 문/지름길). 그래프 뷰 간선 표시(10절)와 어댑터가 소비한다.</summary>
+    public enum LockKind
+    {
+        None,
+        ItemDoor,
+        Shortcut
+    }
+
     /// <summary>방 템플릿 회전(90도 단위).</summary>
     public enum Rotation4
     {

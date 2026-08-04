@@ -111,7 +111,7 @@ namespace EmptyHouse.MapGen.Core
                 SocketDef openSocket = placedTemplates[openRoom].Sockets[openSocketIndex];
                 BlueprintRoom openRoomData = blueprint.Rooms[openRoom];
                 CellCoord openWorldCell = ToWorldCell(openRoomData, placedTemplates[openRoom], openSocket);
-                SocketDirection openWorldDir = RotateDirection(openSocket.Direction, openRoomData.Rotation);
+                SocketDirection openWorldDir = CellMath.RotateDirection(openSocket.Direction, openRoomData.Rotation);
                 CellCoord targetCell = Step(openWorldCell, openWorldDir);
                 SocketDirection neededDir = Opposite(openWorldDir);
 
@@ -160,7 +160,7 @@ namespace EmptyHouse.MapGen.Core
 
                     // 회전은 소켓 방향 맞대기로 유도된다(neededDir 를 향하도록 90도 단위 회전)
                     var rotation = (Rotation4)(((int)neededDir - (int)newSocket.Direction + 4) % 4);
-                    CellCoord rotatedLocal = RotateLocalCell(newSocket.LocalCell, template.WidthCells, template.HeightCells, rotation);
+                    CellCoord rotatedLocal = CellMath.RotateLocalCell(newSocket.LocalCell, template.WidthCells, template.HeightCells, rotation);
                     var origin = new CellCoord(targetCell.X - rotatedLocal.X, targetCell.Y - rotatedLocal.Y);
 
                     if (!FitsAt(template, origin, rotation))
@@ -239,7 +239,7 @@ namespace EmptyHouse.MapGen.Core
                     }
 
                     CellCoord worldA = ToWorldCell(blueprint.Rooms[a], templateA, socketA);
-                    SocketDirection dirA = RotateDirection(socketA.Direction, blueprint.Rooms[a].Rotation);
+                    SocketDirection dirA = CellMath.RotateDirection(socketA.Direction, blueprint.Rooms[a].Rotation);
                     CellCoord target = Step(worldA, dirA);
                     SocketDirection neededDir = Opposite(dirA);
 
@@ -256,7 +256,7 @@ namespace EmptyHouse.MapGen.Core
 
                             CellCoord worldB = ToWorldCell(blueprint.Rooms[b], templateB, socketB);
                             if (worldB.X == target.X && worldB.Y == target.Y
-                                && RotateDirection(socketB.Direction, blueprint.Rooms[b].Rotation) == neededDir)
+                                && CellMath.RotateDirection(socketB.Direction, blueprint.Rooms[b].Rotation) == neededDir)
                             {
                                 candidates.Add((a, socketA.Id, b, socketB.Id));
                             }
@@ -335,7 +335,7 @@ namespace EmptyHouse.MapGen.Core
         /// <returns>새 방 인덱스.</returns>
         private int PlaceRoom(RoomTemplateDef template, CellCoord origin, Rotation4 rotation, MapBlueprint blueprint)
         {
-            (int width, int height) = RotatedSize(template.WidthCells, template.HeightCells, rotation);
+            (int width, int height) = CellMath.RotatedSize(template.WidthCells, template.HeightCells, rotation);
             for (int x = 0; x < width; x++)
             {
                 for (int y = 0; y < height; y++)
@@ -356,7 +356,7 @@ namespace EmptyHouse.MapGen.Core
         /// <returns>배치 가능 여부.</returns>
         private bool FitsAt(RoomTemplateDef template, CellCoord origin, Rotation4 rotation)
         {
-            (int width, int height) = RotatedSize(template.WidthCells, template.HeightCells, rotation);
+            (int width, int height) = CellMath.RotatedSize(template.WidthCells, template.HeightCells, rotation);
             for (int x = 0; x < width; x++)
             {
                 for (int y = 0; y < height; y++)
@@ -371,51 +371,14 @@ namespace EmptyHouse.MapGen.Core
             return true;
         }
 
-        /// <summary>소켓의 월드 셀 좌표(방 원점 + 회전 적용 로컬 셀)를 구한다.</summary>
+        /// <summary>소켓의 월드 셀 좌표(방 원점 + 회전 적용 로컬 셀) — CellMath.WorldCell 위임.</summary>
         /// <param name="room">배치된 방.</param>
         /// <param name="template">방 템플릿.</param>
         /// <param name="socket">대상 소켓.</param>
         /// <returns>소켓 월드 셀.</returns>
         private static CellCoord ToWorldCell(BlueprintRoom room, RoomTemplateDef template, SocketDef socket)
         {
-            CellCoord local = RotateLocalCell(socket.LocalCell, template.WidthCells, template.HeightCells, room.Rotation);
-            return new CellCoord(room.Cell.X + local.X, room.Cell.Y + local.Y);
-        }
-
-        /// <summary>로컬 셀을 시계방향 90도 단위로 회전한다(원점 유지 — 회전 후 풋프린트도 (0,0) 기준).</summary>
-        /// <param name="cell">템플릿 로컬 셀.</param>
-        /// <param name="width">템플릿 원본 가로.</param>
-        /// <param name="height">템플릿 원본 세로.</param>
-        /// <param name="rotation">회전.</param>
-        /// <returns>회전 적용 로컬 셀.</returns>
-        private static CellCoord RotateLocalCell(CellCoord cell, int width, int height, Rotation4 rotation)
-        {
-            switch (rotation)
-            {
-                case Rotation4.Deg90: return new CellCoord(cell.Y, width - 1 - cell.X);
-                case Rotation4.Deg180: return new CellCoord(width - 1 - cell.X, height - 1 - cell.Y);
-                case Rotation4.Deg270: return new CellCoord(height - 1 - cell.Y, cell.X);
-                default: return cell;
-            }
-        }
-
-        /// <summary>회전 적용 후 풋프린트 크기(90/270도는 가로·세로 스왑).</summary>
-        /// <param name="width">원본 가로.</param>
-        /// <param name="height">원본 세로.</param>
-        /// <param name="rotation">회전.</param>
-        /// <returns>(가로, 세로).</returns>
-        private static (int width, int height) RotatedSize(int width, int height, Rotation4 rotation)
-        {
-            return rotation == Rotation4.Deg90 || rotation == Rotation4.Deg270 ? (height, width) : (width, height);
-        }
-
-        /// <summary>소켓 방향을 시계방향 90도 단위로 회전한다(North→East→South→West).</summary>
-        /// <param name="direction">원본 방향.</param>
-        /// <param name="rotation">회전.</param>
-        /// <returns>회전 적용 방향.</returns>
-        private static SocketDirection RotateDirection(SocketDirection direction, Rotation4 rotation)
-        {
-            return (SocketDirection)(((int)direction + (int)rotation) % 4);
+            return CellMath.WorldCell(room, template, socket.LocalCell);
         }
 
         /// <summary>반대 방향.</summary>

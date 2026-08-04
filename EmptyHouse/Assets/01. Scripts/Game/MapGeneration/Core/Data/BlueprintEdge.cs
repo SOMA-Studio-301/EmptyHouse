@@ -12,5 +12,6 @@ namespace EmptyHouse.MapGen.Core
         public int SocketB; // 방 B 소켓 Id(짝 없는 봉인이면 -1)
         public EdgeState State; // 통로 / 문 열림 / 문 잠김 / 막힌 벽
         public int LockNumber; // 자물쇠 번호(열쇠_XX ↔ 자물쇠_XX 넘버링). 0 = 자물쇠 없음
+        public LockKind LockKind; // 자물쇠 용도(중요 물품 문/지름길, 4-1절) — DoorLocked 가 아니면 None
     }
 }

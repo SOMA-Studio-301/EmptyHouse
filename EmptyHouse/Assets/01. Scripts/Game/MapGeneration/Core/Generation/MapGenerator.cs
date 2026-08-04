@@ -111,11 +111,17 @@ namespace EmptyHouse.MapGen.Core
             bool hasKeyMarker = false;
             bool hasOilMarker = false;
             int minCountSum = 0;
+            int maxCountSum = 0;
             for (int t = 0; t < templates.Count; t++)
             {
                 RoomTemplateDef template = templates[t];
                 hasAnchor |= template.IsEntranceAnchor;
                 minCountSum += template.MinCount;
+                maxCountSum += template.MaxCount;
+                if (template.MinCount > template.MaxCount)
+                {
+                    errors.Add($"X4: 템플릿 {template.TemplateId} MinCount({template.MinCount}) > MaxCount({template.MaxCount}) — 자기모순(MinCount 충족 불가)");
+                }
                 for (int m = 0; m < template.Markers.Length; m++)
                 {
                     if (template.Markers[m].Kind != MarkerKind.ItemSpawn)
@@ -140,6 +146,11 @@ namespace EmptyHouse.MapGen.Core
                 errors.Add($"X4: 템플릿 MinCount 합({minCountSum})이 총 방 수 상한({genParams.RoomsTotalMax}) 초과");
             }
 
+            if (maxCountSum < genParams.RoomsTotalMin)
+            {
+                errors.Add($"X4: 템플릿 MaxCount 합({maxCountSum})이 총 방 수 하한({genParams.RoomsTotalMin}) 미만 — 레이아웃이 성립 불가");
+            }
+
             if (!hasVaccineMarker)
             {
                 errors.Add("X4: Vaccine 허용 ItemSpawn 마커 부재 — 백신 배치 불가");
@@ -153,6 +164,11 @@ namespace EmptyHouse.MapGen.Core
             if (!hasOilMarker)
             {
                 errors.Add("X4: Oil 허용 ItemSpawn 마커 부재 — 기름 배치 불가");
+            }
+
+            if (genParams.OilCount < 1)
+            {
+                errors.Add($"X4: OilCount({genParams.OilCount}) < 1 — 기름은 필수(7절 패스1)라 배치 0이면 검증이 항상 실패");
             }
 
             return errors.Count == 0;

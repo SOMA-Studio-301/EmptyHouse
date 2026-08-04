@@ -7,5 +7,6 @@ namespace EmptyHouse.MapGen.Core
         public int MarkerId; // 방 템플릿 내 마커 Id
         public SpawnKind Kind; // 스폰 종류
         public float WanderRadiusCells; // 좀비 배회 반경(셀) — 좀비 외 항목은 0
+        public int KeyNumber; // 열쇠 번호(열쇠_XX ↔ 자물쇠_XX) — Kind 가 Key 가 아니면 0. 어댑터 pairId·툴 라벨 재료
     }
 }
