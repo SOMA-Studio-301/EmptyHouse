@@ -11,7 +11,7 @@ using UnityEngine;
 public sealed class WardrobeInteractable : NetworkBehaviour
 {
     [Header("Anchors")]
-    [SerializeField] private Transform hideAnchor; // 진입 시 플레이어가 스냅될 벽장 안 은신 지점(자식 Transform)
+    [SerializeField] private Transform hideAnchor; // 진입 시 플레이어가 스냅될 벽장 안 은신 지점(자식 Transform). 위치만 쓴다 — 시선은 루트 forward
     [SerializeField] private Transform exitAnchor; // 탈출 시 플레이어가 복귀할 문 앞 위치(자식 Transform, 3-5-1)
 
     [Header("Audio")]
@@ -26,6 +26,8 @@ public sealed class WardrobeInteractable : NetworkBehaviour
         NetworkVariableWritePermission.Server);
 
     public bool IsOccupied => occupantId.Value != 0; // 바깥 문 프롬프트가 '사용 중' 판정에 조회한다(M1)
+
+    private const float GroundClearance = 0.05f; // 스냅 시 바닥 겹침 방지 여유 높이(GameScenePlayerSpawner 와 동일)
 
     /// <summary>문 개폐 연출·SFX 를 점유 변화에 태우기 위해 구독한다(§4.5 오브젝트 사운드: 상태 복제에 편승).</summary>
     public override void OnNetworkSpawn()
@@ -74,8 +76,9 @@ public sealed class WardrobeInteractable : NetworkBehaviour
 
         occupantId.Value = playerObject.NetworkObjectId;
         playerObject.GetComponent<PlayerHiding>().ServerSetHidden(true);
-        // TODO(impl): 플레이어 위치를 hideAnchor 로 스냅 — 플레이어 NetworkTransform 이 소유자 권위라
-        // 서버 직접 쓰기가 소유자에게 덮어써진다. 소유자 대상 RPC 필요(§9-1) → 오케스트레이터 보고 후 구현.
+        // 플레이어 NetworkTransform 이 소유자 권위라 서버가 직접 위치를 못 쓰니 소유자에게 스냅을 위임.
+        // 시선은 앵커 회전이 아니라 벽장 루트의 forward(문 방향)로 통일한다 — 앵커 회전과 무관하게 항상 들어온 문을 본다.
+        playerObject.GetComponent<PlayerController>().SnapPoseClientRpc(GetSnapPosition(hideAnchor, playerObject), transform.rotation);
     }
 
     /// <summary>
@@ -91,8 +94,23 @@ public sealed class WardrobeInteractable : NetworkBehaviour
         if (playerObject.NetworkObjectId != occupantId.Value) return; // 점유자만 탈출
 
         playerObject.GetComponent<PlayerHiding>().ServerSetHidden(false);
-        // TODO(impl): 플레이어 위치를 exitAnchor 로 스냅 — 진입과 동일하게 소유자 대상 RPC 필요(§9-1) → 오케스트레이터 보고 후 구현.
+        playerObject.GetComponent<PlayerController>().SnapPoseClientRpc(GetSnapPosition(exitAnchor, playerObject), exitAnchor.rotation);
         occupantId.Value = 0;
+    }
+
+    /// <summary>
+    /// 바닥에 밀착 배치된 앵커 기준, 캡슐 피벗이 와야 할 스냅 위치를 계산한다.
+    /// 스냅 대상 플레이어의 캡슐로 직접 계산하므로 프리팹 치수가 바뀌어도 따라간다(GameScenePlayerSpawner 와 동일 공식).
+    /// </summary>
+    /// <param name="anchor">바닥에 밀착 배치된 스냅 앵커.</param>
+    /// <param name="playerObject">스냅할 플레이어.</param>
+    /// <returns>캡슐 반높이 + 여유만큼 띄운 스냅 위치.</returns>
+    private static Vector3 GetSnapPosition(Transform anchor, NetworkObject playerObject)
+    {
+        // 캡슐 피벗이 중심이라, 바닥에 붙은 앵커 기준 스냅 높이 = 반높이 − center.y + 여유.
+        CapsuleCollider capsule = playerObject.GetComponent<CapsuleCollider>();
+        float heightOffset = capsule.height * 0.5f - capsule.center.y + GroundClearance;
+        return anchor.position + Vector3.up * heightOffset;
     }
 
     /// <summary>
@@ -110,7 +128,7 @@ public sealed class WardrobeInteractable : NetworkBehaviour
             || !NetworkManager.ConnectedClients.TryGetValue(senderClientId, out NetworkClient client)
             || client.PlayerObject == null)
         {
-            Debug.LogWarning($"[{nameof(WardrobeInteractable)}] Rejected request from client {senderClientId}: PlayerObject is unavailable.", this);
+            Log.W($"[{nameof(WardrobeInteractable)}] Rejected request from client {senderClientId}: PlayerObject is unavailable.", this);
             return false;
         }
 

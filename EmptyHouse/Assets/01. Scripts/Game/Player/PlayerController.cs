@@ -17,6 +17,7 @@ public class PlayerController : NetworkBehaviour
     [SerializeField] private Transform cameraPivot;
     [SerializeField] private float lookSensitivity = 0.1f; // 기본 시선 감도(튜닝값). 설정창의 배율이 여기에 곱해진다
     [SerializeField] private float pitchClamp = 89f;
+    [SerializeField] private float wardrobeLookAngleDeg = 60f; // 은신 중 시야 콘 반각(3-10 wardrobe_look_angle_deg). 진입 시점 정면 기준 yaw·pitch 를 ±이 각도로 클램프
 
     [Header("Settings")]
     [SerializeField] private SaveLoadSystem saveLoadSystem;                     // 스폰 시 저장된 감도 배율을 읽어오는 원본
@@ -65,6 +66,9 @@ public class PlayerController : NetworkBehaviour
     // 비활성 게이팅 소스 — 형제 PlayerReturn. 귀환도 사망과 똑같이 조작을 차단한다(세션루프.md 3장).
     private PlayerReturn playerReturn;
 
+    // 은신 게이팅 소스 — 형제 PlayerHiding. 은신 중 이동·점프를 차단하고 시선을 콘 안으로 제한한다(2-1, 조작상호작용UI.md 3-5-1).
+    private PlayerHiding hiding;
+
     // 비활성(사망 OR 귀환) 여부. 어느 쪽이든 조작을 차단하고 관전으로 넘긴다 — PlayerSpectatorController 의 진입 조건과 같다.
     private bool IsInactive => deathHandler.IsDead.Value || playerReturn.HasExtracted.Value;
 
@@ -84,6 +88,12 @@ public class PlayerController : NetworkBehaviour
     // 시선 상태 — pitch 는 cameraPivot 의 로컬 X, yaw 는 본체의 Y 회전.
     private float pitch;
     private float yaw;
+
+    // 은신 시야 콘의 기준 yaw. 은신 진입 순간의 시선(또는 스냅 앵커 정면)이다. 은신 중에만 유효하다.
+    private float hiddenBaseYaw;
+
+    // 직전 프레임의 은신 여부 — 진입 순간(false→true)에 hiddenBaseYaw 를 잡기 위한 에지 검출용.
+    private bool wasHidden;
 
     // 시선 감도 배율 — 스폰 시 Profile 에서 읽고, 설정창 변경 시 채널로 갱신된다. lookSensitivity 에 곱해 실효 감도를 만든다.
     private float sensitivityMultiplier = 1f;
@@ -109,6 +119,7 @@ public class PlayerController : NetworkBehaviour
         networkTransform = GetComponent<NetworkTransform>();
         deathHandler = GetComponent<PlayerDeathHandler>();
         playerReturn = GetComponent<PlayerReturn>();
+        hiding = GetComponent<PlayerHiding>();
     }
 
     /// <summary>
@@ -198,6 +209,26 @@ public class PlayerController : NetworkBehaviour
         body.linearVelocity = Vector3.zero;
     }
 
+    /// <summary>
+    /// 서버가 지정한 포즈를 소유자가 즉시 1회 적용한다(벽장 진입/탈출 앵커 스냅 등).
+    /// 플레이어 NetworkTransform 이 소유자 권위라 서버가 직접 위치를 쓸 수 없어 소유자에게 위임한다.
+    /// 스폰 경로(<see cref="SetSpawnPoseClientRpc"/>)와 달리 감시 코루틴이 없다 — 짧은 간격의 연속 스냅(진입↔탈출)을 서로 되돌리지 않기 위함.
+    /// yaw/pitch 필드와 시야 콘 기준도 함께 동기화한다 — 빼먹으면 다음 프레임 HandleLook 이 옛 시선으로 회전을 되돌린다.
+    /// </summary>
+    /// <param name="position">적용할 위치.</param>
+    /// <param name="rotation">적용할 회전(정면). yaw 로 흡수되고 pitch 는 수평으로 초기화한다.</param>
+    [ClientRpc]
+    public void SnapPoseClientRpc(Vector3 position, Quaternion rotation)
+    {
+        if (!IsOwner) return;
+
+        ForcePose(position, rotation);
+        yaw = rotation.eulerAngles.y;
+        pitch = 0f;
+        cameraPivot.localRotation = Quaternion.Euler(pitch, 0f, 0f);
+        hiddenBaseYaw = yaw; // 은신 스냅이면 콘 기준을 앵커 정면으로 재설정. 비은신 스냅에서는 쓰이지 않는 값이라 무해하다.
+    }
+
     /// <summary>네트워크 디스폰 시 소유자에 한해 구독을 해제한다. 액션맵 비활성화는 ClientGameManager 소관이다.</summary>
     public override void OnNetworkDespawn()
     {
@@ -224,6 +255,11 @@ public class PlayerController : NetworkBehaviour
     {
         if (!IsOwner || IsInactive) return;
 
+        // 은신 진입 순간(false→true)의 시선을 시야 콘 기준으로 잡는다. 스냅 RPC 가 나중에 도착하면 그쪽이 앵커 정면으로 갱신한다.
+        bool isHidden = hiding.IsHidden;
+        if (isHidden && !wasHidden) hiddenBaseYaw = yaw;
+        wasHidden = isHidden;
+
         HandleLook();
     }
 
@@ -235,6 +271,14 @@ public class PlayerController : NetworkBehaviour
     private void FixedUpdate()
     {
         if (!IsOwner || IsInactive) return;
+
+        // 은신 중에는 이동·점프를 차단하고 자리에 고정한다(2-1: WASD 무반응). 시선은 Update 쪽 콘 클램프가 맡는다.
+        if (hiding.IsHidden)
+        {
+            jumpRequested = false;
+            body.linearVelocity = new Vector3(0f, body.linearVelocity.y, 0f);
+            return;
+        }
 
         HandleMove();
         HandleJump();
@@ -348,6 +392,14 @@ public class PlayerController : NetworkBehaviour
         yaw += lookInput.x * sensitivity;
         pitch -= lookInput.y * sensitivity;
         pitch = Mathf.Clamp(pitch, -pitchClamp, pitchClamp);
+
+        // 은신 중에는 시선을 기준 정면(hiddenBaseYaw)의 콘 안으로 제한한다(3-5-1 문틈 시야, 3-10 wardrobe_look_angle_deg).
+        if (hiding.IsHidden)
+        {
+            float yawDelta = Mathf.DeltaAngle(hiddenBaseYaw, yaw);
+            yaw = hiddenBaseYaw + Mathf.Clamp(yawDelta, -wardrobeLookAngleDeg, wardrobeLookAngleDeg);
+            pitch = Mathf.Clamp(pitch, -wardrobeLookAngleDeg, wardrobeLookAngleDeg);
+        }
 
         transform.rotation = Quaternion.Euler(0f, yaw, 0f);
         cameraPivot.localRotation = Quaternion.Euler(pitch, 0f, 0f);
