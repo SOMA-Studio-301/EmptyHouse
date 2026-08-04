@@ -31,7 +31,7 @@ public class GameScenePlayerSpawner : MonoBehaviour
     private void Awake()
     {
         networkManager = NetworkManager.Singleton;
-        if (networkManager == null || !networkManager.IsServer)
+        if (networkManager == null)
         {
             enabled = false;
             return;
@@ -39,14 +39,55 @@ public class GameScenePlayerSpawner : MonoBehaviour
 
         // Awake에서 생성하면 씬 로딩 중인 동적 Player가 ScenePlacedObject로 수집될 수 있다.
         gameSceneName = gameObject.scene.name;
-        networkManager.SceneManager.OnLoadComplete += HandleLoadComplete;
-        networkManager.SceneManager.OnLoadEventCompleted += HandleLoadEventCompleted;
-        networkManager.SceneManager.OnSynchronizeComplete += HandleSynchronizeComplete;
-        networkManager.OnClientDisconnectCallback += HandleClientDisconnected;
 
         // 캡슐 피벗이 중심이라, 바닥에 붙은 스폰 포인트 기준 스폰 높이 = 반높이 − center.y + 여유.
         CapsuleCollider capsule = playerPrefab.GetComponent<CapsuleCollider>();
         spawnHeightOffset = capsule.height * 0.5f - capsule.center.y + GroundClearance;
+
+        if (networkManager.IsServer)
+        {
+            SubscribeServerEvents();
+            return;
+        }
+
+        // 개발용 직접 플레이(DevBootstrap): 씬이 먼저 뜨고 Start 에서 StartHost 하므로 Awake 시점엔 아직 서버가 아니다.
+        // 서버가 되는 순간 초기화한다 — 클라 인스턴스는 이 콜백이 오지 않아 그대로 잠든다.
+        networkManager.OnServerStarted += HandleServerStarted;
+    }
+
+    /// <summary>
+    /// 직접 플레이에서 StartHost 완료를 받아 서버 구독을 걸고, 이미 접속된 클라(호스트 자신 포함)를 스폰한다.
+    /// 이 경로는 씬 로드 이벤트가 발생하지 않아 접속 콜백이 스폰 트리거를 대신한다.
+    /// </summary>
+    private void HandleServerStarted()
+    {
+        networkManager.OnServerStarted -= HandleServerStarted;
+        SubscribeServerEvents();
+
+        foreach (ulong clientId in networkManager.ConnectedClientsIds)
+        {
+            SpawnPlayer(clientId);
+        }
+    }
+
+    /// <summary>서버 전용 이벤트 구독. 로비 흐름은 Awake, 직접 플레이는 OnServerStarted 시점에 걸린다.</summary>
+    private void SubscribeServerEvents()
+    {
+        networkManager.SceneManager.OnLoadComplete += HandleLoadComplete;
+        networkManager.SceneManager.OnLoadEventCompleted += HandleLoadEventCompleted;
+        networkManager.SceneManager.OnSynchronizeComplete += HandleSynchronizeComplete;
+        networkManager.OnClientConnectedCallback += HandleClientConnected;
+        networkManager.OnClientDisconnectCallback += HandleClientDisconnected;
+    }
+
+    /// <summary>
+    /// 접속 즉시 스폰 — 씬 로드 이벤트가 없는 직접 플레이의 기본 스폰 트리거.
+    /// 로비 흐름에서는 씬 이벤트가 먼저 처리하므로 중복은 spawnedClients 가 거른다.
+    /// </summary>
+    /// <param name="clientId">접속한 클라이언트 ID.</param>
+    private void HandleClientConnected(ulong clientId)
+    {
+        SpawnPlayer(clientId);
     }
 
     /// <summary>
@@ -150,6 +191,8 @@ public class GameScenePlayerSpawner : MonoBehaviour
     {
         if (networkManager == null) return;
 
+        networkManager.OnServerStarted -= HandleServerStarted;
+
         if (networkManager.SceneManager != null)
         {
             networkManager.SceneManager.OnLoadComplete -= HandleLoadComplete;
@@ -157,6 +200,7 @@ public class GameScenePlayerSpawner : MonoBehaviour
             networkManager.SceneManager.OnSynchronizeComplete -= HandleSynchronizeComplete;
         }
 
+        networkManager.OnClientConnectedCallback -= HandleClientConnected;
         networkManager.OnClientDisconnectCallback -= HandleClientDisconnected;
     }
 }
