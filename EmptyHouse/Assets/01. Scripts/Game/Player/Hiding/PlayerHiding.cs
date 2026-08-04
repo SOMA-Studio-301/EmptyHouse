@@ -23,15 +23,19 @@ public sealed class PlayerHiding : NetworkBehaviour
     /// <summary>은신 상태 변경 구독을 걸고, 늦은 구독자 동기화를 위해 현재값을 1회 브릿지한다.</summary>
     public override void OnNetworkSpawn()
     {
-        // TODO(impl): isHidden.OnValueChanged += HandleHiddenChanged; 후 PublishState(isHidden.Value) 로 1회 브릿지.
         Log.D($"[PlayerHiding] OnNetworkSpawn {NetworkObjectId}");
+
+        isHidden.OnValueChanged += HandleHiddenChanged;
+        // 늦게 스폰된 구독자도 현재 복제값으로 초기화할 수 있도록 한 번 브릿지한다.
+        PublishState(isHidden.Value);
     }
 
     /// <summary>은신 상태 변경 구독을 해제한다.</summary>
     public override void OnNetworkDespawn()
     {
-        // TODO(impl): isHidden.OnValueChanged -= HandleHiddenChanged;
         Log.D($"[PlayerHiding] OnNetworkDespawn {NetworkObjectId}");
+
+        isHidden.OnValueChanged -= HandleHiddenChanged;
     }
 
     /// <summary>
@@ -40,8 +44,11 @@ public sealed class PlayerHiding : NetworkBehaviour
     /// <param name="value">설정할 은신 상태.</param>
     public void ServerSetHidden(bool value)
     {
-        // TODO(impl): !IsServer 면 return. 같은 값이면 return. isHidden.Value = value 로 확정한다(복제·채널 발행은 OnValueChanged 경유).
         Log.D($"[PlayerHiding] ServerSetHidden {value} on {NetworkObjectId}");
+
+        if (!IsServer || isHidden.Value == value) return;
+
+        isHidden.Value = value; // 복제·채널 발행은 OnValueChanged 경유
     }
 
     /// <summary>복제된 은신 상태 변경을 로컬 채널로 브릿지한다.</summary>
@@ -49,15 +56,17 @@ public sealed class PlayerHiding : NetworkBehaviour
     /// <param name="current">현재 값.</param>
     private void HandleHiddenChanged(bool previous, bool current)
     {
-        // TODO(impl): PublishState(current).
         Log.D($"[PlayerHiding] HandleHiddenChanged {previous}->{current} on {NetworkObjectId}");
+
+        PublishState(current);
     }
 
     /// <summary>현재 은신 상태를 은신 채널로 발행한다. 늦은 구독자 초기 동기화에도 쓰인다.</summary>
     /// <param name="value">발행할 은신 상태.</param>
     private void PublishState(bool value)
     {
-        // TODO(impl): hidingStateChanged.RaiseEvent(new HidingStateChangedEvent(NetworkObjectId, value)).
         Log.D($"[PlayerHiding] PublishState {value} on {NetworkObjectId}");
+
+        hidingStateChanged.RaiseEvent(new HidingStateChangedEvent(NetworkObjectId, value));
     }
 }

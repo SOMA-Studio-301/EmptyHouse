@@ -14,6 +14,11 @@ public sealed class WardrobeInteractable : NetworkBehaviour
     [SerializeField] private Transform hideAnchor; // 진입 시 플레이어가 스냅될 벽장 안 은신 지점(자식 Transform)
     [SerializeField] private Transform exitAnchor; // 탈출 시 플레이어가 복귀할 문 앞 위치(자식 Transform, 3-5-1)
 
+    [Header("Audio")]
+    [SerializeField] private SFXEventChannelSO sfxEventChannel; // 원샷 SFX 발행 채널(§4.5 오브젝트 사운드)
+    [SerializeField] private AudioId doorCloseAudioId = AudioId.Sfx_Wardrobe_Close; // 진입 확정(문 닫힘) 시 재생
+    [SerializeField] private AudioId doorOpenAudioId = AudioId.Sfx_Wardrobe_Open; // 탈출 확정(문 열림) 시 재생
+
     // 점유자의 PlayerObject NetworkObjectId. 0 = 비어 있음. 점유 여부의 단일 소스이며 서버만 쓴다.
     private readonly NetworkVariable<ulong> occupantId = new NetworkVariable<ulong>(
         0,
@@ -25,15 +30,15 @@ public sealed class WardrobeInteractable : NetworkBehaviour
     /// <summary>문 개폐 연출·SFX 를 점유 변화에 태우기 위해 구독한다(§4.5 오브젝트 사운드: 상태 복제에 편승).</summary>
     public override void OnNetworkSpawn()
     {
-        // TODO(impl): occupantId.OnValueChanged += HandleOccupantChanged; 후 현재값으로 문 상태 1회 동기화(늦은 합류 대비).
-        Log.D($"[WardrobeInteractable] OnNetworkSpawn {NetworkObjectId}");
+        occupantId.OnValueChanged += HandleOccupantChanged;
+        // 늦은 합류자도 현재 점유값으로 문 상태를 맞춘다. previous == current 이므로 SFX 는 나지 않는다.
+        HandleOccupantChanged(occupantId.Value, occupantId.Value);
     }
 
     /// <summary>점유 변화 구독을 해제한다.</summary>
     public override void OnNetworkDespawn()
     {
-        // TODO(impl): occupantId.OnValueChanged -= HandleOccupantChanged;
-        Log.D($"[WardrobeInteractable] OnNetworkDespawn {NetworkObjectId}");
+        occupantId.OnValueChanged -= HandleOccupantChanged;
     }
 
     /// <summary>
@@ -43,8 +48,7 @@ public sealed class WardrobeInteractable : NetworkBehaviour
     /// <param name="interactor">진입을 시도한 상호작용 주체. 로컬 참조이며 서버 판정에는 쓰이지 않는다.</param>
     public void RequestEnter(PlayerInteractor interactor)
     {
-        // TODO(impl): RequestEnterServerRpc() 호출.
-        Log.D($"[WardrobeInteractable] RequestEnter on {NetworkObjectId}");
+        RequestEnterServerRpc();
     }
 
     /// <summary>
@@ -53,8 +57,7 @@ public sealed class WardrobeInteractable : NetworkBehaviour
     /// <param name="interactor">탈출을 시도한 상호작용 주체. 로컬 참조이며 서버 판정에는 쓰이지 않는다.</param>
     public void RequestExit(PlayerInteractor interactor)
     {
-        // TODO(impl): RequestExitServerRpc() 호출.
-        Log.D($"[WardrobeInteractable] RequestExit on {NetworkObjectId}");
+        RequestExitServerRpc();
     }
 
     /// <summary>
@@ -66,12 +69,13 @@ public sealed class WardrobeInteractable : NetworkBehaviour
     [Rpc(SendTo.Server, InvokePermission = RpcInvokePermission.Everyone)]
     private void RequestEnterServerRpc(RpcParams rpcParams = default)
     {
-        // TODO(impl): !IsServer || IsOccupied 면 무시(이미 점유 = 경쟁 패배).
-        // TODO(impl): sender ClientId → NetworkManager.ConnectedClients[id].PlayerObject 로 신원 확인(없으면 무시).
-        // TODO(impl): occupantId.Value = playerObject.NetworkObjectId.
-        // TODO(impl): playerObject.GetComponent<PlayerHiding>().ServerSetHidden(true).
-        // TODO(impl): 서버에서 플레이어 위치를 hideAnchor 로 스냅(서버 권위 NetworkTransform 필요 — 프리팹 설정 사항).
-        Log.D($"[WardrobeInteractable] RequestEnterServerRpc on {NetworkObjectId}");
+        if (!IsServer || IsOccupied) return; // 이미 점유 = 동시 완료 경쟁 패배(3-9 M1)
+        if (!TryGetSenderPlayer(rpcParams, out NetworkObject playerObject)) return;
+
+        occupantId.Value = playerObject.NetworkObjectId;
+        playerObject.GetComponent<PlayerHiding>().ServerSetHidden(true);
+        // TODO(impl): 플레이어 위치를 hideAnchor 로 스냅 — 플레이어 NetworkTransform 이 소유자 권위라
+        // 서버 직접 쓰기가 소유자에게 덮어써진다. 소유자 대상 RPC 필요(§9-1) → 오케스트레이터 보고 후 구현.
     }
 
     /// <summary>
@@ -82,11 +86,36 @@ public sealed class WardrobeInteractable : NetworkBehaviour
     [Rpc(SendTo.Server, InvokePermission = RpcInvokePermission.Everyone)]
     private void RequestExitServerRpc(RpcParams rpcParams = default)
     {
-        // TODO(impl): !IsServer 면 무시. sender 의 PlayerObject.NetworkObjectId 가 occupantId 와 다르면 무시(점유자 아님).
-        // TODO(impl): playerObject.GetComponent<PlayerHiding>().ServerSetHidden(false).
-        // TODO(impl): 서버에서 플레이어 위치를 exitAnchor 로 스냅.
-        // TODO(impl): occupantId.Value = 0.
-        Log.D($"[WardrobeInteractable] RequestExitServerRpc on {NetworkObjectId}");
+        if (!IsServer) return;
+        if (!TryGetSenderPlayer(rpcParams, out NetworkObject playerObject)) return;
+        if (playerObject.NetworkObjectId != occupantId.Value) return; // 점유자만 탈출
+
+        playerObject.GetComponent<PlayerHiding>().ServerSetHidden(false);
+        // TODO(impl): 플레이어 위치를 exitAnchor 로 스냅 — 진입과 동일하게 소유자 대상 RPC 필요(§9-1) → 오케스트레이터 보고 후 구현.
+        occupantId.Value = 0;
+    }
+
+    /// <summary>
+    /// RPC 송신자의 PlayerObject 를 조회한다. 클라가 보낸 참조를 신뢰하지 않고 sender 로만 신원을 판정한다
+    /// (InteractableBase 소음 RPC 와 동일 패턴).
+    /// </summary>
+    /// <param name="rpcParams">송신자 식별용 RPC 파라미터.</param>
+    /// <param name="playerObject">확인된 송신자의 PlayerObject. 실패 시 null.</param>
+    /// <returns>PlayerObject 확인 성공 여부.</returns>
+    private bool TryGetSenderPlayer(RpcParams rpcParams, out NetworkObject playerObject)
+    {
+        playerObject = null;
+        ulong senderClientId = rpcParams.Receive.SenderClientId;
+        if (NetworkManager == null
+            || !NetworkManager.ConnectedClients.TryGetValue(senderClientId, out NetworkClient client)
+            || client.PlayerObject == null)
+        {
+            Debug.LogWarning($"[{nameof(WardrobeInteractable)}] Rejected request from client {senderClientId}: PlayerObject is unavailable.", this);
+            return false;
+        }
+
+        playerObject = client.PlayerObject;
+        return true;
     }
 
     /// <summary>점유 변화에 맞춰 문 개폐 연출·SFX 를 구동한다. 모든 클라에서 각자 자기 인스턴스가 실행한다(§4.5).</summary>
@@ -94,7 +123,9 @@ public sealed class WardrobeInteractable : NetworkBehaviour
     /// <param name="current">현재 점유자 Id(0=빔).</param>
     private void HandleOccupantChanged(ulong previous, ulong current)
     {
-        // TODO(impl): current != 0 이면 문 닫힘 연출/SFX, 0 이면 열림 연출/SFX. SFX 는 sfxEventChannel 로 발행(§4.5 오브젝트 사운드).
-        Log.D($"[WardrobeInteractable] HandleOccupantChanged {previous}->{current}");
+        // 문 개폐 시각 연출은 아트 리소스 미확정이라 아직 SFX 만 태운다. 스폰 동기화 호출(previous == current)은 상태 변화가 아니므로 소리를 내지 않는다.
+        if (previous == current) return;
+
+        sfxEventChannel.RaisePlayEvent(current != 0 ? doorCloseAudioId : doorOpenAudioId, transform.position);
     }
 }

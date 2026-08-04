@@ -65,6 +65,7 @@ GameObject:
   - component: {fileID: 910000000000000029}
   - component: {fileID: 910000000000000030}
   - component: {fileID: 910000000000000031}
+  - component: {fileID: 868667955893195295}
   m_Layer: 0
   m_Name: Player_UnityChan
   m_TagString: Untagged
@@ -290,6 +291,7 @@ MonoBehaviour:
   inputReader: {fileID: 11400000, guid: eaa08e0560934b24b9f7d5f7d9f863dd, type: 2}
   inventory: {fileID: 7556772348847717246}
   disguise: {fileID: 910000000000000002}
+  hiding: {fileID: 0}
   promptUI: {fileID: 4209612319932583615}
   holdGaugeUI: {fileID: 61655479914279791}
   rayOrigin: {fileID: 2490874660187570101}
@@ -605,6 +607,20 @@ MonoBehaviour:
   fallbackMaterial: {fileID: 2100000, guid: e1829304b5c6d7e8f9a0b1c2d3e4f506, type: 2}
   fallbackLineWidth: 0.03
   fallbackMarkerSize: 0.35
+--- !u!114 &868667955893195295
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2490874660187570032}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: c0ae811cbcc2c3c449cf62f53cf016ca, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::PlayerHiding
+  ShowTopMostFoldoutHeaderGroup: 1
+  hidingStateChanged: {fileID: 11400000, guid: fb558dcf542cd894383de5df4db55670, type: 2}
 --- !u!1 &2490874660187570100
 GameObject:
   m_ObjectHideFlags: 0

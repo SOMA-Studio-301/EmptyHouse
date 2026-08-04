@@ -29,8 +29,12 @@ public sealed class WardrobeExit : HoldInteractableBase
     public override InteractPromptInfo GetPromptInfo(PlayerInteractor interactor)
     {
         // 매 프레임 호출되므로 진입 트레이스를 두지 않는다.
-        // TODO(impl): Active(exitVerbKey, Hold, holdWardrobeSeconds) 반환.
-        return default;
+        return new InteractPromptInfo(
+            InteractPromptState.Active,
+            exitVerbKey,
+            InteractInputMethod.Hold,
+            holdWardrobeSeconds,
+            null);
     }
 
     /// <summary>
@@ -39,7 +43,7 @@ public sealed class WardrobeExit : HoldInteractableBase
     /// <param name="interactor">홀드를 완료한 상호작용 주체.</param>
     protected override void OnActivate(PlayerInteractor interactor)
     {
-        // TODO(impl): RaiseNoise(doorNoiseDb). wardrobe.RequestExit(interactor).
-        Log.D($"[WardrobeExit] OnActivate on {name}");
+        RaiseNoise(doorNoiseDb);
+        wardrobe.RequestExit(interactor);
     }
 }
