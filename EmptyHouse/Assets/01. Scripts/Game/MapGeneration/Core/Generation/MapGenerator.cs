@@ -27,9 +27,62 @@ namespace EmptyHouse.MapGen.Core
         /// <returns>성공 여부·블루프린트·리롤 횟수·실패 사유를 담은 결과.</returns>
         public MapGenResult Generate(MapGenParams genParams, IReadOnlyList<RoomTemplateDef> templates)
         {
-            // TODO(impl): ValidateInputs(X4) → rng.Reseed(Seed) → [레이아웃 → 위험 깊이 → 자물쇠·열쇠 → 스폰 → 검증] 리롤 루프 → 결과 조립
             Log.D($"[MapGenerator] Generate 시드={genParams.Seed}");
-            return default;
+            var result = new MapGenResult();
+            var inputErrors = new List<string>();
+            if (!ValidateInputs(genParams, templates, inputErrors))
+            {
+                result.FailReasons.AddRange(inputErrors);
+                return result;
+            }
+
+            // 리롤도 리시드 없이 같은 스트림을 이어 쓴다(8절·X3) — 시도 = 레이아웃+열쇠+스폰+검증 한 묶음
+            rng.Reseed(genParams.Seed);
+            for (int attempt = 0; attempt <= genParams.RerollMax; attempt++)
+            {
+                result.RerollCount = attempt;
+                var blueprint = new MapBlueprint();
+                blueprint.Meta.Seed = genParams.Seed;
+                blueprint.Meta.GeneratorVersion = GeneratorVersion;
+                blueprint.Meta.ParamsSnapshot = genParams;
+
+                if (!layoutGenerator.TryGenerate(rng, genParams, templates, blueprint))
+                {
+                    result.FailReasons.Add($"시도 {attempt + 1}: 레이아웃 생성 실패");
+                    continue;
+                }
+
+                int[] depths = DangerGradeCalculator.ComputeDepths(blueprint);
+                if (!lockKeyPlacer.TryPlace(rng, genParams, blueprint, depths, templates))
+                {
+                    result.FailReasons.Add($"시도 {attempt + 1}: 열쇠·자물쇠 배치 실패");
+                    continue;
+                }
+
+                if (!spawnDistributor.TryDistribute(rng, genParams, blueprint, depths, templates))
+                {
+                    result.FailReasons.Add($"시도 {attempt + 1}: 스폰 분배 실패");
+                    continue;
+                }
+
+                ValidationReport report = validator.Validate(blueprint, genParams);
+                result.LastReport = report;
+                if (report.AllPassed)
+                {
+                    result.Success = true;
+                    result.Blueprint = blueprint;
+                    return result;
+                }
+
+                for (int f = 0; f < report.FailReasons.Count; f++)
+                {
+                    result.FailReasons.Add($"시도 {attempt + 1}: {report.FailReasons[f]}");
+                }
+            }
+
+            // X2 — 폴백 맵 없음, 예외 없음. 실패 사유·소비 리롤 횟수를 그대로 보고한다(AC-18)
+            Log.D($"[MapGenerator] 리롤 상한({genParams.RerollMax}) 초과 — 생성 실패(X2)");
+            return result;
         }
 
         /// <summary>
@@ -42,9 +95,67 @@ namespace EmptyHouse.MapGen.Core
         /// <returns>모순이 없으면 true.</returns>
         public bool ValidateInputs(MapGenParams genParams, IReadOnlyList<RoomTemplateDef> templates, List<string> errors)
         {
-            // TODO(impl):
             Log.D("[MapGenerator] ValidateInputs");
-            return default;
+            if (genParams.Seed == 0)
+            {
+                errors.Add("X4: 시드 0 — 코어 진입 전에 서버가 실제 값으로 확정해야 한다(X8)");
+            }
+
+            if (genParams.RoomsTotalMin < 2 || genParams.RoomsTotalMin > genParams.RoomsTotalMax)
+            {
+                errors.Add($"X4: 총 방 수 범위 모순(Min {genParams.RoomsTotalMin} · Max {genParams.RoomsTotalMax})");
+            }
+
+            bool hasAnchor = false;
+            bool hasVaccineMarker = false;
+            bool hasKeyMarker = false;
+            bool hasOilMarker = false;
+            int minCountSum = 0;
+            for (int t = 0; t < templates.Count; t++)
+            {
+                RoomTemplateDef template = templates[t];
+                hasAnchor |= template.IsEntranceAnchor;
+                minCountSum += template.MinCount;
+                for (int m = 0; m < template.Markers.Length; m++)
+                {
+                    if (template.Markers[m].Kind != MarkerKind.ItemSpawn)
+                    {
+                        continue;
+                    }
+
+                    ItemCategoryMask mask = template.Markers[m].ItemMask;
+                    hasVaccineMarker |= (mask & ItemCategoryMask.Vaccine) != 0;
+                    hasKeyMarker |= (mask & ItemCategoryMask.Key) != 0;
+                    hasOilMarker |= (mask & ItemCategoryMask.Oil) != 0;
+                }
+            }
+
+            if (!hasAnchor)
+            {
+                errors.Add("X4: 입구 앵커 템플릿 부재(3절 — 레이아웃 시작 불가)");
+            }
+
+            if (minCountSum > genParams.RoomsTotalMax)
+            {
+                errors.Add($"X4: 템플릿 MinCount 합({minCountSum})이 총 방 수 상한({genParams.RoomsTotalMax}) 초과");
+            }
+
+            if (!hasVaccineMarker)
+            {
+                errors.Add("X4: Vaccine 허용 ItemSpawn 마커 부재 — 백신 배치 불가");
+            }
+
+            if (!hasKeyMarker)
+            {
+                errors.Add("X4: Key 허용 ItemSpawn 마커 부재 — 열쇠 배치 불가");
+            }
+
+            if (!hasOilMarker)
+            {
+                errors.Add("X4: Oil 허용 ItemSpawn 마커 부재 — 기름 배치 불가");
+            }
+
+            return errors.Count == 0;
         }
     }
 }
