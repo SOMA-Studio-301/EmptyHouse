@@ -18,6 +18,8 @@ public class PlayerController : NetworkBehaviour
     [SerializeField] private float lookSensitivity = 0.1f; // 기본 시선 감도(튜닝값). 설정창의 배율이 여기에 곱해진다
     [SerializeField] private float pitchClamp = 89f; // pitch 상하 클램프 각도(±)
     [SerializeField] private float wardrobeLookAngleDeg = 60f; // 은신 중 시야 콘 반각(3-10 wardrobe_look_angle_deg). 진입 시점 정면 기준 yaw·pitch 를 ±이 각도로 클램프
+    [SerializeField] private float upperBodyYawLimitDeg = 60f; // 정지 중 상체만 시선을 따라가는 yaw 한계각(±). 초과분은 하체가 따라 돈다
+    [SerializeField] private float bodyTurnSpeedDeg = 360f; // 하체(bodyYaw)가 시선을 따라 도는 속도(도/초)
 
     [Header("Settings")]
     [SerializeField] private SaveLoadSystem saveLoadSystem; // 스폰 시 저장된 감도 배율을 읽어오는 원본
@@ -57,7 +59,8 @@ public class PlayerController : NetworkBehaviour
     private bool isCrouching; // 웅크림 상태(홀드) — Crouch 입력 콜백이 켜고 끄며, HandleMove 가 이동속도 배율에 반영한다
 
     private float pitch; // 시선 상태 — cameraPivot 의 로컬 X 회전
-    private float yaw; // 시선 상태 — 본체의 Y 회전
+    private float yaw; // 시선 상태 — 카메라가 향하는 월드 Y 회전. 본체 회전(bodyYaw)과 분리되어 있다
+    private float bodyYaw; // 하체(본체)의 Y 회전 — 시선이 상체 한계각을 넘거나 이동 중일 때만 시선을 따라온다
 
     private float hiddenBaseYaw; // 은신 시야 콘의 기준 yaw. 은신 진입 순간의 시선(또는 스냅 앵커 정면)이다. 은신 중에만 유효하다
     private bool wasHidden; // 직전 프레임의 은신 여부 — 진입 순간(false→true)에 hiddenBaseYaw 를 잡기 위한 에지 검출용
@@ -68,6 +71,8 @@ public class PlayerController : NetworkBehaviour
     public float PlanarSpeed => new Vector2(body.linearVelocity.x, body.linearVelocity.z).magnitude; // 수평(XZ) 이동 속력(m/s). 이동 블렌드 파라미터용
     public bool Grounded => IsGrounded(); // 접지 여부. 애니메이션 파라미터용
     public bool Crouching => isCrouching; // 웅크림 상태 여부. 애니메이션 파라미터용
+    public float AimPitchDeg => pitch; // 시선 pitch(도). 상체 조준 표현(AimPitch 파라미터)용
+    public float AimYawOffsetDeg => Mathf.DeltaAngle(bodyYaw, yaw); // 시선-하체 yaw 차(도). 상체 비틀림 표현(AimYawOffset 파라미터)용
     public event System.Action JumpPerformed; // 점프가 실제로 발동한 순간 발행된다. 애니메이션 트리거용
 
     /// <summary>Rigidbody 와 형제 PlayerDeathHandler·PlayerReturn 참조를 캐시한다.</summary>
@@ -181,6 +186,7 @@ public class PlayerController : NetworkBehaviour
 
         ForcePose(position, rotation);
         yaw = rotation.eulerAngles.y;
+        bodyYaw = yaw;
         pitch = 0f;
         cameraPivot.localRotation = Quaternion.Euler(pitch, 0f, 0f);
         hiddenBaseYaw = yaw; // 은신 스냅이면 콘 기준을 앵커 정면으로 재설정. 비은신 스냅에서는 쓰이지 않는 값이라 무해하다.
@@ -336,7 +342,8 @@ public class PlayerController : NetworkBehaviour
     // ── 실제 행동 ───────────────────────────────────────────────
 
     /// <summary>
-    /// 캐시된 시선 입력으로 yaw/pitch 를 누적해 본체와 cameraPivot 을 회전시킨다.
+    /// 캐시된 시선 입력으로 yaw/pitch 를 누적하고, 시선(cameraPivot)과 하체(bodyYaw) 회전을 분리 적용한다.
+    /// 본체는 bodyYaw 로 회전하고, cameraPivot 로컬 회전이 pitch 와 시선-하체 yaw 차를 흡수한다.
     /// Look 바인딩이 &lt;Pointer&gt;/delta 이므로, 소비 후 lookInput 을 반드시 zero 로 리셋해야 한다.
     /// 리셋하지 않으면 마우스를 멈춰도 마지막 delta 가 매 프레임 재적용되어 계속 회전한다.
     /// </summary>
@@ -353,14 +360,38 @@ public class PlayerController : NetworkBehaviour
             float yawDelta = Mathf.DeltaAngle(hiddenBaseYaw, yaw);
             yaw = hiddenBaseYaw + Mathf.Clamp(yawDelta, -wardrobeLookAngleDeg, wardrobeLookAngleDeg);
             pitch = Mathf.Clamp(pitch, -wardrobeLookAngleDeg, wardrobeLookAngleDeg);
+            bodyYaw = hiddenBaseYaw; // 문틈 시야는 상체·카메라만 움직인다 — 하체는 앵커 정면에 고정
+        }
+        else
+        {
+            HandleBodyTurn();
         }
 
-        transform.rotation = Quaternion.Euler(0f, yaw, 0f);
-        cameraPivot.localRotation = Quaternion.Euler(pitch, 0f, 0f);
+        transform.rotation = Quaternion.Euler(0f, bodyYaw, 0f);
+        cameraPivot.localRotation = Quaternion.Euler(pitch, Mathf.DeltaAngle(bodyYaw, yaw), 0f);
 
         // <Pointer>/delta 는 이번 프레임에 소비하고 반드시 zero 로 리셋한다. 그러지 않으면
         // 마우스를 멈춰도 마지막 delta 가 매 프레임 재적용되어 계속 회전한다.
         lookInput = Vector2.zero;
+    }
+
+    /// <summary>
+    /// 하체(bodyYaw)를 시선에 맞춰 따라 돌린다.
+    /// 이동 중에는 시선으로 정렬하고, 정지 중에는 시선-하체 차가 상체 한계각을 넘었을 때만 한계 안으로 끌어온다.
+    /// </summary>
+    private void HandleBodyTurn()
+    {
+        float offset = Mathf.DeltaAngle(bodyYaw, yaw);
+        float step = bodyTurnSpeedDeg * Time.deltaTime;
+
+        if (moveInput.sqrMagnitude > 0.0001f)
+        {
+            bodyYaw = Mathf.MoveTowardsAngle(bodyYaw, yaw, step);
+        }
+        else if (Mathf.Abs(offset) > upperBodyYawLimitDeg)
+        {
+            bodyYaw = Mathf.MoveTowardsAngle(bodyYaw, yaw - Mathf.Sign(offset) * upperBodyYawLimitDeg, step);
+        }
     }
 
     /// <summary>
