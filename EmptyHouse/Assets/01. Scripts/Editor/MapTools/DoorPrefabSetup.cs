@@ -67,9 +67,12 @@ namespace EmptyHouse.EditorTools
             doorSo.FindProperty("sfxEventChannel").objectReferenceValue = sfxChannel;
             doorSo.ApplyModifiedPropertiesWithoutUndo();
 
-            // 상호작용 면 — 자물쇠는 손잡이 박스보다 두껍게(레이가 자물쇠 영역에서 먼저 걸리도록)
-            SetupFace<DoorLockFace>(root, door, noiseChannel, "LockFace", new Vector3(0.55f, 1.15f, 0f), new Vector3(0.55f, 0.7f, 0.5f));
-            SetupFace<DoorHandleInteractable>(root, door, noiseChannel, "HandleFace", new Vector3(0f, 1.3f, 0f), new Vector3(2.6f, 2.4f, 0.3f));
+            // 상호작용 면 — 문짝 자식으로 배치해 개방 스윙과 함께 비켜난다(열린 문간에 판정면이 남아 레이를 가로채지 않게).
+            // 손잡이 면은 양쪽 문짝 전면, 자물쇠 면은 오른쪽 문짝 이음(seam) 쪽 — 자물쇠 박스가 더 두꺼워 그 영역에선 레이가 먼저 걸린다
+            RemoveLegacyRootFaces(root);
+            SetupHandleFace(leafL, door, noiseChannel, "HandleFace_L");
+            SetupHandleFace(leafR, door, noiseChannel, "HandleFace_R");
+            SetupLockFace(leafR, door, noiseChannel);
 
             PrefabUtility.SaveAsPrefabAsset(root, doorPrefabPath);
             PrefabUtility.UnloadPrefabContents(root);
@@ -147,20 +150,47 @@ namespace EmptyHouse.EditorTools
             clip.SetCurve(path, typeof(Transform), "localEulerAnglesRaw.z", AnimationCurve.Constant(0f, seconds, closed.z));
         }
 
-        /// <summary>상호작용 면 자식을 확보한다 — Interactable 레이어·트리거 박스 콜라이더·면 스크립트·참조 배선.</summary>
-        /// <param name="root">프리팹 루트.</param>
+        /// <summary>손잡이 판정면을 문짝 자식으로 확보한다 — 문짝 메시 실측 바운드에 맞춘 트리거 박스.</summary>
+        /// <param name="leaf">부모 문짝(메시 보유 오브젝트).</param>
         /// <param name="door">상태 단일 소스 문 루트.</param>
         /// <param name="noiseChannel">소음 채널(InteractableBase 요구).</param>
         /// <param name="name">면 이름.</param>
-        /// <param name="center">콜라이더 중심(로컬).</param>
-        /// <param name="size">콜라이더 크기.</param>
-        private static void SetupFace<T>(GameObject root, DoorInteractable door, NoiseEventChannelSO noiseChannel, string name, Vector3 center, Vector3 size) where T : Component
+        private static void SetupHandleFace(Transform leaf, DoorInteractable door, NoiseEventChannelSO noiseChannel, string name)
         {
-            Transform face = root.transform.Find(name);
+            Bounds bounds = LeafBounds(leaf);
+            Vector3 size = bounds.size;
+            size.z = Mathf.Max(size.z, 0.25f); // 얇은 문판이라 조준 두께 확보
+            SetupFace<DoorHandleInteractable>(leaf, door, noiseChannel, name, bounds.center, size);
+        }
+
+        /// <summary>자물쇠 판정면을 문짝 이음(seam) 쪽에 확보한다 — 손잡이 면보다 두꺼워 그 영역에선 레이가 먼저 걸린다.</summary>
+        /// <param name="leaf">부모 문짝(이음 쪽 — 오른쪽 문짝).</param>
+        /// <param name="door">상태 단일 소스 문 루트.</param>
+        /// <param name="noiseChannel">소음 채널(InteractableBase 요구).</param>
+        private static void SetupLockFace(Transform leaf, DoorInteractable door, NoiseEventChannelSO noiseChannel)
+        {
+            // 문짝 피벗은 경첩 쪽 — 메시가 뻗은 방향(bounds.center.x 부호)의 바깥 3/4 지점이 이음 가장자리다
+            Bounds bounds = LeafBounds(leaf);
+            float seamSign = Mathf.Sign(bounds.center.x == 0f ? 1f : bounds.center.x);
+            var center = new Vector3(bounds.center.x + seamSign * bounds.extents.x * 0.5f, bounds.center.y * 0.85f, bounds.center.z);
+            var size = new Vector3(0.5f, 0.6f, Mathf.Max(bounds.size.z, 0.25f) + 0.25f);
+            SetupFace<DoorLockFace>(leaf, door, noiseChannel, "LockFace", center, size);
+        }
+
+        /// <summary>상호작용 면 자식을 확보한다 — Interactable 레이어·트리거 박스 콜라이더·면 스크립트·참조 배선.</summary>
+        /// <param name="parent">면을 붙일 부모(문짝).</param>
+        /// <param name="door">상태 단일 소스 문 루트.</param>
+        /// <param name="noiseChannel">소음 채널(InteractableBase 요구).</param>
+        /// <param name="name">면 이름.</param>
+        /// <param name="center">콜라이더 중심(부모 로컬).</param>
+        /// <param name="size">콜라이더 크기.</param>
+        private static void SetupFace<T>(Transform parent, DoorInteractable door, NoiseEventChannelSO noiseChannel, string name, Vector3 center, Vector3 size) where T : Component
+        {
+            Transform face = parent.Find(name);
             if (face == null)
             {
                 face = new GameObject(name).transform;
-                face.SetParent(root.transform, false);
+                face.SetParent(parent, false);
             }
 
             face.gameObject.layer = LayerMask.NameToLayer("Interactable");
@@ -175,6 +205,34 @@ namespace EmptyHouse.EditorTools
             so.FindProperty("door").objectReferenceValue = door;
             so.FindProperty("noiseEmittedChannel").objectReferenceValue = noiseChannel;
             so.ApplyModifiedPropertiesWithoutUndo();
+        }
+
+        /// <summary>문짝 메시의 로컬 바운드 — 면 콜라이더 실측 기준(문짝 오브젝트가 메시 보유자라는 전제, NavMesh 베이커와 동일).</summary>
+        /// <param name="leaf">문짝 트랜스폼.</param>
+        /// <returns>메시 로컬 바운드.</returns>
+        private static Bounds LeafBounds(Transform leaf)
+        {
+            MeshFilter meshFilter = leaf.GetComponent<MeshFilter>();
+            if (meshFilter != null && meshFilter.sharedMesh != null)
+            {
+                return meshFilter.sharedMesh.bounds;
+            }
+
+            return new Bounds(new Vector3(0.7f, 1.3f, 0f), new Vector3(1.4f, 2.6f, 0.25f)); // 메시 미보유 폴백(3M 개구 반쪽 근사)
+        }
+
+        /// <summary>구버전 셋업이 루트에 만든 면을 제거한다 — 열린 문간에 판정면이 남는 결함 정리.</summary>
+        /// <param name="root">프리팹 루트.</param>
+        private static void RemoveLegacyRootFaces(GameObject root)
+        {
+            foreach (string name in new[] { "LockFace", "HandleFace" })
+            {
+                Transform legacy = root.transform.Find(name);
+                if (legacy != null)
+                {
+                    Object.DestroyImmediate(legacy.gameObject);
+                }
+            }
         }
 
         /// <summary>레지스트리 DoorPrefab 과 NetworkPrefabs 목록에 문 프리팹을 등재한다(중복 등재 방지).</summary>
