@@ -240,7 +240,8 @@ namespace EmptyHouse.EditorTools
                 }
             }
 
-            DrawKeyVariantSection(registry);
+            registry.KeyPrefabs = DrawVariantSection(registry, "열쇠 변종 (인덱스 + 1 = 페어 번호)", "열쇠", registry.KeyPrefabs);
+            registry.LockPrefabs = DrawVariantSection(registry, "자물쇠 변종 (인덱스 + 1 = 페어 번호, DoorLockFace 루트)", "자물쇠", registry.LockPrefabs);
             DrawDuplicateSpawnEntries(registry);
 
             int unassigned = CountUnassignedSpawnKinds(registry);
@@ -266,38 +267,43 @@ namespace EmptyHouse.EditorTools
         }
 
         /// <summary>
-        /// 열쇠 변종 섹션 — 인덱스 + 1 = 페어 번호(비주얼 구분). 미등재 번호는 공용 Key 프리팹으로 폴백되고,
-        /// pairId 는 어느 쪽이든 스포너가 번호로 주입한다.
+        /// 페어 번호별 변종 섹션(열쇠·자물쇠 공용) — 인덱스 + 1 = 페어 번호. 최대 쌍 수(5)만큼 행을 노출하고,
+        /// 슬롯 할당 시에만 SetDirty 로 저장을 확정한다(표시용 배열 확장은 무해).
         /// </summary>
         /// <param name="registry">대상 레지스트리.</param>
-        private static void DrawKeyVariantSection(MapPrefabRegistrySO registry)
+        /// <param name="title">섹션 제목.</param>
+        /// <param name="rowPrefix">행 이름 접두사(열쇠/자물쇠).</param>
+        /// <param name="variants">현재 변종 배열.</param>
+        /// <returns>갱신된 변종 배열(호출자가 필드에 대입).</returns>
+        private static NetworkObject[] DrawVariantSection(MapPrefabRegistrySO registry, string title, string rowPrefix, NetworkObject[] variants)
         {
             EditorGUILayout.Space(2f);
-            EditorGUILayout.LabelField("열쇠 변종 (인덱스 + 1 = 페어 번호)", EditorStyles.miniBoldLabel);
+            EditorGUILayout.LabelField(title, EditorStyles.miniBoldLabel);
 
-            if (registry.KeyPrefabs == null || registry.KeyPrefabs.Length < maxLockPairs)
+            if (variants == null || variants.Length < maxLockPairs)
             {
-                // 표시 편의 확장 — 빈 칸은 공용 폴백이라 무해. 실제 저장은 슬롯 할당 시 SetDirty 로 확정된다
                 var resized = new NetworkObject[maxLockPairs];
-                for (int i = 0; registry.KeyPrefabs != null && i < registry.KeyPrefabs.Length; i++)
+                for (int i = 0; variants != null && i < variants.Length; i++)
                 {
-                    resized[i] = registry.KeyPrefabs[i];
+                    resized[i] = variants[i];
                 }
 
-                registry.KeyPrefabs = resized;
+                variants = resized;
             }
 
-            for (int i = 0; i < registry.KeyPrefabs.Length; i++)
+            for (int i = 0; i < variants.Length; i++)
             {
                 EditorGUI.BeginChangeCheck();
-                var next = (NetworkObject)EditorGUILayout.ObjectField($"열쇠_{i + 1:00}", registry.KeyPrefabs[i], typeof(NetworkObject), false);
+                var next = (NetworkObject)EditorGUILayout.ObjectField($"{rowPrefix}_{i + 1:00}", variants[i], typeof(NetworkObject), false);
                 if (EditorGUI.EndChangeCheck())
                 {
-                    Undo.RecordObject(registry, "열쇠 변종 변경");
-                    registry.KeyPrefabs[i] = next;
+                    Undo.RecordObject(registry, $"{rowPrefix} 변종 변경");
+                    variants[i] = next;
                     EditorUtility.SetDirty(registry);
                 }
             }
+
+            return variants;
         }
 
         /// <summary>같은 SpawnKind 의 중복 항목(첫 항목 이후)을 나열하고 개별 제거 버튼을 제공한다.</summary>

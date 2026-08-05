@@ -35,6 +35,7 @@ namespace EmptyHouse.MapGen.Runtime
         public NetworkObject DoorPrefab; // 문 상태 오브젝트(DoorInteractable 루트) — 서버 스폰(1절)
         public SpawnPrefabEntry[] SpawnPrefabs; // 스폰 종류 → 상태 오브젝트 프리팹(좀비·아이템·설비)
         public NetworkObject[] KeyPrefabs; // 열쇠 변종(인덱스 + 1 = 페어 번호) — 비주얼 구분용. 번호 범위 밖이면 SpawnPrefabs 의 Key 공용 프리팹 폴백
+        public NetworkObject[] LockPrefabs; // 자물쇠 변종(인덱스 + 1 = 페어 번호, DoorLockFace 루트) — 잠긴 문의 LockPos 에 서버 스폰. 미등재 번호는 자물쇠 없이 잠김(해정 불가) 경고
         public float CellMeters = 4f; // 셀 실측(m) — MapTemplateCatalog.CellMeters 와 일치해야 한다(G1)
     }
 }

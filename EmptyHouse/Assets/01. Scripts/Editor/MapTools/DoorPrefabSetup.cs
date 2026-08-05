@@ -67,12 +67,15 @@ namespace EmptyHouse.EditorTools
             doorSo.FindProperty("sfxEventChannel").objectReferenceValue = sfxChannel;
             doorSo.ApplyModifiedPropertiesWithoutUndo();
 
-            // 상호작용 면 — 문짝 자식으로 배치해 개방 스윙과 함께 비켜난다(열린 문간에 판정면이 남아 레이를 가로채지 않게).
-            // 손잡이 면은 양쪽 문짝 전면, 자물쇠 면은 오른쪽 문짝 이음(seam) 쪽 — 자물쇠 박스가 더 두꺼워 그 영역에선 레이가 먼저 걸린다
-            RemoveLegacyRootFaces(root);
+            // 손잡이 면은 양쪽 문짝 자식(개방 스윙과 함께 비켜나 열린 문간 레이를 가로채지 않게, 어느 쪽을 조작해도 동일).
+            // 자물쇠는 별도 스폰 오브젝트 — 문은 LockPos 앵커(이음 쪽)만 제공한다
+            RemoveLegacyFaces(root, leafL, leafR);
             SetupHandleFace(leafL, door, noiseChannel, "HandleFace_L");
             SetupHandleFace(leafR, door, noiseChannel, "HandleFace_R");
-            SetupLockFace(leafR, door, noiseChannel);
+            Transform lockPos = EnsureLockPos(root, leafR);
+            var lockPosSo = new SerializedObject(door);
+            lockPosSo.FindProperty("lockPos").objectReferenceValue = lockPos;
+            lockPosSo.ApplyModifiedPropertiesWithoutUndo();
 
             PrefabUtility.SaveAsPrefabAsset(root, doorPrefabPath);
             PrefabUtility.UnloadPrefabContents(root);
@@ -163,18 +166,28 @@ namespace EmptyHouse.EditorTools
             SetupFace<DoorHandleInteractable>(leaf, door, noiseChannel, name, bounds.center, size);
         }
 
-        /// <summary>자물쇠 판정면을 문짝 이음(seam) 쪽에 확보한다 — 손잡이 면보다 두꺼워 그 영역에선 레이가 먼저 걸린다.</summary>
-        /// <param name="leaf">부모 문짝(이음 쪽 — 오른쪽 문짝).</param>
-        /// <param name="door">상태 단일 소스 문 루트.</param>
-        /// <param name="noiseChannel">소음 채널(InteractableBase 요구).</param>
-        private static void SetupLockFace(Transform leaf, DoorInteractable door, NoiseEventChannelSO noiseChannel)
+        /// <summary>
+        /// 자물쇠 스폰 앵커(LockPos)를 루트 자식으로 확보한다 — 닫힌 오른쪽 문짝의 이음(seam) 가장자리,
+        /// 손잡이 높이의 월드 위치를 루트 로컬로 환산해 배치한다. 자물쇠는 별도 NetworkObject 라 해정 시 소멸된다.
+        /// </summary>
+        /// <param name="root">프리팹 루트.</param>
+        /// <param name="leafR">오른쪽 문짝(이음 기준).</param>
+        /// <returns>LockPos 트랜스폼.</returns>
+        private static Transform EnsureLockPos(GameObject root, Transform leafR)
         {
-            // 문짝 피벗은 경첩 쪽 — 메시가 뻗은 방향(bounds.center.x 부호)의 바깥 3/4 지점이 이음 가장자리다
-            Bounds bounds = LeafBounds(leaf);
+            Transform lockPos = root.transform.Find("LockPos");
+            if (lockPos == null)
+            {
+                lockPos = new GameObject("LockPos").transform;
+                lockPos.SetParent(root.transform, false);
+            }
+
+            Bounds bounds = LeafBounds(leafR);
             float seamSign = Mathf.Sign(bounds.center.x == 0f ? 1f : bounds.center.x);
-            var center = new Vector3(bounds.center.x + seamSign * bounds.extents.x * 0.5f, bounds.center.y * 0.85f, bounds.center.z);
-            var size = new Vector3(0.5f, 0.6f, Mathf.Max(bounds.size.z, 0.25f) + 0.25f);
-            SetupFace<DoorLockFace>(leaf, door, noiseChannel, "LockFace", center, size);
+            var seamLocal = new Vector3(bounds.center.x + seamSign * bounds.extents.x * 0.85f, Mathf.Max(1.0f, bounds.center.y * 0.85f), bounds.center.z);
+            lockPos.position = leafR.TransformPoint(seamLocal); // 닫힘 포즈 기준 월드 위치 — 루트 자식이라 개방 스윙과 무관
+            lockPos.rotation = root.transform.rotation;
+            return lockPos;
         }
 
         /// <summary>상호작용 면 자식을 확보한다 — Interactable 레이어·트리거 박스 콜라이더·면 스크립트·참조 배선.</summary>
@@ -221,16 +234,21 @@ namespace EmptyHouse.EditorTools
             return new Bounds(new Vector3(0.7f, 1.3f, 0f), new Vector3(1.4f, 2.6f, 0.25f)); // 메시 미보유 폴백(3M 개구 반쪽 근사)
         }
 
-        /// <summary>구버전 셋업이 루트에 만든 면을 제거한다 — 열린 문간에 판정면이 남는 결함 정리.</summary>
+        /// <summary>구버전 셋업 잔재(루트 면·문짝 LockFace)를 제거한다 — 자물쇠는 별도 스폰 체계로 전환됐다.</summary>
         /// <param name="root">프리팹 루트.</param>
-        private static void RemoveLegacyRootFaces(GameObject root)
+        /// <param name="leafL">왼쪽 문짝.</param>
+        /// <param name="leafR">오른쪽 문짝.</param>
+        private static void RemoveLegacyFaces(GameObject root, Transform leafL, Transform leafR)
         {
-            foreach (string name in new[] { "LockFace", "HandleFace" })
+            foreach (Transform parent in new[] { root.transform, leafL, leafR })
             {
-                Transform legacy = root.transform.Find(name);
-                if (legacy != null)
+                foreach (string name in new[] { "LockFace", "HandleFace" })
                 {
-                    Object.DestroyImmediate(legacy.gameObject);
+                    Transform legacy = parent.Find(name);
+                    if (legacy != null)
+                    {
+                        Object.DestroyImmediate(legacy.gameObject);
+                    }
                 }
             }
         }

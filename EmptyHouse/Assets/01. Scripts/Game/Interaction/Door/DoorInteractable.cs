@@ -20,8 +20,12 @@ public sealed class DoorInteractable : NetworkBehaviour
     [SerializeField] private AudioId openAudioId = AudioId.Sfx_Door_Open; // 개방 시 재생
     [SerializeField] private AudioId unlockAudioId = AudioId.None; // 해정 시 재생(전용 음원 등재 전까지 None — 채널이 무시)
 
-    [Header("Lock Visuals")]
-    [SerializeField] private GameObject[] lockVisualsByPair = new GameObject[0]; // 페어 번호별 자물쇠 비주얼(인덱스 + 1 = pairId) — 잠금 중 해당 번호만 활성, 해정·비잠금이면 전부 비활성. 비워두면 미사용
+    [Header("Lock")]
+    [SerializeField] private Transform lockPos; // 자물쇠 스폰 앵커(이음 쪽) — 잠긴 문이면 스포너가 이 위치에 자물쇠 변종 NetworkObject 를 스폰한다
+
+    private NetworkObject attachedLock; // 서버 전용 — 이 문에 걸린 자물쇠 오브젝트(해정 승인 시 소멸)
+
+    public Transform LockPos => lockPos; // 스포너의 자물쇠 배치 기준
 
     private static readonly int isOpenAnimHash = Animator.StringToHash("IsOpen"); // 애니메이터 개방 토글 파라미터(스펙 2절)
 
@@ -51,15 +55,21 @@ public sealed class DoorInteractable : NetworkBehaviour
         isLocked.Value = locked;
     }
 
+    /// <summary>스폰 직후 서버가 이 문에 걸린 자물쇠 오브젝트를 연결한다 — 해정 승인 시 문이 소멸시킨다(스포너 전용 경로).</summary>
+    /// <param name="lockObject">자물쇠 NetworkObject.</param>
+    public void ServerAttachLock(NetworkObject lockObject)
+    {
+        Log.D($"[DoorInteractable] ServerAttachLock {NetworkObjectId}");
+        attachedLock = lockObject;
+    }
+
     /// <summary>개방 변화 구독 + 늦은 합류 상태 동기화(Wardrobe 동형 — previous == current 호출은 연출 무음).</summary>
     public override void OnNetworkSpawn()
     {
         Log.D($"[DoorInteractable] OnNetworkSpawn {NetworkObjectId}");
         isOpen.OnValueChanged += HandleOpenChanged;
         isLocked.OnValueChanged += HandleLockChanged;
-        pairId.OnValueChanged += HandlePairChanged;
         HandleOpenChanged(isOpen.Value, isOpen.Value);
-        ApplyLockVisuals();
     }
 
     /// <summary>개방 변화 구독 해제.</summary>
@@ -68,7 +78,6 @@ public sealed class DoorInteractable : NetworkBehaviour
         Log.D($"[DoorInteractable] OnNetworkDespawn {NetworkObjectId}");
         isOpen.OnValueChanged -= HandleOpenChanged;
         isLocked.OnValueChanged -= HandleLockChanged;
-        pairId.OnValueChanged -= HandlePairChanged;
     }
 
     /// <summary>자물쇠 면이 호출 — 해정+개방을 서버에 요청한다(M7 요구 1: 쌍 열쇠 상호작용 → 문 개방).</summary>
@@ -109,6 +118,11 @@ public sealed class DoorInteractable : NetworkBehaviour
 
         isLocked.Value = false;
         isOpen.Value = true;
+        if (attachedLock != null && attachedLock.IsSpawned)
+        {
+            attachedLock.Despawn(); // 해정 = 자물쇠 소멸 — 자물쇠는 별도 오브젝트라 열린 문짝을 따라가지 않으므로 남겨두면 허공에 뜬다
+        }
+
         ConsumeHeldKeyClientRpc(RpcTarget.Single(rpcParams.Receive.SenderClientId, RpcTargetUse.Temp)); // 승인 후 열쇠 소멸(3-6) — 해정한 클라만
     }
 
@@ -146,13 +160,11 @@ public sealed class DoorInteractable : NetworkBehaviour
         sfxEventChannel.RaisePlayEvent(openAudioId, transform.position);
     }
 
-    /// <summary>잠금 변화 편승 — 자물쇠 비주얼 갱신, 해정(true→false) 시 해정 SFX 를 재생한다(개방음과 별도 음원).</summary>
+    /// <summary>잠금 변화 편승 — 해정(true→false) 시 해정 SFX 를 재생한다(개방음과 별도 음원. 자물쇠 비주얼은 별도 스폰 오브젝트 소관).</summary>
     /// <param name="previous">이전 잠금 상태.</param>
     /// <param name="current">현재 잠금 상태.</param>
     private void HandleLockChanged(bool previous, bool current)
     {
-        ApplyLockVisuals();
-
         // 스폰 주입(ServerConfigure) 직후 false→true 전이는 연출 대상이 아니다 — 해정만 소리를 낸다
         if (!previous || current)
         {
@@ -160,23 +172,6 @@ public sealed class DoorInteractable : NetworkBehaviour
         }
 
         sfxEventChannel.RaisePlayEvent(unlockAudioId, transform.position);
-    }
-
-    /// <summary>페어 번호 복제 수신 — 번호별 자물쇠 비주얼을 갱신한다(스폰 직후 주입이 늦게 도착하는 클라 대비).</summary>
-    /// <param name="previous">이전 번호.</param>
-    /// <param name="current">현재 번호.</param>
-    private void HandlePairChanged(int previous, int current)
-    {
-        ApplyLockVisuals();
-    }
-
-    /// <summary>페어 번호별 자물쇠 비주얼 적용 — 잠금 중이면 pairId 번호만 활성, 그 외 전부 비활성(배열 비면 미사용).</summary>
-    private void ApplyLockVisuals()
-    {
-        for (int i = 0; i < lockVisualsByPair.Length; i++)
-        {
-            lockVisualsByPair[i].SetActive(isLocked.Value && i + 1 == pairId.Value);
-        }
     }
 
     /// <summary>해정 승인 통지 — 해정한 클라만 수신해 자기 손의 열쇠를 소멸시킨다(ConsumeHeld, 3-6 · 서버 승인 후 실행).</summary>

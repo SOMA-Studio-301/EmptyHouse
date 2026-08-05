@@ -85,7 +85,14 @@ namespace EmptyHouse.MapGen.Runtime
 
                 NetworkObject door = Object.Instantiate(prefabRegistry.DoorPrefab, anchor.position, anchor.rotation);
                 door.Spawn();
-                door.GetComponent<DoorInteractable>().ServerConfigure(edge.LockNumber, edge.State == EdgeState.DoorLocked);
+                DoorInteractable doorRoot = door.GetComponent<DoorInteractable>();
+                bool locked = edge.State == EdgeState.DoorLocked;
+                doorRoot.ServerConfigure(edge.LockNumber, locked);
+                if (locked)
+                {
+                    SpawnLock(doorRoot, edge.LockNumber);
+                }
+
                 spawned++;
             }
 
@@ -192,18 +199,49 @@ namespace EmptyHouse.MapGen.Runtime
             Log.D($"[MapStateObjectSpawner] 좀비 스폰 {spawned}건(무리 방 {herdRooms.Count})");
         }
 
+        /// <summary>
+        /// 잠긴 문의 LockPos 에 번호별 자물쇠 변종을 스폰하고 문↔자물쇠를 상호 연결한다(M7 요구 1·2).
+        /// 변종 미등재면 경고 — 문은 잠긴 채 자물쇠가 없어 해정 불가(레지스트리 등재 필요).
+        /// </summary>
+        /// <param name="door">잠긴 문 루트.</param>
+        /// <param name="lockNumber">자물쇠 번호(1부터).</param>
+        private void SpawnLock(DoorInteractable door, int lockNumber)
+        {
+            NetworkObject prefab = VariantPrefab(prefabRegistry.LockPrefabs, lockNumber);
+            if (prefab == null)
+            {
+                Log.W($"[MapStateObjectSpawner] 자물쇠_{lockNumber} 변종 미등재 — 잠긴 문에 자물쇠 미부착(해정 불가). 레지스트리 LockPrefabs 등재 필요");
+                return;
+            }
+
+            Transform lockPos = door.LockPos;
+            NetworkObject lockObject = Object.Instantiate(prefab, lockPos.position, lockPos.rotation);
+            lockObject.Spawn();
+            lockObject.GetComponentInChildren<DoorLockFace>().ServerAttachDoor(door);
+            door.ServerAttachLock(lockObject);
+        }
+
         /// <summary>번호별 열쇠 변종 프리팹을 찾는다(인덱스 + 1 = 페어 번호) — 범위 밖·미등재면 null(공용 폴백).</summary>
         /// <param name="keyNumber">열쇠 번호(1부터).</param>
         /// <returns>변종 프리팹 — 없으면 null.</returns>
         private NetworkObject KeyVariantPrefab(int keyNumber)
         {
-            int index = keyNumber - 1;
-            if (prefabRegistry.KeyPrefabs == null || index < 0 || index >= prefabRegistry.KeyPrefabs.Length)
+            return VariantPrefab(prefabRegistry.KeyPrefabs, keyNumber);
+        }
+
+        /// <summary>번호별 변종 배열 조회(인덱스 + 1 = 페어 번호) — 범위 밖·미등재면 null.</summary>
+        /// <param name="variants">변종 배열.</param>
+        /// <param name="pairNumber">페어 번호(1부터).</param>
+        /// <returns>변종 프리팹 — 없으면 null.</returns>
+        private static NetworkObject VariantPrefab(NetworkObject[] variants, int pairNumber)
+        {
+            int index = pairNumber - 1;
+            if (variants == null || index < 0 || index >= variants.Length)
             {
                 return null;
             }
 
-            return prefabRegistry.KeyPrefabs[index];
+            return variants[index];
         }
 
         /// <summary>스폰 종류가 좀비인지 판정한다.</summary>
