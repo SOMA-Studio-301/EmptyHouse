@@ -215,8 +215,52 @@ namespace EmptyHouse.MapGen.Editor
             // 0.05m 여유로 이웃 셀 세그먼트는 보호한다
             bool boundaryAlongX = dir == SocketDirection.North || dir == SocketDirection.South;
             var gate = new Bounds(gateCenter + Vector3.up * 3f, boundaryAlongX ? new Vector3(3.9f, 8f, 1.6f) : new Vector3(1.6f, 8f, 3.9f));
-            DisableWallsIntersecting(roomInstances[edge.RoomA], gate, boundaryAlongX);
-            DisableWallsIntersecting(roomInstances[edge.RoomB], gate, boundaryAlongX);
+            var cutA = new List<Bounds>();
+            var cutB = new List<Bounds>();
+            DisableWallsIntersecting(roomInstances[edge.RoomA], gate, boundaryAlongX, cutA);
+            DisableWallsIntersecting(roomInstances[edge.RoomB], gate, boundaryAlongX, cutB);
+
+            // 문 기준점 = 절단 개구 실측 중심(셀 중심 ±0.4m 클램프) — 방 프리팹의 벽 세그먼트 그리드가
+            // 바닥 그리드에서 프리팹별 0.2~0.8m 어긋나게 저작돼 있어 셀 중심 고정이면 문틀 옆에 슬릿이 남고,
+            // 완전 추종이면 문이 소켓 셀에서 벗어난다. 잔여 슬릿은 아래 충진 슬래브가 봉합한다.
+            // 중심 계산은 전고 구조 벽(높이 ≥ 4m)만 사용 — 상·하단 장식 조각은 서브 그리드가 달라 중심을 끌고 간다
+            float cellCenterAxis = boundaryAlongX ? gateCenter.x : gateCenter.z;
+            Bounds hole = default;
+            bool holeFound = false;
+            foreach (List<Bounds> side in new[] { cutA, cutB })
+            {
+                for (int i = 0; i < side.Count; i++)
+                {
+                    if (side[i].size.y < 4f)
+                    {
+                        continue;
+                    }
+
+                    if (!holeFound)
+                    {
+                        hole = side[i];
+                        holeFound = true;
+                    }
+                    else
+                    {
+                        hole.Encapsulate(side[i]);
+                    }
+                }
+            }
+
+            if (holeFound)
+            {
+                float holeCenterAxis = boundaryAlongX ? hole.center.x : hole.center.z;
+                float doorAxis = Mathf.Clamp(holeCenterAxis, cellCenterAxis - 0.4f, cellCenterAxis + 0.4f);
+                if (boundaryAlongX)
+                {
+                    gateCenter.x = doorAxis;
+                }
+                else
+                {
+                    gateCenter.z = doorAxis;
+                }
+            }
 
             if (edge.State == EdgeState.OpenPassage)
             {
@@ -230,10 +274,16 @@ namespace EmptyHouse.MapGen.Editor
             door.transform.position = gateCenter;
             door.transform.rotation = Quaternion.Euler(0f, YawFor(dir), 0f);
 
-            // 문 조립체 피벗이 중심이 아니라(Door-Opened X −0.4·Z −2.1) 렌더러 바운드 중심을 게이트 중심에 정렬한다
-            Bounds doorBounds = RendererBounds(door);
+            // 문틀 기준 정렬 — 젖혀진 문짝(Hall_Door_L/R)이 바운드를 한쪽으로 0.5m 끌고 가므로
+            // 문짝을 제외한 문틀 바운드 중심을 게이트 중심(셀 경계선)에 맞춘다
+            Bounds doorBounds = FrameBounds(door);
             door.transform.position += new Vector3(gateCenter.x - doorBounds.center.x, 0f, gateCenter.z - doorBounds.center.z);
             door.name = edge.State == EdgeState.DoorLocked ? $"Door_Locked_{edge.LockNumber}_{edge.LockKind}" : "Door_Open";
+
+            // 문틀보다 넓게 잘린 개구의 잔여 슬릿을 평면별로 봉합(프리팹 벽 그리드 오프셋 잔차)
+            Bounds placedFrame = FrameBounds(door);
+            FillDoorSideGaps(cutA, placedFrame, boundaryAlongX, doorsRoot, mapOrigin.y);
+            FillDoorSideGaps(cutB, placedFrame, boundaryAlongX, doorsRoot, mapOrigin.y);
         }
 
         /// <summary>스폰 표식(색 구체)을 마커 전역 셀 중심에 놓는다 — 열쇠는 KeyNumber 를 이름에 표기.</summary>
@@ -261,13 +311,15 @@ namespace EmptyHouse.MapGen.Editor
         }
 
         /// <summary>
-        /// 게이트 박스와 교차하며 통로를 실제로 막는 방향의 벽 모듈만 비활성화한다 —
-        /// 통로 축과 평행한 옆벽(복도 측벽·방 모서리 벽)은 게이트와 모서리가 닿아도 보존한다.
+        /// 게이트와 교차하며 통로를 실제로 막는 방향의 벽 모듈만 비활성화한다 —
+        /// 통로 축과 평행한 옆벽은 보존하고, 경계 축 겹침이 0.5m 이하인 모서리 조각도 보존한다
+        /// (프리팹 벽 그리드가 셀 그리드와 ±0.2m 어긋나 있어 교차 판정만 쓰면 세그먼트 3장이 잘려 6m 구멍이 난다).
         /// </summary>
         /// <param name="roomInstance">대상 방 인스턴스.</param>
         /// <param name="gate">개구부 게이트 박스(월드).</param>
         /// <param name="boundaryAlongX">경계선이 X 축 방향인지(개구 방향 N/S = 참).</param>
-        private static void DisableWallsIntersecting(GameObject roomInstance, Bounds gate, bool boundaryAlongX)
+        /// <param name="cutBounds">비활성화한 벽 바운드 수집 목록(개구 실측 중심 계산용).</param>
+        private static void DisableWallsIntersecting(GameObject roomInstance, Bounds gate, bool boundaryAlongX, List<Bounds> cutBounds)
         {
             Renderer[] renderers = roomInstance.GetComponentsInChildren<Renderer>(false);
             for (int i = 0; i < renderers.Length; i++)
@@ -278,12 +330,24 @@ namespace EmptyHouse.MapGen.Editor
                 }
 
                 // 막는 벽 = 경계선과 같은 축으로 길게 놓인 벽(N/S 개구면 X 로 긴 벽)
-                Vector3 size = renderers[i].bounds.size;
+                Bounds bounds = renderers[i].bounds;
+                Vector3 size = bounds.size;
                 bool blocking = boundaryAlongX ? size.x > size.z : size.z > size.x;
-                if (blocking && renderers[i].bounds.Intersects(gate))
+                if (!blocking || !bounds.Intersects(gate))
                 {
-                    renderers[i].gameObject.SetActive(false);
+                    continue;
                 }
+
+                float overlap = boundaryAlongX
+                    ? Mathf.Min(bounds.max.x, gate.max.x) - Mathf.Max(bounds.min.x, gate.min.x)
+                    : Mathf.Min(bounds.max.z, gate.max.z) - Mathf.Max(bounds.min.z, gate.min.z);
+                if (overlap <= 0.5f)
+                {
+                    continue; // 모서리에 걸친 이웃 세그먼트 — 자르면 구멍이 문틀(4m)보다 넓어진다
+                }
+
+                cutBounds.Add(bounds);
+                renderers[i].gameObject.SetActive(false);
             }
         }
 
@@ -393,6 +457,35 @@ namespace EmptyHouse.MapGen.Editor
             }
         }
 
+        /// <summary>문 조립체에서 여닫이 문짝(Hall_Door_L/R)을 제외한 문틀 월드 바운드 — 정렬 기준.</summary>
+        /// <param name="doorInstance">문 인스턴스.</param>
+        /// <returns>문틀 월드 바운드.</returns>
+        private static Bounds FrameBounds(GameObject doorInstance)
+        {
+            Renderer[] renderers = doorInstance.GetComponentsInChildren<Renderer>(false);
+            Bounds bounds = default;
+            bool found = false;
+            for (int i = 0; i < renderers.Length; i++)
+            {
+                if (renderers[i].name.StartsWith("Hall_Door_L") || renderers[i].name.StartsWith("Hall_Door_R"))
+                {
+                    continue;
+                }
+
+                if (!found)
+                {
+                    bounds = renderers[i].bounds;
+                    found = true;
+                }
+                else
+                {
+                    bounds.Encapsulate(renderers[i].bounds);
+                }
+            }
+
+            return found ? bounds : RendererBounds(doorInstance);
+        }
+
         /// <summary>인스턴스의 전체 렌더러 합산 월드 바운드(피벗 보정 정렬용).</summary>
         /// <param name="instance">대상 인스턴스.</param>
         /// <returns>월드 바운드.</returns>
@@ -422,6 +515,71 @@ namespace EmptyHouse.MapGen.Editor
         private static long CellKey(int x, int y)
         {
             return ((long)x << 32) ^ (uint)y;
+        }
+
+        /// <summary>
+        /// 한 벽 평면에서 문틀보다 넓게 잘린 개구의 잔여 슬릿을 회색 슬래브(콜라이더 포함)로 봉합한다 —
+        /// 방 프리팹의 벽 서브 그리드가 셀 그리드와 0.2~0.8m 어긋나 있어 개구가 문틀 밖으로 삐져나올 수 있다.
+        /// </summary>
+        /// <param name="sideCuts">이 평면에서 비활성화한 벽 바운드 목록.</param>
+        /// <param name="frame">배치 완료된 문틀 월드 바운드.</param>
+        /// <param name="boundaryAlongX">경계선이 X 축 방향인지.</param>
+        /// <param name="doorsRoot">슬래브 부모.</param>
+        /// <param name="floorY">바닥 월드 Y.</param>
+        private static void FillDoorSideGaps(List<Bounds> sideCuts, Bounds frame, bool boundaryAlongX, Transform doorsRoot, float floorY)
+        {
+            Bounds hole = default;
+            bool found = false;
+            for (int i = 0; i < sideCuts.Count; i++)
+            {
+                if (sideCuts[i].size.y < 4f)
+                {
+                    continue;
+                }
+
+                if (!found)
+                {
+                    hole = sideCuts[i];
+                    found = true;
+                }
+                else
+                {
+                    hole.Encapsulate(sideCuts[i]);
+                }
+            }
+
+            if (!found)
+            {
+                return;
+            }
+
+            float holeMin = boundaryAlongX ? hole.min.x : hole.min.z;
+            float holeMax = boundaryAlongX ? hole.max.x : hole.max.z;
+            float frameMin = boundaryAlongX ? frame.min.x : frame.min.z;
+            float frameMax = boundaryAlongX ? frame.max.x : frame.max.z;
+            float perpCenter = boundaryAlongX ? hole.center.z : hole.center.x;
+            float thickness = Mathf.Max(0.3f, boundaryAlongX ? hole.size.z : hole.size.x);
+
+            foreach ((float min, float max) in new[] { (holeMin, frameMin), (frameMax, holeMax) })
+            {
+                float width = max - min;
+                if (width < 0.04f)
+                {
+                    continue;
+                }
+
+                var slab = GameObject.CreatePrimitive(PrimitiveType.Cube);
+                slab.transform.SetParent(doorsRoot, false);
+                float axisCenter = (min + max) * 0.5f;
+                slab.transform.position = boundaryAlongX
+                    ? new Vector3(axisCenter, floorY + 3f, perpCenter)
+                    : new Vector3(perpCenter, floorY + 3f, axisCenter);
+                slab.transform.localScale = boundaryAlongX
+                    ? new Vector3(width, 6f, thickness)
+                    : new Vector3(thickness, 6f, width);
+                slab.name = "GapFiller";
+                slab.GetComponent<Renderer>().sharedMaterial = GetOrCreateMaterial("MG_Filler", new Color(0.42f, 0.43f, 0.45f));
+            }
         }
 
         /// <summary>인스턴스의 바닥 타일(Hall_Floor) 합산 월드 바운드 — 없으면 전체 렌더러 바운드 폴백.</summary>
@@ -509,6 +667,15 @@ namespace EmptyHouse.MapGen.Editor
                 _ => ("MG_Herd", new Color(0.6f, 0.05f, 0.05f)),
             };
 
+            return GetOrCreateMaterial(name, color);
+        }
+
+        /// <summary>이름·색으로 머티리얼 에셋을 가져오거나 없으면 폴더와 함께 생성한다.</summary>
+        /// <param name="name">에셋 이름(확장자 제외).</param>
+        /// <param name="color">기본 색.</param>
+        /// <returns>공유 머티리얼.</returns>
+        private static Material GetOrCreateMaterial(string name, Color color)
+        {
             string path = $"{markerMaterialFolder}/{name}.mat";
             var material = AssetDatabase.LoadAssetAtPath<Material>(path);
             if (material != null)
