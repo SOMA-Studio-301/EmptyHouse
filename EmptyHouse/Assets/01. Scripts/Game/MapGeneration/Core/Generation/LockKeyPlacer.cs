@@ -85,7 +85,7 @@ namespace EmptyHouse.MapGen.Core
                             behindMaxDepth = dangerDepths[r];
                         }
 
-                        if (!hasCriticalItemRoom && HasItemMarker(FindTemplate(templates, blueprint.Rooms[r].TemplateId), ItemCategoryMask.Vaccine | ItemCategoryMask.Oil))
+                        if (!hasCriticalItemRoom && HasItemMarker(FindTemplate(templates, blueprint.Rooms[r].TemplateId), ItemCategoryMask.Vaccine | ItemCategoryMask.Fuel))
                         {
                             hasCriticalItemRoom = true;
                         }

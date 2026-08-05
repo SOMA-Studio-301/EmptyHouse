@@ -368,7 +368,7 @@ namespace EmptyHouse.MapGen.Core.Tests
                 case SpawnKind.VaccineSerum:
                 case SpawnKind.VaccineStabilizer: return marker.Kind == MarkerKind.ItemSpawn && (marker.ItemMask & ItemCategoryMask.Vaccine) != 0;
                 case SpawnKind.Key: return marker.Kind == MarkerKind.ItemSpawn && (marker.ItemMask & ItemCategoryMask.Key) != 0;
-                case SpawnKind.Fuel: return marker.Kind == MarkerKind.ItemSpawn && (marker.ItemMask & ItemCategoryMask.Oil) != 0;
+                case SpawnKind.Fuel: return marker.Kind == MarkerKind.ItemSpawn && (marker.ItemMask & ItemCategoryMask.Fuel) != 0;
                 case SpawnKind.Scrap: return marker.Kind == MarkerKind.ItemSpawn && (marker.ItemMask & ItemCategoryMask.Scrap) != 0;
                 case SpawnKind.Throwable: return marker.Kind == MarkerKind.ItemSpawn && (marker.ItemMask & ItemCategoryMask.Throwable) != 0;
                 case SpawnKind.CorpseStation: return marker.Kind == MarkerKind.CorpseStationSlot;

@@ -82,7 +82,7 @@ namespace EmptyHouse.MapGen.Core
         None = 0,
         Vaccine = 1,
         Key = 2,
-        Oil = 4,
+        Fuel = 4, // 연료(스펙 5절의 '기름' — 게임 오브젝트 명칭을 따라 Fuel 로 표기)
         Scrap = 8,
         Throwable = 16
     }

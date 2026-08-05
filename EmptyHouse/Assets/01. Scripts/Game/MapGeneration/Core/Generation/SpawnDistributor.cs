@@ -299,7 +299,7 @@ namespace EmptyHouse.MapGen.Core
             }
 
             // 기름(필수 — 깊은 구역 집중) · 스크랩(깊이 비례 가치)
-            if (!TryPlaceDepthWeighted(rng, blueprint, dangerDepths, ItemCategoryMask.Oil, SpawnKind.Fuel, genParams.OilCount))
+            if (!TryPlaceDepthWeighted(rng, blueprint, dangerDepths, ItemCategoryMask.Fuel, SpawnKind.Fuel, genParams.OilCount))
             {
                 failed = true;
                 return;

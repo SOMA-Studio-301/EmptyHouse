@@ -109,7 +109,7 @@ namespace EmptyHouse.MapGen.Core
             bool hasAnchor = false;
             bool hasVaccineMarker = false;
             bool hasKeyMarker = false;
-            bool hasOilMarker = false;
+            bool hasFuelMarker = false;
             int minCountSum = 0;
             int maxCountSum = 0;
             for (int t = 0; t < templates.Count; t++)
@@ -158,7 +158,7 @@ namespace EmptyHouse.MapGen.Core
                     ItemCategoryMask mask = template.Markers[m].ItemMask;
                     hasVaccineMarker |= (mask & ItemCategoryMask.Vaccine) != 0;
                     hasKeyMarker |= (mask & ItemCategoryMask.Key) != 0;
-                    hasOilMarker |= (mask & ItemCategoryMask.Oil) != 0;
+                    hasFuelMarker |= (mask & ItemCategoryMask.Fuel) != 0;
                 }
             }
 
@@ -187,9 +187,9 @@ namespace EmptyHouse.MapGen.Core
                 errors.Add("X4: Key 허용 ItemSpawn 마커 부재 — 열쇠 배치 불가");
             }
 
-            if (!hasOilMarker)
+            if (!hasFuelMarker)
             {
-                errors.Add("X4: Oil 허용 ItemSpawn 마커 부재 — 기름 배치 불가");
+                errors.Add("X4: Fuel 허용 ItemSpawn 마커 부재 — 연료 배치 불가");
             }
 
             if (genParams.OilCount < 1)
