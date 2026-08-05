@@ -1,11 +1,14 @@
 using Border.Core;
 using Border.Localization;
+using Unity.Netcode;
 using UnityEngine;
 
 /// <summary>
 /// 탭 회수 픽업 오브젝트 — 열쇠·백신·스크랩·투척 오브젝트 공용
 /// 아이템별 차이(프롬프트 동사·소음 dB)는 <see cref="ItemDataSO"/> 데이터로, 페어 번호는 인스펙터 값으로
-/// 내려가므로 종류마다 클래스를 만들지 않는다
+/// 내려가므로 종류마다 클래스를 만들지 않는다.
+/// 절차 생성 스폰은 서버가 <see cref="ServerSetPairId"/> 로 페어 번호를 주입한다(NetworkVariable 복제 —
+/// 늦은 합류자 포함 전 클라 일치, mapgen_roadmap M7). 수동 배치 맵은 인스펙터 값 그대로.
 /// </summary>
 public class ItemPickupInteractable : SingleClickInteractableBase
 {
@@ -14,6 +17,19 @@ public class ItemPickupInteractable : SingleClickInteractableBase
 
     [Header("Pairing")]
     [SerializeField] private int pairId; // 열쇠만 의미(0-3 넘버링 규약). 그 외 0
+
+    private readonly NetworkVariable<int> injectedPairId = new NetworkVariable<int>(
+        -1, NetworkVariableReadPermission.Everyone, NetworkVariableWritePermission.Server); // 서버 주입 페어 번호(-1 = 미주입 → 인스펙터 값 사용)
+
+    private int EffectivePairId => injectedPairId.Value >= 0 ? injectedPairId.Value : pairId; // 판정·편입에 실제로 쓰는 페어 번호
+
+    /// <summary>절차 스폰 직후 서버가 페어 번호를 주입한다(열쇠_XX ↔ 자물쇠_XX) — MapStateObjectSpawner 전용 경로.</summary>
+    /// <param name="value">주입할 페어 번호.</param>
+    public void ServerSetPairId(int value)
+    {
+        Log.D($"[ItemPickupInteractable] ServerSetPairId {value}");
+        injectedPairId.Value = value; // 서버 외 호출은 NetworkVariable 쓰기 예외로 즉시 표면화(§4 — 가드 없음)
+    }
 
     [Header("Localization")]
     [LocalizeKey][SerializeField] private string inventoryFullReasonKey = "INT_MSG_INVENTORY_FULL"; // 슬롯 만재 시 비활성 사유 (3-8 E8)
@@ -39,10 +55,10 @@ public class ItemPickupInteractable : SingleClickInteractableBase
     /// <param name="interactor">E 를 입력한 상호작용 주체. 이 주체의 인벤토리에 편입된다.</param>
     protected override void OnActivate(PlayerInteractor interactor)
     {
-        Log.D($"[ItemPickupInteractable] OnActivate {itemData.NameKey} pairId={pairId}");
+        Log.D($"[ItemPickupInteractable] OnActivate {itemData.NameKey} pairId={EffectivePairId}");
 
         // 프롬프트가 Active 였어도 실행 프레임에 만재일 수 있다(멀티에서 다른 경로로 슬롯이 찬 경우).
-        if (!interactor.Inventory.TryAdd(itemData, pairId)) return;
+        if (!interactor.Inventory.TryAdd(itemData, EffectivePairId)) return;
 
         // 소음을 먼저 발행한다 — 소멸 후에는 transform·name 접근이 위험하다.
         RaiseNoise(itemData.PickupNoiseDb);

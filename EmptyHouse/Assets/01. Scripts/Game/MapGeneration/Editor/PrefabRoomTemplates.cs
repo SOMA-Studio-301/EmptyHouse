@@ -1,6 +1,7 @@
 using System.Collections.Generic;
 using Border.Core;
 using EmptyHouse.MapGen.Core;
+using EmptyHouse.MapGen.Runtime;
 
 namespace EmptyHouse.MapGen.Editor
 {
@@ -16,7 +17,7 @@ namespace EmptyHouse.MapGen.Editor
     /// </summary>
     public static class PrefabRoomTemplates
     {
-        public const float CellMeters = 4f; // 셀 실측(m) — Hall_Floor_4M 바닥 타일 기준
+        public const float CellMeters = MapTemplateCatalog.CellMeters; // 셀 실측(m) — 런타임 카탈로그가 단일 원천
 
         /// <summary>TemplateId → 프리팹 경로 매핑. 빌더가 인스턴스화 시 조회한다.</summary>
         /// <remarks>
@@ -39,163 +40,13 @@ namespace EmptyHouse.MapGen.Editor
         public const string CornerColumnPath = "Assets/04. Arts/Environment/HorrorPack/!Prefabs/Architectural/Hall_Props/Hall_Clumn_Large_6M.prefab"; // 코너 이음 기둥(0.86×5.93m)
 
         /// <summary>
-        /// 실측 프리팹 크기의 템플릿 세트를 만든다 — 소켓은 c ↔ L−1−c 자기 대칭 위상,
-        /// 마커 구성은 DevTemplateSet 과 같은 역할 분담(3x3 = 일반 / 6x6 = 어둠·발전기 / 6x9 = 위장 무대).
+        /// 실측 프리팹 크기의 템플릿 세트를 만든다 — 정의 원천은 런타임 MapTemplateCatalog(AC-22 드리프트 방지 위임).
         /// </summary>
         /// <returns>씬 빌더용 템플릿 목록.</returns>
         public static List<RoomTemplateDef> Create()
         {
             Log.D("[PrefabRoomTemplates] Create");
-            return new List<RoomTemplateDef>
-            {
-                new RoomTemplateDef
-                {
-                    // 입구 = Rooms/EmptyRoom-6x6 공용 프리팹(벽 6m) — 소켓은 {1,4} 격자 위상(3의 배수 규칙)
-                    TemplateId = "entrance_6x6",
-                    WidthCells = 6,
-                    HeightCells = 6,
-                    AllowedFloors = FloorMask.F1,
-                    Tags = RoomTagMask.None,
-                    MinCount = 1,
-                    MaxCount = 1,
-                    IsCorridor = false,
-                    IsEntranceAnchor = true,
-                    Sockets = new[]
-                    {
-                        new SocketDef { Id = 0, LocalCell = new CellCoord(1, 5), Direction = SocketDirection.North },
-                        new SocketDef { Id = 1, LocalCell = new CellCoord(0, 1), Direction = SocketDirection.West },
-                        new SocketDef { Id = 2, LocalCell = new CellCoord(5, 1), Direction = SocketDirection.East },
-                    },
-                    Markers = new MarkerDef[0],
-                },
-                new RoomTemplateDef
-                {
-                    TemplateId = "room_3x3",
-                    WidthCells = 3,
-                    HeightCells = 3,
-                    AllowedFloors = FloorMask.F1,
-                    Tags = RoomTagMask.None,
-                    MinCount = 0,
-                    MaxCount = 40, // 방 전용 집계 — 방 3종 MaxCount 합(40+24+2=66)이 예산 상한(60)을 여유 있게 감당해야 한다
-                    IsCorridor = false,
-                    IsEntranceAnchor = false,
-                    Sockets = new[]
-                    {
-                        new SocketDef { Id = 0, LocalCell = new CellCoord(1, 0), Direction = SocketDirection.South },
-                        new SocketDef { Id = 1, LocalCell = new CellCoord(1, 2), Direction = SocketDirection.North },
-                        new SocketDef { Id = 2, LocalCell = new CellCoord(0, 1), Direction = SocketDirection.West },
-                        new SocketDef { Id = 3, LocalCell = new CellCoord(2, 1), Direction = SocketDirection.East },
-                    },
-                    Markers = new[]
-                    {
-                        new MarkerDef { Id = 0, Kind = MarkerKind.ZombieSpawn, LocalCell = new CellCoord(1, 1), ZombieMask = ZombieTypeMask.Walker | ZombieTypeMask.Listener, WanderRadiusCells = 2f },
-                        new MarkerDef { Id = 1, Kind = MarkerKind.ItemSpawn, LocalCell = new CellCoord(2, 2), ItemMask = ItemCategoryMask.Vaccine | ItemCategoryMask.Key | ItemCategoryMask.Oil | ItemCategoryMask.Scrap | ItemCategoryMask.Throwable },
-                        new MarkerDef { Id = 2, Kind = MarkerKind.CorpseStationSlot, LocalCell = new CellCoord(0, 2) },
-                    },
-                },
-                new RoomTemplateDef
-                {
-                    // 3의 배수 재제작판 — 정사각이라 90도 회전군에서도 전 변 소켓 집합 {1,4} 로 격자 정렬 유지
-                    TemplateId = "room_6x6",
-                    WidthCells = 6,
-                    HeightCells = 6,
-                    AllowedFloors = FloorMask.F1,
-                    Tags = RoomTagMask.Dark,
-                    MinCount = 0,
-                    MaxCount = 24, // 상동 — 방 전용 집계 보충
-                    IsCorridor = false,
-                    IsEntranceAnchor = false,
-                    Sockets = new[]
-                    {
-                        new SocketDef { Id = 0, LocalCell = new CellCoord(1, 0), Direction = SocketDirection.South },
-                        new SocketDef { Id = 1, LocalCell = new CellCoord(4, 0), Direction = SocketDirection.South },
-                        new SocketDef { Id = 2, LocalCell = new CellCoord(1, 5), Direction = SocketDirection.North },
-                        new SocketDef { Id = 3, LocalCell = new CellCoord(4, 5), Direction = SocketDirection.North },
-                        new SocketDef { Id = 4, LocalCell = new CellCoord(0, 1), Direction = SocketDirection.West },
-                        new SocketDef { Id = 5, LocalCell = new CellCoord(0, 4), Direction = SocketDirection.West },
-                        new SocketDef { Id = 6, LocalCell = new CellCoord(5, 1), Direction = SocketDirection.East },
-                        new SocketDef { Id = 7, LocalCell = new CellCoord(5, 4), Direction = SocketDirection.East },
-                    },
-                    Markers = new[]
-                    {
-                        new MarkerDef { Id = 0, Kind = MarkerKind.ZombieSpawn, LocalCell = new CellCoord(3, 3), ZombieMask = ZombieTypeMask.Walker | ZombieTypeMask.Listener | ZombieTypeMask.Watcher, WanderRadiusCells = 2f },
-                        new MarkerDef { Id = 1, Kind = MarkerKind.GeneratorSlot, LocalCell = new CellCoord(5, 5) },
-                        new MarkerDef { Id = 2, Kind = MarkerKind.ItemSpawn, LocalCell = new CellCoord(0, 5), ItemMask = ItemCategoryMask.Vaccine | ItemCategoryMask.Key | ItemCategoryMask.Oil | ItemCategoryMask.Scrap | ItemCategoryMask.Throwable },
-                        new MarkerDef { Id = 3, Kind = MarkerKind.CorpseStationSlot, LocalCell = new CellCoord(5, 0) },
-                    },
-                },
-                new RoomTemplateDef
-                {
-                    // 3의 배수 재제작판 — 6변 {1,4} · 9변 {1,7} 전부 c ↔ L−1−c 자기 대칭
-                    TemplateId = "room_6x9",
-                    WidthCells = 6,
-                    HeightCells = 9,
-                    AllowedFloors = FloorMask.F1,
-                    Tags = RoomTagMask.None,
-                    MinCount = 1,
-                    MaxCount = 2,
-                    IsCorridor = false,
-                    IsEntranceAnchor = false,
-                    Sockets = new[]
-                    {
-                        new SocketDef { Id = 0, LocalCell = new CellCoord(1, 0), Direction = SocketDirection.South },
-                        new SocketDef { Id = 1, LocalCell = new CellCoord(4, 0), Direction = SocketDirection.South },
-                        new SocketDef { Id = 2, LocalCell = new CellCoord(1, 8), Direction = SocketDirection.North },
-                        new SocketDef { Id = 3, LocalCell = new CellCoord(4, 8), Direction = SocketDirection.North },
-                        new SocketDef { Id = 4, LocalCell = new CellCoord(0, 1), Direction = SocketDirection.West },
-                        new SocketDef { Id = 5, LocalCell = new CellCoord(0, 7), Direction = SocketDirection.West },
-                        new SocketDef { Id = 6, LocalCell = new CellCoord(5, 1), Direction = SocketDirection.East },
-                        new SocketDef { Id = 7, LocalCell = new CellCoord(5, 7), Direction = SocketDirection.East },
-                    },
-                    Markers = new[]
-                    {
-                        new MarkerDef { Id = 0, Kind = MarkerKind.HerdArea, LocalCell = new CellCoord(2, 4) },
-                        new MarkerDef { Id = 1, Kind = MarkerKind.ZombieSpawn, LocalCell = new CellCoord(4, 7), ZombieMask = ZombieTypeMask.Walker, WanderRadiusCells = 3f },
-                        new MarkerDef { Id = 2, Kind = MarkerKind.ItemSpawn, LocalCell = new CellCoord(5, 8), ItemMask = ItemCategoryMask.Vaccine | ItemCategoryMask.Key | ItemCategoryMask.Throwable | ItemCategoryMask.Scrap },
-                        new MarkerDef { Id = 3, Kind = MarkerKind.CorpseStationSlot, LocalCell = new CellCoord(0, 8) },
-                    },
-                },
-                new RoomTemplateDef
-                {
-                    // 실측: 긴 축 = 로컬 Z(북남), 개구 = 남(0,0)·북(0,1) 단부뿐 — 옆면 소켓 금지
-                    TemplateId = "hallway",
-                    WidthCells = 1,
-                    HeightCells = 2,
-                    AllowedFloors = FloorMask.F1,
-                    Tags = RoomTagMask.None,
-                    MinCount = 0,
-                    MaxCount = 30, // 방 60개·경유율 50% 기준 복도 수요 감당(예산 밖 — 개수 제한은 이 값뿐)
-                    IsCorridor = true,
-                    IsEntranceAnchor = false,
-                    Sockets = new[]
-                    {
-                        new SocketDef { Id = 0, LocalCell = new CellCoord(0, 0), Direction = SocketDirection.South },
-                        new SocketDef { Id = 1, LocalCell = new CellCoord(0, 1), Direction = SocketDirection.North },
-                    },
-                    Markers = new MarkerDef[0],
-                },
-                new RoomTemplateDef
-                {
-                    // 실측: 8×8m 광폭 복도 — 남·북 전폭(2셀) 개구, 동·서는 벽·아치창
-                    TemplateId = "hallway_x2",
-                    WidthCells = 2,
-                    HeightCells = 2,
-                    AllowedFloors = FloorMask.F1,
-                    Tags = RoomTagMask.None,
-                    MinCount = 0,
-                    MaxCount = 8, // 상동 — 60방 스케일 보충
-                    IsCorridor = true,
-                    IsEntranceAnchor = false,
-                    Sockets = new[]
-                    {
-                        new SocketDef { Id = 0, LocalCell = new CellCoord(0, 0), Direction = SocketDirection.South },
-                        new SocketDef { Id = 1, LocalCell = new CellCoord(1, 0), Direction = SocketDirection.South },
-                        new SocketDef { Id = 2, LocalCell = new CellCoord(0, 1), Direction = SocketDirection.North },
-                        new SocketDef { Id = 3, LocalCell = new CellCoord(1, 1), Direction = SocketDirection.North },
-                    },
-                    Markers = new MarkerDef[0],
-                },
-            };
+            return MapTemplateCatalog.Create();
         }
     }
 }

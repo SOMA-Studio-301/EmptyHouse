@@ -17,6 +17,8 @@ public class PlayerInteractor : MonoBehaviour
     [SerializeField] private PlayerInventory inventory;
     [SerializeField] private PlayerDisguise disguise;
     [SerializeField] private PlayerHiding hiding;
+    [SerializeField] private PlayerDeathHandler deathHandler; // E5 전역 예외(사망) 판정 — 프리팹 내부 참조
+    [SerializeField] private PlayerReturn playerReturn; // E5 전역 예외(귀환 = 관전) 판정 — 프리팹 내부 참조
 
     [Header("UI")]
     [SerializeField] private UIInteractPrompt promptUI;
@@ -88,7 +90,17 @@ public class PlayerInteractor : MonoBehaviour
     /// </summary>
     private void Update()
     {
-        // TODO(impl): E1(위장 중)·E5(사망/관전 중) 전역 예외면 후보를 버린다.
+        // E1(위장 중)·E5(사망/귀환 = 관전 중) 전역 예외 — 후보를 버리고 프롬프트를 숨긴다(3-8).
+        // 진행 중이던 홀드도 같은 프레임에 취소된다(SyncActiveHold 가 후보 불일치로 정리).
+        if (disguise.IsDisguised || deathHandler.IsDead.Value || playerReturn.HasExtracted.Value)
+        {
+            currentCandidate = null;
+            CurrentPromptInfo = HiddenPrompt;
+            SyncActiveHold();
+            promptUI.Render(CurrentPromptInfo);
+            holdGaugeUI.Render(HoldProgress01);
+            return;
+        }
 
         currentCandidate = FindCandidate();
         CurrentPromptInfo = currentCandidate == null ? HiddenPrompt : currentCandidate.GetPromptInfo(this);
