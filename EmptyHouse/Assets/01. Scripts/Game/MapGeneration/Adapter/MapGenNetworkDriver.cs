@@ -74,6 +74,11 @@ namespace EmptyHouse.MapGen.Runtime
             {
                 HandleSeedChanged(0, mapSeed.Value);
             }
+
+            if (IsServer)
+            {
+                ServerStartMapFlow(); // 임시 자동 시작 — 게임 시작 시퀀스(세션 관리자) 훅 확정 시 이 줄만 제거(멱등이라 중복 호출 무해)
+            }
         }
 
         /// <summary>mapSeed 구독 해제.</summary>
