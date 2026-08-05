@@ -52,7 +52,7 @@ namespace EmptyHouse.MapGen.Core
                     case SpawnKind.VaccineAntigen: hasAntigen = true; break;
                     case SpawnKind.VaccineSerum: hasSerum = true; break;
                     case SpawnKind.VaccineStabilizer: hasStabilizer = true; break;
-                    case SpawnKind.Oil: hasOil = true; break;
+                    case SpawnKind.Fuel: hasOil = true; break;
                     case SpawnKind.Key: break;
                     default: continue;
                 }

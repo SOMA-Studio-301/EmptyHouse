@@ -116,12 +116,21 @@ namespace EmptyHouse.MapGen.Runtime
                     continue;
                 }
 
+                if (spawn.Kind == SpawnKind.Key)
+                {
+                    NetworkObject variant = KeyVariantPrefab(spawn.KeyNumber);
+                    if (variant != null)
+                    {
+                        prefab = variant; // 번호별 비주얼 변종 우선 — 없으면 공용 Key 프리팹
+                    }
+                }
+
                 Vector3 position = MarkerWorldPosition(blueprint, templates, spawn) + Vector3.up * itemGroundClearance;
                 NetworkObject instance = Object.Instantiate(prefab, position, Quaternion.identity);
                 instance.Spawn();
                 if (spawn.Kind == SpawnKind.Key)
                 {
-                    instance.GetComponentInChildren<ItemPickupInteractable>().ServerSetPairId(spawn.KeyNumber); // 열쇠_XX ↔ 자물쇠_XX(M7 요구 2)
+                    instance.GetComponentInChildren<ItemPickupInteractable>().ServerSetPairId(spawn.KeyNumber); // 열쇠_XX ↔ 자물쇠_XX(M7 요구 2) — 변종에도 주입해 인스펙터 값 불일치를 차단
                 }
 
                 spawned++;
@@ -131,15 +140,26 @@ namespace EmptyHouse.MapGen.Runtime
         }
 
         /// <summary>
-        /// 좀비 스폰(단계 ④) — 마커 좌표에 타입별 프리팹을 스폰한다. NavMesh 베이크 완료가 전제(AC-20).
-        /// 배회 반경(WanderRadiusCells)은 좀비 쪽에 주입 API 가 없어 미적용 — ZombieDataSO.PatrolRadius 기본값으로
-        /// 동작하며, 주입 API 부재는 §3.5 보고 대상으로 기록됐다(홈 위치는 스폰 지점이 자동 기준).
+        /// 좀비 스폰(단계 ④) — 마커 좌표에 타입별 프리팹을 스폰하고, 배회 원점(스폰 지점)·반경
+        /// (WanderRadiusCells × CellMeters)을 서버 주입한다. NavMesh 베이크 완료가 전제(AC-20).
+        /// HerdArea 방(위장 무대)의 Walker 는 무리라 배회를 끈다(ZombieCrowd 수동 배치와 동일 효과 — 제자리 대기).
         /// </summary>
         /// <param name="blueprint">대상 블루프린트.</param>
         /// <param name="templates">템플릿 목록.</param>
         private void SpawnZombies(MapBlueprint blueprint, IReadOnlyList<RoomTemplateDef> templates)
         {
             Log.D("[MapStateObjectSpawner] SpawnZombies");
+
+            // 위장 무대 방 집합 — 이 방의 Walker 는 무리(배회 OFF)
+            var herdRooms = new HashSet<int>();
+            for (int s = 0; s < blueprint.Spawns.Count; s++)
+            {
+                if (blueprint.Spawns[s].Kind == SpawnKind.HerdArea)
+                {
+                    herdRooms.Add(blueprint.Spawns[s].RoomIndex);
+                }
+            }
+
             int spawned = 0;
             for (int s = 0; s < blueprint.Spawns.Count; s++)
             {
@@ -155,12 +175,35 @@ namespace EmptyHouse.MapGen.Runtime
                     continue;
                 }
 
-                NetworkObject instance = Object.Instantiate(prefab, MarkerWorldPosition(blueprint, templates, spawn), Quaternion.identity);
+                Vector3 position = MarkerWorldPosition(blueprint, templates, spawn);
+                NetworkObject instance = Object.Instantiate(prefab, position, Quaternion.identity);
                 instance.Spawn();
+
+                ZombieController zombie = instance.GetComponentInChildren<ZombieController>();
+                zombie.ServerConfigureSpawn(position, spawn.WanderRadiusCells * prefabRegistry.CellMeters);
+                if (spawn.Kind == SpawnKind.ZombieWalker && herdRooms.Contains(spawn.RoomIndex))
+                {
+                    zombie.SetWanderEnabled(false); // 위장 무대 무리 — 제자리 대기(레벨디자인 4절)
+                }
+
                 spawned++;
             }
 
-            Log.D($"[MapStateObjectSpawner] 좀비 스폰 {spawned}건");
+            Log.D($"[MapStateObjectSpawner] 좀비 스폰 {spawned}건(무리 방 {herdRooms.Count})");
+        }
+
+        /// <summary>번호별 열쇠 변종 프리팹을 찾는다(인덱스 + 1 = 페어 번호) — 범위 밖·미등재면 null(공용 폴백).</summary>
+        /// <param name="keyNumber">열쇠 번호(1부터).</param>
+        /// <returns>변종 프리팹 — 없으면 null.</returns>
+        private NetworkObject KeyVariantPrefab(int keyNumber)
+        {
+            int index = keyNumber - 1;
+            if (prefabRegistry.KeyPrefabs == null || index < 0 || index >= prefabRegistry.KeyPrefabs.Length)
+            {
+                return null;
+            }
+
+            return prefabRegistry.KeyPrefabs[index];
         }
 
         /// <summary>스폰 종류가 좀비인지 판정한다.</summary>

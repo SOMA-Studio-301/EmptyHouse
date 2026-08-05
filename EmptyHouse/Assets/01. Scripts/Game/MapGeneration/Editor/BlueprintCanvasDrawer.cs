@@ -432,7 +432,7 @@ namespace EmptyHouse.MapGen.Editor
                 case SpawnKind.VaccineSerum: return ("V2", new Color(0.1f, 0.55f, 0.25f));
                 case SpawnKind.VaccineStabilizer: return ("V3", new Color(0.1f, 0.55f, 0.25f));
                 case SpawnKind.Key: return ($"K{spawn.KeyNumber}", new Color(0.8f, 0.7f, 0.1f));
-                case SpawnKind.Oil: return ("O", new Color(0.5f, 0.35f, 0.1f));
+                case SpawnKind.Fuel: return ("O", new Color(0.5f, 0.35f, 0.1f));
                 case SpawnKind.Scrap: return ("S", new Color(0.45f, 0.45f, 0.45f));
                 case SpawnKind.Throwable: return ("T", new Color(0.1f, 0.5f, 0.6f));
                 case SpawnKind.CorpseStation: return ("C", new Color(0.4f, 0.25f, 0.55f));

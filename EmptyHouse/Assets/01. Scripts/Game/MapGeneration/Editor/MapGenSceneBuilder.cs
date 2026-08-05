@@ -853,7 +853,7 @@ namespace EmptyHouse.MapGen.Editor
                 SpawnKind.VaccineSerum => ("MG_Vaccine", new Color(0.1f, 0.8f, 0.3f)),
                 SpawnKind.VaccineStabilizer => ("MG_Vaccine", new Color(0.1f, 0.8f, 0.3f)),
                 SpawnKind.Key => ("MG_Key", new Color(1f, 0.85f, 0.1f)),
-                SpawnKind.Oil => ("MG_Oil", new Color(0.55f, 0.35f, 0.1f)),
+                SpawnKind.Fuel => ("MG_Fuel", new Color(0.55f, 0.35f, 0.1f)),
                 SpawnKind.Scrap => ("MG_Scrap", new Color(0.55f, 0.55f, 0.55f)),
                 SpawnKind.Throwable => ("MG_Throwable", new Color(0.1f, 0.7f, 0.85f)),
                 SpawnKind.CorpseStation => ("MG_Station", new Color(0.5f, 0.2f, 0.8f)),

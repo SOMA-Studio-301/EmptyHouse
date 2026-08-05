@@ -97,7 +97,7 @@ namespace EmptyHouse.MapGen.Core
         VaccineSerum,
         VaccineStabilizer,
         Key,
-        Oil,
+        Fuel, // 연료(스펙 5절의 '기름' — 게임 오브젝트 명칭을 따라 Fuel 로 표기)
         Scrap,
         Throwable,
         CorpseStation,
