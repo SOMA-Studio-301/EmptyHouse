@@ -36,6 +36,7 @@ Transform:
   - {fileID: 7368544651134806493}
   - {fileID: 8832853386977754733}
   - {fileID: 114790017620510870}
+  - {fileID: 1756940031024095269}
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1001 &2247073225141633987
@@ -92,7 +93,7 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 8677014534883338581, guid: af3de135f86fe494582f5a050ac568ca, type: 3}
       propertyPath: GlobalObjectIdHash
-      value: 44069827
+      value: 3816244459
       objectReference: {fileID: 0}
     - target: {fileID: 8677014534883338581, guid: af3de135f86fe494582f5a050ac568ca, type: 3}
       propertyPath: InScenePlacedSourceGlobalObjectIdHash
@@ -170,6 +171,72 @@ Transform:
   m_CorrespondingSourceObject: {fileID: 1331758865839398253, guid: 4c9be84906987d443b08f510a899cc0a, type: 3}
   m_PrefabInstance: {fileID: 2415094311120787125}
   m_PrefabAsset: {fileID: 0}
+--- !u!1001 &3304508338739239253
+PrefabInstance:
+  m_ObjectHideFlags: 0
+  serializedVersion: 2
+  m_Modification:
+    serializedVersion: 3
+    m_TransformParent: {fileID: 1150894879088348462}
+    m_Modifications:
+    - target: {fileID: 2914126098104755500, guid: a2ab4322bf18df04c8930dd57c081168, type: 3}
+      propertyPath: m_Name
+      value: MapGenManager
+      objectReference: {fileID: 0}
+    - target: {fileID: 3871441418107271536, guid: a2ab4322bf18df04c8930dd57c081168, type: 3}
+      propertyPath: m_LocalPosition.x
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 3871441418107271536, guid: a2ab4322bf18df04c8930dd57c081168, type: 3}
+      propertyPath: m_LocalPosition.y
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 3871441418107271536, guid: a2ab4322bf18df04c8930dd57c081168, type: 3}
+      propertyPath: m_LocalPosition.z
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 3871441418107271536, guid: a2ab4322bf18df04c8930dd57c081168, type: 3}
+      propertyPath: m_LocalRotation.w
+      value: 1
+      objectReference: {fileID: 0}
+    - target: {fileID: 3871441418107271536, guid: a2ab4322bf18df04c8930dd57c081168, type: 3}
+      propertyPath: m_LocalRotation.x
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 3871441418107271536, guid: a2ab4322bf18df04c8930dd57c081168, type: 3}
+      propertyPath: m_LocalRotation.y
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 3871441418107271536, guid: a2ab4322bf18df04c8930dd57c081168, type: 3}
+      propertyPath: m_LocalRotation.z
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 3871441418107271536, guid: a2ab4322bf18df04c8930dd57c081168, type: 3}
+      propertyPath: m_LocalEulerAnglesHint.x
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 3871441418107271536, guid: a2ab4322bf18df04c8930dd57c081168, type: 3}
+      propertyPath: m_LocalEulerAnglesHint.y
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 3871441418107271536, guid: a2ab4322bf18df04c8930dd57c081168, type: 3}
+      propertyPath: m_LocalEulerAnglesHint.z
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 4021321493328698142, guid: a2ab4322bf18df04c8930dd57c081168, type: 3}
+      propertyPath: GlobalObjectIdHash
+      value: 3277536744
+      objectReference: {fileID: 0}
+    m_RemovedComponents: []
+    m_RemovedGameObjects: []
+    m_AddedGameObjects: []
+    m_AddedComponents: []
+  m_SourcePrefab: {fileID: 100100000, guid: a2ab4322bf18df04c8930dd57c081168, type: 3}
+--- !u!4 &1756940031024095269 stripped
+Transform:
+  m_CorrespondingSourceObject: {fileID: 3871441418107271536, guid: a2ab4322bf18df04c8930dd57c081168, type: 3}
+  m_PrefabInstance: {fileID: 3304508338739239253}
+  m_PrefabAsset: {fileID: 0}
 --- !u!1001 &7037298390734930432
 PrefabInstance:
   m_ObjectHideFlags: 0
@@ -246,7 +313,7 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 6245000233682176873, guid: cf040c7b28c73324381750c858b563f6, type: 3}
       propertyPath: GlobalObjectIdHash
-      value: 1968290026
+      value: 2699193419
       objectReference: {fileID: 0}
     - target: {fileID: 7042183349059420208, guid: cf040c7b28c73324381750c858b563f6, type: 3}
       propertyPath: m_LocalPosition.x

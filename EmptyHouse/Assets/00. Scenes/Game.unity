@@ -171,6 +171,10 @@ PrefabInstance:
       propertyPath: m_Name
       value: Hall_Doorway_3M_Large_WDoors
       objectReference: {fileID: 0}
+    - target: {fileID: 1000013253939770, guid: 7e4f6561969365d4b9edfc76cd8c1219, type: 3}
+      propertyPath: m_IsActive
+      value: 0
+      objectReference: {fileID: 0}
     - target: {fileID: 4000012974977996, guid: 7e4f6561969365d4b9edfc76cd8c1219, type: 3}
       propertyPath: m_LocalPosition.x
       value: 52.49999
@@ -227,6 +231,10 @@ PrefabInstance:
     - target: {fileID: 1000010693850856, guid: b3c9b6a50fd0d484fa4337a79c0c75c6, type: 3}
       propertyPath: m_Name
       value: Hall_Wall_Middle_Element_2M (3)
+      objectReference: {fileID: 0}
+    - target: {fileID: 1000010693850856, guid: b3c9b6a50fd0d484fa4337a79c0c75c6, type: 3}
+      propertyPath: m_IsActive
+      value: 0
       objectReference: {fileID: 0}
     - target: {fileID: 4000011014319872, guid: b3c9b6a50fd0d484fa4337a79c0c75c6, type: 3}
       propertyPath: m_LocalPosition.x
@@ -301,16 +309,6 @@ Transform:
 --- !u!4 &107883779 stripped
 Transform:
   m_CorrespondingSourceObject: {fileID: 6335557965992923624, guid: 1dc6eae64cb64c742bd4f90f01f529d7, type: 3}
-  m_PrefabInstance: {fileID: 2240096902721857313}
-  m_PrefabAsset: {fileID: 0}
---- !u!1 &107883780 stripped
-GameObject:
-  m_CorrespondingSourceObject: {fileID: 2773899795091505634, guid: 1dc6eae64cb64c742bd4f90f01f529d7, type: 3}
-  m_PrefabInstance: {fileID: 2240096902721857313}
-  m_PrefabAsset: {fileID: 0}
---- !u!1 &107883781 stripped
-GameObject:
-  m_CorrespondingSourceObject: {fileID: 1924859934808868515, guid: 1dc6eae64cb64c742bd4f90f01f529d7, type: 3}
   m_PrefabInstance: {fileID: 2240096902721857313}
   m_PrefabAsset: {fileID: 0}
 --- !u!4 &108491893 stripped
@@ -733,6 +731,10 @@ PrefabInstance:
     - target: {fileID: 1000011724141170, guid: e34027daf1ed3d64eac723be405708d7, type: 3}
       propertyPath: m_Name
       value: Hall_Colum_6M
+      objectReference: {fileID: 0}
+    - target: {fileID: 1000011724141170, guid: e34027daf1ed3d64eac723be405708d7, type: 3}
+      propertyPath: m_IsActive
+      value: 0
       objectReference: {fileID: 0}
     - target: {fileID: 4000013909907194, guid: e34027daf1ed3d64eac723be405708d7, type: 3}
       propertyPath: m_LocalPosition.x
@@ -1171,6 +1173,10 @@ PrefabInstance:
     - target: {fileID: 1000010693850856, guid: b3c9b6a50fd0d484fa4337a79c0c75c6, type: 3}
       propertyPath: m_Name
       value: Hall_Wall_Middle_Element_2M
+      objectReference: {fileID: 0}
+    - target: {fileID: 1000010693850856, guid: b3c9b6a50fd0d484fa4337a79c0c75c6, type: 3}
+      propertyPath: m_IsActive
+      value: 0
       objectReference: {fileID: 0}
     - target: {fileID: 4000011014319872, guid: b3c9b6a50fd0d484fa4337a79c0c75c6, type: 3}
       propertyPath: m_LocalPosition.x
@@ -2048,6 +2054,10 @@ PrefabInstance:
       propertyPath: m_Name
       value: Hall_Colum_6M (1)
       objectReference: {fileID: 0}
+    - target: {fileID: 1000011724141170, guid: e34027daf1ed3d64eac723be405708d7, type: 3}
+      propertyPath: m_IsActive
+      value: 0
+      objectReference: {fileID: 0}
     - target: {fileID: 4000013909907194, guid: e34027daf1ed3d64eac723be405708d7, type: 3}
       propertyPath: m_LocalPosition.x
       value: 52.480515
@@ -2248,21 +2258,6 @@ GameObject:
   m_CorrespondingSourceObject: {fileID: 4775965130814523380, guid: 35a33dfee9b3863408b8d59a797e3adb, type: 3}
   m_PrefabInstance: {fileID: 2597249984853934856}
   m_PrefabAsset: {fileID: 0}
---- !u!1 &1391674561 stripped
-GameObject:
-  m_CorrespondingSourceObject: {fileID: 1064491289713965886, guid: 35a33dfee9b3863408b8d59a797e3adb, type: 3}
-  m_PrefabInstance: {fileID: 2597249984853934856}
-  m_PrefabAsset: {fileID: 0}
---- !u!1 &1391674562 stripped
-GameObject:
-  m_CorrespondingSourceObject: {fileID: 1064491292428975818, guid: 35a33dfee9b3863408b8d59a797e3adb, type: 3}
-  m_PrefabInstance: {fileID: 2597249984853934856}
-  m_PrefabAsset: {fileID: 0}
---- !u!1 &1391674563 stripped
-GameObject:
-  m_CorrespondingSourceObject: {fileID: 1064491289835258934, guid: 35a33dfee9b3863408b8d59a797e3adb, type: 3}
-  m_PrefabInstance: {fileID: 2597249984853934856}
-  m_PrefabAsset: {fileID: 0}
 --- !u!1 &1391674564 stripped
 GameObject:
   m_CorrespondingSourceObject: {fileID: 7952390850138547329, guid: 35a33dfee9b3863408b8d59a797e3adb, type: 3}
@@ -2359,6 +2354,10 @@ PrefabInstance:
     - target: {fileID: 1000010693850856, guid: b3c9b6a50fd0d484fa4337a79c0c75c6, type: 3}
       propertyPath: m_Name
       value: Hall_Wall_Middle_Element_2M (1)
+      objectReference: {fileID: 0}
+    - target: {fileID: 1000010693850856, guid: b3c9b6a50fd0d484fa4337a79c0c75c6, type: 3}
+      propertyPath: m_IsActive
+      value: 0
       objectReference: {fileID: 0}
     - target: {fileID: 4000011014319872, guid: b3c9b6a50fd0d484fa4337a79c0c75c6, type: 3}
       propertyPath: m_LocalPosition.x
@@ -2661,6 +2660,10 @@ PrefabInstance:
       propertyPath: m_Name
       value: Hall_Wall_Middle_Element_2M (2)
       objectReference: {fileID: 0}
+    - target: {fileID: 1000010693850856, guid: b3c9b6a50fd0d484fa4337a79c0c75c6, type: 3}
+      propertyPath: m_IsActive
+      value: 0
+      objectReference: {fileID: 0}
     - target: {fileID: 4000011014319872, guid: b3c9b6a50fd0d484fa4337a79c0c75c6, type: 3}
       propertyPath: m_LocalPosition.x
       value: 52.399956
@@ -2751,16 +2754,6 @@ Transform:
   m_CorrespondingSourceObject: {fileID: 3564656961430009837, guid: 1dc6eae64cb64c742bd4f90f01f529d7, type: 3}
   m_PrefabInstance: {fileID: 6687312202020787439}
   m_PrefabAsset: {fileID: 0}
---- !u!1 &1595534376 stripped
-GameObject:
-  m_CorrespondingSourceObject: {fileID: 2773899795091505634, guid: 1dc6eae64cb64c742bd4f90f01f529d7, type: 3}
-  m_PrefabInstance: {fileID: 6687312202020787439}
-  m_PrefabAsset: {fileID: 0}
---- !u!1 &1595534377 stripped
-GameObject:
-  m_CorrespondingSourceObject: {fileID: 1924859934808868515, guid: 1dc6eae64cb64c742bd4f90f01f529d7, type: 3}
-  m_PrefabInstance: {fileID: 6687312202020787439}
-  m_PrefabAsset: {fileID: 0}
 --- !u!4 &1595738763 stripped
 Transform:
   m_CorrespondingSourceObject: {fileID: 4000011045490980, guid: 9eb4457d5a402884bae429be1db0ad0d, type: 3}
@@ -2784,16 +2777,6 @@ GameObject:
 --- !u!4 &1605624822 stripped
 Transform:
   m_CorrespondingSourceObject: {fileID: 5205472604612111468, guid: 1dc6eae64cb64c742bd4f90f01f529d7, type: 3}
-  m_PrefabInstance: {fileID: 15082510768229874}
-  m_PrefabAsset: {fileID: 0}
---- !u!1 &1605624823 stripped
-GameObject:
-  m_CorrespondingSourceObject: {fileID: 2773899795091505634, guid: 1dc6eae64cb64c742bd4f90f01f529d7, type: 3}
-  m_PrefabInstance: {fileID: 15082510768229874}
-  m_PrefabAsset: {fileID: 0}
---- !u!1 &1605624824 stripped
-GameObject:
-  m_CorrespondingSourceObject: {fileID: 1924859934808868515, guid: 1dc6eae64cb64c742bd4f90f01f529d7, type: 3}
   m_PrefabInstance: {fileID: 15082510768229874}
   m_PrefabAsset: {fileID: 0}
 --- !u!4 &1616112406 stripped
@@ -3734,6 +3717,10 @@ PrefabInstance:
       propertyPath: m_Name
       value: EmptyRoom-3x3__Warehouse
       objectReference: {fileID: 0}
+    - target: {fileID: 5796169545698128539, guid: 1dc6eae64cb64c742bd4f90f01f529d7, type: 3}
+      propertyPath: m_IsActive
+      value: 0
+      objectReference: {fileID: 0}
     m_RemovedComponents: []
     m_RemovedGameObjects:
     - {fileID: 4890432367883119581, guid: 1dc6eae64cb64c742bd4f90f01f529d7, type: 3}
@@ -3778,12 +3765,6 @@ PrefabInstance:
     - targetCorrespondingSourceObject: {fileID: 7307515054965031399, guid: 1dc6eae64cb64c742bd4f90f01f529d7, type: 3}
       insertIndex: -1
       addedObject: {fileID: 7559342003481094838}
-    - targetCorrespondingSourceObject: {fileID: 1924859934808868515, guid: 1dc6eae64cb64c742bd4f90f01f529d7, type: 3}
-      insertIndex: -1
-      addedObject: {fileID: 8538694478747709283}
-    - targetCorrespondingSourceObject: {fileID: 2773899795091505634, guid: 1dc6eae64cb64c742bd4f90f01f529d7, type: 3}
-      insertIndex: -1
-      addedObject: {fileID: 1865659355563310181}
   m_SourcePrefab: {fileID: 100100000, guid: 1dc6eae64cb64c742bd4f90f01f529d7, type: 3}
 --- !u!114 &15359082853543176
 MonoBehaviour:
@@ -4078,6 +4059,10 @@ PrefabInstance:
     - target: {fileID: 95024115327502240, guid: 42285ba4131f8c04f9e141bb34b0b638, type: 3}
       propertyPath: m_Name
       value: Hallway (49)
+      objectReference: {fileID: 0}
+    - target: {fileID: 95024115327502240, guid: 42285ba4131f8c04f9e141bb34b0b638, type: 3}
+      propertyPath: m_IsActive
+      value: 0
       objectReference: {fileID: 0}
     - target: {fileID: 1409203272831164083, guid: 42285ba4131f8c04f9e141bb34b0b638, type: 3}
       propertyPath: m_LocalPosition.x
@@ -4523,35 +4508,6 @@ Transform:
   m_Children: []
   m_Father: {fileID: 154534732}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
---- !u!114 &113870504626963196
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 107883781}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 474bcb49853aa07438625e644c072ee6, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Unity.RenderPipelines.Universal.Runtime::UnityEngine.Rendering.Universal.UniversalAdditionalLightData
-  m_UsePipelineSettings: 1
-  m_AdditionalLightsShadowResolutionTier: 2
-  m_CustomShadowLayers: 0
-  m_LightCookieSize: {x: 1, y: 1}
-  m_LightCookieOffset: {x: 0, y: 0}
-  m_SoftShadowQuality: 0
-  m_RenderingLayersMask:
-    serializedVersion: 0
-    m_Bits: 1
-  m_ShadowRenderingLayersMask:
-    serializedVersion: 0
-    m_Bits: 1
-  m_Version: 4
-  m_LightLayerMask: 1
-  m_ShadowLayerMask: 1
-  m_RenderingLayers: 1
-  m_ShadowRenderingLayers: 1
 --- !u!114 &117894599154044043
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -4917,6 +4873,26 @@ PrefabInstance:
       propertyPath: GlobalObjectIdHash
       value: 2699193419
       objectReference: {fileID: 0}
+    - target: {fileID: 4725916419774072878, guid: 815b172bd0dddee4a87bd80fa35f4757, type: 3}
+      propertyPath: genParams.RoomsTotalMin
+      value: 58
+      objectReference: {fileID: 0}
+    - target: {fileID: 4725916419774072878, guid: 815b172bd0dddee4a87bd80fa35f4757, type: 3}
+      propertyPath: genParams.ZombieDensityMidMax
+      value: 2
+      objectReference: {fileID: 0}
+    - target: {fileID: 4725916419774072878, guid: 815b172bd0dddee4a87bd80fa35f4757, type: 3}
+      propertyPath: genParams.ZombieDensityMidMin
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 4725916419774072878, guid: 815b172bd0dddee4a87bd80fa35f4757, type: 3}
+      propertyPath: genParams.ZombieDensitySafeMax
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 4725916419774072878, guid: 815b172bd0dddee4a87bd80fa35f4757, type: 3}
+      propertyPath: genParams.ZombieDensitySafeMin
+      value: 0
+      objectReference: {fileID: 0}
     - target: {fileID: 7441573374117325462, guid: 815b172bd0dddee4a87bd80fa35f4757, type: 3}
       propertyPath: GlobalObjectIdHash
       value: 3816244459
@@ -4998,6 +4974,10 @@ PrefabInstance:
     - target: {fileID: 95024115327502240, guid: 42285ba4131f8c04f9e141bb34b0b638, type: 3}
       propertyPath: m_Name
       value: Hallway (57)
+      objectReference: {fileID: 0}
+    - target: {fileID: 95024115327502240, guid: 42285ba4131f8c04f9e141bb34b0b638, type: 3}
+      propertyPath: m_IsActive
+      value: 0
       objectReference: {fileID: 0}
     - target: {fileID: 1409203272831164083, guid: 42285ba4131f8c04f9e141bb34b0b638, type: 3}
       propertyPath: m_LocalPosition.x
@@ -6196,6 +6176,10 @@ PrefabInstance:
       propertyPath: m_Name
       value: Hallway (46)
       objectReference: {fileID: 0}
+    - target: {fileID: 95024115327502240, guid: 42285ba4131f8c04f9e141bb34b0b638, type: 3}
+      propertyPath: m_IsActive
+      value: 0
+      objectReference: {fileID: 0}
     - target: {fileID: 1409203272831164083, guid: 42285ba4131f8c04f9e141bb34b0b638, type: 3}
       propertyPath: m_LocalPosition.x
       value: 13.6040125
@@ -6436,22 +6420,6 @@ GameObject:
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 4294967261
   m_IsActive: 1
---- !u!208 &413947700343245179
-NavMeshObstacle:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1391674562}
-  m_Enabled: 1
-  serializedVersion: 3
-  m_Shape: 1
-  m_Extents: {x: 0.5927887, y: 1.2528305, z: 0.037259247}
-  m_MoveThreshold: 0.1
-  m_Carve: 1
-  m_CarveOnlyStationary: 1
-  m_Center: {x: -0.5826007, y: 1.2528329, z: -0.028434772}
-  m_TimeToStationary: 0.5
 --- !u!114 &416982125792376341
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -7069,6 +7037,10 @@ PrefabInstance:
       propertyPath: m_Name
       value: Hallway x2 (3)
       objectReference: {fileID: 0}
+    - target: {fileID: 7278799077404263814, guid: 4b982f76f5b578d40b7d47dbdd9a8e3d, type: 3}
+      propertyPath: m_IsActive
+      value: 0
+      objectReference: {fileID: 0}
     m_RemovedComponents: []
     m_RemovedGameObjects: []
     m_AddedGameObjects: []
@@ -7475,6 +7447,10 @@ PrefabInstance:
     - target: {fileID: 3845632745750674989, guid: ace50d8844cd9114f8765d584421956f, type: 3}
       propertyPath: m_Name
       value: A-EmptyRoom-3x3
+      objectReference: {fileID: 0}
+    - target: {fileID: 3845632745750674989, guid: ace50d8844cd9114f8765d584421956f, type: 3}
+      propertyPath: m_IsActive
+      value: 0
       objectReference: {fileID: 0}
     - target: {fileID: 4077031022579879537, guid: ace50d8844cd9114f8765d584421956f, type: 3}
       propertyPath: m_LocalPosition.x
@@ -7976,6 +7952,10 @@ PrefabInstance:
       propertyPath: m_Name
       value: Hallway (4)
       objectReference: {fileID: 0}
+    - target: {fileID: 95024115327502240, guid: 42285ba4131f8c04f9e141bb34b0b638, type: 3}
+      propertyPath: m_IsActive
+      value: 0
+      objectReference: {fileID: 0}
     - target: {fileID: 1409203272831164083, guid: 42285ba4131f8c04f9e141bb34b0b638, type: 3}
       propertyPath: m_LocalPosition.x
       value: -38.39588
@@ -8160,6 +8140,10 @@ PrefabInstance:
     - target: {fileID: 95024115327502240, guid: 42285ba4131f8c04f9e141bb34b0b638, type: 3}
       propertyPath: m_Name
       value: Hallway (47)
+      objectReference: {fileID: 0}
+    - target: {fileID: 95024115327502240, guid: 42285ba4131f8c04f9e141bb34b0b638, type: 3}
+      propertyPath: m_IsActive
+      value: 0
       objectReference: {fileID: 0}
     - target: {fileID: 1409203272831164083, guid: 42285ba4131f8c04f9e141bb34b0b638, type: 3}
       propertyPath: m_LocalPosition.x
@@ -9396,6 +9380,10 @@ PrefabInstance:
       propertyPath: m_Name
       value: Hallway x2 (1)
       objectReference: {fileID: 0}
+    - target: {fileID: 7278799077404263814, guid: 4b982f76f5b578d40b7d47dbdd9a8e3d, type: 3}
+      propertyPath: m_IsActive
+      value: 0
+      objectReference: {fileID: 0}
     m_RemovedComponents: []
     m_RemovedGameObjects: []
     m_AddedGameObjects: []
@@ -9686,6 +9674,10 @@ PrefabInstance:
       propertyPath: m_Name
       value: Hallway x2
       objectReference: {fileID: 0}
+    - target: {fileID: 7278799077404263814, guid: 4b982f76f5b578d40b7d47dbdd9a8e3d, type: 3}
+      propertyPath: m_IsActive
+      value: 0
+      objectReference: {fileID: 0}
     m_RemovedComponents: []
     m_RemovedGameObjects: []
     m_AddedGameObjects: []
@@ -9766,6 +9758,10 @@ PrefabInstance:
     - target: {fileID: 6050135058663670480, guid: d29bcc0ec64fcea4898c503b7d56d30f, type: 3}
       propertyPath: m_Name
       value: EmptyRoom-5x5__Book
+      objectReference: {fileID: 0}
+    - target: {fileID: 6050135058663670480, guid: d29bcc0ec64fcea4898c503b7d56d30f, type: 3}
+      propertyPath: m_IsActive
+      value: 0
       objectReference: {fileID: 0}
     - target: {fileID: 7267699623571841510, guid: d29bcc0ec64fcea4898c503b7d56d30f, type: 3}
       propertyPath: m_LocalPosition.x
@@ -10656,6 +10652,10 @@ PrefabInstance:
       propertyPath: m_Name
       value: Hallway (22)
       objectReference: {fileID: 0}
+    - target: {fileID: 95024115327502240, guid: 42285ba4131f8c04f9e141bb34b0b638, type: 3}
+      propertyPath: m_IsActive
+      value: 0
+      objectReference: {fileID: 0}
     - target: {fileID: 1409203272831164083, guid: 42285ba4131f8c04f9e141bb34b0b638, type: 3}
       propertyPath: m_LocalPosition.x
       value: -58.39988
@@ -11044,6 +11044,10 @@ PrefabInstance:
     - target: {fileID: 6050135058663670480, guid: d29bcc0ec64fcea4898c503b7d56d30f, type: 3}
       propertyPath: m_Name
       value: EmptyRoom-5x5__Book
+      objectReference: {fileID: 0}
+    - target: {fileID: 6050135058663670480, guid: d29bcc0ec64fcea4898c503b7d56d30f, type: 3}
+      propertyPath: m_IsActive
+      value: 0
       objectReference: {fileID: 0}
     - target: {fileID: 7267699623571841510, guid: d29bcc0ec64fcea4898c503b7d56d30f, type: 3}
       propertyPath: m_LocalPosition.x
@@ -11458,6 +11462,10 @@ PrefabInstance:
     - target: {fileID: 6884995001170551733, guid: 65aca94d0ebb1714980fd534f6fd0b2b, type: 3}
       propertyPath: m_Name
       value: EmptyRoom-3x3__Book
+      objectReference: {fileID: 0}
+    - target: {fileID: 6884995001170551733, guid: 65aca94d0ebb1714980fd534f6fd0b2b, type: 3}
+      propertyPath: m_IsActive
+      value: 0
       objectReference: {fileID: 0}
     m_RemovedComponents: []
     m_RemovedGameObjects:
@@ -11965,6 +11973,10 @@ PrefabInstance:
       propertyPath: m_Name
       value: Hallway (65)
       objectReference: {fileID: 0}
+    - target: {fileID: 95024115327502240, guid: 42285ba4131f8c04f9e141bb34b0b638, type: 3}
+      propertyPath: m_IsActive
+      value: 0
+      objectReference: {fileID: 0}
     - target: {fileID: 1409203272831164083, guid: 42285ba4131f8c04f9e141bb34b0b638, type: 3}
       propertyPath: m_LocalPosition.x
       value: 34.704
@@ -12135,6 +12147,10 @@ PrefabInstance:
     - target: {fileID: 95024115327502240, guid: 42285ba4131f8c04f9e141bb34b0b638, type: 3}
       propertyPath: m_Name
       value: Hallway (60)
+      objectReference: {fileID: 0}
+    - target: {fileID: 95024115327502240, guid: 42285ba4131f8c04f9e141bb34b0b638, type: 3}
+      propertyPath: m_IsActive
+      value: 0
       objectReference: {fileID: 0}
     - target: {fileID: 1409203272831164083, guid: 42285ba4131f8c04f9e141bb34b0b638, type: 3}
       propertyPath: m_LocalPosition.x
@@ -12491,6 +12507,10 @@ PrefabInstance:
     - target: {fileID: 95024115327502240, guid: 42285ba4131f8c04f9e141bb34b0b638, type: 3}
       propertyPath: m_Name
       value: Hallway (17)
+      objectReference: {fileID: 0}
+    - target: {fileID: 95024115327502240, guid: 42285ba4131f8c04f9e141bb34b0b638, type: 3}
+      propertyPath: m_IsActive
+      value: 0
       objectReference: {fileID: 0}
     - target: {fileID: 1409203272831164083, guid: 42285ba4131f8c04f9e141bb34b0b638, type: 3}
       propertyPath: m_LocalPosition.x
@@ -13064,6 +13084,10 @@ PrefabInstance:
       propertyPath: m_Name
       value: Hallway x2 (14)
       objectReference: {fileID: 0}
+    - target: {fileID: 7278799077404263814, guid: 4b982f76f5b578d40b7d47dbdd9a8e3d, type: 3}
+      propertyPath: m_IsActive
+      value: 0
+      objectReference: {fileID: 0}
     m_RemovedComponents: []
     m_RemovedGameObjects:
     - {fileID: 1670023739320067319, guid: 4b982f76f5b578d40b7d47dbdd9a8e3d, type: 3}
@@ -13097,6 +13121,10 @@ PrefabInstance:
     - target: {fileID: 55710356330424591, guid: e092c22c01221d041b2e1509cecb86a3, type: 3}
       propertyPath: m_Name
       value: EmptyRoom-3x3__Bed
+      objectReference: {fileID: 0}
+    - target: {fileID: 55710356330424591, guid: e092c22c01221d041b2e1509cecb86a3, type: 3}
+      propertyPath: m_IsActive
+      value: 0
       objectReference: {fileID: 0}
     - target: {fileID: 1767734292467300344, guid: e092c22c01221d041b2e1509cecb86a3, type: 3}
       propertyPath: m_LocalPosition.x
@@ -13527,6 +13555,10 @@ PrefabInstance:
     - target: {fileID: 95024115327502240, guid: 42285ba4131f8c04f9e141bb34b0b638, type: 3}
       propertyPath: m_Name
       value: Hallway (37)
+      objectReference: {fileID: 0}
+    - target: {fileID: 95024115327502240, guid: 42285ba4131f8c04f9e141bb34b0b638, type: 3}
+      propertyPath: m_IsActive
+      value: 0
       objectReference: {fileID: 0}
     - target: {fileID: 1409203272831164083, guid: 42285ba4131f8c04f9e141bb34b0b638, type: 3}
       propertyPath: m_LocalPosition.x
@@ -15175,6 +15207,10 @@ PrefabInstance:
       propertyPath: m_Name
       value: Hallway (44)
       objectReference: {fileID: 0}
+    - target: {fileID: 95024115327502240, guid: 42285ba4131f8c04f9e141bb34b0b638, type: 3}
+      propertyPath: m_IsActive
+      value: 0
+      objectReference: {fileID: 0}
     - target: {fileID: 1409203272831164083, guid: 42285ba4131f8c04f9e141bb34b0b638, type: 3}
       propertyPath: m_LocalPosition.x
       value: -26.39598
@@ -15265,6 +15301,10 @@ PrefabInstance:
     - target: {fileID: 95024115327502240, guid: 42285ba4131f8c04f9e141bb34b0b638, type: 3}
       propertyPath: m_Name
       value: Hallway (40)
+      objectReference: {fileID: 0}
+    - target: {fileID: 95024115327502240, guid: 42285ba4131f8c04f9e141bb34b0b638, type: 3}
+      propertyPath: m_IsActive
+      value: 0
       objectReference: {fileID: 0}
     - target: {fileID: 1409203272831164083, guid: 42285ba4131f8c04f9e141bb34b0b638, type: 3}
       propertyPath: m_LocalPosition.x
@@ -15620,35 +15660,6 @@ MonoBehaviour:
   m_IgnoreFromBuild: 0
   m_ApplyToChildren: 1
   m_AffectedAgents: ffffffff
---- !u!114 &1671074937821817625
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1595534377}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 474bcb49853aa07438625e644c072ee6, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Unity.RenderPipelines.Universal.Runtime::UnityEngine.Rendering.Universal.UniversalAdditionalLightData
-  m_UsePipelineSettings: 1
-  m_AdditionalLightsShadowResolutionTier: 2
-  m_CustomShadowLayers: 0
-  m_LightCookieSize: {x: 1, y: 1}
-  m_LightCookieOffset: {x: 0, y: 0}
-  m_SoftShadowQuality: 0
-  m_RenderingLayersMask:
-    serializedVersion: 0
-    m_Bits: 1
-  m_ShadowRenderingLayersMask:
-    serializedVersion: 0
-    m_Bits: 1
-  m_Version: 4
-  m_LightLayerMask: 1
-  m_ShadowLayerMask: 1
-  m_RenderingLayers: 1
-  m_ShadowRenderingLayers: 1
 --- !u!33 &1672222251510342286
 MeshFilter:
   m_ObjectHideFlags: 0
@@ -15753,6 +15764,10 @@ PrefabInstance:
     - target: {fileID: 95024115327502240, guid: 42285ba4131f8c04f9e141bb34b0b638, type: 3}
       propertyPath: m_Name
       value: Hallway (18)
+      objectReference: {fileID: 0}
+    - target: {fileID: 95024115327502240, guid: 42285ba4131f8c04f9e141bb34b0b638, type: 3}
+      propertyPath: m_IsActive
+      value: 0
       objectReference: {fileID: 0}
     - target: {fileID: 1409203272831164083, guid: 42285ba4131f8c04f9e141bb34b0b638, type: 3}
       propertyPath: m_LocalPosition.x
@@ -16017,6 +16032,10 @@ PrefabInstance:
     - target: {fileID: 95024115327502240, guid: 42285ba4131f8c04f9e141bb34b0b638, type: 3}
       propertyPath: m_Name
       value: Hallway (9)
+      objectReference: {fileID: 0}
+    - target: {fileID: 95024115327502240, guid: 42285ba4131f8c04f9e141bb34b0b638, type: 3}
+      propertyPath: m_IsActive
+      value: 0
       objectReference: {fileID: 0}
     - target: {fileID: 1409203272831164083, guid: 42285ba4131f8c04f9e141bb34b0b638, type: 3}
       propertyPath: m_LocalPosition.x
@@ -16403,6 +16422,10 @@ PrefabInstance:
     - target: {fileID: 95024115327502240, guid: 42285ba4131f8c04f9e141bb34b0b638, type: 3}
       propertyPath: m_Name
       value: Hallway (16)
+      objectReference: {fileID: 0}
+    - target: {fileID: 95024115327502240, guid: 42285ba4131f8c04f9e141bb34b0b638, type: 3}
+      propertyPath: m_IsActive
+      value: 0
       objectReference: {fileID: 0}
     - target: {fileID: 1409203272831164083, guid: 42285ba4131f8c04f9e141bb34b0b638, type: 3}
       propertyPath: m_LocalPosition.x
@@ -17036,35 +17059,6 @@ PrefabInstance:
     m_AddedGameObjects: []
     m_AddedComponents: []
   m_SourcePrefab: {fileID: 100100000, guid: e34027daf1ed3d64eac723be405708d7, type: 3}
---- !u!114 &1865659355563310181
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1605624823}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 474bcb49853aa07438625e644c072ee6, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Unity.RenderPipelines.Universal.Runtime::UnityEngine.Rendering.Universal.UniversalAdditionalLightData
-  m_UsePipelineSettings: 1
-  m_AdditionalLightsShadowResolutionTier: 2
-  m_CustomShadowLayers: 0
-  m_LightCookieSize: {x: 1, y: 1}
-  m_LightCookieOffset: {x: 0, y: 0}
-  m_SoftShadowQuality: 0
-  m_RenderingLayersMask:
-    serializedVersion: 0
-    m_Bits: 1
-  m_ShadowRenderingLayersMask:
-    serializedVersion: 0
-    m_Bits: 1
-  m_Version: 4
-  m_LightLayerMask: 1
-  m_ShadowLayerMask: 1
-  m_RenderingLayers: 1
-  m_ShadowRenderingLayers: 1
 --- !u!65 &1868255721533250868
 BoxCollider:
   m_ObjectHideFlags: 0
@@ -17097,6 +17091,10 @@ PrefabInstance:
     - target: {fileID: 95024115327502240, guid: 42285ba4131f8c04f9e141bb34b0b638, type: 3}
       propertyPath: m_Name
       value: Hallway (53)
+      objectReference: {fileID: 0}
+    - target: {fileID: 95024115327502240, guid: 42285ba4131f8c04f9e141bb34b0b638, type: 3}
+      propertyPath: m_IsActive
+      value: 0
       objectReference: {fileID: 0}
     - target: {fileID: 1409203272831164083, guid: 42285ba4131f8c04f9e141bb34b0b638, type: 3}
       propertyPath: m_LocalPosition.x
@@ -17600,6 +17598,10 @@ PrefabInstance:
     - target: {fileID: 7278799077404263814, guid: 4b982f76f5b578d40b7d47dbdd9a8e3d, type: 3}
       propertyPath: m_Name
       value: Hallway x2 (9)
+      objectReference: {fileID: 0}
+    - target: {fileID: 7278799077404263814, guid: 4b982f76f5b578d40b7d47dbdd9a8e3d, type: 3}
+      propertyPath: m_IsActive
+      value: 0
       objectReference: {fileID: 0}
     m_RemovedComponents: []
     m_RemovedGameObjects: []
@@ -18678,6 +18680,10 @@ PrefabInstance:
       propertyPath: m_Name
       value: Hallway x2 (11)
       objectReference: {fileID: 0}
+    - target: {fileID: 7278799077404263814, guid: 4b982f76f5b578d40b7d47dbdd9a8e3d, type: 3}
+      propertyPath: m_IsActive
+      value: 0
+      objectReference: {fileID: 0}
     - target: {fileID: 8064397645524918111, guid: 4b982f76f5b578d40b7d47dbdd9a8e3d, type: 3}
       propertyPath: m_Enabled
       value: 1
@@ -18836,6 +18842,10 @@ PrefabInstance:
     - target: {fileID: 5619703737469526399, guid: 817b928da8a7f95499bfcaad93fb7420, type: 3}
       propertyPath: m_Name
       value: EmptyRoom-3x3__Hospital
+      objectReference: {fileID: 0}
+    - target: {fileID: 5619703737469526399, guid: 817b928da8a7f95499bfcaad93fb7420, type: 3}
+      propertyPath: m_IsActive
+      value: 0
       objectReference: {fileID: 0}
     - target: {fileID: 5781302719462968073, guid: 817b928da8a7f95499bfcaad93fb7420, type: 3}
       propertyPath: m_LocalPosition.x
@@ -19697,6 +19707,10 @@ PrefabInstance:
       propertyPath: m_Name
       value: EmptyRoom-3x3__Warehouse
       objectReference: {fileID: 0}
+    - target: {fileID: 5796169545698128539, guid: 1dc6eae64cb64c742bd4f90f01f529d7, type: 3}
+      propertyPath: m_IsActive
+      value: 0
+      objectReference: {fileID: 0}
     m_RemovedComponents: []
     m_RemovedGameObjects:
     - {fileID: 1876455157728399804, guid: 1dc6eae64cb64c742bd4f90f01f529d7, type: 3}
@@ -19751,12 +19765,6 @@ PrefabInstance:
     - targetCorrespondingSourceObject: {fileID: 7307515054965031399, guid: 1dc6eae64cb64c742bd4f90f01f529d7, type: 3}
       insertIndex: -1
       addedObject: {fileID: 7949089059005149538}
-    - targetCorrespondingSourceObject: {fileID: 1924859934808868515, guid: 1dc6eae64cb64c742bd4f90f01f529d7, type: 3}
-      insertIndex: -1
-      addedObject: {fileID: 113870504626963196}
-    - targetCorrespondingSourceObject: {fileID: 2773899795091505634, guid: 1dc6eae64cb64c742bd4f90f01f529d7, type: 3}
-      insertIndex: -1
-      addedObject: {fileID: 8218405827230062771}
   m_SourcePrefab: {fileID: 100100000, guid: 1dc6eae64cb64c742bd4f90f01f529d7, type: 3}
 --- !u!1001 &2240232776117569033
 PrefabInstance:
@@ -19846,6 +19854,10 @@ PrefabInstance:
     - target: {fileID: 95024115327502240, guid: 42285ba4131f8c04f9e141bb34b0b638, type: 3}
       propertyPath: m_Name
       value: Hallway (14)
+      objectReference: {fileID: 0}
+    - target: {fileID: 95024115327502240, guid: 42285ba4131f8c04f9e141bb34b0b638, type: 3}
+      propertyPath: m_IsActive
+      value: 0
       objectReference: {fileID: 0}
     - target: {fileID: 1409203272831164083, guid: 42285ba4131f8c04f9e141bb34b0b638, type: 3}
       propertyPath: m_LocalPosition.x
@@ -20019,6 +20031,10 @@ PrefabInstance:
     - target: {fileID: 95024115327502240, guid: 42285ba4131f8c04f9e141bb34b0b638, type: 3}
       propertyPath: m_Name
       value: Hallway (33)
+      objectReference: {fileID: 0}
+    - target: {fileID: 95024115327502240, guid: 42285ba4131f8c04f9e141bb34b0b638, type: 3}
+      propertyPath: m_IsActive
+      value: 0
       objectReference: {fileID: 0}
     - target: {fileID: 1409203272831164083, guid: 42285ba4131f8c04f9e141bb34b0b638, type: 3}
       propertyPath: m_LocalPosition.x
@@ -20563,6 +20579,10 @@ PrefabInstance:
       propertyPath: m_Name
       value: Hallway x2 (6)
       objectReference: {fileID: 0}
+    - target: {fileID: 7278799077404263814, guid: 4b982f76f5b578d40b7d47dbdd9a8e3d, type: 3}
+      propertyPath: m_IsActive
+      value: 0
+      objectReference: {fileID: 0}
     m_RemovedComponents: []
     m_RemovedGameObjects: []
     m_AddedGameObjects: []
@@ -20764,6 +20784,10 @@ PrefabInstance:
     - target: {fileID: 5712854555400863696, guid: 3fee531f23bfdf34488aad84e54d4b5f, type: 3}
       propertyPath: m_Name
       value: EmptyRoom-3x3__Book2
+      objectReference: {fileID: 0}
+    - target: {fileID: 5712854555400863696, guid: 3fee531f23bfdf34488aad84e54d4b5f, type: 3}
+      propertyPath: m_IsActive
+      value: 0
       objectReference: {fileID: 0}
     - target: {fileID: 6270574514267709735, guid: 3fee531f23bfdf34488aad84e54d4b5f, type: 3}
       propertyPath: m_LocalPosition.x
@@ -21102,6 +21126,10 @@ PrefabInstance:
       propertyPath: m_Name
       value: Hallway (39)
       objectReference: {fileID: 0}
+    - target: {fileID: 95024115327502240, guid: 42285ba4131f8c04f9e141bb34b0b638, type: 3}
+      propertyPath: m_IsActive
+      value: 0
+      objectReference: {fileID: 0}
     - target: {fileID: 439254832397928060, guid: 42285ba4131f8c04f9e141bb34b0b638, type: 3}
       propertyPath: m_LocalPosition.y
       value: -0.049999952
@@ -21215,6 +21243,10 @@ PrefabInstance:
     - target: {fileID: 6050135058663670480, guid: d29bcc0ec64fcea4898c503b7d56d30f, type: 3}
       propertyPath: m_Name
       value: EmptyRoom-5x5__Book
+      objectReference: {fileID: 0}
+    - target: {fileID: 6050135058663670480, guid: d29bcc0ec64fcea4898c503b7d56d30f, type: 3}
+      propertyPath: m_IsActive
+      value: 0
       objectReference: {fileID: 0}
     - target: {fileID: 7267699623571841510, guid: d29bcc0ec64fcea4898c503b7d56d30f, type: 3}
       propertyPath: m_LocalPosition.x
@@ -21585,6 +21617,10 @@ PrefabInstance:
       propertyPath: m_Name
       value: EmptyRoom-3x3__Book
       objectReference: {fileID: 0}
+    - target: {fileID: 6884995001170551733, guid: 65aca94d0ebb1714980fd534f6fd0b2b, type: 3}
+      propertyPath: m_IsActive
+      value: 0
+      objectReference: {fileID: 0}
     - target: {fileID: 8885724672574485982, guid: 65aca94d0ebb1714980fd534f6fd0b2b, type: 3}
       propertyPath: m_LocalPosition.x
       value: -5.8039913
@@ -21940,6 +21976,10 @@ PrefabInstance:
       propertyPath: m_Name
       value: Hallway (1)
       objectReference: {fileID: 0}
+    - target: {fileID: 95024115327502240, guid: 42285ba4131f8c04f9e141bb34b0b638, type: 3}
+      propertyPath: m_IsActive
+      value: 0
+      objectReference: {fileID: 0}
     - target: {fileID: 1409203272831164083, guid: 42285ba4131f8c04f9e141bb34b0b638, type: 3}
       propertyPath: m_LocalPosition.x
       value: -13.599968
@@ -22020,6 +22060,10 @@ PrefabInstance:
     - target: {fileID: 95024115327502240, guid: 42285ba4131f8c04f9e141bb34b0b638, type: 3}
       propertyPath: m_Name
       value: Hallway (23)
+      objectReference: {fileID: 0}
+    - target: {fileID: 95024115327502240, guid: 42285ba4131f8c04f9e141bb34b0b638, type: 3}
+      propertyPath: m_IsActive
+      value: 0
       objectReference: {fileID: 0}
     - target: {fileID: 1409203272831164083, guid: 42285ba4131f8c04f9e141bb34b0b638, type: 3}
       propertyPath: m_LocalPosition.x
@@ -27262,6 +27306,10 @@ PrefabInstance:
       propertyPath: m_Name
       value: Entrance-EmptyRoom-5x5
       objectReference: {fileID: 0}
+    - target: {fileID: 4210286471389715959, guid: 35a33dfee9b3863408b8d59a797e3adb, type: 3}
+      propertyPath: m_IsActive
+      value: 0
+      objectReference: {fileID: 0}
     - target: {fileID: 7952390850138547329, guid: 35a33dfee9b3863408b8d59a797e3adb, type: 3}
       propertyPath: m_IsActive
       value: 1
@@ -27361,21 +27409,6 @@ PrefabInstance:
     - targetCorrespondingSourceObject: {fileID: 7952390850138547329, guid: 35a33dfee9b3863408b8d59a797e3adb, type: 3}
       insertIndex: -1
       addedObject: {fileID: 7875604765282722702}
-    - targetCorrespondingSourceObject: {fileID: 1064491289835258934, guid: 35a33dfee9b3863408b8d59a797e3adb, type: 3}
-      insertIndex: -1
-      addedObject: {fileID: 6868644874652629540}
-    - targetCorrespondingSourceObject: {fileID: 1064491292428975818, guid: 35a33dfee9b3863408b8d59a797e3adb, type: 3}
-      insertIndex: -1
-      addedObject: {fileID: 3578049118918737938}
-    - targetCorrespondingSourceObject: {fileID: 1064491292428975818, guid: 35a33dfee9b3863408b8d59a797e3adb, type: 3}
-      insertIndex: -1
-      addedObject: {fileID: 413947700343245179}
-    - targetCorrespondingSourceObject: {fileID: 1064491289713965886, guid: 35a33dfee9b3863408b8d59a797e3adb, type: 3}
-      insertIndex: -1
-      addedObject: {fileID: 4866519123937407751}
-    - targetCorrespondingSourceObject: {fileID: 1064491289713965886, guid: 35a33dfee9b3863408b8d59a797e3adb, type: 3}
-      insertIndex: -1
-      addedObject: {fileID: 4922595585272374165}
     - targetCorrespondingSourceObject: {fileID: 4775965130814523380, guid: 35a33dfee9b3863408b8d59a797e3adb, type: 3}
       insertIndex: -1
       addedObject: {fileID: 6247163228055922862}
@@ -28302,6 +28335,10 @@ PrefabInstance:
       propertyPath: m_Name
       value: EmptyRoom-3x3__Book2
       objectReference: {fileID: 0}
+    - target: {fileID: 5712854555400863696, guid: 3fee531f23bfdf34488aad84e54d4b5f, type: 3}
+      propertyPath: m_IsActive
+      value: 0
+      objectReference: {fileID: 0}
     - target: {fileID: 6270574514267709735, guid: 3fee531f23bfdf34488aad84e54d4b5f, type: 3}
       propertyPath: m_LocalPosition.x
       value: 37.99997
@@ -28720,6 +28757,10 @@ PrefabInstance:
     - target: {fileID: 7278799077404263814, guid: 4b982f76f5b578d40b7d47dbdd9a8e3d, type: 3}
       propertyPath: m_Name
       value: Hallway x2 (4)
+      objectReference: {fileID: 0}
+    - target: {fileID: 7278799077404263814, guid: 4b982f76f5b578d40b7d47dbdd9a8e3d, type: 3}
+      propertyPath: m_IsActive
+      value: 0
       objectReference: {fileID: 0}
     m_RemovedComponents: []
     m_RemovedGameObjects:
@@ -29703,6 +29744,10 @@ PrefabInstance:
       propertyPath: m_Name
       value: Hallway (12)
       objectReference: {fileID: 0}
+    - target: {fileID: 95024115327502240, guid: 42285ba4131f8c04f9e141bb34b0b638, type: 3}
+      propertyPath: m_IsActive
+      value: 0
+      objectReference: {fileID: 0}
     - target: {fileID: 1409203272831164083, guid: 42285ba4131f8c04f9e141bb34b0b638, type: 3}
       propertyPath: m_LocalPosition.x
       value: -69.3957
@@ -30636,6 +30681,10 @@ PrefabInstance:
       propertyPath: m_Name
       value: Hallway (50)
       objectReference: {fileID: 0}
+    - target: {fileID: 95024115327502240, guid: 42285ba4131f8c04f9e141bb34b0b638, type: 3}
+      propertyPath: m_IsActive
+      value: 0
+      objectReference: {fileID: 0}
     - target: {fileID: 339668720870695300, guid: 42285ba4131f8c04f9e141bb34b0b638, type: 3}
       propertyPath: m_Enabled
       value: 1
@@ -31122,7 +31171,7 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 95024115327502240, guid: 42285ba4131f8c04f9e141bb34b0b638, type: 3}
       propertyPath: m_IsActive
-      value: 1
+      value: 0
       objectReference: {fileID: 0}
     - target: {fileID: 339668720870695300, guid: 42285ba4131f8c04f9e141bb34b0b638, type: 3}
       propertyPath: m_Enabled
@@ -31392,6 +31441,10 @@ PrefabInstance:
     - target: {fileID: 8637280041931511109, guid: d020543809ded7745b6f0a88040e8bcd, type: 3}
       propertyPath: m_Name
       value: EmptyRoom-6x8__A
+      objectReference: {fileID: 0}
+    - target: {fileID: 8637280041931511109, guid: d020543809ded7745b6f0a88040e8bcd, type: 3}
+      propertyPath: m_IsActive
+      value: 0
       objectReference: {fileID: 0}
     m_RemovedComponents: []
     m_RemovedGameObjects:
@@ -32000,6 +32053,10 @@ PrefabInstance:
     - target: {fileID: 95024115327502240, guid: 42285ba4131f8c04f9e141bb34b0b638, type: 3}
       propertyPath: m_Name
       value: Hallway (30)
+      objectReference: {fileID: 0}
+    - target: {fileID: 95024115327502240, guid: 42285ba4131f8c04f9e141bb34b0b638, type: 3}
+      propertyPath: m_IsActive
+      value: 0
       objectReference: {fileID: 0}
     - target: {fileID: 1409203272831164083, guid: 42285ba4131f8c04f9e141bb34b0b638, type: 3}
       propertyPath: m_LocalPosition.x
@@ -33041,6 +33098,10 @@ PrefabInstance:
       propertyPath: m_Name
       value: Hallway (3)
       objectReference: {fileID: 0}
+    - target: {fileID: 95024115327502240, guid: 42285ba4131f8c04f9e141bb34b0b638, type: 3}
+      propertyPath: m_IsActive
+      value: 0
+      objectReference: {fileID: 0}
     - target: {fileID: 1409203272831164083, guid: 42285ba4131f8c04f9e141bb34b0b638, type: 3}
       propertyPath: m_LocalPosition.x
       value: -30.395882
@@ -33461,6 +33522,10 @@ PrefabInstance:
     - target: {fileID: 95024115327502240, guid: 42285ba4131f8c04f9e141bb34b0b638, type: 3}
       propertyPath: m_Name
       value: Hallway (5)
+      objectReference: {fileID: 0}
+    - target: {fileID: 95024115327502240, guid: 42285ba4131f8c04f9e141bb34b0b638, type: 3}
+      propertyPath: m_IsActive
+      value: 0
       objectReference: {fileID: 0}
     - target: {fileID: 1409203272831164083, guid: 42285ba4131f8c04f9e141bb34b0b638, type: 3}
       propertyPath: m_LocalPosition.x
@@ -34659,6 +34724,10 @@ PrefabInstance:
       propertyPath: m_Name
       value: EmptyRoom-5x5__Book
       objectReference: {fileID: 0}
+    - target: {fileID: 6050135058663670480, guid: d29bcc0ec64fcea4898c503b7d56d30f, type: 3}
+      propertyPath: m_IsActive
+      value: 0
+      objectReference: {fileID: 0}
     - target: {fileID: 7267699623571841510, guid: d29bcc0ec64fcea4898c503b7d56d30f, type: 3}
       propertyPath: m_LocalPosition.x
       value: 0.3
@@ -35345,26 +35414,6 @@ GameObject:
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 4294967261
   m_IsActive: 1
---- !u!114 &3578049118918737938
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1391674562}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 1e3fdca004f2d45fe8abbed571a8abd5, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Unity.AI.Navigation::Unity.AI.Navigation.NavMeshModifier
-  m_SerializedVersion: 0
-  m_OverrideArea: 0
-  m_Area: 0
-  m_OverrideGenerateLinks: 0
-  m_GenerateLinks: 0
-  m_IgnoreFromBuild: 1
-  m_ApplyToChildren: 1
-  m_AffectedAgents: ffffffff
 --- !u!1001 &3591037267606488849
 PrefabInstance:
   m_ObjectHideFlags: 0
@@ -37624,6 +37673,10 @@ PrefabInstance:
       propertyPath: m_Name
       value: Hallway x2 (13)
       objectReference: {fileID: 0}
+    - target: {fileID: 7278799077404263814, guid: 4b982f76f5b578d40b7d47dbdd9a8e3d, type: 3}
+      propertyPath: m_IsActive
+      value: 0
+      objectReference: {fileID: 0}
     - target: {fileID: 8064397645524918111, guid: 4b982f76f5b578d40b7d47dbdd9a8e3d, type: 3}
       propertyPath: m_Enabled
       value: 1
@@ -38669,6 +38722,10 @@ PrefabInstance:
       propertyPath: m_Name
       value: Hallway x2 (5)
       objectReference: {fileID: 0}
+    - target: {fileID: 7278799077404263814, guid: 4b982f76f5b578d40b7d47dbdd9a8e3d, type: 3}
+      propertyPath: m_IsActive
+      value: 0
+      objectReference: {fileID: 0}
     m_RemovedComponents: []
     m_RemovedGameObjects: []
     m_AddedGameObjects: []
@@ -38720,6 +38777,10 @@ PrefabInstance:
     - target: {fileID: 95024115327502240, guid: 42285ba4131f8c04f9e141bb34b0b638, type: 3}
       propertyPath: m_Name
       value: Hallway
+      objectReference: {fileID: 0}
+    - target: {fileID: 95024115327502240, guid: 42285ba4131f8c04f9e141bb34b0b638, type: 3}
+      propertyPath: m_IsActive
+      value: 0
       objectReference: {fileID: 0}
     - target: {fileID: 1409203272831164083, guid: 42285ba4131f8c04f9e141bb34b0b638, type: 3}
       propertyPath: m_LocalPosition.x
@@ -40373,6 +40434,10 @@ PrefabInstance:
       propertyPath: m_Name
       value: Hallway (48)
       objectReference: {fileID: 0}
+    - target: {fileID: 95024115327502240, guid: 42285ba4131f8c04f9e141bb34b0b638, type: 3}
+      propertyPath: m_IsActive
+      value: 0
+      objectReference: {fileID: 0}
     - target: {fileID: 1409203272831164083, guid: 42285ba4131f8c04f9e141bb34b0b638, type: 3}
       propertyPath: m_LocalPosition.x
       value: 37.104015
@@ -40527,6 +40592,10 @@ PrefabInstance:
     - target: {fileID: 95024115327502240, guid: 42285ba4131f8c04f9e141bb34b0b638, type: 3}
       propertyPath: m_Name
       value: Hallway (63)
+      objectReference: {fileID: 0}
+    - target: {fileID: 95024115327502240, guid: 42285ba4131f8c04f9e141bb34b0b638, type: 3}
+      propertyPath: m_IsActive
+      value: 0
       objectReference: {fileID: 0}
     - target: {fileID: 1409203272831164083, guid: 42285ba4131f8c04f9e141bb34b0b638, type: 3}
       propertyPath: m_LocalPosition.x
@@ -40866,6 +40935,10 @@ PrefabInstance:
       propertyPath: m_Name
       value: Hallway (52)
       objectReference: {fileID: 0}
+    - target: {fileID: 95024115327502240, guid: 42285ba4131f8c04f9e141bb34b0b638, type: 3}
+      propertyPath: m_IsActive
+      value: 0
+      objectReference: {fileID: 0}
     - target: {fileID: 1409203272831164083, guid: 42285ba4131f8c04f9e141bb34b0b638, type: 3}
       propertyPath: m_LocalPosition.x
       value: 58.553955
@@ -40932,6 +41005,10 @@ PrefabInstance:
     - target: {fileID: 95024115327502240, guid: 42285ba4131f8c04f9e141bb34b0b638, type: 3}
       propertyPath: m_Name
       value: Hallway (10)
+      objectReference: {fileID: 0}
+    - target: {fileID: 95024115327502240, guid: 42285ba4131f8c04f9e141bb34b0b638, type: 3}
+      propertyPath: m_IsActive
+      value: 0
       objectReference: {fileID: 0}
     - target: {fileID: 1409203272831164083, guid: 42285ba4131f8c04f9e141bb34b0b638, type: 3}
       propertyPath: m_LocalPosition.x
@@ -41267,6 +41344,10 @@ PrefabInstance:
       propertyPath: m_Name
       value: Hallway (32)
       objectReference: {fileID: 0}
+    - target: {fileID: 95024115327502240, guid: 42285ba4131f8c04f9e141bb34b0b638, type: 3}
+      propertyPath: m_IsActive
+      value: 0
+      objectReference: {fileID: 0}
     - target: {fileID: 1409203272831164083, guid: 42285ba4131f8c04f9e141bb34b0b638, type: 3}
       propertyPath: m_LocalPosition.x
       value: -31.299932
@@ -41493,6 +41574,10 @@ PrefabInstance:
     - target: {fileID: 95024115327502240, guid: 42285ba4131f8c04f9e141bb34b0b638, type: 3}
       propertyPath: m_Name
       value: Hallway (58)
+      objectReference: {fileID: 0}
+    - target: {fileID: 95024115327502240, guid: 42285ba4131f8c04f9e141bb34b0b638, type: 3}
+      propertyPath: m_IsActive
+      value: 0
       objectReference: {fileID: 0}
     - target: {fileID: 1409203272831164083, guid: 42285ba4131f8c04f9e141bb34b0b638, type: 3}
       propertyPath: m_LocalPosition.x
@@ -42264,6 +42349,10 @@ PrefabInstance:
       propertyPath: m_Name
       value: Hallway (29)
       objectReference: {fileID: 0}
+    - target: {fileID: 95024115327502240, guid: 42285ba4131f8c04f9e141bb34b0b638, type: 3}
+      propertyPath: m_IsActive
+      value: 0
+      objectReference: {fileID: 0}
     - target: {fileID: 1409203272831164083, guid: 42285ba4131f8c04f9e141bb34b0b638, type: 3}
       propertyPath: m_LocalPosition.x
       value: -5.599976
@@ -42386,6 +42475,10 @@ PrefabInstance:
     - target: {fileID: 95024115327502240, guid: 42285ba4131f8c04f9e141bb34b0b638, type: 3}
       propertyPath: m_Name
       value: Hallway (36)
+      objectReference: {fileID: 0}
+    - target: {fileID: 95024115327502240, guid: 42285ba4131f8c04f9e141bb34b0b638, type: 3}
+      propertyPath: m_IsActive
+      value: 0
       objectReference: {fileID: 0}
     - target: {fileID: 1409203272831164083, guid: 42285ba4131f8c04f9e141bb34b0b638, type: 3}
       propertyPath: m_LocalPosition.x
@@ -45488,26 +45581,6 @@ MonoBehaviour:
   m_IgnoreFromBuild: 0
   m_ApplyToChildren: 1
   m_AffectedAgents: ffffffff
---- !u!114 &4866519123937407751
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1391674561}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 1e3fdca004f2d45fe8abbed571a8abd5, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Unity.AI.Navigation::Unity.AI.Navigation.NavMeshModifier
-  m_SerializedVersion: 0
-  m_OverrideArea: 0
-  m_Area: 0
-  m_OverrideGenerateLinks: 0
-  m_GenerateLinks: 0
-  m_IgnoreFromBuild: 1
-  m_ApplyToChildren: 1
-  m_AffectedAgents: ffffffff
 --- !u!1001 &4870101701952661865
 PrefabInstance:
   m_ObjectHideFlags: 0
@@ -45981,22 +46054,6 @@ PrefabInstance:
     m_AddedGameObjects: []
     m_AddedComponents: []
   m_SourcePrefab: {fileID: 100100000, guid: b3c9b6a50fd0d484fa4337a79c0c75c6, type: 3}
---- !u!208 &4922595585272374165
-NavMeshObstacle:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1391674561}
-  m_Enabled: 1
-  serializedVersion: 3
-  m_Shape: 1
-  m_Extents: {x: 0.5927887, y: 1.2528305, z: 0.03725924}
-  m_MoveThreshold: 0.1
-  m_Carve: 1
-  m_CarveOnlyStationary: 1
-  m_Center: {x: 0.5826007, y: 1.2528329, z: -0.028435549}
-  m_TimeToStationary: 0.5
 --- !u!23 &4936605079192772801
 MeshRenderer:
   m_ObjectHideFlags: 0
@@ -47060,6 +47117,10 @@ PrefabInstance:
       propertyPath: m_Name
       value: EmptyRoom-5x5__Book
       objectReference: {fileID: 0}
+    - target: {fileID: 6050135058663670480, guid: d29bcc0ec64fcea4898c503b7d56d30f, type: 3}
+      propertyPath: m_IsActive
+      value: 0
+      objectReference: {fileID: 0}
     - target: {fileID: 7267699623571841510, guid: d29bcc0ec64fcea4898c503b7d56d30f, type: 3}
       propertyPath: m_LocalPosition.x
       value: 67.8999
@@ -47329,6 +47390,10 @@ PrefabInstance:
     - target: {fileID: 7278799077404263814, guid: 4b982f76f5b578d40b7d47dbdd9a8e3d, type: 3}
       propertyPath: m_Name
       value: Hallway x2 (8)
+      objectReference: {fileID: 0}
+    - target: {fileID: 7278799077404263814, guid: 4b982f76f5b578d40b7d47dbdd9a8e3d, type: 3}
+      propertyPath: m_IsActive
+      value: 0
       objectReference: {fileID: 0}
     m_RemovedComponents: []
     m_RemovedGameObjects: []
@@ -48558,6 +48623,10 @@ PrefabInstance:
       propertyPath: m_Name
       value: Hallway x2 (10)
       objectReference: {fileID: 0}
+    - target: {fileID: 7278799077404263814, guid: 4b982f76f5b578d40b7d47dbdd9a8e3d, type: 3}
+      propertyPath: m_IsActive
+      value: 0
+      objectReference: {fileID: 0}
     m_RemovedComponents: []
     m_RemovedGameObjects: []
     m_AddedGameObjects: []
@@ -48885,35 +48954,6 @@ MonoBehaviour:
   m_IgnoreFromBuild: 0
   m_ApplyToChildren: 1
   m_AffectedAgents: ffffffff
---- !u!114 &5367810570543959532
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1595534376}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 474bcb49853aa07438625e644c072ee6, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Unity.RenderPipelines.Universal.Runtime::UnityEngine.Rendering.Universal.UniversalAdditionalLightData
-  m_UsePipelineSettings: 1
-  m_AdditionalLightsShadowResolutionTier: 2
-  m_CustomShadowLayers: 0
-  m_LightCookieSize: {x: 1, y: 1}
-  m_LightCookieOffset: {x: 0, y: 0}
-  m_SoftShadowQuality: 0
-  m_RenderingLayersMask:
-    serializedVersion: 0
-    m_Bits: 1
-  m_ShadowRenderingLayersMask:
-    serializedVersion: 0
-    m_Bits: 1
-  m_Version: 4
-  m_LightLayerMask: 1
-  m_ShadowLayerMask: 1
-  m_RenderingLayers: 1
-  m_ShadowRenderingLayers: 1
 --- !u!4 &5369592145291448101
 Transform:
   m_ObjectHideFlags: 0
@@ -50364,6 +50404,10 @@ PrefabInstance:
       propertyPath: m_Name
       value: Hallway (38)
       objectReference: {fileID: 0}
+    - target: {fileID: 95024115327502240, guid: 42285ba4131f8c04f9e141bb34b0b638, type: 3}
+      propertyPath: m_IsActive
+      value: 0
+      objectReference: {fileID: 0}
     - target: {fileID: 1409203272831164083, guid: 42285ba4131f8c04f9e141bb34b0b638, type: 3}
       propertyPath: m_LocalPosition.x
       value: -51.426064
@@ -51309,6 +51353,10 @@ PrefabInstance:
     - target: {fileID: 8028556072463540329, guid: 3f454af7e4f185b468ff62dec47cdee2, type: 3}
       propertyPath: m_Name
       value: SmallRoom
+      objectReference: {fileID: 0}
+    - target: {fileID: 8028556072463540329, guid: 3f454af7e4f185b468ff62dec47cdee2, type: 3}
+      propertyPath: m_IsActive
+      value: 0
       objectReference: {fileID: 0}
     m_RemovedComponents: []
     m_RemovedGameObjects: []
@@ -52392,6 +52440,10 @@ PrefabInstance:
       propertyPath: m_Name
       value: Hallway x2 (18)
       objectReference: {fileID: 0}
+    - target: {fileID: 7278799077404263814, guid: 4b982f76f5b578d40b7d47dbdd9a8e3d, type: 3}
+      propertyPath: m_IsActive
+      value: 0
+      objectReference: {fileID: 0}
     - target: {fileID: 7678136134044908897, guid: 4b982f76f5b578d40b7d47dbdd9a8e3d, type: 3}
       propertyPath: m_LocalScale.z
       value: 1.075
@@ -52707,6 +52759,10 @@ PrefabInstance:
       propertyPath: m_Name
       value: EmptyRoom-3x3__Book2
       objectReference: {fileID: 0}
+    - target: {fileID: 5712854555400863696, guid: 3fee531f23bfdf34488aad84e54d4b5f, type: 3}
+      propertyPath: m_IsActive
+      value: 0
+      objectReference: {fileID: 0}
     - target: {fileID: 6270574514267709735, guid: 3fee531f23bfdf34488aad84e54d4b5f, type: 3}
       propertyPath: m_LocalPosition.x
       value: 86.10395
@@ -52843,6 +52899,10 @@ PrefabInstance:
     - target: {fileID: 95024115327502240, guid: 42285ba4131f8c04f9e141bb34b0b638, type: 3}
       propertyPath: m_Name
       value: Hallway (13)
+      objectReference: {fileID: 0}
+    - target: {fileID: 95024115327502240, guid: 42285ba4131f8c04f9e141bb34b0b638, type: 3}
+      propertyPath: m_IsActive
+      value: 0
       objectReference: {fileID: 0}
     - target: {fileID: 1409203272831164083, guid: 42285ba4131f8c04f9e141bb34b0b638, type: 3}
       propertyPath: m_LocalPosition.x
@@ -53125,6 +53185,10 @@ PrefabInstance:
     - target: {fileID: 95024115327502240, guid: 42285ba4131f8c04f9e141bb34b0b638, type: 3}
       propertyPath: m_Name
       value: Hallway (27)
+      objectReference: {fileID: 0}
+    - target: {fileID: 95024115327502240, guid: 42285ba4131f8c04f9e141bb34b0b638, type: 3}
+      propertyPath: m_IsActive
+      value: 0
       objectReference: {fileID: 0}
     - target: {fileID: 1409203272831164083, guid: 42285ba4131f8c04f9e141bb34b0b638, type: 3}
       propertyPath: m_LocalPosition.x
@@ -53635,6 +53699,10 @@ PrefabInstance:
       propertyPath: m_Name
       value: Hallway x2 (21)
       objectReference: {fileID: 0}
+    - target: {fileID: 7278799077404263814, guid: 4b982f76f5b578d40b7d47dbdd9a8e3d, type: 3}
+      propertyPath: m_IsActive
+      value: 0
+      objectReference: {fileID: 0}
     m_RemovedComponents: []
     m_RemovedGameObjects: []
     m_AddedGameObjects: []
@@ -53730,6 +53798,10 @@ PrefabInstance:
     - target: {fileID: 95024115327502240, guid: 42285ba4131f8c04f9e141bb34b0b638, type: 3}
       propertyPath: m_Name
       value: Hallway (19)
+      objectReference: {fileID: 0}
+    - target: {fileID: 95024115327502240, guid: 42285ba4131f8c04f9e141bb34b0b638, type: 3}
+      propertyPath: m_IsActive
+      value: 0
       objectReference: {fileID: 0}
     - target: {fileID: 1409203272831164083, guid: 42285ba4131f8c04f9e141bb34b0b638, type: 3}
       propertyPath: m_LocalPosition.x
@@ -54220,6 +54292,10 @@ PrefabInstance:
     - target: {fileID: 6050135058663670480, guid: d29bcc0ec64fcea4898c503b7d56d30f, type: 3}
       propertyPath: m_Name
       value: EmptyRoom-5x5__Book
+      objectReference: {fileID: 0}
+    - target: {fileID: 6050135058663670480, guid: d29bcc0ec64fcea4898c503b7d56d30f, type: 3}
+      propertyPath: m_IsActive
+      value: 0
       objectReference: {fileID: 0}
     - target: {fileID: 7267699623571841510, guid: d29bcc0ec64fcea4898c503b7d56d30f, type: 3}
       propertyPath: m_LocalPosition.x
@@ -55145,6 +55221,10 @@ PrefabInstance:
     - target: {fileID: 95024115327502240, guid: 42285ba4131f8c04f9e141bb34b0b638, type: 3}
       propertyPath: m_Name
       value: Hallway (61)
+      objectReference: {fileID: 0}
+    - target: {fileID: 95024115327502240, guid: 42285ba4131f8c04f9e141bb34b0b638, type: 3}
+      propertyPath: m_IsActive
+      value: 0
       objectReference: {fileID: 0}
     - target: {fileID: 1409203272831164083, guid: 42285ba4131f8c04f9e141bb34b0b638, type: 3}
       propertyPath: m_LocalPosition.x
@@ -56228,6 +56308,10 @@ PrefabInstance:
       propertyPath: m_Name
       value: Hallway (25)
       objectReference: {fileID: 0}
+    - target: {fileID: 95024115327502240, guid: 42285ba4131f8c04f9e141bb34b0b638, type: 3}
+      propertyPath: m_IsActive
+      value: 0
+      objectReference: {fileID: 0}
     - target: {fileID: 1409203272831164083, guid: 42285ba4131f8c04f9e141bb34b0b638, type: 3}
       propertyPath: m_LocalPosition.x
       value: -34.39988
@@ -56406,6 +56490,10 @@ PrefabInstance:
     - target: {fileID: 95024115327502240, guid: 42285ba4131f8c04f9e141bb34b0b638, type: 3}
       propertyPath: m_Name
       value: Hallway (26)
+      objectReference: {fileID: 0}
+    - target: {fileID: 95024115327502240, guid: 42285ba4131f8c04f9e141bb34b0b638, type: 3}
+      propertyPath: m_IsActive
+      value: 0
       objectReference: {fileID: 0}
     - target: {fileID: 1409203272831164083, guid: 42285ba4131f8c04f9e141bb34b0b638, type: 3}
       propertyPath: m_LocalPosition.x
@@ -56850,6 +56938,10 @@ PrefabInstance:
     - target: {fileID: 95024115327502240, guid: 42285ba4131f8c04f9e141bb34b0b638, type: 3}
       propertyPath: m_Name
       value: Hallway (8)
+      objectReference: {fileID: 0}
+    - target: {fileID: 95024115327502240, guid: 42285ba4131f8c04f9e141bb34b0b638, type: 3}
+      propertyPath: m_IsActive
+      value: 0
       objectReference: {fileID: 0}
     - target: {fileID: 1409203272831164083, guid: 42285ba4131f8c04f9e141bb34b0b638, type: 3}
       propertyPath: m_LocalPosition.x
@@ -57382,6 +57474,10 @@ PrefabInstance:
     - target: {fileID: 6050135058663670480, guid: d29bcc0ec64fcea4898c503b7d56d30f, type: 3}
       propertyPath: m_Name
       value: EmptyRoom-5x5__Book
+      objectReference: {fileID: 0}
+    - target: {fileID: 6050135058663670480, guid: d29bcc0ec64fcea4898c503b7d56d30f, type: 3}
+      propertyPath: m_IsActive
+      value: 0
       objectReference: {fileID: 0}
     - target: {fileID: 7267699623571841510, guid: d29bcc0ec64fcea4898c503b7d56d30f, type: 3}
       propertyPath: m_LocalPosition.x
@@ -58094,6 +58190,10 @@ PrefabInstance:
       propertyPath: m_Name
       value: EmptyRoom-3x3__Warehouse
       objectReference: {fileID: 0}
+    - target: {fileID: 5796169545698128539, guid: 1dc6eae64cb64c742bd4f90f01f529d7, type: 3}
+      propertyPath: m_IsActive
+      value: 0
+      objectReference: {fileID: 0}
     m_RemovedComponents: []
     m_RemovedGameObjects:
     - {fileID: 6212920925435630402, guid: 1dc6eae64cb64c742bd4f90f01f529d7, type: 3}
@@ -58194,12 +58294,6 @@ PrefabInstance:
     - targetCorrespondingSourceObject: {fileID: 7307515054965031399, guid: 1dc6eae64cb64c742bd4f90f01f529d7, type: 3}
       insertIndex: -1
       addedObject: {fileID: 6954328103340254900}
-    - targetCorrespondingSourceObject: {fileID: 1924859934808868515, guid: 1dc6eae64cb64c742bd4f90f01f529d7, type: 3}
-      insertIndex: -1
-      addedObject: {fileID: 1671074937821817625}
-    - targetCorrespondingSourceObject: {fileID: 2773899795091505634, guid: 1dc6eae64cb64c742bd4f90f01f529d7, type: 3}
-      insertIndex: -1
-      addedObject: {fileID: 5367810570543959532}
   m_SourcePrefab: {fileID: 100100000, guid: 1dc6eae64cb64c742bd4f90f01f529d7, type: 3}
 --- !u!114 &6694816522917657204
 MonoBehaviour:
@@ -58533,6 +58627,10 @@ PrefabInstance:
     - target: {fileID: 55710356330424591, guid: e092c22c01221d041b2e1509cecb86a3, type: 3}
       propertyPath: m_Name
       value: EmptyRoom-3x3__Bed
+      objectReference: {fileID: 0}
+    - target: {fileID: 55710356330424591, guid: e092c22c01221d041b2e1509cecb86a3, type: 3}
+      propertyPath: m_IsActive
+      value: 0
       objectReference: {fileID: 0}
     - target: {fileID: 1767734292467300344, guid: e092c22c01221d041b2e1509cecb86a3, type: 3}
       propertyPath: m_LocalPosition.x
@@ -59163,6 +59261,10 @@ PrefabInstance:
       propertyPath: m_Name
       value: Hallway (2)
       objectReference: {fileID: 0}
+    - target: {fileID: 95024115327502240, guid: 42285ba4131f8c04f9e141bb34b0b638, type: 3}
+      propertyPath: m_IsActive
+      value: 0
+      objectReference: {fileID: 0}
     - target: {fileID: 1409203272831164083, guid: 42285ba4131f8c04f9e141bb34b0b638, type: 3}
       propertyPath: m_LocalPosition.x
       value: -13.599915
@@ -59690,6 +59792,10 @@ PrefabInstance:
       propertyPath: m_Name
       value: Hallway (51)
       objectReference: {fileID: 0}
+    - target: {fileID: 95024115327502240, guid: 42285ba4131f8c04f9e141bb34b0b638, type: 3}
+      propertyPath: m_IsActive
+      value: 0
+      objectReference: {fileID: 0}
     - target: {fileID: 439254832397928060, guid: 42285ba4131f8c04f9e141bb34b0b638, type: 3}
       propertyPath: m_LocalPosition.x
       value: -3.949997
@@ -59831,6 +59937,10 @@ PrefabInstance:
     - target: {fileID: 7278799077404263814, guid: 4b982f76f5b578d40b7d47dbdd9a8e3d, type: 3}
       propertyPath: m_Name
       value: Hallway x2 (20)
+      objectReference: {fileID: 0}
+    - target: {fileID: 7278799077404263814, guid: 4b982f76f5b578d40b7d47dbdd9a8e3d, type: 3}
+      propertyPath: m_IsActive
+      value: 0
       objectReference: {fileID: 0}
     m_RemovedComponents: []
     m_RemovedGameObjects: []
@@ -60178,26 +60288,6 @@ BoxCollider:
   serializedVersion: 3
   m_Size: {x: 1.1855774, y: 2.505661, z: 0.07451848}
   m_Center: {x: 0.5826007, y: 1.2528329, z: -0.028435549}
---- !u!114 &6868644874652629540
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1391674563}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 1e3fdca004f2d45fe8abbed571a8abd5, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Unity.AI.Navigation::Unity.AI.Navigation.NavMeshModifier
-  m_SerializedVersion: 0
-  m_OverrideArea: 1
-  m_Area: 0
-  m_OverrideGenerateLinks: 0
-  m_GenerateLinks: 0
-  m_IgnoreFromBuild: 0
-  m_ApplyToChildren: 1
-  m_AffectedAgents: ffffffff
 --- !u!114 &6872867903966970558
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -60237,6 +60327,10 @@ PrefabInstance:
     - target: {fileID: 55710356330424591, guid: e092c22c01221d041b2e1509cecb86a3, type: 3}
       propertyPath: m_Name
       value: EmptyRoom-3x3__Bed
+      objectReference: {fileID: 0}
+    - target: {fileID: 55710356330424591, guid: e092c22c01221d041b2e1509cecb86a3, type: 3}
+      propertyPath: m_IsActive
+      value: 0
       objectReference: {fileID: 0}
     - target: {fileID: 1767734292467300344, guid: e092c22c01221d041b2e1509cecb86a3, type: 3}
       propertyPath: m_LocalPosition.x
@@ -60513,6 +60607,10 @@ PrefabInstance:
       propertyPath: m_Name
       value: Hallway x2 (2)
       objectReference: {fileID: 0}
+    - target: {fileID: 7278799077404263814, guid: 4b982f76f5b578d40b7d47dbdd9a8e3d, type: 3}
+      propertyPath: m_IsActive
+      value: 0
+      objectReference: {fileID: 0}
     m_RemovedComponents: []
     m_RemovedGameObjects:
     - {fileID: 7044652859953945386, guid: 4b982f76f5b578d40b7d47dbdd9a8e3d, type: 3}
@@ -60581,6 +60679,10 @@ PrefabInstance:
     - target: {fileID: 95024115327502240, guid: 42285ba4131f8c04f9e141bb34b0b638, type: 3}
       propertyPath: m_Name
       value: Hallway (11)
+      objectReference: {fileID: 0}
+    - target: {fileID: 95024115327502240, guid: 42285ba4131f8c04f9e141bb34b0b638, type: 3}
+      propertyPath: m_IsActive
+      value: 0
       objectReference: {fileID: 0}
     - target: {fileID: 1409203272831164083, guid: 42285ba4131f8c04f9e141bb34b0b638, type: 3}
       propertyPath: m_LocalPosition.x
@@ -61281,6 +61383,10 @@ PrefabInstance:
       propertyPath: m_Name
       value: Hallway (7)
       objectReference: {fileID: 0}
+    - target: {fileID: 95024115327502240, guid: 42285ba4131f8c04f9e141bb34b0b638, type: 3}
+      propertyPath: m_IsActive
+      value: 0
+      objectReference: {fileID: 0}
     - target: {fileID: 1409203272831164083, guid: 42285ba4131f8c04f9e141bb34b0b638, type: 3}
       propertyPath: m_LocalPosition.x
       value: -54.39588
@@ -61470,6 +61576,10 @@ PrefabInstance:
     - target: {fileID: 95024115327502240, guid: 42285ba4131f8c04f9e141bb34b0b638, type: 3}
       propertyPath: m_Name
       value: Hallway (45)
+      objectReference: {fileID: 0}
+    - target: {fileID: 95024115327502240, guid: 42285ba4131f8c04f9e141bb34b0b638, type: 3}
+      propertyPath: m_IsActive
+      value: 0
       objectReference: {fileID: 0}
     - target: {fileID: 1409203272831164083, guid: 42285ba4131f8c04f9e141bb34b0b638, type: 3}
       propertyPath: m_LocalPosition.x
@@ -62200,6 +62310,10 @@ PrefabInstance:
       propertyPath: m_Name
       value: Hallway (62)
       objectReference: {fileID: 0}
+    - target: {fileID: 95024115327502240, guid: 42285ba4131f8c04f9e141bb34b0b638, type: 3}
+      propertyPath: m_IsActive
+      value: 0
+      objectReference: {fileID: 0}
     - target: {fileID: 353881631964488596, guid: 42285ba4131f8c04f9e141bb34b0b638, type: 3}
       propertyPath: m_LocalScale.z
       value: 1.11254
@@ -62693,6 +62807,10 @@ PrefabInstance:
     - target: {fileID: 6050135058663670480, guid: d29bcc0ec64fcea4898c503b7d56d30f, type: 3}
       propertyPath: m_Name
       value: EmptyRoom-5x5__Book
+      objectReference: {fileID: 0}
+    - target: {fileID: 6050135058663670480, guid: d29bcc0ec64fcea4898c503b7d56d30f, type: 3}
+      propertyPath: m_IsActive
+      value: 0
       objectReference: {fileID: 0}
     - target: {fileID: 6114677163099167843, guid: d29bcc0ec64fcea4898c503b7d56d30f, type: 3}
       propertyPath: m_LocalScale.x
@@ -63214,6 +63332,10 @@ PrefabInstance:
     - target: {fileID: 4298777589050832376, guid: ecf6a67e3a4fe3e4292a0741d58a4324, type: 3}
       propertyPath: m_Name
       value: BookRoom
+      objectReference: {fileID: 0}
+    - target: {fileID: 4298777589050832376, guid: ecf6a67e3a4fe3e4292a0741d58a4324, type: 3}
+      propertyPath: m_IsActive
+      value: 0
       objectReference: {fileID: 0}
     m_RemovedComponents: []
     m_RemovedGameObjects: []
@@ -64183,6 +64305,10 @@ PrefabInstance:
     - target: {fileID: 7278799077404263814, guid: 4b982f76f5b578d40b7d47dbdd9a8e3d, type: 3}
       propertyPath: m_Name
       value: Hallway x2 (7)
+      objectReference: {fileID: 0}
+    - target: {fileID: 7278799077404263814, guid: 4b982f76f5b578d40b7d47dbdd9a8e3d, type: 3}
+      propertyPath: m_IsActive
+      value: 0
       objectReference: {fileID: 0}
     m_RemovedComponents: []
     m_RemovedGameObjects: []
@@ -65364,6 +65490,10 @@ PrefabInstance:
       propertyPath: m_Name
       value: Hallway x2 (16)
       objectReference: {fileID: 0}
+    - target: {fileID: 7278799077404263814, guid: 4b982f76f5b578d40b7d47dbdd9a8e3d, type: 3}
+      propertyPath: m_IsActive
+      value: 0
+      objectReference: {fileID: 0}
     m_RemovedComponents: []
     m_RemovedGameObjects:
     - {fileID: 1670023739320067319, guid: 4b982f76f5b578d40b7d47dbdd9a8e3d, type: 3}
@@ -65842,6 +65972,10 @@ PrefabInstance:
     - target: {fileID: 7278799077404263814, guid: 4b982f76f5b578d40b7d47dbdd9a8e3d, type: 3}
       propertyPath: m_Name
       value: Hallway x2 (19)
+      objectReference: {fileID: 0}
+    - target: {fileID: 7278799077404263814, guid: 4b982f76f5b578d40b7d47dbdd9a8e3d, type: 3}
+      propertyPath: m_IsActive
+      value: 0
       objectReference: {fileID: 0}
     m_RemovedComponents: []
     m_RemovedGameObjects: []
@@ -67414,6 +67548,10 @@ PrefabInstance:
       propertyPath: m_Name
       value: Hallway (55)
       objectReference: {fileID: 0}
+    - target: {fileID: 95024115327502240, guid: 42285ba4131f8c04f9e141bb34b0b638, type: 3}
+      propertyPath: m_IsActive
+      value: 0
+      objectReference: {fileID: 0}
     - target: {fileID: 1409203272831164083, guid: 42285ba4131f8c04f9e141bb34b0b638, type: 3}
       propertyPath: m_LocalPosition.x
       value: 73.50394
@@ -67482,6 +67620,10 @@ PrefabInstance:
     - target: {fileID: 95024115327502240, guid: 42285ba4131f8c04f9e141bb34b0b638, type: 3}
       propertyPath: m_Name
       value: Hallway (34)
+      objectReference: {fileID: 0}
+    - target: {fileID: 95024115327502240, guid: 42285ba4131f8c04f9e141bb34b0b638, type: 3}
+      propertyPath: m_IsActive
+      value: 0
       objectReference: {fileID: 0}
     - target: {fileID: 1409203272831164083, guid: 42285ba4131f8c04f9e141bb34b0b638, type: 3}
       propertyPath: m_LocalPosition.x
@@ -67695,6 +67837,10 @@ PrefabInstance:
     - target: {fileID: 95024115327502240, guid: 42285ba4131f8c04f9e141bb34b0b638, type: 3}
       propertyPath: m_Name
       value: Hallway (24)
+      objectReference: {fileID: 0}
+    - target: {fileID: 95024115327502240, guid: 42285ba4131f8c04f9e141bb34b0b638, type: 3}
+      propertyPath: m_IsActive
+      value: 0
       objectReference: {fileID: 0}
     - target: {fileID: 1409203272831164083, guid: 42285ba4131f8c04f9e141bb34b0b638, type: 3}
       propertyPath: m_LocalPosition.x
@@ -68329,6 +68475,10 @@ PrefabInstance:
     - target: {fileID: 6050135058663670480, guid: d29bcc0ec64fcea4898c503b7d56d30f, type: 3}
       propertyPath: m_Name
       value: EmptyRoom-5x5__Book
+      objectReference: {fileID: 0}
+    - target: {fileID: 6050135058663670480, guid: d29bcc0ec64fcea4898c503b7d56d30f, type: 3}
+      propertyPath: m_IsActive
+      value: 0
       objectReference: {fileID: 0}
     - target: {fileID: 7267699623571841510, guid: d29bcc0ec64fcea4898c503b7d56d30f, type: 3}
       propertyPath: m_LocalPosition.x
@@ -69313,6 +69463,10 @@ PrefabInstance:
       propertyPath: m_Name
       value: Hallway (54)
       objectReference: {fileID: 0}
+    - target: {fileID: 95024115327502240, guid: 42285ba4131f8c04f9e141bb34b0b638, type: 3}
+      propertyPath: m_IsActive
+      value: 0
+      objectReference: {fileID: 0}
     - target: {fileID: 1409203272831164083, guid: 42285ba4131f8c04f9e141bb34b0b638, type: 3}
       propertyPath: m_LocalPosition.x
       value: 73.503975
@@ -69445,6 +69599,10 @@ PrefabInstance:
     - target: {fileID: 8637280041931511109, guid: d020543809ded7745b6f0a88040e8bcd, type: 3}
       propertyPath: m_Name
       value: EmptyRoom-6x8__A
+      objectReference: {fileID: 0}
+    - target: {fileID: 8637280041931511109, guid: d020543809ded7745b6f0a88040e8bcd, type: 3}
+      propertyPath: m_IsActive
+      value: 0
       objectReference: {fileID: 0}
     - target: {fileID: 8987293597567234037, guid: d020543809ded7745b6f0a88040e8bcd, type: 3}
       propertyPath: m_LocalScale.x
@@ -69918,6 +70076,10 @@ PrefabInstance:
       propertyPath: m_Name
       value: Hallway (59)
       objectReference: {fileID: 0}
+    - target: {fileID: 95024115327502240, guid: 42285ba4131f8c04f9e141bb34b0b638, type: 3}
+      propertyPath: m_IsActive
+      value: 0
+      objectReference: {fileID: 0}
     - target: {fileID: 1409203272831164083, guid: 42285ba4131f8c04f9e141bb34b0b638, type: 3}
       propertyPath: m_LocalPosition.x
       value: 43.704014
@@ -70088,6 +70250,10 @@ PrefabInstance:
     - target: {fileID: 6884995001170551733, guid: 65aca94d0ebb1714980fd534f6fd0b2b, type: 3}
       propertyPath: m_Name
       value: EmptyRoom-3x3__Book
+      objectReference: {fileID: 0}
+    - target: {fileID: 6884995001170551733, guid: 65aca94d0ebb1714980fd534f6fd0b2b, type: 3}
+      propertyPath: m_IsActive
+      value: 0
       objectReference: {fileID: 0}
     - target: {fileID: 7547740836051499821, guid: 65aca94d0ebb1714980fd534f6fd0b2b, type: 3}
       propertyPath: m_LocalPosition.x
@@ -70480,6 +70646,10 @@ PrefabInstance:
       propertyPath: m_Name
       value: Hallway x2 (12)
       objectReference: {fileID: 0}
+    - target: {fileID: 7278799077404263814, guid: 4b982f76f5b578d40b7d47dbdd9a8e3d, type: 3}
+      propertyPath: m_IsActive
+      value: 0
+      objectReference: {fileID: 0}
     - target: {fileID: 8064397645524918111, guid: 4b982f76f5b578d40b7d47dbdd9a8e3d, type: 3}
       propertyPath: m_Enabled
       value: 1
@@ -70538,6 +70708,10 @@ PrefabInstance:
     - target: {fileID: 95024115327502240, guid: 42285ba4131f8c04f9e141bb34b0b638, type: 3}
       propertyPath: m_Name
       value: Hallway (20)
+      objectReference: {fileID: 0}
+    - target: {fileID: 95024115327502240, guid: 42285ba4131f8c04f9e141bb34b0b638, type: 3}
+      propertyPath: m_IsActive
+      value: 0
       objectReference: {fileID: 0}
     - target: {fileID: 1409203272831164083, guid: 42285ba4131f8c04f9e141bb34b0b638, type: 3}
       propertyPath: m_LocalPosition.x
@@ -70641,6 +70815,10 @@ PrefabInstance:
     - target: {fileID: 7278799077404263814, guid: 4b982f76f5b578d40b7d47dbdd9a8e3d, type: 3}
       propertyPath: m_Name
       value: Hallway x2 (17)
+      objectReference: {fileID: 0}
+    - target: {fileID: 7278799077404263814, guid: 4b982f76f5b578d40b7d47dbdd9a8e3d, type: 3}
+      propertyPath: m_IsActive
+      value: 0
       objectReference: {fileID: 0}
     m_RemovedComponents: []
     m_RemovedGameObjects:
@@ -71804,35 +71982,6 @@ NavMeshObstacle:
   m_CarveOnlyStationary: 1
   m_Center: {x: -0.5826007, y: 1.2528329, z: -0.028434772}
   m_TimeToStationary: 0.5
---- !u!114 &8218405827230062771
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 107883780}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 474bcb49853aa07438625e644c072ee6, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Unity.RenderPipelines.Universal.Runtime::UnityEngine.Rendering.Universal.UniversalAdditionalLightData
-  m_UsePipelineSettings: 1
-  m_AdditionalLightsShadowResolutionTier: 2
-  m_CustomShadowLayers: 0
-  m_LightCookieSize: {x: 1, y: 1}
-  m_LightCookieOffset: {x: 0, y: 0}
-  m_SoftShadowQuality: 0
-  m_RenderingLayersMask:
-    serializedVersion: 0
-    m_Bits: 1
-  m_ShadowRenderingLayersMask:
-    serializedVersion: 0
-    m_Bits: 1
-  m_Version: 4
-  m_LightLayerMask: 1
-  m_ShadowLayerMask: 1
-  m_RenderingLayers: 1
-  m_ShadowRenderingLayers: 1
 --- !u!114 &8221169452594895743
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -72015,6 +72164,10 @@ PrefabInstance:
       propertyPath: m_Name
       value: Hallway (6)
       objectReference: {fileID: 0}
+    - target: {fileID: 95024115327502240, guid: 42285ba4131f8c04f9e141bb34b0b638, type: 3}
+      propertyPath: m_IsActive
+      value: 0
+      objectReference: {fileID: 0}
     - target: {fileID: 1409203272831164083, guid: 42285ba4131f8c04f9e141bb34b0b638, type: 3}
       propertyPath: m_LocalPosition.x
       value: -43.39583
@@ -72132,6 +72285,10 @@ PrefabInstance:
     - target: {fileID: 6050135058663670480, guid: d29bcc0ec64fcea4898c503b7d56d30f, type: 3}
       propertyPath: m_Name
       value: EmptyRoom-5x5__Book
+      objectReference: {fileID: 0}
+    - target: {fileID: 6050135058663670480, guid: d29bcc0ec64fcea4898c503b7d56d30f, type: 3}
+      propertyPath: m_IsActive
+      value: 0
       objectReference: {fileID: 0}
     - target: {fileID: 7154094921854804306, guid: d29bcc0ec64fcea4898c503b7d56d30f, type: 3}
       propertyPath: m_LocalScale.x
@@ -72441,6 +72598,10 @@ PrefabInstance:
       propertyPath: m_Name
       value: Hallway (15)
       objectReference: {fileID: 0}
+    - target: {fileID: 95024115327502240, guid: 42285ba4131f8c04f9e141bb34b0b638, type: 3}
+      propertyPath: m_IsActive
+      value: 0
+      objectReference: {fileID: 0}
     - target: {fileID: 1409203272831164083, guid: 42285ba4131f8c04f9e141bb34b0b638, type: 3}
       propertyPath: m_LocalPosition.x
       value: 25.40003
@@ -72510,6 +72671,10 @@ PrefabInstance:
     - target: {fileID: 1000010857955118, guid: 28eab65c16249f1469a370e4f972e1b0, type: 3}
       propertyPath: m_Name
       value: Hall_Wall_Corner_6M_Out (4)
+      objectReference: {fileID: 0}
+    - target: {fileID: 1000010857955118, guid: 28eab65c16249f1469a370e4f972e1b0, type: 3}
+      propertyPath: m_IsActive
+      value: 0
       objectReference: {fileID: 0}
     - target: {fileID: 4000013397891992, guid: 28eab65c16249f1469a370e4f972e1b0, type: 3}
       propertyPath: m_LocalPosition.x
@@ -73175,6 +73340,10 @@ PrefabInstance:
     - target: {fileID: 95024115327502240, guid: 42285ba4131f8c04f9e141bb34b0b638, type: 3}
       propertyPath: m_Name
       value: Hallway (56)
+      objectReference: {fileID: 0}
+    - target: {fileID: 95024115327502240, guid: 42285ba4131f8c04f9e141bb34b0b638, type: 3}
+      propertyPath: m_IsActive
+      value: 0
       objectReference: {fileID: 0}
     - target: {fileID: 1409203272831164083, guid: 42285ba4131f8c04f9e141bb34b0b638, type: 3}
       propertyPath: m_LocalPosition.x
@@ -74402,6 +74571,10 @@ PrefabInstance:
       propertyPath: m_Name
       value: EmptyRoom-6x8__A
       objectReference: {fileID: 0}
+    - target: {fileID: 8637280041931511109, guid: d020543809ded7745b6f0a88040e8bcd, type: 3}
+      propertyPath: m_IsActive
+      value: 0
+      objectReference: {fileID: 0}
     m_RemovedComponents: []
     m_RemovedGameObjects:
     - {fileID: 8487425735248782088, guid: d020543809ded7745b6f0a88040e8bcd, type: 3}
@@ -74832,35 +75005,6 @@ MonoBehaviour:
   m_IgnoreFromBuild: 0
   m_ApplyToChildren: 1
   m_AffectedAgents: ffffffff
---- !u!114 &8538694478747709283
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1605624824}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 474bcb49853aa07438625e644c072ee6, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Unity.RenderPipelines.Universal.Runtime::UnityEngine.Rendering.Universal.UniversalAdditionalLightData
-  m_UsePipelineSettings: 1
-  m_AdditionalLightsShadowResolutionTier: 2
-  m_CustomShadowLayers: 0
-  m_LightCookieSize: {x: 1, y: 1}
-  m_LightCookieOffset: {x: 0, y: 0}
-  m_SoftShadowQuality: 0
-  m_RenderingLayersMask:
-    serializedVersion: 0
-    m_Bits: 1
-  m_ShadowRenderingLayersMask:
-    serializedVersion: 0
-    m_Bits: 1
-  m_Version: 4
-  m_LightLayerMask: 1
-  m_ShadowLayerMask: 1
-  m_RenderingLayers: 1
-  m_ShadowRenderingLayers: 1
 --- !u!33 &8539305106048493595
 MeshFilter:
   m_ObjectHideFlags: 0
@@ -75061,6 +75205,10 @@ PrefabInstance:
     - target: {fileID: 95024115327502240, guid: 42285ba4131f8c04f9e141bb34b0b638, type: 3}
       propertyPath: m_Name
       value: Hallway (31)
+      objectReference: {fileID: 0}
+    - target: {fileID: 95024115327502240, guid: 42285ba4131f8c04f9e141bb34b0b638, type: 3}
+      propertyPath: m_IsActive
+      value: 0
       objectReference: {fileID: 0}
     - target: {fileID: 1409203272831164083, guid: 42285ba4131f8c04f9e141bb34b0b638, type: 3}
       propertyPath: m_LocalPosition.x
@@ -75579,6 +75727,10 @@ PrefabInstance:
       propertyPath: m_Name
       value: Hallway (43)
       objectReference: {fileID: 0}
+    - target: {fileID: 95024115327502240, guid: 42285ba4131f8c04f9e141bb34b0b638, type: 3}
+      propertyPath: m_IsActive
+      value: 0
+      objectReference: {fileID: 0}
     - target: {fileID: 1409203272831164083, guid: 42285ba4131f8c04f9e141bb34b0b638, type: 3}
       propertyPath: m_LocalPosition.x
       value: 13.60402
@@ -75661,6 +75813,10 @@ PrefabInstance:
     - target: {fileID: 95024115327502240, guid: 42285ba4131f8c04f9e141bb34b0b638, type: 3}
       propertyPath: m_Name
       value: Hallway (28)
+      objectReference: {fileID: 0}
+    - target: {fileID: 95024115327502240, guid: 42285ba4131f8c04f9e141bb34b0b638, type: 3}
+      propertyPath: m_IsActive
+      value: 0
       objectReference: {fileID: 0}
     - target: {fileID: 1409203272831164083, guid: 42285ba4131f8c04f9e141bb34b0b638, type: 3}
       propertyPath: m_LocalPosition.x
@@ -75887,6 +76043,10 @@ PrefabInstance:
     - target: {fileID: 95024115327502240, guid: 42285ba4131f8c04f9e141bb34b0b638, type: 3}
       propertyPath: m_Name
       value: Hallway (42)
+      objectReference: {fileID: 0}
+    - target: {fileID: 95024115327502240, guid: 42285ba4131f8c04f9e141bb34b0b638, type: 3}
+      propertyPath: m_IsActive
+      value: 0
       objectReference: {fileID: 0}
     - target: {fileID: 1409203272831164083, guid: 42285ba4131f8c04f9e141bb34b0b638, type: 3}
       propertyPath: m_LocalPosition.x
@@ -76294,6 +76454,10 @@ PrefabInstance:
     - target: {fileID: 95024115327502240, guid: 42285ba4131f8c04f9e141bb34b0b638, type: 3}
       propertyPath: m_Name
       value: Hallway (41)
+      objectReference: {fileID: 0}
+    - target: {fileID: 95024115327502240, guid: 42285ba4131f8c04f9e141bb34b0b638, type: 3}
+      propertyPath: m_IsActive
+      value: 0
       objectReference: {fileID: 0}
     - target: {fileID: 1409203272831164083, guid: 42285ba4131f8c04f9e141bb34b0b638, type: 3}
       propertyPath: m_LocalPosition.x
@@ -76877,6 +77041,10 @@ PrefabInstance:
       propertyPath: m_Name
       value: Hallway (35)
       objectReference: {fileID: 0}
+    - target: {fileID: 95024115327502240, guid: 42285ba4131f8c04f9e141bb34b0b638, type: 3}
+      propertyPath: m_IsActive
+      value: 0
+      objectReference: {fileID: 0}
     - target: {fileID: 1409203272831164083, guid: 42285ba4131f8c04f9e141bb34b0b638, type: 3}
       propertyPath: m_LocalPosition.x
       value: -5.5
@@ -77263,6 +77431,10 @@ PrefabInstance:
       propertyPath: m_Name
       value: EmptyRoom-5x5__Book
       objectReference: {fileID: 0}
+    - target: {fileID: 6050135058663670480, guid: d29bcc0ec64fcea4898c503b7d56d30f, type: 3}
+      propertyPath: m_IsActive
+      value: 0
+      objectReference: {fileID: 0}
     - target: {fileID: 7267699623571841510, guid: d29bcc0ec64fcea4898c503b7d56d30f, type: 3}
       propertyPath: m_LocalPosition.x
       value: -74.49588
@@ -77446,6 +77618,10 @@ PrefabInstance:
     - target: {fileID: 95024115327502240, guid: 42285ba4131f8c04f9e141bb34b0b638, type: 3}
       propertyPath: m_Name
       value: Hallway (21)
+      objectReference: {fileID: 0}
+    - target: {fileID: 95024115327502240, guid: 42285ba4131f8c04f9e141bb34b0b638, type: 3}
+      propertyPath: m_IsActive
+      value: 0
       objectReference: {fileID: 0}
     - target: {fileID: 1409203272831164083, guid: 42285ba4131f8c04f9e141bb34b0b638, type: 3}
       propertyPath: m_LocalPosition.x
@@ -78616,6 +78792,10 @@ PrefabInstance:
       propertyPath: m_Name
       value: Hallway x2 (15)
       objectReference: {fileID: 0}
+    - target: {fileID: 7278799077404263814, guid: 4b982f76f5b578d40b7d47dbdd9a8e3d, type: 3}
+      propertyPath: m_IsActive
+      value: 0
+      objectReference: {fileID: 0}
     m_RemovedComponents: []
     m_RemovedGameObjects:
     - {fileID: 1995077011401946558, guid: 4b982f76f5b578d40b7d47dbdd9a8e3d, type: 3}
@@ -79554,6 +79734,10 @@ PrefabInstance:
       propertyPath: m_Name
       value: EmptyRoom-3x3__Hospital
       objectReference: {fileID: 0}
+    - target: {fileID: 5619703737469526399, guid: 817b928da8a7f95499bfcaad93fb7420, type: 3}
+      propertyPath: m_IsActive
+      value: 0
+      objectReference: {fileID: 0}
     - target: {fileID: 6174609333102772104, guid: 817b928da8a7f95499bfcaad93fb7420, type: 3}
       propertyPath: m_LocalPosition.x
       value: -46.549923
@@ -80359,6 +80543,7 @@ SceneRoots:
   - {fileID: 3403484013851730149}
   - {fileID: 1277623205168933838}
   - {fileID: 281702523276672424}
+  - {fileID: 330823802}
   - {fileID: 2597249984853934856}
   - {fileID: 5740122264258394808}
   - {fileID: 4080178352856966663}
@@ -80480,7 +80665,6 @@ SceneRoots:
   - {fileID: 1624919367326072122}
   - {fileID: 7004909498562738986}
   - {fileID: 2103908956753613235}
-  - {fileID: 330823802}
   - {fileID: 65009043}
   - {fileID: 364970829}
   - {fileID: 1303272958}

@@ -331,6 +331,8 @@ MonoBehaviour:
   inventory: {fileID: 7556772348847717246}
   disguise: {fileID: 910000000000000002}
   hiding: {fileID: 0}
+  deathHandler: {fileID: 5679039205233311701}
+  playerReturn: {fileID: 7161473234652010412}
   promptUI: {fileID: 4209612319932583615}
   holdGaugeUI: {fileID: 61655479914279791}
   rayOrigin: {fileID: 2490874660187570101}
@@ -2834,6 +2836,8 @@ MonoBehaviour:
   maxAimPitchDeg: 60
   maxAimYawOffsetDeg: 70
   handPositionPitchClampDeg: 35
+  handPositionYawMinDeg: -20
+  handPositionYawMaxDeg: 45
   lookBodyWeight: 0.4
   lookHeadWeight: 0.7
   blendSpeed: 4

@@ -265,6 +265,9 @@ MonoBehaviour:
   cameraPivot: {fileID: 2490874660187570101}
   lookSensitivity: 0.1
   pitchClamp: 89
+  wardrobeLookAngleDeg: 60
+  upperBodyYawLimitDeg: 60
+  bodyTurnSpeedDeg: 360
   saveLoadSystem: {fileID: 11400000, guid: 60c2f10eb6c3bed4c9bcb10231fb16d6, type: 2}
   changeMouseSensitivityEvent: {fileID: 11400000, guid: f5ccd24f9ed66ad49bc139217bacb9ef, type: 2}
   moveSpeed: 5
@@ -295,6 +298,9 @@ MonoBehaviour:
   inputReader: {fileID: 11400000, guid: eaa08e0560934b24b9f7d5f7d9f863dd, type: 2}
   inventory: {fileID: 7556772348847717246}
   disguise: {fileID: 910000000000000001}
+  hiding: {fileID: 0}
+  deathHandler: {fileID: 5679039205233311701}
+  playerReturn: {fileID: 7161473234652010412}
   promptUI: {fileID: 4209612319932583615}
   holdGaugeUI: {fileID: 61655479914279791}
   rayOrigin: {fileID: 2490874660187570101}
