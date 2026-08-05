@@ -8,10 +8,11 @@ namespace EmptyHouse.MapGen.Core
     public sealed class MapGenParams
     {
         public int Seed; // 확정 시드 — 0(랜덤)은 코어 진입 전에 서버가 실제 값으로 확정한다(X8)
-        public int RoomsTotalMin = 30; // 총 방 수 하한(정식 확정 30~32) — v1 단일 층 테스트는 축소 운용 가능
-        public int RoomsTotalMax = 32; // 총 방 수 상한
+        public int RoomsTotalMin = 30; // 총 방 수 하한 — 방 전용 집계(복도·입구 앵커 제외), v1 단일 층 테스트는 축소 운용 가능
+        public int RoomsTotalMax = 60; // 총 방 수 상한 — 방 전용 집계(⚪ 맵 확장 실험값, 미리보기에서 조정)
         public int LoopEdgeCountMin = 2; // 트리에 추가하는 루프 간선 최소(🟡 미확정 — 개발용 임시값)
         public int LoopEdgeCountMax = 4; // 트리에 추가하는 루프 간선 최대(🟡 미확정 — 개발용 임시값)
+        public int CorridorLinkPercent = 50; // 방 확장 시 복도 경유 연결 확률 %(0=전부 직결) — 복도는 방+복도 원자 배치라 막다른 끝이 생기지 않는다(🟡 미리보기로 조정)
         public int ShortcutValueMin = 3; // 지름길 채택 최소 귀환 단축 이득(방 수, 4-2절)
         public int ListenerCounterDist = 2; // Listener 관문 앞 투척물 배치 보장 그래프 거리(방 수, 5절)
         public int RerollMax = 20; // 검증 실패 시 리롤 상한(X2)

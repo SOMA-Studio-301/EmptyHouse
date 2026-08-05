@@ -49,7 +49,7 @@ namespace EmptyHouse.MapGen.Core
                     AllowedFloors = FloorMask.F1,
                     Tags = RoomTagMask.None,
                     MinCount = 0,
-                    MaxCount = 14, // MaxCount 합이 게임 기본 방 수 상한(32)을 넘도록 확보 — 합 부족은 X4 가 걸러낸다
+                    MaxCount = 40, // 방 전용 집계(복도·입구 제외)라 방 3종 MaxCount 합(40+24+2=66)이 상한(60)을 감당해야 한다 — 합 부족은 X4 가 걸러낸다
                     IsCorridor = false,
                     IsEntranceAnchor = false,
                     Sockets = new[]
@@ -74,7 +74,7 @@ namespace EmptyHouse.MapGen.Core
                     AllowedFloors = FloorMask.F1,
                     Tags = RoomTagMask.Dark,
                     MinCount = 0,
-                    MaxCount = 4,
+                    MaxCount = 24, // 상동 — 방 전용 집계 보충
                     IsCorridor = false,
                     IsEntranceAnchor = false,
                     Sockets = new[]
@@ -132,7 +132,7 @@ namespace EmptyHouse.MapGen.Core
                     AllowedFloors = FloorMask.F1,
                     Tags = RoomTagMask.None,
                     MinCount = 0,
-                    MaxCount = 16, // 상동 — 복도 여유분
+                    MaxCount = 32, // 상동 — 60방·경유율 50% 기준 복도 여유분(예산 밖)
                     IsCorridor = true,
                     IsEntranceAnchor = false,
                     Sockets = new[]

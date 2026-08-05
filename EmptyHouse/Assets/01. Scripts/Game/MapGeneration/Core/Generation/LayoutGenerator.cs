@@ -5,7 +5,9 @@ namespace EmptyHouse.MapGen.Core
 {
     /// <summary>
     /// 레이아웃 생성(3절) — "그래프 먼저, 기하 나중". 생성기 v1 = 단일 층(1F).
-    /// 버스 입구 앵커에서 열린 소켓에 템플릿을 붙여 트리를 만들고, 인접 소켓 일부를 뚫어 루프를 더한다.
+    /// 버스 입구 앵커에서 열린 소켓에 방을 직결 또는 복도 경유(복도+끝방 원자 배치)로 붙여 트리를 만들고,
+    /// 인접 소켓 일부를 뚫어 루프를 더한다. 복도는 연결자로만 배치되어 막다른 끝이 구조적으로 없다.
+    /// 총 방 수 예산은 방 전용 집계(복도·입구 앵커 제외).
     /// 회전 규약: Deg90 = 시계방향(North→East). 셀 좌표계는 +X=East, +Y=North.
     /// </summary>
     public sealed class LayoutGenerator
@@ -13,6 +15,10 @@ namespace EmptyHouse.MapGen.Core
         private readonly List<RoomTemplateDef> placedTemplates = new List<RoomTemplateDef>(); // 방 인덱스 → 사용 템플릿(Rooms 와 정렬)
         private readonly HashSet<long> occupiedCells = new HashSet<long>(); // 점유 셀 집합(충돌 검사 전용 — 열거 금지)
         private readonly HashSet<long> usedSockets = new HashSet<long>(); // 간선에 쓰인 소켓 집합(방<<32|소켓Id)
+        private int countableRooms; // 예산 집계 방 수 — 복도·입구 앵커 제외(RoomsTotalMin/Max 판정 기준)
+        private readonly List<(int template, int socket)> directCandidates = new List<(int template, int socket)>(); // 직결 후보 재사용 버퍼(호출 빈도 높음 — GC 절감)
+        private readonly List<(int template, int socket)> corridorCandidates = new List<(int template, int socket)>(); // 복도 후보 재사용 버퍼
+        private readonly List<int> farSockets = new List<int>(); // 복도 원단 소켓 재사용 버퍼
 
         /// <summary>
         /// 방 배치와 간선(트리 + 루프)을 생성해 blueprint 의 Rooms/Edges 를 채운다.
@@ -29,6 +35,7 @@ namespace EmptyHouse.MapGen.Core
             placedTemplates.Clear();
             occupiedCells.Clear();
             usedSockets.Clear();
+            countableRooms = 0;
 
             if (!TryPlaceEntranceAnchor(templates, blueprint))
             {
@@ -71,12 +78,12 @@ namespace EmptyHouse.MapGen.Core
         }
 
         /// <summary>
-        /// 열린 소켓에 방/복도 템플릿을 총 방 수 예산만큼 붙여 트리를 만든다(3절 2).
-        /// 풋프린트 충돌 시 다른 후보를 시도하고, 후보 소진 시 false.
-        /// MinCount 미달 템플릿이 있으면 그 템플릿만 후보로 삼아 최소 등장을 먼저 채운다.
+        /// 열린 소켓에 방을 직결 또는 복도 경유로 총 방 수 예산(방 전용 집계)만큼 붙여 트리를 만든다(3절 2).
+        /// 확장마다 CorridorLinkPercent 확률로 복도 경유(복도+끝방 원자 배치)를 시도하고, 실패 시 직결로 폴백한다.
+        /// MinCount 미달 방 템플릿이 있으면 남은 예산이 미달 합계 이하일 때 그 템플릿만 직결 후보로 강제한다.
         /// </summary>
         /// <param name="rng">단일 난수 스트림.</param>
-        /// <param name="genParams">생성 파라미터(총 방 수 예산).</param>
+        /// <param name="genParams">생성 파라미터(총 방 수 예산·복도 경유 확률).</param>
         /// <param name="templates">템플릿 집합.</param>
         /// <param name="blueprint">대상 블루프린트.</param>
         /// <returns>트리 조립 성공 여부.</returns>
@@ -101,8 +108,7 @@ namespace EmptyHouse.MapGen.Core
                 frontier.Add((0, s));
             }
 
-            var candidates = new List<(int template, int socket)>();
-            while (blueprint.Rooms.Count < targetRooms && frontier.Count > 0)
+            while (countableRooms < targetRooms && frontier.Count > 0)
             {
                 int frontierIndex = rng.Next(frontier.Count);
                 (int openRoom, int openSocketIndex) = frontier[frontierIndex];
@@ -113,92 +119,37 @@ namespace EmptyHouse.MapGen.Core
                 CellCoord targetCell = Step(openWorldCell, openWorldDir);
                 SocketDirection neededDir = Opposite(openWorldDir);
 
-                // 후보 수집 — MinCount 미달분은 남은 예산이 미달 합계 이하로 줄었을 때만 강제한다.
+                // MinCount 미달분(방 전용)은 남은 예산이 미달 합계 이하로 줄었을 때만 강제한다.
                 // 초장부터 강제하면 MinCount 템플릿이 항상 입구 옆 관문 자리를 차지해
                 // 배치 다양성이 죽고, HerdArea 파훼 쌍(6절) 같은 "앞 구역" 요구가 구조적으로 깨진다.
-                candidates.Clear();
                 int minCountDeficit = 0;
                 for (int t = 0; t < templates.Count; t++)
                 {
-                    if (!templates[t].IsEntranceAnchor && usedCount[t] < templates[t].MinCount)
+                    RoomTemplateDef tpl = templates[t];
+                    if (!tpl.IsEntranceAnchor && !tpl.IsCorridor && usedCount[t] < tpl.MinCount)
                     {
-                        minCountDeficit += templates[t].MinCount - usedCount[t];
+                        minCountDeficit += tpl.MinCount - usedCount[t];
                     }
                 }
 
-                bool unmetOnly = minCountDeficit > 0 && targetRooms - blueprint.Rooms.Count <= minCountDeficit;
+                bool unmetOnly = minCountDeficit > 0 && targetRooms - countableRooms <= minCountDeficit;
 
-                for (int t = 0; t < templates.Count; t++)
+                // 연결 방식 결정 — 복도 소켓에서의 확장·MinCount 강제 구간은 직결만(복도→복도 체인 금지)
+                bool fromCorridor = placedTemplates[openRoom].IsCorridor;
+                bool viaCorridor = !fromCorridor && !unmetOnly && rng.Next(100) < genParams.CorridorLinkPercent;
+
+                bool attached = viaCorridor
+                    && TryAttachCorridorLink(rng, templates, usedCount, blueprint, frontier, openRoom, openSocket, targetCell, openWorldDir);
+                if (!attached)
                 {
-                    RoomTemplateDef template = templates[t];
-                    if (template.IsEntranceAnchor || usedCount[t] >= template.MaxCount)
-                    {
-                        continue;
-                    }
-
-                    if (unmetOnly && usedCount[t] >= template.MinCount)
-                    {
-                        continue;
-                    }
-
-                    for (int s = 0; s < template.Sockets.Length; s++)
-                    {
-                        candidates.Add((t, s));
-                    }
-                }
-
-                Shuffle(rng, candidates);
-
-                bool attached = false;
-                for (int c = 0; c < candidates.Count && !attached; c++)
-                {
-                    (int templateIndex, int socketIndex) = candidates[c];
-                    RoomTemplateDef template = templates[templateIndex];
-                    SocketDef newSocket = template.Sockets[socketIndex];
-
-                    // 회전은 소켓 방향 맞대기로 유도된다(neededDir 를 향하도록 90도 단위 회전)
-                    var rotation = (Rotation4)(((int)neededDir - (int)newSocket.Direction + 4) % 4);
-                    CellCoord rotatedLocal = CellMath.RotateLocalCell(newSocket.LocalCell, template.WidthCells, template.HeightCells, rotation);
-                    var origin = new CellCoord(targetCell.X - rotatedLocal.X, targetCell.Y - rotatedLocal.Y);
-
-                    if (!FitsAt(template, origin, rotation))
-                    {
-                        continue;
-                    }
-
-                    int newRoom = PlaceRoom(template, origin, rotation, blueprint);
-                    usedCount[templateIndex]++;
-
-                    // 복도↔복도는 항상 개방 통로 — 복도 단부에는 문틀이 없다(문 배치 불가 물리 제약)
-                    bool corridorPair = placedTemplates[openRoom].IsCorridor && template.IsCorridor;
-                    blueprint.Edges.Add(new BlueprintEdge
-                    {
-                        RoomA = openRoom,
-                        SocketA = openSocket.Id,
-                        RoomB = newRoom,
-                        SocketB = newSocket.Id,
-                        State = corridorPair ? EdgeState.OpenPassage : (rng.Next(2) == 0 ? EdgeState.DoorOpen : EdgeState.OpenPassage),
-                        LockNumber = 0,
-                    });
-                    usedSockets.Add(SocketKey(openRoom, openSocket.Id));
-                    usedSockets.Add(SocketKey(newRoom, newSocket.Id));
-
-                    for (int s = 0; s < template.Sockets.Length; s++)
-                    {
-                        if (s != socketIndex)
-                        {
-                            frontier.Add((newRoom, s));
-                        }
-                    }
-
-                    attached = true;
+                    TryAttachDirectRoom(rng, templates, usedCount, unmetOnly, blueprint, frontier, openRoom, openSocket, targetCell, neededDir);
                 }
 
                 // 성공이면 소켓 소비, 실패면 죽은 소켓 — 어느 쪽이든 프런티어에서 뺀다(실패분은 나중에 봉인)
                 frontier.RemoveAt(frontierIndex);
             }
 
-            if (blueprint.Rooms.Count < genParams.RoomsTotalMin)
+            if (countableRooms < genParams.RoomsTotalMin)
             {
                 return false;
             }
@@ -212,6 +163,198 @@ namespace EmptyHouse.MapGen.Core
             }
 
             return true;
+        }
+
+        /// <summary>
+        /// 방 템플릿(비복도·비앵커)을 열린 소켓에 직결로 붙인다 — 풋프린트 충돌 시 다른 후보, 소진 시 false.
+        /// </summary>
+        /// <param name="rng">단일 난수 스트림.</param>
+        /// <param name="templates">템플릿 집합.</param>
+        /// <param name="usedCount">템플릿별 사용 횟수(성공 시 갱신).</param>
+        /// <param name="unmetOnly">MinCount 미달 템플릿만 후보로 삼을지.</param>
+        /// <param name="blueprint">대상 블루프린트.</param>
+        /// <param name="frontier">새 방의 잔여 소켓을 추가할 프런티어.</param>
+        /// <param name="openRoom">열린 소켓의 방 인덱스.</param>
+        /// <param name="openSocket">열린 소켓.</param>
+        /// <param name="targetCell">새 방 소켓이 놓일 월드 셀.</param>
+        /// <param name="neededDir">새 방 소켓이 향해야 할 월드 방향.</param>
+        /// <returns>부착 성공 여부.</returns>
+        private bool TryAttachDirectRoom(DeterministicRng rng, IReadOnlyList<RoomTemplateDef> templates, int[] usedCount, bool unmetOnly, MapBlueprint blueprint, List<(int room, int socket)> frontier, int openRoom, SocketDef openSocket, CellCoord targetCell, SocketDirection neededDir)
+        {
+            directCandidates.Clear();
+            for (int t = 0; t < templates.Count; t++)
+            {
+                RoomTemplateDef template = templates[t];
+                if (template.IsEntranceAnchor || template.IsCorridor || usedCount[t] >= template.MaxCount)
+                {
+                    continue;
+                }
+
+                if (unmetOnly && usedCount[t] >= template.MinCount)
+                {
+                    continue;
+                }
+
+                for (int s = 0; s < template.Sockets.Length; s++)
+                {
+                    directCandidates.Add((t, s));
+                }
+            }
+
+            Shuffle(rng, directCandidates);
+
+            for (int c = 0; c < directCandidates.Count; c++)
+            {
+                (int templateIndex, int socketIndex) = directCandidates[c];
+                RoomTemplateDef template = templates[templateIndex];
+                SocketDef newSocket = template.Sockets[socketIndex];
+
+                // 회전은 소켓 방향 맞대기로 유도된다(neededDir 를 향하도록 90도 단위 회전)
+                var rotation = (Rotation4)(((int)neededDir - (int)newSocket.Direction + 4) % 4);
+                CellCoord rotatedLocal = CellMath.RotateLocalCell(newSocket.LocalCell, template.WidthCells, template.HeightCells, rotation);
+                var origin = new CellCoord(targetCell.X - rotatedLocal.X, targetCell.Y - rotatedLocal.Y);
+
+                if (!FitsAt(template, origin, rotation))
+                {
+                    continue;
+                }
+
+                int newRoom = PlaceRoom(template, origin, rotation, blueprint);
+                usedCount[templateIndex]++;
+                AddEdge(rng, blueprint, openRoom, openSocket.Id, newRoom, newSocket.Id);
+
+                for (int s = 0; s < template.Sockets.Length; s++)
+                {
+                    if (s != socketIndex)
+                    {
+                        frontier.Add((newRoom, s));
+                    }
+                }
+
+                return true;
+            }
+
+            return false;
+        }
+
+        /// <summary>
+        /// 복도 경유 연결 — 복도 1개와 그 원단(진행 방향) 소켓의 끝방 1개를 원자적으로 배치한다.
+        /// 끝방이 어느 원단 소켓에도 못 붙으면 복도를 롤백하고 다음 복도 후보, 전부 소진 시 false(호출자가 직결 폴백).
+        /// 이 트랜잭션이 막다른 복도(봉인된 끝)를 구조적으로 차단한다.
+        /// </summary>
+        /// <param name="rng">단일 난수 스트림.</param>
+        /// <param name="templates">템플릿 집합.</param>
+        /// <param name="usedCount">템플릿별 사용 횟수(성공 시 갱신).</param>
+        /// <param name="blueprint">대상 블루프린트.</param>
+        /// <param name="frontier">복도·끝방의 잔여 소켓을 추가할 프런티어.</param>
+        /// <param name="openRoom">열린 소켓의 방 인덱스.</param>
+        /// <param name="openSocket">열린 소켓.</param>
+        /// <param name="targetCell">복도 근단 소켓이 놓일 월드 셀.</param>
+        /// <param name="openWorldDir">열린 소켓의 월드 방향(연결 진행 방향).</param>
+        /// <returns>복도+끝방 배치 성공 여부.</returns>
+        private bool TryAttachCorridorLink(DeterministicRng rng, IReadOnlyList<RoomTemplateDef> templates, int[] usedCount, MapBlueprint blueprint, List<(int room, int socket)> frontier, int openRoom, SocketDef openSocket, CellCoord targetCell, SocketDirection openWorldDir)
+        {
+            SocketDirection neededDir = Opposite(openWorldDir);
+            corridorCandidates.Clear();
+            for (int t = 0; t < templates.Count; t++)
+            {
+                RoomTemplateDef template = templates[t];
+                if (!template.IsCorridor || usedCount[t] >= template.MaxCount)
+                {
+                    continue;
+                }
+
+                for (int s = 0; s < template.Sockets.Length; s++)
+                {
+                    corridorCandidates.Add((t, s));
+                }
+            }
+
+            Shuffle(rng, corridorCandidates);
+
+            for (int c = 0; c < corridorCandidates.Count; c++)
+            {
+                (int templateIndex, int socketIndex) = corridorCandidates[c];
+                RoomTemplateDef corridor = templates[templateIndex];
+                SocketDef nearSocket = corridor.Sockets[socketIndex];
+                var rotation = (Rotation4)(((int)neededDir - (int)nearSocket.Direction + 4) % 4);
+                CellCoord rotatedLocal = CellMath.RotateLocalCell(nearSocket.LocalCell, corridor.WidthCells, corridor.HeightCells, rotation);
+                var origin = new CellCoord(targetCell.X - rotatedLocal.X, targetCell.Y - rotatedLocal.Y);
+
+                if (!FitsAt(corridor, origin, rotation))
+                {
+                    continue;
+                }
+
+                int corridorRoom = PlaceRoom(corridor, origin, rotation, blueprint);
+
+                // 원단 소켓 = 근단(源 방향)을 되보지 않는 소켓 전부 — 직선은 반대 단부, 코너는 수직 단부.
+                // 전 개구 변 연결 보장은 개구 2변 복도 전제 — 3변 이상(T자)은 X4 가 사전 차단한다(v1 미지원)
+                farSockets.Clear();
+                for (int s = 0; s < corridor.Sockets.Length; s++)
+                {
+                    if (s != socketIndex && CellMath.RotateDirection(corridor.Sockets[s].Direction, rotation) != neededDir)
+                    {
+                        farSockets.Add(s);
+                    }
+                }
+
+                Shuffle(rng, farSockets);
+
+                for (int f = 0; f < farSockets.Count; f++)
+                {
+                    SocketDef farSocket = corridor.Sockets[farSockets[f]];
+                    SocketDirection farWorldDir = CellMath.RotateDirection(farSocket.Direction, rotation);
+                    CellCoord farWorld = ToWorldCell(blueprint.Rooms[corridorRoom], corridor, farSocket);
+                    CellCoord roomTarget = Step(farWorld, farWorldDir);
+                    if (!TryAttachDirectRoom(rng, templates, usedCount, false, blueprint, frontier, corridorRoom, farSocket, roomTarget, Opposite(farWorldDir)))
+                    {
+                        continue;
+                    }
+
+                    usedCount[templateIndex]++;
+                    AddEdge(rng, blueprint, openRoom, openSocket.Id, corridorRoom, nearSocket.Id);
+
+                    // 복도의 잔여 개구 소켓도 프런티어에 — 이후 확장은 직결만 허용된다(fromCorridor 게이트)
+                    for (int s = 0; s < corridor.Sockets.Length; s++)
+                    {
+                        if (s != socketIndex && !usedSockets.Contains(SocketKey(corridorRoom, corridor.Sockets[s].Id)))
+                        {
+                            frontier.Add((corridorRoom, s));
+                        }
+                    }
+
+                    return true;
+                }
+
+                // 끝방 실패 — 복도 롤백(끝이 봉인된 복도를 남기지 않는다)
+                RemoveLastRoom(corridor, origin, rotation, blueprint);
+            }
+
+            return false;
+        }
+
+        /// <summary>연결 간선을 추가하고 양쪽 소켓을 소비 처리한다 — 복도가 한쪽이라도 끼면 항상 개방 통로(복도 연결부에는 문 금지), 방↔방만 문/통로 랜덤.</summary>
+        /// <param name="rng">단일 난수 스트림.</param>
+        /// <param name="blueprint">대상 블루프린트.</param>
+        /// <param name="roomA">A 방 인덱스.</param>
+        /// <param name="socketA">A 소켓 Id.</param>
+        /// <param name="roomB">B 방 인덱스.</param>
+        /// <param name="socketB">B 소켓 Id.</param>
+        private void AddEdge(DeterministicRng rng, MapBlueprint blueprint, int roomA, int socketA, int roomB, int socketB)
+        {
+            bool corridorInvolved = placedTemplates[roomA].IsCorridor || placedTemplates[roomB].IsCorridor;
+            blueprint.Edges.Add(new BlueprintEdge
+            {
+                RoomA = roomA,
+                SocketA = socketA,
+                RoomB = roomB,
+                SocketB = socketB,
+                State = corridorInvolved ? EdgeState.OpenPassage : (rng.Next(2) == 0 ? EdgeState.DoorOpen : EdgeState.OpenPassage),
+                LockNumber = 0,
+            });
+            usedSockets.Add(SocketKey(roomA, socketA));
+            usedSockets.Add(SocketKey(roomB, socketB));
         }
 
         /// <summary>
@@ -284,18 +427,7 @@ namespace EmptyHouse.MapGen.Core
                     continue; // 앞선 의무 연결이 이미 소비한 소켓
                 }
 
-                // 복도↔복도는 항상 개방 통로 — 복도 단부에는 문틀이 없다(TryAttachRooms 와 동일 규칙)
-                blueprint.Edges.Add(new BlueprintEdge
-                {
-                    RoomA = roomA,
-                    SocketA = socketA,
-                    RoomB = roomB,
-                    SocketB = socketB,
-                    State = corridorA && corridorB ? EdgeState.OpenPassage : (rng.Next(2) == 0 ? EdgeState.DoorOpen : EdgeState.OpenPassage),
-                    LockNumber = 0,
-                });
-                usedSockets.Add(SocketKey(roomA, socketA));
-                usedSockets.Add(SocketKey(roomB, socketB));
+                AddEdge(rng, blueprint, roomA, socketA, roomB, socketB);
             }
 
             // 소비되었거나 복도가 낀 쌍 제거 — 랜덤 단계 후보는 전부 비복도 쌍만 남는다
@@ -316,17 +448,7 @@ namespace EmptyHouse.MapGen.Core
             {
                 int pick = rng.Next(candidates.Count);
                 (int roomA, int socketA, int roomB, int socketB) = candidates[pick];
-                blueprint.Edges.Add(new BlueprintEdge
-                {
-                    RoomA = roomA,
-                    SocketA = socketA,
-                    RoomB = roomB,
-                    SocketB = socketB,
-                    State = rng.Next(2) == 0 ? EdgeState.DoorOpen : EdgeState.OpenPassage,
-                    LockNumber = 0,
-                });
-                usedSockets.Add(SocketKey(roomA, socketA));
-                usedSockets.Add(SocketKey(roomB, socketB));
+                AddEdge(rng, blueprint, roomA, socketA, roomB, socketB);
                 carved++;
 
                 // 방금 소비한 소켓을 공유하는 후보 제거(뒤에서부터 — 인덱스 안정)
@@ -393,7 +515,36 @@ namespace EmptyHouse.MapGen.Core
 
             blueprint.Rooms.Add(new BlueprintRoom { TemplateId = template.TemplateId, Cell = origin, Rotation = rotation });
             placedTemplates.Add(template);
+            if (!template.IsCorridor && !template.IsEntranceAnchor)
+            {
+                countableRooms++;
+            }
+
             return blueprint.Rooms.Count - 1;
+        }
+
+        /// <summary>마지막으로 배치한 방을 롤백한다 — 점유 셀·목록·방 수 집계 원복(복도 경유 트랜잭션 실패 전용, 간선 추가 전에만 호출 가능).</summary>
+        /// <param name="template">롤백할 템플릿(마지막 배치분).</param>
+        /// <param name="origin">배치 시 풋프린트 원점(셀).</param>
+        /// <param name="rotation">배치 시 회전.</param>
+        /// <param name="blueprint">대상 블루프린트.</param>
+        private void RemoveLastRoom(RoomTemplateDef template, CellCoord origin, Rotation4 rotation, MapBlueprint blueprint)
+        {
+            (int width, int height) = CellMath.RotatedSize(template.WidthCells, template.HeightCells, rotation);
+            for (int x = 0; x < width; x++)
+            {
+                for (int y = 0; y < height; y++)
+                {
+                    occupiedCells.Remove(CellKey(origin.X + x, origin.Y + y));
+                }
+            }
+
+            blueprint.Rooms.RemoveAt(blueprint.Rooms.Count - 1);
+            placedTemplates.RemoveAt(placedTemplates.Count - 1);
+            if (!template.IsCorridor && !template.IsEntranceAnchor)
+            {
+                countableRooms--;
+            }
         }
 
         /// <summary>해당 원점·회전으로 템플릿 풋프린트가 기존 점유와 겹치지 않는지 검사한다.</summary>

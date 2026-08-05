@@ -37,8 +37,19 @@ namespace EmptyHouse.MapGen.Core.Tests
                     }
                 }
 
-                Assert.That(blueprint.Rooms.Count, Is.InRange(genParams.RoomsTotalMin, genParams.RoomsTotalMax),
-                    $"시드 {seed}: 총 방 수가 예산 범위 밖이다");
+                // 총 방 수 예산은 방 전용 집계 — 복도·입구 앵커는 제외
+                int countableRooms = 0;
+                for (int r = 0; r < blueprint.Rooms.Count; r++)
+                {
+                    RoomTemplateDef template = FindTemplate(templates, blueprint.Rooms[r].TemplateId);
+                    if (!template.IsCorridor && !template.IsEntranceAnchor)
+                    {
+                        countableRooms++;
+                    }
+                }
+
+                Assert.That(countableRooms, Is.InRange(genParams.RoomsTotalMin, genParams.RoomsTotalMax),
+                    $"시드 {seed}: 총 방 수(방 전용 집계)가 예산 범위 밖이다");
             });
         }
 
@@ -180,6 +191,55 @@ namespace EmptyHouse.MapGen.Core.Tests
                             && (int)sealedSockets[b].dir == ((int)sealedSockets[a].dir + 2) % 4;
                         Assert.That(facing, Is.False,
                             $"시드 {seed}: 복도 포함 봉인 소켓 쌍(방 {sealedSockets[a].room} ↔ 방 {sealedSockets[b].room})이 마주보고 있다 — 의무 연결 누락");
+                    }
+                }
+            });
+        }
+
+        /// <summary>
+        /// 복도는 막다른 끝이 없다 — 모든 복도의 개구 변(월드 방향 그룹)마다 연결 간선이 최소 1개 있다.
+        /// 복도가 리프(끝 봉인)로 남으면 실패 — 복도+끝방 원자 배치 규칙 검증.
+        /// </summary>
+        [Test]
+        public void TryGenerate_복도는_막다른_끝이_없다()
+        {
+            ForEachSeed((seed, blueprint, templates, genParams) =>
+            {
+                // 연결 간선에 쓰인 (방, 소켓) 집합
+                var connected = new HashSet<long>();
+                for (int e = 0; e < blueprint.Edges.Count; e++)
+                {
+                    BlueprintEdge edge = blueprint.Edges[e];
+                    if (edge.RoomB < 0 || edge.State == EdgeState.BlockedWall)
+                    {
+                        continue;
+                    }
+
+                    connected.Add(((long)edge.RoomA << 32) | (uint)edge.SocketA);
+                    connected.Add(((long)edge.RoomB << 32) | (uint)edge.SocketB);
+                }
+
+                for (int r = 0; r < blueprint.Rooms.Count; r++)
+                {
+                    RoomTemplateDef template = FindTemplate(templates, blueprint.Rooms[r].TemplateId);
+                    if (!template.IsCorridor)
+                    {
+                        continue;
+                    }
+
+                    // 개구 변별(회전 적용 월드 방향) 연결 여부 집계
+                    var sideHasLink = new Dictionary<SocketDirection, bool>();
+                    for (int s = 0; s < template.Sockets.Length; s++)
+                    {
+                        SocketDirection worldDir = CellMath.RotateDirection(template.Sockets[s].Direction, blueprint.Rooms[r].Rotation);
+                        bool linked = connected.Contains(((long)r << 32) | (uint)template.Sockets[s].Id);
+                        sideHasLink[worldDir] = (sideHasLink.TryGetValue(worldDir, out bool prev) && prev) || linked;
+                    }
+
+                    foreach (KeyValuePair<SocketDirection, bool> side in sideHasLink)
+                    {
+                        Assert.That(side.Value, Is.True,
+                            $"시드 {seed}: 복도 방 {r}({template.TemplateId}) 의 {side.Key} 개구 변이 전부 봉인됐다 — 막다른 복도");
                     }
                 }
             });

@@ -17,6 +17,7 @@ namespace EmptyHouse.MapGen.Editor
     {
         [SerializeField] private int seedInput; // 입력 시드 — 0 = 랜덤(생성 시 실제 값 확정·표기, X8)
         [SerializeField] private int lastConfirmedSeed; // 마지막 생성에 실제 사용한 확정 시드(AC-17·AC-22 재현 표기)
+        [SerializeField] private int templateSetIndex; // 템플릿 세트(0=프리팹 실측, 1=Dev 그레이박스) — 시드 재현은 같은 세트에서만 성립
         [SerializeField] private MapGenParams workingParams = new MapGenParams(); // 파라미터 오버라이드 작업본(9절)
         [SerializeField] private bool showDangerOverlay = true; // 위험 등급 그라데이션 표시(10절)
         [SerializeField] private bool showSpawnOverlay = true; // 스폰 오버레이 표시(10절)
@@ -30,6 +31,8 @@ namespace EmptyHouse.MapGen.Editor
         [SerializeField] private bool paramsFoldout = true; // 파라미터 오버라이드 폴드아웃 상태
         [SerializeField] private Vector2 inputScroll; // 입력 패널 스크롤 위치
         [SerializeField] private Vector2 validationScroll; // 검증 패널 스크롤 위치
+
+        private static readonly string[] templateSetNames = { "프리팹 실측", "Dev 그레이박스" }; // 템플릿 세트 선택지 — 인덱스는 templateSetIndex 와 계약
 
         private readonly MapGenerator generator = new MapGenerator(); // 게임과 동일 생성 라이브러리(AC-21)
         private MapGenResult lastResult; // 마지막 생성 결과 — 도메인 리로드 시 소실, 재생성으로 복원
@@ -97,6 +100,7 @@ namespace EmptyHouse.MapGen.Editor
             inputScroll = EditorGUILayout.BeginScrollView(inputScroll);
             EditorGUILayout.LabelField("생성", EditorStyles.boldLabel);
             seedInput = EditorGUILayout.IntField(new GUIContent("시드 (0 = 랜덤)"), seedInput);
+            templateSetIndex = EditorGUILayout.Popup("템플릿 세트", templateSetIndex, templateSetNames);
             if (lastConfirmedSeed != 0)
             {
                 EditorGUILayout.LabelField($"마지막 확정 시드: {lastConfirmedSeed}", EditorStyles.miniLabel);
@@ -121,6 +125,7 @@ namespace EmptyHouse.MapGen.Editor
                 p.RoomsTotalMax = EditorGUILayout.IntField("총 방 수 Max", p.RoomsTotalMax);
                 p.LoopEdgeCountMin = EditorGUILayout.IntField("루프 간선 Min", p.LoopEdgeCountMin);
                 p.LoopEdgeCountMax = EditorGUILayout.IntField("루프 간선 Max", p.LoopEdgeCountMax);
+                p.CorridorLinkPercent = EditorGUILayout.IntSlider("복도 경유 확률 %", p.CorridorLinkPercent, 0, 100);
                 p.ShortcutValueMin = EditorGUILayout.IntField("지름길 최소 가치", p.ShortcutValueMin);
                 p.ListenerCounterDist = EditorGUILayout.IntField("Listener 보장 거리", p.ListenerCounterDist);
                 p.RerollMax = EditorGUILayout.IntField("리롤 상한", p.RerollMax);
@@ -195,6 +200,7 @@ namespace EmptyHouse.MapGen.Editor
 
             EditorGUILayout.LabelField($"확정 시드: {lastConfirmedSeed}");
             EditorGUILayout.LabelField($"성공: {(lastResult.Success ? "예" : "아니오")} · 리롤 {lastResult.RerollCount}회");
+            DrawCompositionStats();
             ValidationReport report = lastResult.LastReport;
             if (report != null)
             {
@@ -227,6 +233,82 @@ namespace EmptyHouse.MapGen.Editor
             EditorGUILayout.EndScrollView();
         }
 
+        /// <summary>구성 통계 — 방/복도 수와 직결·복도 경유 간선 수를 표시한다(직결/경유 혼합 비율 확인용).</summary>
+        private void DrawCompositionStats()
+        {
+            if (!lastResult.Success || lastResult.Blueprint == null || lastTemplates == null)
+            {
+                return;
+            }
+
+            MapBlueprint blueprint = lastResult.Blueprint;
+            int roomCount = 0;
+            int corridorCount = 0;
+            for (int r = 0; r < blueprint.Rooms.Count; r++)
+            {
+                RoomTemplateDef template = FindTemplate(blueprint.Rooms[r].TemplateId);
+                if (template == null || template.IsEntranceAnchor)
+                {
+                    continue;
+                }
+
+                if (template.IsCorridor)
+                {
+                    corridorCount++;
+                }
+                else
+                {
+                    roomCount++;
+                }
+            }
+
+            int directEdges = 0;
+            int roomCorridorEdges = 0;
+            int corridorCorridorEdges = 0;
+            for (int e = 0; e < blueprint.Edges.Count; e++)
+            {
+                BlueprintEdge edge = blueprint.Edges[e];
+                if (edge.RoomB < 0 || edge.State == EdgeState.BlockedWall)
+                {
+                    continue;
+                }
+
+                bool corridorA = FindTemplate(blueprint.Rooms[edge.RoomA].TemplateId)?.IsCorridor ?? false;
+                bool corridorB = FindTemplate(blueprint.Rooms[edge.RoomB].TemplateId)?.IsCorridor ?? false;
+                if (corridorA && corridorB)
+                {
+                    corridorCorridorEdges++;
+                }
+                else if (corridorA || corridorB)
+                {
+                    roomCorridorEdges++;
+                }
+                else
+                {
+                    directEdges++;
+                }
+            }
+
+            EditorGUILayout.LabelField($"방 {roomCount} + 입구 1 · 복도 {corridorCount}", EditorStyles.miniLabel);
+            EditorGUILayout.LabelField($"방↔방 직결 {directEdges} · 방↔복도 {roomCorridorEdges} · 복도↔복도 {corridorCorridorEdges}", EditorStyles.miniLabel);
+        }
+
+        /// <summary>마지막 생성 템플릿 목록에서 ID 로 템플릿을 찾는다.</summary>
+        /// <param name="templateId">찾을 템플릿 ID.</param>
+        /// <returns>일치 템플릿 — 없으면 null.</returns>
+        private RoomTemplateDef FindTemplate(string templateId)
+        {
+            for (int i = 0; i < lastTemplates.Count; i++)
+            {
+                if (lastTemplates[i].TemplateId == templateId)
+                {
+                    return lastTemplates[i];
+                }
+            }
+
+            return null;
+        }
+
         /// <summary>검증 패스 한 줄을 통과/실패 색으로 표시한다.</summary>
         /// <param name="label">패스 이름.</param>
         /// <param name="passed">통과 여부.</param>
@@ -239,7 +321,7 @@ namespace EmptyHouse.MapGen.Editor
         }
 
         /// <summary>
-        /// 현재 입력으로 생성을 실행한다 — 시드 확정(X8) 후 DevTemplateSet 새 인스턴스에 오버라이드를 적용해
+        /// 현재 입력으로 생성을 실행한다 — 시드 확정(X8) 후 선택 템플릿 세트 새 인스턴스에 오버라이드를 적용해
         /// MapGenerator.Generate 를 직접 호출한다(AC-21). 실패 결과도 그대로 패널에 보고한다(X2 — 폴백 없음).
         /// </summary>
         private void GenerateNow()
@@ -251,7 +333,8 @@ namespace EmptyHouse.MapGen.Editor
             MapGenParams snapshot = JsonUtility.FromJson<MapGenParams>(JsonUtility.ToJson(workingParams));
             snapshot.Seed = lastConfirmedSeed;
 
-            List<RoomTemplateDef> templates = DevTemplateSet.Create();
+            // 기본 = 프리팹 실측 세트 — 씬 빌더(MapGenSceneBuilder)와 같은 재료로 봐야 모양 조정이 유효하다
+            List<RoomTemplateDef> templates = templateSetIndex == 0 ? PrefabRoomTemplates.Create() : DevTemplateSet.Create();
             ApplyWanderOverrides(templates);
             lastResult = generator.Generate(snapshot, templates);
             lastTemplates = templates;

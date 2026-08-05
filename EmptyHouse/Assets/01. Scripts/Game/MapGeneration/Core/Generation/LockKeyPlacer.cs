@@ -51,9 +51,9 @@ namespace EmptyHouse.MapGen.Core
                     continue;
                 }
 
-                // 복도↔복도 간선은 자물쇠 부적격 — 복도 단부에는 문틀이 없다(문 배치 불가 물리 제약)
+                // 복도 포함 간선은 자물쇠 부적격 — 복도 연결부에는 문(잠긴 문 포함)이 올 수 없다(문 배치 불가 물리 제약)
                 if (FindTemplate(templates, blueprint.Rooms[edge.RoomA].TemplateId).IsCorridor
-                    && FindTemplate(templates, blueprint.Rooms[edge.RoomB].TemplateId).IsCorridor)
+                    || FindTemplate(templates, blueprint.Rooms[edge.RoomB].TemplateId).IsCorridor)
                 {
                     continue;
                 }

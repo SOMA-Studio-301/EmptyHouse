@@ -1,4 +1,4 @@
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using Border.Core;
 using EmptyHouse.MapGen.Core;
 using UnityEditor;
@@ -60,16 +60,10 @@ namespace EmptyHouse.MapGen.Editor
             int built = 0;
             int seed = baseSeed;
             var summary = new System.Text.StringBuilder();
+            int totalIssues = 0;
             while (built < mapCount && seed < baseSeed + 40)
             {
-                var genParams = new MapGenParams
-                {
-                    Seed = seed,
-                    RoomsTotalMin = roomsMin,
-                    RoomsTotalMax = roomsMax,
-                    EnabledZombieTypes = ZombieTypeMask.Walker | ZombieTypeMask.Listener | ZombieTypeMask.Watcher,
-                };
-                MapGenResult result = generator.Generate(genParams, templates);
+                MapGenResult result = generator.Generate(CreateParams(seed), templates);
                 if (!result.Success)
                 {
                     Log.D($"[MapGenSceneBuilder] 시드 {seed} 실패 — 다음 시드 시도: {string.Join(" / ", result.FailReasons)}");
@@ -78,8 +72,36 @@ namespace EmptyHouse.MapGen.Editor
                 }
 
                 Vector3 offset = new Vector3(built * mapSpacing, 0f, mapZOffset);
-                BuildMap(result.Blueprint, templates, root.transform, offset, built);
-                summary.AppendLine($"맵 {built}: 시드 {seed} · 방 {result.Blueprint.Rooms.Count} · 리롤 {result.RerollCount} · 경고 {result.LastReport.Warnings.Count}");
+                GameObject mapRoot = BuildMap(result.Blueprint, templates, root.transform, offset, built);
+                int issues = MapGenSceneAuditor.AuditMap(mapRoot, result.Blueprint, templates, built);
+                totalIssues += issues;
+
+                // 방 수는 방 전용 집계(복도·입구 제외) — Rooms.Count 그대로 찍으면 예산 위반으로 오독된다
+                int roomTotal = 0;
+                int corridorTotal = 0;
+                for (int r = 0; r < result.Blueprint.Rooms.Count; r++)
+                {
+                    for (int t = 0; t < templates.Count; t++)
+                    {
+                        if (templates[t].TemplateId != result.Blueprint.Rooms[r].TemplateId)
+                        {
+                            continue;
+                        }
+
+                        if (templates[t].IsCorridor)
+                        {
+                            corridorTotal++;
+                        }
+                        else if (!templates[t].IsEntranceAnchor)
+                        {
+                            roomTotal++;
+                        }
+
+                        break;
+                    }
+                }
+
+                summary.AppendLine($"맵 {built}: 시드 {seed} · 방 {roomTotal} · 복도 {corridorTotal} · 리롤 {result.RerollCount} · 경고 {result.LastReport.Warnings.Count} · 감사 {issues}건");
                 built++;
                 seed++;
             }
@@ -90,7 +112,28 @@ namespace EmptyHouse.MapGen.Editor
                 Log.E($"[MapGenSceneBuilder] 씬 저장 실패 — 수동 저장(Ctrl+S) 필요. path='{root.scene.path}'");
             }
 
-            Log.D($"[MapGenSceneBuilder] 완료 — {built}/{mapCount}개 생성\n{summary}");
+            if (totalIssues > 0)
+            {
+                Log.W($"[MapGenSceneBuilder] 완료 — {built}/{mapCount}개 생성 · 감사 문제 {totalIssues}건(콘솔 [Audit] 라인·씬 AuditMarkers 참조)\n{summary}");
+            }
+            else
+            {
+                Log.D($"[MapGenSceneBuilder] 완료 — {built}/{mapCount}개 생성 · 감사 문제 0건\n{summary}");
+            }
+        }
+
+        /// <summary>씬 빌더 표준 생성 파라미터 — 감사 도구가 같은 파라미터로 블루프린트를 재현한다(드리프트 방지).</summary>
+        /// <param name="seed">확정 시드.</param>
+        /// <returns>생성 파라미터.</returns>
+        internal static MapGenParams CreateParams(int seed)
+        {
+            return new MapGenParams
+            {
+                Seed = seed,
+                RoomsTotalMin = roomsMin,
+                RoomsTotalMax = roomsMax,
+                EnabledZombieTypes = ZombieTypeMask.Walker | ZombieTypeMask.Listener | ZombieTypeMask.Watcher,
+            };
         }
 
         /// <summary>블루프린트 하나를 방 프리팹·문·스폰 표식으로 조립한다.</summary>
@@ -99,7 +142,8 @@ namespace EmptyHouse.MapGen.Editor
         /// <param name="parent">루트 부모.</param>
         /// <param name="offset">맵 원점 월드 오프셋.</param>
         /// <param name="index">맵 번호(이름용).</param>
-        private static void BuildMap(MapBlueprint blueprint, IReadOnlyList<RoomTemplateDef> templates, Transform parent, Vector3 offset, int index)
+        /// <returns>맵 루트 게임오브젝트(감사용).</returns>
+        private static GameObject BuildMap(MapBlueprint blueprint, IReadOnlyList<RoomTemplateDef> templates, Transform parent, Vector3 offset, int index)
         {
             Log.D($"[MapGenSceneBuilder] BuildMap {index} 시드={blueprint.Meta.Seed}");
             var mapRoot = new GameObject($"GeneratedMap_{index}_Seed{blueprint.Meta.Seed}");
@@ -140,7 +184,7 @@ namespace EmptyHouse.MapGen.Editor
                     continue;
                 }
 
-                PlaceOpening(blueprint, templates, edge, roomInstances, doorsRoot.transform, mapRoot.transform.position, minX, minY);
+                PlaceOpening(blueprint, templates, edge, e, roomInstances, doorsRoot.transform, mapRoot.transform.position, minX, minY);
             }
 
             // 코너 기둥 — 서로 다른 방·복도가 만나는 노출 코너의 벽 이음 갭을 가린다
@@ -155,6 +199,8 @@ namespace EmptyHouse.MapGen.Editor
             {
                 PlaceSpawnMarker(blueprint, templates, blueprint.Spawns[s], spawnsRoot.transform, mapRoot.transform.position, minX, minY);
             }
+
+            return mapRoot;
         }
 
         /// <summary>방 프리팹을 인스턴스화하고 바닥 타일(Hall_Floor) 실측 바운드로 셀 원점에 정렬한다.</summary>
@@ -190,31 +236,50 @@ namespace EmptyHouse.MapGen.Editor
         /// <summary>
         /// 간선 개구부를 만든다 — 경계 게이트 박스와 교차하는 양쪽 방의 벽 모듈을 비활성화하고,
         /// 문 상태(열림/잠김)에 맞는 문 프리팹을 배치한다(잠긴 문 이름에 자물쇠 번호·용도 표기).
+        /// 개구 프로파일(폭 4m × 높이 6m = 문 슬롯) 밖으로 잘린 잔재는 문·통로 공통으로 충진한다 —
+        /// 입구방처럼 벽이 더 높은(8m) 프리팹은 프로파일 위 밴드까지 봉합해야 2m 구멍이 남지 않는다.
+        /// 배치 전 소켓 쌍의 셀 인접·방향 대면을 검증해, 불일치면 개구를 뚫지 않는다(낭떠러지 방지 가드).
         /// </summary>
         /// <param name="blueprint">대상 블루프린트.</param>
         /// <param name="templates">템플릿 목록.</param>
         /// <param name="edge">처리할 연결 간선.</param>
+        /// <param name="edgeIndex">간선 인덱스(추적용 이름 표기).</param>
         /// <param name="roomInstances">방 인스턴스 배열.</param>
         /// <param name="doorsRoot">문 부모.</param>
         /// <param name="mapOrigin">맵 원점 월드 좌표.</param>
         /// <param name="minX">맵 최소 셀 X.</param>
         /// <param name="minY">맵 최소 셀 Y.</param>
-        private static void PlaceOpening(MapBlueprint blueprint, IReadOnlyList<RoomTemplateDef> templates, BlueprintEdge edge, GameObject[] roomInstances, Transform doorsRoot, Vector3 mapOrigin, int minX, int minY)
+        private static void PlaceOpening(MapBlueprint blueprint, IReadOnlyList<RoomTemplateDef> templates, BlueprintEdge edge, int edgeIndex, GameObject[] roomInstances, Transform doorsRoot, Vector3 mapOrigin, int minX, int minY)
         {
             RoomTemplateDef templateA = FindTemplate(templates, blueprint.Rooms[edge.RoomA].TemplateId);
             SocketDef socketA = FindSocket(templateA, edge.SocketA);
             CellCoord worldCell = CellMath.WorldCell(blueprint.Rooms[edge.RoomA], templateA, socketA.LocalCell);
             SocketDirection dir = CellMath.RotateDirection(socketA.Direction, blueprint.Rooms[edge.RoomA].Rotation);
 
+            // 낭떠러지 방지 가드 — B 소켓이 A 소켓의 바로 건너편 셀에서 마주보고 있어야 개구를 뚫는다.
+            // 불일치 = 데이터/기하 결함: 벽을 그대로 두고(막힌 채) 감사 로그로 표면화한다.
+            RoomTemplateDef templateB = FindTemplate(templates, blueprint.Rooms[edge.RoomB].TemplateId);
+            SocketDef socketB = FindSocket(templateB, edge.SocketB);
+            CellCoord worldCellB = CellMath.WorldCell(blueprint.Rooms[edge.RoomB], templateB, socketB.LocalCell);
+            CellCoord facing = StepCell(worldCell, dir);
+            SocketDirection dirB = CellMath.RotateDirection(socketB.Direction, blueprint.Rooms[edge.RoomB].Rotation);
+            if (worldCellB.X != facing.X || worldCellB.Y != facing.Y || dirB != Opposite(dir))
+            {
+                Log.E($"[MapGenSceneBuilder] 간선 e{edgeIndex} 기하 불일치 — 방{edge.RoomA}s{edge.SocketA}({worldCell.X},{worldCell.Y})→{dir} 이 방{edge.RoomB}s{edge.SocketB}({worldCellB.X},{worldCellB.Y},{dirB}) 와 대면하지 않는다. 개구 생략(낭떠러지 방지).");
+                return;
+            }
+
             float cell = PrefabRoomTemplates.CellMeters;
             Vector3 cellCenter = mapOrigin + new Vector3((worldCell.X - minX + 0.5f) * cell, 0f, (worldCell.Y - minY + 0.5f) * cell);
             Vector3 dirVec = DirectionVector(dir);
             Vector3 gateCenter = cellCenter + dirVec * (cell * 0.5f);
 
-            // 경계선 방향 폭 3.9m 게이트 — 셀(4m) 안의 2m 벽 세그먼트 2장을 전부 자르되(문 조립체가 4m 전폭)
+            // 경계선 방향 폭 3.9m × 높이 5.8m 게이트 — 문 슬롯(4×6m)에 해당하는 벽만 자른다.
+            // 높이를 6m 미만으로 제한해 6m 위 상단 조각(입구방 6~8m 밴드)은 절대 자르지 않는다
+            // ("문 영역 4×6만 대체" 원칙 — 상단을 자르면 6m 기둥으로는 못 메꾼다).
             // 0.05m 여유로 이웃 셀 세그먼트는 보호한다
             bool boundaryAlongX = dir == SocketDirection.North || dir == SocketDirection.South;
-            var gate = new Bounds(gateCenter + Vector3.up * 3f, boundaryAlongX ? new Vector3(3.9f, 8f, 1.6f) : new Vector3(1.6f, 8f, 3.9f));
+            var gate = new Bounds(gateCenter + Vector3.up * 3f, boundaryAlongX ? new Vector3(3.9f, 5.8f, 1.6f) : new Vector3(1.6f, 5.8f, 3.9f));
             var cutA = new List<Bounds>();
             var cutB = new List<Bounds>();
             DisableWallsIntersecting(roomInstances[edge.RoomA], gate, boundaryAlongX, cutA);
@@ -222,7 +287,7 @@ namespace EmptyHouse.MapGen.Editor
 
             // 문 기준점 = 절단 개구 실측 중심(셀 중심 ±0.4m 클램프) — 방 프리팹의 벽 세그먼트 그리드가
             // 바닥 그리드에서 프리팹별 0.2~0.8m 어긋나게 저작돼 있어 셀 중심 고정이면 문틀 옆에 슬릿이 남고,
-            // 완전 추종이면 문이 소켓 셀에서 벗어난다. 잔여 슬릿은 아래 충진 슬래브가 봉합한다.
+            // 완전 추종이면 문이 소켓 셀에서 벗어난다. 잔여 슬릿은 이음 기둥(Hall_Clumn_Large_6M)이 가린다.
             // 중심 계산은 전고 구조 벽(높이 ≥ 4m)만 사용 — 상·하단 장식 조각은 서브 그리드가 달라 중심을 끌고 간다
             float cellCenterAxis = boundaryAlongX ? gateCenter.x : gateCenter.z;
             Bounds hole = default;
@@ -264,26 +329,40 @@ namespace EmptyHouse.MapGen.Editor
 
             if (edge.State == EdgeState.OpenPassage)
             {
-                return; // 통로 — 문 없이 개구부만
+                // 통로 — 문 없이 개구부만. 잔여 슬릿 기준은 공칭 프로파일(문 슬롯과 동일 4m 폭, 셀 중심 고정)
+                Vector3 profileCenter = boundaryAlongX
+                    ? new Vector3(cellCenterAxis, mapOrigin.y + 3f, gateCenter.z)
+                    : new Vector3(gateCenter.x, mapOrigin.y + 3f, cellCenterAxis);
+                var profile = new Bounds(profileCenter, boundaryAlongX ? new Vector3(4f, 6f, 1.6f) : new Vector3(1.6f, 6f, 4f));
+                CoverOpeningSlits(cutA, profile, boundaryAlongX, doorsRoot, mapOrigin.y, edgeIndex);
+                CoverOpeningSlits(cutB, profile, boundaryAlongX, doorsRoot, mapOrigin.y, edgeIndex);
+                return;
             }
 
-            string doorPath = edge.State == EdgeState.DoorLocked ? PrefabRoomTemplates.DoorClosedPath : PrefabRoomTemplates.DoorOpenedPath;
-            var doorPrefab = AssetDatabase.LoadAssetAtPath<GameObject>(doorPath);
+            // 단일 문 프리팹(닫힌 버전) — 열림/잠김 분기 없이 같은 프리팹·같은 정렬 계산을 쓴다
+            var doorPrefab = AssetDatabase.LoadAssetAtPath<GameObject>(PrefabRoomTemplates.DoorPath);
+            if (doorPrefab == null)
+            {
+                Log.E($"[MapGenSceneBuilder] 문 프리팹 로드 실패 — 경로 확인: {PrefabRoomTemplates.DoorPath}");
+                return;
+            }
+
             var door = (GameObject)PrefabUtility.InstantiatePrefab(doorPrefab);
             door.transform.SetParent(doorsRoot, false);
             door.transform.position = gateCenter;
             door.transform.rotation = Quaternion.Euler(0f, YawFor(dir), 0f);
 
-            // 문틀 기준 정렬 — 젖혀진 문짝(Hall_Door_L/R)이 바운드를 한쪽으로 0.5m 끌고 가므로
-            // 문짝을 제외한 문틀 바운드 중심을 게이트 중심(셀 경계선)에 맞춘다
+            // 문틀 기준 정렬 — 문짝(Hall_Door_L/R)을 제외한 문틀 바운드 중심을 게이트 중심(셀 경계선)에 맞춘다
             Bounds doorBounds = FrameBounds(door);
             door.transform.position += new Vector3(gateCenter.x - doorBounds.center.x, 0f, gateCenter.z - doorBounds.center.z);
-            door.name = edge.State == EdgeState.DoorLocked ? $"Door_Locked_{edge.LockNumber}_{edge.LockKind}" : "Door_Open";
+            door.name = edge.State == EdgeState.DoorLocked
+                ? $"Door_e{edgeIndex}_Locked_{edge.LockNumber}_{edge.LockKind}"
+                : $"Door_e{edgeIndex}_Open";
 
-            // 문틀보다 넓게 잘린 개구의 잔여 슬릿을 평면별로 봉합(프리팹 벽 그리드 오프셋 잔차)
+            // 문틀보다 넓게 잘린 개구의 잔여 슬릿을 이음 기둥으로 가린다(평면별)
             Bounds placedFrame = FrameBounds(door);
-            FillDoorSideGaps(cutA, placedFrame, boundaryAlongX, doorsRoot, mapOrigin.y);
-            FillDoorSideGaps(cutB, placedFrame, boundaryAlongX, doorsRoot, mapOrigin.y);
+            CoverOpeningSlits(cutA, placedFrame, boundaryAlongX, doorsRoot, mapOrigin.y, edgeIndex);
+            CoverOpeningSlits(cutB, placedFrame, boundaryAlongX, doorsRoot, mapOrigin.y, edgeIndex);
         }
 
         /// <summary>스폰 표식(색 구체)을 마커 전역 셀 중심에 놓는다 — 열쇠는 KeyNumber 를 이름에 표기.</summary>
@@ -378,7 +457,9 @@ namespace EmptyHouse.MapGen.Editor
             {
                 var piece = (GameObject)PrefabUtility.InstantiatePrefab(prefab);
                 piece.transform.SetParent(sealsRoot, false);
-                piece.transform.rotation = Quaternion.Euler(0f, boundaryAlongX ? 0f : 90f, 0f); // 벽 기본 긴 축 = X
+                // 프리팹 forward(+Z)가 맵 안쪽(플레이어 시야)을 향하고 back 이 맵 바깥을 향하도록
+                // 소켓 바깥 방향(dir)의 반대로 회전한다 — N→180 · S→0 · E→270 · W→90
+                piece.transform.rotation = Quaternion.Euler(0f, YawFor(Opposite(dir)), 0f);
                 Vector3 target = boundaryCenter + along * k;
                 piece.transform.position = target;
                 Bounds bounds = RendererBounds(piece);
@@ -388,8 +469,10 @@ namespace EmptyHouse.MapGen.Editor
         }
 
         /// <summary>
-        /// 서로 다른 방·복도가 만나는 노출 코너(주변 4셀에 빈 셀 존재)마다 코너 기둥을 세워
-        /// 프리팹 벽 이음의 세로 갭을 가린다. 단일 방 자체 코너는 프리팹이 이미 마감돼 있어 제외.
+        /// 벽선이 직각(L자)으로 꺾이며 서로 다른 방·복도가 만나는 격자점에만 코너 기둥을 세워
+        /// 프리팹 벽 이음의 세로 갭을 가린다. 격자점에서 만나는 벽선을 세어 판정한다 —
+        /// 일직선 통과(2·collinear)·T자(3)·십자(4)는 제외(평평한 벽에서 기둥이 튀어나온다),
+        /// 개구(문·통로)가 있는 경계는 벽선이 아니며, 단일 방 자체 코너도 프리팹이 이미 마감돼 있어 제외.
         /// </summary>
         /// <param name="blueprint">대상 블루프린트.</param>
         /// <param name="templates">템플릿 목록.</param>
@@ -420,15 +503,43 @@ namespace EmptyHouse.MapGen.Editor
                 }
             }
 
-            var prefab = AssetDatabase.LoadAssetAtPath<GameObject>(PrefabRoomTemplates.CornerColumnPath);
-            float cell = PrefabRoomTemplates.CellMeters;
-            var owners = new HashSet<int>();
+            // 개구 경계 집합 — 이 셀 쌍 사이 경계는 4m 슬롯 전체가 열려 있어 벽선이 아니다
+            var openPairs = new HashSet<(long, long)>();
+            for (int e = 0; e < blueprint.Edges.Count; e++)
+            {
+                BlueprintEdge edge = blueprint.Edges[e];
+                if (edge.RoomB < 0 || edge.State == EdgeState.BlockedWall)
+                {
+                    continue;
+                }
+
+                RoomTemplateDef template = FindTemplate(templates, blueprint.Rooms[edge.RoomA].TemplateId);
+                SocketDef socket = FindSocket(template, edge.SocketA);
+                CellCoord worldCell = CellMath.WorldCell(blueprint.Rooms[edge.RoomA], template, socket.LocalCell);
+                SocketDirection dir = CellMath.RotateDirection(socket.Direction, blueprint.Rooms[edge.RoomA].Rotation);
+                CellCoord facing = StepCell(worldCell, dir);
+                openPairs.Add(CellPair(worldCell.X - minX, worldCell.Y - minY, facing.X - minX, facing.Y - minY));
+            }
+
+            // 격자점별 벽선 판정 — 정확히 2개가 직각으로 만나는 점(L자)만 채택
+            var columnPoints = new HashSet<long>();
             for (int px = 0; px <= maxX + 1; px++)
             {
                 for (int py = 0; py <= maxY + 1; py++)
                 {
-                    owners.Clear();
-                    int empty = 0;
+                    // 격자점의 사분면 셀: NW(px-1,py) NE(px,py) SW(px-1,py-1) SE(px,py-1)
+                    bool north = IsWallLine(owner, openPairs, px - 1, py, px, py);
+                    bool south = IsWallLine(owner, openPairs, px - 1, py - 1, px, py - 1);
+                    bool east = IsWallLine(owner, openPairs, px, py, px, py - 1);
+                    bool west = IsWallLine(owner, openPairs, px - 1, py, px - 1, py - 1);
+                    int lineCount = (north ? 1 : 0) + (south ? 1 : 0) + (east ? 1 : 0) + (west ? 1 : 0);
+                    if (lineCount != 2 || (north && south) || (east && west))
+                    {
+                        continue; // 벽 없음·벽 끝·일직선 통과·T자·십자
+                    }
+
+                    // 서로 다른 방 2개 이상이 얽힌 이음만 — 단일 방 코너는 자체 마감
+                    var owners = new HashSet<int>();
                     for (int ox = -1; ox <= 0; ox++)
                     {
                         for (int oy = -1; oy <= 0; oy++)
@@ -437,30 +548,82 @@ namespace EmptyHouse.MapGen.Editor
                             {
                                 owners.Add(room);
                             }
-                            else
-                            {
-                                empty++;
-                            }
                         }
                     }
 
-                    if (owners.Count < 2 || empty == 0)
+                    if (owners.Count >= 2)
                     {
-                        continue;
+                        columnPoints.Add(CellKey(px, py));
                     }
-
-                    var column = (GameObject)PrefabUtility.InstantiatePrefab(prefab);
-                    column.transform.SetParent(columnsRoot, false);
-                    column.transform.position = mapOrigin + new Vector3(px * cell, 0f, py * cell);
-                    column.name = $"Column_{px}_{py}";
                 }
+            }
+
+            var prefab = AssetDatabase.LoadAssetAtPath<GameObject>(PrefabRoomTemplates.CornerColumnPath);
+            if (prefab == null)
+            {
+                Log.E($"[MapGenSceneBuilder] 기둥 프리팹 로드 실패 — 경로 확인: {PrefabRoomTemplates.CornerColumnPath}");
+                return;
+            }
+
+            float cell = PrefabRoomTemplates.CellMeters;
+            foreach (long key in SortedKeys(columnPoints))
+            {
+                int px = (int)(key >> 32);
+                int py = (int)(uint)(key & 0xFFFFFFFF);
+                var column = (GameObject)PrefabUtility.InstantiatePrefab(prefab);
+                column.transform.SetParent(columnsRoot, false);
+                column.transform.position = mapOrigin + new Vector3(px * cell, 0f, py * cell);
+                column.name = $"Column_{px}_{py}";
             }
         }
 
-        /// <summary>문 조립체에서 여닫이 문짝(Hall_Door_L/R)을 제외한 문틀 월드 바운드 — 정렬 기준.</summary>
+        /// <summary>두 이웃 셀 경계가 벽선인지 — 소유가 다르고(방|방·방|빈칸) 개구 경계가 아니면 벽선이다.</summary>
+        /// <param name="owner">정규화 셀 → 소유 방 맵.</param>
+        /// <param name="openPairs">개구(문·통로) 경계 셀 쌍 집합.</param>
+        /// <param name="ax">셀 A 정규화 X.</param>
+        /// <param name="ay">셀 A 정규화 Y.</param>
+        /// <param name="bx">셀 B 정규화 X.</param>
+        /// <param name="by">셀 B 정규화 Y.</param>
+        /// <returns>벽선 여부.</returns>
+        private static bool IsWallLine(Dictionary<long, int> owner, HashSet<(long, long)> openPairs, int ax, int ay, int bx, int by)
+        {
+            int ownerA = owner.TryGetValue(CellKey(ax, ay), out int a) ? a : -1;
+            int ownerB = owner.TryGetValue(CellKey(bx, by), out int b) ? b : -1;
+            if (ownerA == ownerB)
+            {
+                return false;
+            }
+
+            return !openPairs.Contains(CellPair(ax, ay, bx, by));
+        }
+
+        /// <summary>순서 무관 셀 쌍 키(개구 경계 식별용).</summary>
+        /// <param name="ax">셀 A 정규화 X.</param>
+        /// <param name="ay">셀 A 정규화 Y.</param>
+        /// <param name="bx">셀 B 정규화 X.</param>
+        /// <param name="by">셀 B 정규화 Y.</param>
+        /// <returns>정규화된 (작은 키, 큰 키) 쌍.</returns>
+        private static (long, long) CellPair(int ax, int ay, int bx, int by)
+        {
+            long ka = CellKey(ax, ay);
+            long kb = CellKey(bx, by);
+            return ka <= kb ? (ka, kb) : (kb, ka);
+        }
+
+        /// <summary>기둥 지점 키 집합을 정렬해 반환한다 — 배치 순서 결정론(HashSet 열거 순서 의존 금지).</summary>
+        /// <param name="keys">지점 키 집합.</param>
+        /// <returns>정렬된 키 목록.</returns>
+        private static List<long> SortedKeys(HashSet<long> keys)
+        {
+            var list = new List<long>(keys);
+            list.Sort();
+            return list;
+        }
+
+        /// <summary>문 조립체에서 여닫이 문짝(Hall_Door_L/R)을 제외한 문틀 월드 바운드 — 정렬 기준(감사 도구 공용).</summary>
         /// <param name="doorInstance">문 인스턴스.</param>
         /// <returns>문틀 월드 바운드.</returns>
-        private static Bounds FrameBounds(GameObject doorInstance)
+        internal static Bounds FrameBounds(GameObject doorInstance)
         {
             Renderer[] renderers = doorInstance.GetComponentsInChildren<Renderer>(false);
             Bounds bounds = default;
@@ -518,15 +681,17 @@ namespace EmptyHouse.MapGen.Editor
         }
 
         /// <summary>
-        /// 한 벽 평면에서 문틀보다 넓게 잘린 개구의 잔여 슬릿을 회색 슬래브(콜라이더 포함)로 봉합한다 —
-        /// 방 프리팹의 벽 서브 그리드가 셀 그리드와 0.2~0.8m 어긋나 있어 개구가 문틀 밖으로 삐져나올 수 있다.
+        /// 한 벽 평면에서 프로파일(문틀 실측 또는 공칭 4m 슬롯)보다 넓게 잘린 개구 잔여 슬릿을
+        /// 이음 기둥(Hall_Clumn_Large_6M, 0.86×5.93m)으로 가린다 — 충진 슬래브 대신 실제 아트 에셋 사용.
+        /// 슬릿 폭이 기둥 폭을 넘으면 0.8m 간격으로 여러 개를 세운다.
         /// </summary>
         /// <param name="sideCuts">이 평면에서 비활성화한 벽 바운드 목록.</param>
-        /// <param name="frame">배치 완료된 문틀 월드 바운드.</param>
+        /// <param name="profile">개구 프로파일 월드 바운드(문 = 문틀 실측, 통로 = 공칭 4m 슬롯).</param>
         /// <param name="boundaryAlongX">경계선이 X 축 방향인지.</param>
-        /// <param name="doorsRoot">슬래브 부모.</param>
+        /// <param name="doorsRoot">기둥 부모.</param>
         /// <param name="floorY">바닥 월드 Y.</param>
-        private static void FillDoorSideGaps(List<Bounds> sideCuts, Bounds frame, bool boundaryAlongX, Transform doorsRoot, float floorY)
+        /// <param name="edgeIndex">간선 인덱스(추적용 이름 표기).</param>
+        private static void CoverOpeningSlits(List<Bounds> sideCuts, Bounds profile, bool boundaryAlongX, Transform doorsRoot, float floorY, int edgeIndex)
         {
             Bounds hole = default;
             bool found = false;
@@ -553,33 +718,62 @@ namespace EmptyHouse.MapGen.Editor
                 return;
             }
 
+            var prefab = AssetDatabase.LoadAssetAtPath<GameObject>(PrefabRoomTemplates.CornerColumnPath);
+            if (prefab == null)
+            {
+                Log.E($"[MapGenSceneBuilder] 이음 기둥 프리팹 로드 실패 — 경로 확인: {PrefabRoomTemplates.CornerColumnPath}");
+                return;
+            }
+
             float holeMin = boundaryAlongX ? hole.min.x : hole.min.z;
             float holeMax = boundaryAlongX ? hole.max.x : hole.max.z;
-            float frameMin = boundaryAlongX ? frame.min.x : frame.min.z;
-            float frameMax = boundaryAlongX ? frame.max.x : frame.max.z;
+            float profileMin = boundaryAlongX ? profile.min.x : profile.min.z;
+            float profileMax = boundaryAlongX ? profile.max.x : profile.max.z;
             float perpCenter = boundaryAlongX ? hole.center.z : hole.center.x;
-            float thickness = Mathf.Max(0.3f, boundaryAlongX ? hole.size.z : hole.size.x);
 
-            foreach ((float min, float max) in new[] { (holeMin, frameMin), (frameMax, holeMax) })
+            foreach ((float min, float max) in new[] { (holeMin, profileMin), (profileMax, holeMax) })
             {
                 float width = max - min;
-                if (width < 0.04f)
+                if (width < 0.05f)
                 {
                     continue;
                 }
 
-                var slab = GameObject.CreatePrimitive(PrimitiveType.Cube);
-                slab.transform.SetParent(doorsRoot, false);
-                float axisCenter = (min + max) * 0.5f;
-                slab.transform.position = boundaryAlongX
-                    ? new Vector3(axisCenter, floorY + 3f, perpCenter)
-                    : new Vector3(perpCenter, floorY + 3f, axisCenter);
-                slab.transform.localScale = boundaryAlongX
-                    ? new Vector3(width, 6f, thickness)
-                    : new Vector3(thickness, 6f, width);
-                slab.name = "GapFiller";
-                slab.GetComponent<Renderer>().sharedMaterial = GetOrCreateMaterial("MG_Filler", new Color(0.42f, 0.43f, 0.45f));
+                int count = Mathf.CeilToInt(width / 0.8f);
+                for (int k = 0; k < count; k++)
+                {
+                    float axis = min + width * (k + 0.5f) / count;
+                    var column = (GameObject)PrefabUtility.InstantiatePrefab(prefab);
+                    column.transform.SetParent(doorsRoot, false);
+                    column.transform.position = boundaryAlongX
+                        ? new Vector3(axis, floorY, perpCenter)
+                        : new Vector3(perpCenter, floorY, axis);
+                    column.name = $"SlitColumn_e{edgeIndex}";
+                }
             }
+        }
+
+        /// <summary>셀에서 방향으로 한 칸 이동한 셀.</summary>
+        /// <param name="cell">기준 셀.</param>
+        /// <param name="dir">이동 방향.</param>
+        /// <returns>이동한 셀.</returns>
+        private static CellCoord StepCell(CellCoord cell, SocketDirection dir)
+        {
+            switch (dir)
+            {
+                case SocketDirection.North: return new CellCoord(cell.X, cell.Y + 1);
+                case SocketDirection.East: return new CellCoord(cell.X + 1, cell.Y);
+                case SocketDirection.South: return new CellCoord(cell.X, cell.Y - 1);
+                default: return new CellCoord(cell.X - 1, cell.Y);
+            }
+        }
+
+        /// <summary>반대 방향.</summary>
+        /// <param name="dir">기준 방향.</param>
+        /// <returns>180도 반대 방향.</returns>
+        private static SocketDirection Opposite(SocketDirection dir)
+        {
+            return (SocketDirection)(((int)dir + 2) % 4);
         }
 
         /// <summary>인스턴스의 바닥 타일(Hall_Floor) 합산 월드 바운드 — 없으면 전체 렌더러 바운드 폴백.</summary>
@@ -670,11 +864,11 @@ namespace EmptyHouse.MapGen.Editor
             return GetOrCreateMaterial(name, color);
         }
 
-        /// <summary>이름·색으로 머티리얼 에셋을 가져오거나 없으면 폴더와 함께 생성한다.</summary>
+        /// <summary>이름·색으로 머티리얼 에셋을 가져오거나 없으면 폴더와 함께 생성한다(감사 도구 공용).</summary>
         /// <param name="name">에셋 이름(확장자 제외).</param>
         /// <param name="color">기본 색.</param>
         /// <returns>공유 머티리얼.</returns>
-        private static Material GetOrCreateMaterial(string name, Color color)
+        internal static Material GetOrCreateMaterial(string name, Color color)
         {
             string path = $"{markerMaterialFolder}/{name}.mat";
             var material = AssetDatabase.LoadAssetAtPath<Material>(path);

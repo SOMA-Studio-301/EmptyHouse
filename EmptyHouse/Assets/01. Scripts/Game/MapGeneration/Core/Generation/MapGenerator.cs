@@ -10,7 +10,7 @@ namespace EmptyHouse.MapGen.Core
     /// </summary>
     public sealed class MapGenerator
     {
-        public const string GeneratorVersion = "0.1.0"; // 생성기 버전 — MapBlueprintMeta에 스냅샷(1절)
+        public const string GeneratorVersion = "0.2.0"; // 생성기 버전 — MapBlueprintMeta에 스냅샷(1절). 0.2.0: 복도 연결자 원자 배치·방 전용 예산(같은 시드 ≠ 0.1.0 결과)
 
         private readonly DeterministicRng rng = new DeterministicRng(); // 단일 난수 스트림(8절)
         private readonly LayoutGenerator layoutGenerator = new LayoutGenerator(); // 3절
@@ -116,11 +116,37 @@ namespace EmptyHouse.MapGen.Core
             {
                 RoomTemplateDef template = templates[t];
                 hasAnchor |= template.IsEntranceAnchor;
-                minCountSum += template.MinCount;
-                maxCountSum += template.MaxCount;
+                if (!template.IsCorridor && !template.IsEntranceAnchor)
+                {
+                    // 총 방 수 예산은 방 전용 집계 — 복도·입구 앵커는 예산 밖(각자 MaxCount 로만 제한)
+                    minCountSum += template.MinCount;
+                    maxCountSum += template.MaxCount;
+                }
+
                 if (template.MinCount > template.MaxCount)
                 {
                     errors.Add($"X4: 템플릿 {template.TemplateId} MinCount({template.MinCount}) > MaxCount({template.MaxCount}) — 자기모순(MinCount 충족 불가)");
+                }
+
+                if (template.IsCorridor)
+                {
+                    // 복도 배치는 복도 경유 확률에만 의존(강제 경로 없음) — 확률 0 + MinCount>0 은 리롤만 소진하는 자기모순
+                    if (template.MinCount > 0 && genParams.CorridorLinkPercent <= 0)
+                    {
+                        errors.Add($"X4: 복도 {template.TemplateId} MinCount({template.MinCount}) > 0 인데 복도 경유 확률 0% — 복도 배치 경로가 없어 충족 불가");
+                    }
+
+                    // 원자 배치(근단+원단)는 개구 2변(직선·코너)까지만 막다른 끝 0 을 보장한다 — 3변 이상(T자)은 v1 미지원
+                    var openingDirs = new HashSet<SocketDirection>();
+                    for (int s = 0; s < template.Sockets.Length; s++)
+                    {
+                        openingDirs.Add(template.Sockets[s].Direction);
+                    }
+
+                    if (openingDirs.Count > 2)
+                    {
+                        errors.Add($"X4: 복도 {template.TemplateId} 개구 변 {openingDirs.Count}개 — v1 은 2변(직선·코너)까지만 지원(막다른 끝 0 보장 불가)");
+                    }
                 }
                 for (int m = 0; m < template.Markers.Length; m++)
                 {
@@ -143,12 +169,12 @@ namespace EmptyHouse.MapGen.Core
 
             if (minCountSum > genParams.RoomsTotalMax)
             {
-                errors.Add($"X4: 템플릿 MinCount 합({minCountSum})이 총 방 수 상한({genParams.RoomsTotalMax}) 초과");
+                errors.Add($"X4: 방 템플릿 MinCount 합({minCountSum})이 총 방 수 상한({genParams.RoomsTotalMax}) 초과");
             }
 
             if (maxCountSum < genParams.RoomsTotalMin)
             {
-                errors.Add($"X4: 템플릿 MaxCount 합({maxCountSum})이 총 방 수 하한({genParams.RoomsTotalMin}) 미만 — 레이아웃이 성립 불가");
+                errors.Add($"X4: 방 템플릿 MaxCount 합({maxCountSum})이 총 방 수 하한({genParams.RoomsTotalMin}) 미만 — 레이아웃이 성립 불가(복도·입구는 집계 제외)");
             }
 
             if (!hasVaccineMarker)
