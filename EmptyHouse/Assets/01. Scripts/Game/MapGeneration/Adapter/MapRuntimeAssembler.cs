@@ -54,8 +54,10 @@ namespace EmptyHouse.MapGen.Runtime
                 BlueprintEdge edge = blueprint.Edges[e];
                 if (edge.RoomB < 0)
                 {
-                    // 방 봉인 소켓 = 벽 유지. 복도 봉인 소켓 = 단부에 벽이 없어 벽 프리팹으로 물리 봉인
-                    if (FindTemplate(templates, blueprint.Rooms[edge.RoomA].TemplateId).IsCorridor)
+                    // 방 봉인 소켓 = 벽 유지. 복도 봉인 소켓 = 단부에 벽이 없어 물리 처리 필요:
+                    // 맞은편이 이미 연결된 방이면 그 벽을 절단해 전폭 개방(hallway_x2 반쪽 입), 아니면 벽 프리팹 봉인
+                    if (FindTemplate(templates, blueprint.Rooms[edge.RoomA].TemplateId).IsCorridor
+                        && !TryOpenSealedHalfMouth(blueprint, templates, edge, e, roomInstances, registry, doorsRoot.transform, mapRoot.transform.position, minX, minY))
                     {
                         PlaceCorridorSealWall(blueprint, templates, edge, registry, sealsRoot.transform, mapRoot.transform.position, minX, minY);
                     }
@@ -309,8 +311,10 @@ namespace EmptyHouse.MapGen.Runtime
                 }
             }
 
-            // 개구 경계 집합 — 이 셀 쌍 사이 경계는 4m 슬롯 전체가 열려 있어 벽선이 아니다
+            // 개구 경계 집합 — 이 셀 쌍 사이 경계는 4m 슬롯 전체가 열려 있어 벽선이 아니다.
+            // 방↔방 개방 통로 경계는 따로 모은다 — 평행 이음(이중벽)이 통로로 끊기는 잼 지점 판정용(문 간선은 문틀이 덮는다)
             var openPairs = new HashSet<(long, long)>();
+            var roomPassagePairs = new HashSet<(long, long)>();
             for (int e = 0; e < blueprint.Edges.Count; e++)
             {
                 BlueprintEdge edge = blueprint.Edges[e];
@@ -324,10 +328,17 @@ namespace EmptyHouse.MapGen.Runtime
                 CellCoord worldCell = CellMath.WorldCell(blueprint.Rooms[edge.RoomA], template, socket.LocalCell);
                 SocketDirection dir = CellMath.RotateDirection(socket.Direction, blueprint.Rooms[edge.RoomA].Rotation);
                 CellCoord facing = StepCell(worldCell, dir);
-                openPairs.Add(CellPair(worldCell.X - minX, worldCell.Y - minY, facing.X - minX, facing.Y - minY));
+                (long, long) pair = CellPair(worldCell.X - minX, worldCell.Y - minY, facing.X - minX, facing.Y - minY);
+                openPairs.Add(pair);
+                if (edge.State == EdgeState.OpenPassage
+                    && !template.IsCorridor
+                    && !FindTemplate(templates, blueprint.Rooms[edge.RoomB].TemplateId).IsCorridor)
+                {
+                    roomPassagePairs.Add(pair);
+                }
             }
 
-            // 격자점별 벽선 판정 — 정확히 2개가 직각으로 만나는 점(L자)만 채택
+            // 격자점별 벽선 판정 — L자(직각 2개) + 잼(벽선 1개가 방↔방 통로로 끊기는 점) 채택(빌더 동일 규칙)
             var columnPoints = new HashSet<long>();
             for (int px = 0; px <= maxX + 1; px++)
             {
@@ -338,9 +349,32 @@ namespace EmptyHouse.MapGen.Runtime
                     bool east = IsWallLine(owner, openPairs, px, py, px, py - 1);
                     bool west = IsWallLine(owner, openPairs, px - 1, py, px - 1, py - 1);
                     int lineCount = (north ? 1 : 0) + (south ? 1 : 0) + (east ? 1 : 0) + (west ? 1 : 0);
-                    if (lineCount != 2 || (north && south) || (east && west))
+
+                    // 잼 — 평행 이음의 이중벽 단면이 통로에서 노출되는 지점(벽선의 직선 연장이 방↔방 개방 통로)
+                    bool jamb = false;
+                    if (lineCount == 1)
                     {
-                        continue; // 벽 없음·벽 끝·일직선 통과·T자·십자
+                        if (north)
+                        {
+                            jamb = roomPassagePairs.Contains(CellPair(px - 1, py - 1, px, py - 1));
+                        }
+                        else if (south)
+                        {
+                            jamb = roomPassagePairs.Contains(CellPair(px - 1, py, px, py));
+                        }
+                        else if (east)
+                        {
+                            jamb = roomPassagePairs.Contains(CellPair(px - 1, py, px - 1, py - 1));
+                        }
+                        else if (west)
+                        {
+                            jamb = roomPassagePairs.Contains(CellPair(px, py, px, py - 1));
+                        }
+                    }
+
+                    if (!jamb && (lineCount != 2 || (north && south) || (east && west)))
+                    {
+                        continue; // 벽 없음·순수 벽 끝·일직선 통과·T자·십자
                     }
 
                     // 서로 다른 방 2개 이상이 얽힌 이음만 — 단일 방 코너는 자체 마감
@@ -416,6 +450,88 @@ namespace EmptyHouse.MapGen.Runtime
             }
 
             return bounds;
+        }
+
+        /// <summary>
+        /// 봉인된 복도 소켓(hallway_x2 반쪽 입)의 맞은편 셀이 이 복도와 이미 연결된 방이면
+        /// Seal 대신 그 방 벽을 절단해 전폭 개구로 만든다 — 같은 두 공간이라 그래프 연결성 불변.
+        /// 맞은편이 빈 공간·미연결 방이면 false(호출자가 Seal 배치 — 외부 구멍·그래프 밖 연결 방지).
+        /// </summary>
+        /// <param name="blueprint">대상 블루프린트.</param>
+        /// <param name="templates">템플릿 목록.</param>
+        /// <param name="sealedEdge">봉인 간선(RoomB = -1, RoomA = 복도).</param>
+        /// <param name="edgeIndex">간선 인덱스(충진 조각 이름용).</param>
+        /// <param name="roomInstances">방 인스턴스 배열.</param>
+        /// <param name="registry">프리팹 레지스트리.</param>
+        /// <param name="doorsRoot">충진 조각 컨테이너.</param>
+        /// <param name="mapOrigin">맵 원점 월드 좌표.</param>
+        /// <param name="minX">맵 최소 셀 X.</param>
+        /// <param name="minY">맵 최소 셀 Y.</param>
+        /// <returns>전폭 개방 성공 여부(false = Seal 필요).</returns>
+        private static bool TryOpenSealedHalfMouth(MapBlueprint blueprint, IReadOnlyList<RoomTemplateDef> templates, BlueprintEdge sealedEdge, int edgeIndex, GameObject[] roomInstances, MapPrefabRegistrySO registry, Transform doorsRoot, Vector3 mapOrigin, int minX, int minY)
+        {
+            int corridorRoom = sealedEdge.RoomA;
+            RoomTemplateDef corridorTemplate = FindTemplate(templates, blueprint.Rooms[corridorRoom].TemplateId);
+            SocketDef socket = FindSocket(corridorTemplate, sealedEdge.SocketA);
+            CellCoord worldCell = CellMath.WorldCell(blueprint.Rooms[corridorRoom], corridorTemplate, socket.LocalCell);
+            SocketDirection dir = CellMath.RotateDirection(socket.Direction, blueprint.Rooms[corridorRoom].Rotation);
+            CellCoord facing = StepCell(worldCell, dir);
+
+            // 맞은편 셀의 소유 방(비복도) 탐색 — 복도끼리는 인접 의무 연결이 이미 처리한다
+            int ownerRoom = -1;
+            for (int r = 0; r < blueprint.Rooms.Count && ownerRoom < 0; r++)
+            {
+                RoomTemplateDef template = FindTemplate(templates, blueprint.Rooms[r].TemplateId);
+                if (template.IsCorridor)
+                {
+                    continue;
+                }
+
+                (int w, int h) = CellMath.RotatedSize(template.WidthCells, template.HeightCells, blueprint.Rooms[r].Rotation);
+                if (facing.X >= blueprint.Rooms[r].Cell.X && facing.X < blueprint.Rooms[r].Cell.X + w
+                    && facing.Y >= blueprint.Rooms[r].Cell.Y && facing.Y < blueprint.Rooms[r].Cell.Y + h)
+                {
+                    ownerRoom = r;
+                }
+            }
+
+            if (ownerRoom < 0)
+            {
+                return false;
+            }
+
+            // 이 복도와 이미 연결된 방만 개방 — 미연결 방을 뚫으면 그래프에 없는 연결이 생긴다
+            bool connected = false;
+            for (int e = 0; e < blueprint.Edges.Count && !connected; e++)
+            {
+                BlueprintEdge other = blueprint.Edges[e];
+                connected = other.RoomB >= 0 && other.State != EdgeState.BlockedWall
+                    && ((other.RoomA == corridorRoom && other.RoomB == ownerRoom)
+                        || (other.RoomA == ownerRoom && other.RoomB == corridorRoom));
+            }
+
+            if (!connected)
+            {
+                return false;
+            }
+
+            // 방 벽 게이트 절단 + 잔여 슬릿 충진 — 개방 통로 프로파일(4×6m, 셀 중심 고정)과 동일 수치
+            float cell = registry.CellMeters;
+            Vector3 cellCenter = mapOrigin + new Vector3((worldCell.X - minX + 0.5f) * cell, 0f, (worldCell.Y - minY + 0.5f) * cell);
+            Vector3 dirVec = DirectionVector(dir);
+            Vector3 gateCenter = cellCenter + dirVec * (cell * 0.5f);
+            bool boundaryAlongX = dir == SocketDirection.North || dir == SocketDirection.South;
+            var gate = new Bounds(gateCenter + Vector3.up * 3f, boundaryAlongX ? new Vector3(3.9f, 5.8f, 1.6f) : new Vector3(1.6f, 5.8f, 3.9f));
+            var cut = new List<Bounds>();
+            DisableWallsIntersecting(roomInstances[ownerRoom], gate, boundaryAlongX, cut);
+
+            float cellCenterAxis = boundaryAlongX ? gateCenter.x : gateCenter.z;
+            Vector3 profileCenter = boundaryAlongX
+                ? new Vector3(cellCenterAxis, mapOrigin.y + 3f, gateCenter.z)
+                : new Vector3(gateCenter.x, mapOrigin.y + 3f, cellCenterAxis);
+            var profile = new Bounds(profileCenter, boundaryAlongX ? new Vector3(4f, 6f, 1.6f) : new Vector3(1.6f, 6f, 4f));
+            CoverOpeningSlits(cut, profile, boundaryAlongX, registry, doorsRoot, mapOrigin.y, edgeIndex);
+            return true;
         }
 
         /// <summary>
