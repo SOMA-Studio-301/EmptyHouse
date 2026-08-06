@@ -22,6 +22,7 @@ namespace EmptyHouse.EditorTools
         private const string registryPath = mapGenFolder + "/SO_MapPrefabRegistry.asset"; // 프리팹 레지스트리
         private const string managersPrefabPath = "Assets/02. Prefab/GameScene/=====MANAGERS=====.prefab"; // 상주 매니저 프리팹
         private const string managerChildName = "MapGenManager"; // MANAGERS 하위 자식 이름
+        private const string playerSpawnerPrefabPath = "Assets/02. Prefab/Manager/GameScenePlayerSpawner.prefab"; // 플레이어 스포너(맵 조립 게이트 배선 대상)
 
         /// <summary>플레이어 프리팹 경로 — PlayerInteractor 참조 배선 대상.</summary>
         private static readonly string[] playerPrefabPaths =
@@ -53,6 +54,7 @@ namespace EmptyHouse.EditorTools
             VoidEventChannelSO navReadyChannel = EnsureChannel(navReadyChannelPath);
             MapPrefabRegistrySO registry = EnsureRegistry();
             SetupManagersPrefab(registry, assembledChannel, navReadyChannel);
+            SetupPlayerSpawnerPrefab(assembledChannel);
             SetupPlayerPrefabs();
             AssetDatabase.SaveAssets();
             Log.D("[MapGenRuntimeSetup] 완료 — 남은 수동 작업: 문 프리팹 제작·레지스트리 DoorPrefab/SpawnPrefabs 등재·NetworkPrefabs 등록");
@@ -134,6 +136,11 @@ namespace EmptyHouse.EditorTools
                 child = go.transform;
             }
 
+            // 조립 앵커 고정 — 입구 앵커 방이 이 transform 위치에 오므로(MapRuntimeAssembler 계약)
+            // MANAGERS(씬 원점 배치) 기준 로컬 0 = 입구 월드 (0,0,0)·무회전을 보장한다
+            child.localPosition = Vector3.zero;
+            child.localRotation = Quaternion.identity;
+
             EnsureComponent<NetworkObject>(child.gameObject); // 드라이버(NetworkBehaviour)의 in-scene 스폰 전제
             MapGenNetworkDriver driver = EnsureComponent<MapGenNetworkDriver>(child.gameObject);
             MapNavMeshRuntimeBaker baker = EnsureComponent<MapNavMeshRuntimeBaker>(child.gameObject);
@@ -160,6 +167,20 @@ namespace EmptyHouse.EditorTools
             PrefabUtility.SaveAsPrefabAsset(root, managersPrefabPath);
             PrefabUtility.UnloadPrefabContents(root);
             Log.D($"[MapGenRuntimeSetup] MANAGERS 프리팹 배선 완료 — {managerChildName}");
+        }
+
+        /// <summary>플레이어 스포너 프리팹에 맵 조립 완료(X7) 채널을 배선한다 — 조립 전 스폰 게이트용.</summary>
+        /// <param name="assembledChannel">조립 완료 채널.</param>
+        private static void SetupPlayerSpawnerPrefab(VoidEventChannelSO assembledChannel)
+        {
+            GameObject root = PrefabUtility.LoadPrefabContents(playerSpawnerPrefabPath);
+            var spawner = root.GetComponent<GameScenePlayerSpawner>();
+            var so = new SerializedObject(spawner);
+            so.FindProperty("onMapAssembledServer").objectReferenceValue = assembledChannel;
+            so.ApplyModifiedPropertiesWithoutUndo();
+            PrefabUtility.SaveAsPrefabAsset(root, playerSpawnerPrefabPath);
+            PrefabUtility.UnloadPrefabContents(root);
+            Log.D($"[MapGenRuntimeSetup] 플레이어 스포너 배선 완료: {playerSpawnerPrefabPath}");
         }
 
         /// <summary>플레이어 프리팹의 PlayerInteractor 에 deathHandler·playerReturn 참조를 연결한다.</summary>

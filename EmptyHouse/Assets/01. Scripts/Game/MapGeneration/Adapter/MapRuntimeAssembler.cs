@@ -20,11 +20,13 @@ namespace EmptyHouse.MapGen.Runtime
         /// <summary>
         /// 블루프린트의 정적 지오메트리(방·개구부·봉인 벽·기둥)를 조립하고 맵 루트를 반환한다.
         /// 셀 바운드 정규화·배치 좌표 계산은 에디터 빌더와 동일 규칙(드리프트 금지).
+        /// 조립 말미에 입구 앵커 방 transform 이 parent 위치에 정확히 오도록 맵 루트를 평행이동한다 —
+        /// 씬에 (0,0,0) 앵커를 두면 입구가 항상 그 자리라 스폰 포인트를 씬 고정 좌표로 둘 수 있다.
         /// </summary>
         /// <param name="blueprint">조립할 블루프린트.</param>
         /// <param name="templates">생성에 사용한 템플릿 목록(MapTemplateCatalog).</param>
         /// <param name="registry">프리팹 레지스트리.</param>
-        /// <param name="parent">맵 루트를 붙일 부모(씬 배치 앵커 — 위치가 맵 원점이 된다).</param>
+        /// <param name="parent">맵 루트를 붙일 부모(씬 배치 앵커 — 입구 앵커 방이 이 위치에 온다).</param>
         /// <returns>조립된 맵 루트.</returns>
         public static GameObject Assemble(MapBlueprint blueprint, IReadOnlyList<RoomTemplateDef> templates, MapPrefabRegistrySO registry, Transform parent)
         {
@@ -73,7 +75,30 @@ namespace EmptyHouse.MapGen.Runtime
             columnsRoot.transform.SetParent(mapRoot.transform, false);
             PlaceCornerColumns(blueprint, templates, registry, columnsRoot.transform, mapRoot.transform.position, minX, minY);
 
+            // 입구 고정 — 최소 셀 정규화는 시드마다 입구 위치를 흔든다. 입구 앵커 방(코어가 셀 (0,0)·Deg0 고정)의
+            // 실측 transform 이 앵커 위치에 오도록 루트를 통째로 이동한다. 자식 전체가 강체 이동이라
+            // "방 = 루트 위치 + (셀−최소셀)×셀m" 불변식이 유지돼 스포너·베이커·감사는 무수정으로 따라온다.
+            int entranceIndex = EntranceRoomIndex(blueprint, templates);
+            mapRoot.transform.position += parent.position - roomInstances[entranceIndex].transform.position;
+
             return mapRoot;
+        }
+
+        /// <summary>입구 앵커 방(IsEntranceAnchor 템플릿) 인덱스 — 레이아웃 1단계가 항상 배치한다.</summary>
+        /// <param name="blueprint">대상 블루프린트.</param>
+        /// <param name="templates">템플릿 목록.</param>
+        /// <returns>입구 방 인덱스.</returns>
+        internal static int EntranceRoomIndex(MapBlueprint blueprint, IReadOnlyList<RoomTemplateDef> templates)
+        {
+            for (int r = 0; r < blueprint.Rooms.Count; r++)
+            {
+                if (FindTemplate(templates, blueprint.Rooms[r].TemplateId).IsEntranceAnchor)
+                {
+                    return r;
+                }
+            }
+
+            return -1;
         }
 
         /// <summary>방/복도 프리팹을 셀 원점에 정렬 배치한다(빌더 PlaceRoom 이관 — 바닥 실측 바운드 정렬·내장 라이트 정책 포함).</summary>

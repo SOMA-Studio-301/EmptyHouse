@@ -15,17 +15,15 @@ namespace EmptyHouse.MapGen.Editor
     public static class MapGenSceneBuilder
     {
         private const int mapCount = 5; // 예시 맵 수
-        private const int roomsMin = 28; // 방 30개 기준 하한
-        private const int roomsMax = 32; // 방 30개 기준 상한
         private const int baseSeed = 101; // 시드 탐색 시작값(재현 고정)
-        private const float mapSpacing = 280f; // 맵 루트 간 X 간격(m) — 32방 바운드(~160m)와 여유
+        private const float mapSpacing = 400f; // 맵 루트 간 X 간격(m) — 기본값(방 58~60 + 복도) 바운드와 여유
         private const float mapZOffset = -400f; // 수작업 맵(Z 0~160)과 겹치지 않는 남쪽 오프셋
         private const string rootName = "GeneratedMaps"; // 생성물 루트 이름(통째 삭제 = 원복)
         private const string markerMaterialFolder = "Assets/02. Prefab/Map/MapGenMarkers"; // 표식 머티리얼 폴더
 
         /// <summary>
-        /// 활성 씬에 방 30개 기준 예시 맵 5개를 생성한다 — baseSeed 부터 성공 시드를 5개 채택해
-        /// X 방향으로 나란히 배치하고 씬을 저장한다.
+        /// 활성 씬에 기본 파라미터(MapGenParams 기본값 — 방 58~60) 기준 예시 맵 5개를 생성한다 —
+        /// baseSeed 부터 성공 시드를 5개 채택해 X 방향으로 나란히 배치하고 씬을 저장한다.
         /// </summary>
         [MenuItem("Tools/Map/절차 예시 맵 5개 생성")]
         public static void BuildFiveExampleMaps()
@@ -122,7 +120,7 @@ namespace EmptyHouse.MapGen.Editor
             }
         }
 
-        /// <summary>씬 빌더 표준 생성 파라미터 — 감사 도구가 같은 파라미터로 블루프린트를 재현한다(드리프트 방지).</summary>
+        /// <summary>씬 빌더 표준 생성 파라미터 — 방 수는 MapGenParams 기본값(미리보기 튜닝 확정치)을 그대로 따른다. 감사 도구가 같은 파라미터로 블루프린트를 재현한다(드리프트 방지).</summary>
         /// <param name="seed">확정 시드.</param>
         /// <returns>생성 파라미터.</returns>
         internal static MapGenParams CreateParams(int seed)
@@ -130,8 +128,6 @@ namespace EmptyHouse.MapGen.Editor
             return new MapGenParams
             {
                 Seed = seed,
-                RoomsTotalMin = roomsMin,
-                RoomsTotalMax = roomsMax,
                 EnabledZombieTypes = ZombieTypeMask.Walker | ZombieTypeMask.Listener | ZombieTypeMask.Watcher,
             };
         }
