@@ -84,6 +84,11 @@ namespace EmptyHouse.MapGen.Runtime
                 }
 
                 NetworkObject door = Object.Instantiate(prefabRegistry.DoorPrefab, anchor.position, anchor.rotation);
+
+                // 문틀 기준 정렬 — 프리팹 피벗이 문틀 중심과 어긋나 있어, 문짝(Hall_Door_L/R) 제외 문틀 실측
+                // 바운드 중심을 앵커 XZ 에 맞춘다(에디터 빌더 동일 규칙). Spawn() 전에 정렬해야 초기 복제 포즈에 반영된다
+                Bounds frame = MapRuntimeAssembler.FrameBounds(door.gameObject);
+                door.transform.position += new Vector3(anchor.position.x - frame.center.x, 0f, anchor.position.z - frame.center.z);
                 door.Spawn();
                 DoorInteractable doorRoot = door.GetComponent<DoorInteractable>();
                 bool locked = edge.State == EdgeState.DoorLocked;

@@ -570,6 +570,35 @@ namespace EmptyHouse.MapGen.Runtime
             return RendererBounds(instance);
         }
 
+        /// <summary>문 조립체에서 여닫이 문짝(Hall_Door_L/R)을 제외한 문틀 월드 바운드 — 스폰 정렬 기준(에디터 빌더 FrameBounds 동일 규칙).</summary>
+        /// <param name="doorInstance">문 인스턴스.</param>
+        /// <returns>문틀 월드 바운드.</returns>
+        internal static Bounds FrameBounds(GameObject doorInstance)
+        {
+            Renderer[] renderers = doorInstance.GetComponentsInChildren<Renderer>(false);
+            Bounds bounds = default;
+            bool found = false;
+            for (int i = 0; i < renderers.Length; i++)
+            {
+                if (renderers[i].name.StartsWith("Hall_Door_L") || renderers[i].name.StartsWith("Hall_Door_R"))
+                {
+                    continue;
+                }
+
+                if (!found)
+                {
+                    bounds = renderers[i].bounds;
+                    found = true;
+                }
+                else
+                {
+                    bounds.Encapsulate(renderers[i].bounds);
+                }
+            }
+
+            return found ? bounds : RendererBounds(doorInstance);
+        }
+
         /// <summary>인스턴스의 전체 렌더러 합산 월드 바운드(피벗 보정 정렬용).</summary>
         /// <param name="instance">대상 인스턴스.</param>
         /// <returns>월드 바운드.</returns>
