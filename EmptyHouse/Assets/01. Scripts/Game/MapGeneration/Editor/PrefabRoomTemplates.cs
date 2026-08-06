@@ -19,23 +19,23 @@ namespace EmptyHouse.MapGen.Editor
     {
         public const float CellMeters = MapTemplateCatalog.CellMeters; // 셀 실측(m) — 런타임 카탈로그가 단일 원천
 
-        /// <summary>TemplateId → 프리팹 경로 매핑. 빌더가 인스턴스화 시 조회한다.</summary>
+        /// <summary>TemplateId → 기본(폴백) 프리팹 경로 매핑. 빌더가 레지스트리 변형 풀이 비었을 때 조회한다.</summary>
         /// <remarks>
-        /// 방·복도·문은 전부 정제된 Rooms/ 세트만 사용한다(2026-08-05 확정 — DecoratedRooms 구판 사용 금지).
-        /// 입구도 Rooms/EmptyRoom-6x6 공용 — 8m 벽 특수 케이스(구 Entrance 5x5)가 사라졌다.
+        /// 구조 원본은 EmptyRooms/ 세트(2026-08-07 개명 — 구 Rooms/). 실 배치 변형은 DecoratedRooms/ 풀에서
+        /// 시드 결정론으로 선택하며(SO_MapPrefabRegistry.Variants), 이 표는 풀이 빈 사이즈의 폴백이다.
         /// 봉인 벽·이음 기둥(HorrorPack)은 방이 아니라 마감재라 예외.
         /// </remarks>
         public static readonly Dictionary<string, string> PrefabPaths = new Dictionary<string, string>
         {
-            { "entrance_6x6", "Assets/02. Prefab/Map/Rooms/Entrance-EmptyRoom-6x6.prefab" },
-            { "room_3x3", "Assets/02. Prefab/Map/Rooms/EmptyRoom-3x3.prefab" },
-            { "room_6x6", "Assets/02. Prefab/Map/Rooms/EmptyRoom-6x6.prefab" },
-            { "room_6x9", "Assets/02. Prefab/Map/Rooms/EmptyRoom-6x9.prefab" },
-            { "hallway", "Assets/02. Prefab/Map/Rooms/Hallway.prefab" },
-            { "hallway_x2", "Assets/02. Prefab/Map/Rooms/Hallway x2.prefab" },
+            { "entrance_6x6", "Assets/02. Prefab/Map/EmptyRooms/Entrance-EmptyRoom-6x6.prefab" },
+            { "room_3x3", "Assets/02. Prefab/Map/EmptyRooms/EmptyRoom-3x3.prefab" },
+            { "room_6x6", "Assets/02. Prefab/Map/EmptyRooms/EmptyRoom-6x6.prefab" },
+            { "room_6x9", "Assets/02. Prefab/Map/EmptyRooms/EmptyRoom-6x9.prefab" },
+            { "hallway", "Assets/02. Prefab/Map/EmptyRooms/Hallway.prefab" },
+            { "hallway_x2", "Assets/02. Prefab/Map/EmptyRooms/Hallway x2.prefab" },
         };
 
-        public const string DoorPath = "Assets/02. Prefab/Map/Rooms/Door.prefab"; // 단일 문 프리팹(닫힌 버전, 4m 슬롯 전폭·전고 6m) — 열림/잠김 모두 이것 하나로 배치해 위치 계산 분기를 없앤다
+        public const string DoorPath = "Assets/02. Prefab/Map/DecoratedRooms/Door/Door.prefab"; // 단일 문 프리팹(닫힌 버전, 4m 슬롯 전폭·전고 6m) — 열림/잠김 모두 이것 하나로 배치해 위치 계산 분기를 없앤다
         public const string SealWallPath = "Assets/04. Arts/Environment/HorrorPack/!Prefabs/Architectural/Hall_Props/Hall_Wall_6M_1Side.prefab"; // 복도 개구 봉인 벽(2×6m)
         public const string CornerColumnPath = "Assets/04. Arts/Environment/HorrorPack/!Prefabs/Architectural/Hall_Props/Hall_Clumn_Large_6M.prefab"; // 코너 이음 기둥(0.86×5.93m)
 

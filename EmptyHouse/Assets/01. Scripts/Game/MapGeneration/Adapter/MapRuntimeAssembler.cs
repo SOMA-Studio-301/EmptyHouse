@@ -41,7 +41,7 @@ namespace EmptyHouse.MapGen.Runtime
             var roomInstances = new GameObject[blueprint.Rooms.Count];
             for (int r = 0; r < blueprint.Rooms.Count; r++)
             {
-                roomInstances[r] = PlaceRoom(blueprint.Rooms[r], FindTemplate(templates, blueprint.Rooms[r].TemplateId), registry, mapRoot.transform, minX, minY);
+                roomInstances[r] = PlaceRoom(blueprint.Rooms[r], FindTemplate(templates, blueprint.Rooms[r].TemplateId), registry, mapRoot.transform, minX, minY, blueprint.Meta.Seed, r);
             }
 
             // 간선 처리 순서·컨테이너 이름은 에디터 빌더와 동일 — 스포너·감사가 이름으로 조회한다
@@ -101,17 +101,19 @@ namespace EmptyHouse.MapGen.Runtime
             return -1;
         }
 
-        /// <summary>방/복도 프리팹을 셀 원점에 정렬 배치한다(빌더 PlaceRoom 이관 — 바닥 실측 바운드 정렬·내장 라이트 정책 포함).</summary>
+        /// <summary>방/복도 프리팹을 셀 원점에 정렬 배치한다(빌더 PlaceRoom 이관 — 바닥 실측 바운드 정렬·내장 라이트 정책 포함). 변형 풀이 있으면 시드 결정론 선택.</summary>
         /// <param name="room">배치할 방.</param>
         /// <param name="template">방 템플릿.</param>
         /// <param name="registry">프리팹 레지스트리.</param>
         /// <param name="mapRoot">맵 루트.</param>
         /// <param name="minX">맵 최소 셀 X(정규화 기준).</param>
         /// <param name="minY">맵 최소 셀 Y.</param>
+        /// <param name="seed">확정 시드(변형 선택 키).</param>
+        /// <param name="roomIndex">블루프린트 방 인덱스(변형 선택 키).</param>
         /// <returns>배치된 인스턴스.</returns>
-        private static GameObject PlaceRoom(BlueprintRoom room, RoomTemplateDef template, MapPrefabRegistrySO registry, Transform mapRoot, int minX, int minY)
+        private static GameObject PlaceRoom(BlueprintRoom room, RoomTemplateDef template, MapPrefabRegistrySO registry, Transform mapRoot, int minX, int minY, int seed, int roomIndex)
         {
-            GameObject instance = Object.Instantiate(FindRoomPrefab(registry, template.TemplateId), mapRoot, false);
+            GameObject instance = Object.Instantiate(SelectRoomPrefab(registry, template.TemplateId, seed, roomIndex), mapRoot, false);
             // 셀 회전은 시계방향(North→East) — 위에서 본 Unity Y+ 회전과 방향 일치
             instance.transform.localRotation = Quaternion.Euler(0f, 90f * (int)room.Rotation, 0f);
             instance.transform.localPosition = Vector3.zero;
@@ -361,15 +363,59 @@ namespace EmptyHouse.MapGen.Runtime
                 }
             }
 
+            // 슬릿 충진 기둥 위치 수집 — 같은 이음을 코너 기둥이 겹쳐 가리는 중복 방지(0.9m 내 생략, 빌더 동일 규칙)
+            var slitColumns = new List<Vector3>();
+            Transform doors = columnsRoot.parent.Find("Doors");
+            for (int i = 0; i < doors.childCount; i++)
+            {
+                if (doors.GetChild(i).name.StartsWith("SlitColumn"))
+                {
+                    slitColumns.Add(doors.GetChild(i).position);
+                }
+            }
+
             float cell = registry.CellMeters;
             foreach (long key in SortedKeys(columnPoints))
             {
                 int px = (int)(key >> 32);
                 int py = (int)(uint)(key & 0xFFFFFFFF);
+                Vector3 target = mapOrigin + new Vector3(px * cell, 0f, py * cell);
+                bool nearSlit = false;
+                for (int i = 0; i < slitColumns.Count && !nearSlit; i++)
+                {
+                    float dx = slitColumns[i].x - target.x;
+                    float dz = slitColumns[i].z - target.z;
+                    nearSlit = dx * dx + dz * dz < 0.81f;
+                }
+
+                if (nearSlit)
+                {
+                    continue;
+                }
+
                 GameObject column = Object.Instantiate(registry.CornerColumnPrefab, columnsRoot, false);
-                column.transform.position = mapOrigin + new Vector3(px * cell, 0f, py * cell);
+
+                // 프리팹 pivot 쏠림 대비 — 실측 바운드 중심을 격자점(경계 교점)에 정렬(빌더 동일 규칙)
+                column.transform.position = target;
+                Bounds columnBounds = CombinedRendererBounds(column);
+                column.transform.position += new Vector3(target.x - columnBounds.center.x, 0f, target.z - columnBounds.center.z);
                 column.name = $"Column_{px}_{py}";
             }
+        }
+
+        /// <summary>인스턴스의 렌더러 합성 월드 바운드 — pivot 쏠린 프리팹(기둥)을 목표점에 중앙 정렬할 때 쓴다.</summary>
+        /// <param name="instance">대상 인스턴스.</param>
+        /// <returns>합성 월드 바운드.</returns>
+        private static Bounds CombinedRendererBounds(GameObject instance)
+        {
+            Renderer[] renderers = instance.GetComponentsInChildren<Renderer>(false);
+            Bounds bounds = renderers[0].bounds;
+            for (int i = 1; i < renderers.Length; i++)
+            {
+                bounds.Encapsulate(renderers[i].bounds);
+            }
+
+            return bounds;
         }
 
         /// <summary>
@@ -468,9 +514,14 @@ namespace EmptyHouse.MapGen.Runtime
                 {
                     float axis = min + width * (k + 0.5f) / count;
                     GameObject column = Object.Instantiate(registry.CornerColumnPrefab, doorsRoot, false);
-                    column.transform.position = boundaryAlongX
+
+                    // 코너 기둥과 동일 — pivot 쏠림 보정(실측 바운드 중심을 슬릿 중심에 정렬)
+                    Vector3 target = boundaryAlongX
                         ? new Vector3(axis, floorY, perpCenter)
                         : new Vector3(perpCenter, floorY, axis);
+                    column.transform.position = target;
+                    Bounds slitBounds = CombinedRendererBounds(column);
+                    column.transform.position += new Vector3(target.x - slitBounds.center.x, 0f, target.z - slitBounds.center.z);
                     column.name = $"SlitColumn_e{edgeIndex}";
                 }
             }
@@ -519,24 +570,37 @@ namespace EmptyHouse.MapGen.Runtime
             return list;
         }
 
-        /// <summary>레지스트리에서 템플릿 ID 로 방 프리팹을 찾는다(미등록 = 데이터 결함 — NRE 표면화).</summary>
+        /// <summary>
+        /// 레지스트리에서 템플릿 ID 의 배치 프리팹을 고른다 — 변형 풀(Variants)이 있으면 시드 결정론 선택,
+        /// 비었으면 기본(Prefab) 폴백(미등록 = 데이터 결함 — NRE 표면화).
+        /// </summary>
         /// <param name="registry">프리팹 레지스트리.</param>
         /// <param name="templateId">템플릿 ID.</param>
-        /// <returns>방 프리팹 — 미등록이면 null.</returns>
-        private static GameObject FindRoomPrefab(MapPrefabRegistrySO registry, string templateId)
+        /// <param name="seed">확정 시드.</param>
+        /// <param name="roomIndex">블루프린트 방 인덱스.</param>
+        /// <returns>배치할 프리팹 — 미등록이면 null.</returns>
+        private static GameObject SelectRoomPrefab(MapPrefabRegistrySO registry, string templateId, int seed, int roomIndex)
         {
             for (int i = 0; i < registry.RoomPrefabs.Length; i++)
             {
-                if (registry.RoomPrefabs[i].TemplateId == templateId)
+                if (registry.RoomPrefabs[i].TemplateId != templateId)
                 {
-                    return registry.RoomPrefabs[i].Prefab;
+                    continue;
                 }
+
+                GameObject[] variants = registry.RoomPrefabs[i].Variants;
+                if (variants != null && variants.Length > 0)
+                {
+                    return variants[VariantSelector.RoomVariantIndex(seed, roomIndex, variants.Length)];
+                }
+
+                return registry.RoomPrefabs[i].Prefab;
             }
 
             return null;
         }
 
-        /// <summary>인스턴스의 바닥 타일(Hall_Floor) 합산 월드 바운드 — 없으면 전체 렌더러 바운드 폴백.</summary>
+        /// <summary>인스턴스의 바닥 타일(테마 바닥 토큰 매칭) 합산 월드 바운드 — 없으면 전체 렌더러 바운드 폴백.</summary>
         /// <param name="instance">방 인스턴스.</param>
         /// <returns>바닥 월드 바운드.</returns>
         private static Bounds FloorBounds(GameObject instance)
@@ -546,7 +610,7 @@ namespace EmptyHouse.MapGen.Runtime
             bool found = false;
             for (int i = 0; i < renderers.Length; i++)
             {
-                if (!renderers[i].name.Contains("Hall_Floor"))
+                if (!IsFloorRenderer(renderers[i].name))
                 {
                     continue;
                 }
@@ -568,6 +632,14 @@ namespace EmptyHouse.MapGen.Runtime
             }
 
             return RendererBounds(instance);
+        }
+
+        /// <summary>바닥 타일 렌더러 판정 — 테마별 바닥 토큰(Hall/Wards). 새 테마 세트 도입 시 여기와 빌더의 동일 토큰을 함께 갱신한다(셋업 린트는 이 함수를 공유 — 에디터 어셈블리 접근용 public).</summary>
+        /// <param name="rendererName">렌더러 이름.</param>
+        /// <returns>바닥 타일 여부.</returns>
+        public static bool IsFloorRenderer(string rendererName)
+        {
+            return rendererName.Contains("Hall_Floor") || rendererName.Contains("Wards_Floor");
         }
 
         /// <summary>문 조립체에서 여닫이 문짝(Hall_Door_L/R)을 제외한 문틀 월드 바운드 — 스폰 정렬 기준(에디터 빌더 FrameBounds 동일 규칙).</summary>

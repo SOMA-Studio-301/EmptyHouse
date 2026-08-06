@@ -1,5 +1,7 @@
+using System.Collections.Generic;
 using Border.Core;
 using Border.Events;
+using EmptyHouse.MapGen.Core;
 using EmptyHouse.MapGen.Runtime;
 using Unity.Netcode;
 using UnityEditor;
@@ -31,15 +33,25 @@ namespace EmptyHouse.EditorTools
             "Assets/02. Prefab/Player/Player_UnityChan.prefab",
         };
 
-        /// <summary>TemplateId → 방 프리팹 경로(MapGen.Editor asmdef 가 비참조라 PrefabRoomTemplates.PrefabPaths 를 복제 — 경로 변경 시 양쪽 갱신).</summary>
+        /// <summary>TemplateId → 기본(폴백) 방 프리팹 경로(MapGen.Editor asmdef 가 비참조라 PrefabRoomTemplates.PrefabPaths 를 복제 — 경로 변경 시 양쪽 갱신).</summary>
         private static readonly (string id, string path)[] roomPrefabPaths =
         {
-            ("entrance_6x6", "Assets/02. Prefab/Map/Rooms/Entrance-EmptyRoom-6x6.prefab"),
-            ("room_3x3", "Assets/02. Prefab/Map/Rooms/EmptyRoom-3x3.prefab"),
-            ("room_6x6", "Assets/02. Prefab/Map/Rooms/EmptyRoom-6x6.prefab"),
-            ("room_6x9", "Assets/02. Prefab/Map/Rooms/EmptyRoom-6x9.prefab"),
-            ("hallway", "Assets/02. Prefab/Map/Rooms/Hallway.prefab"),
-            ("hallway_x2", "Assets/02. Prefab/Map/Rooms/Hallway x2.prefab"),
+            ("entrance_6x6", "Assets/02. Prefab/Map/EmptyRooms/Entrance-EmptyRoom-6x6.prefab"),
+            ("room_3x3", "Assets/02. Prefab/Map/EmptyRooms/EmptyRoom-3x3.prefab"),
+            ("room_6x6", "Assets/02. Prefab/Map/EmptyRooms/EmptyRoom-6x6.prefab"),
+            ("room_6x9", "Assets/02. Prefab/Map/EmptyRooms/EmptyRoom-6x9.prefab"),
+            ("hallway", "Assets/02. Prefab/Map/EmptyRooms/Hallway.prefab"),
+            ("hallway_x2", "Assets/02. Prefab/Map/EmptyRooms/Hallway x2.prefab"),
+        };
+
+        /// <summary>사이즈 폴더 → 매칭 템플릿 후보(DecoratedRooms 변형 풀 스캔 대상 — 후보가 여럿이면 바닥 실측 셀 크기로 판별).</summary>
+        private static readonly (string folder, string[] templateIds)[] variantFolders =
+        {
+            ("Assets/02. Prefab/Map/DecoratedRooms/3x3", new[] { "room_3x3" }),
+            ("Assets/02. Prefab/Map/DecoratedRooms/6x6", new[] { "room_6x6" }),
+            ("Assets/02. Prefab/Map/DecoratedRooms/6x9", new[] { "room_6x9" }),
+            ("Assets/02. Prefab/Map/DecoratedRooms/Entrance", new[] { "entrance_6x6" }),
+            ("Assets/02. Prefab/Map/DecoratedRooms/Hallway", new[] { "hallway", "hallway_x2" }),
         };
 
         private const string sealWallPath = "Assets/04. Arts/Environment/HorrorPack/!Prefabs/Architectural/Hall_Props/Hall_Wall_6M_1Side.prefab"; // 복도 봉인 벽
@@ -103,6 +115,7 @@ namespace EmptyHouse.EditorTools
                 rooms[i] = new RoomPrefabEntry { TemplateId = roomPrefabPaths[i].id, Prefab = prefab };
             }
 
+            FillVariantPools(rooms);
             registry.RoomPrefabs = rooms;
             registry.SealWallPrefab = AssetDatabase.LoadAssetAtPath<GameObject>(sealWallPath);
             registry.CornerColumnPrefab = AssetDatabase.LoadAssetAtPath<GameObject>(cornerColumnPath);
@@ -119,6 +132,165 @@ namespace EmptyHouse.EditorTools
 
             EditorUtility.SetDirty(registry);
             return registry;
+        }
+
+        /// <summary>
+        /// DecoratedRooms 사이즈 폴더를 스캔해 변형 풀(Variants)을 채운다 — 경로 오름차순 정렬이 선택 순서라
+        /// 결정론의 일부다(전 클라 같은 빌드 = 같은 풀). 부적합 프리팹은 린트로 걸러 풀에서 제외한다.
+        /// </summary>
+        /// <param name="rooms">채울 방 엔트리 배열.</param>
+        private static void FillVariantPools(RoomPrefabEntry[] rooms)
+        {
+            List<RoomTemplateDef> templates = MapTemplateCatalog.Create();
+            var pools = new Dictionary<string, List<GameObject>>();
+            foreach ((string folder, string[] templateIds) in variantFolders)
+            {
+                if (!AssetDatabase.IsValidFolder(folder))
+                {
+                    Log.W($"[MapGenRuntimeSetup] 변형 폴더 없음 — 건너뜀: {folder}");
+                    continue;
+                }
+
+                var paths = new List<string>();
+                foreach (string guid in AssetDatabase.FindAssets("t:Prefab", new[] { folder }))
+                {
+                    paths.Add(AssetDatabase.GUIDToAssetPath(guid));
+                }
+
+                paths.Sort(System.StringComparer.Ordinal);
+                foreach (string path in paths)
+                {
+                    var prefab = AssetDatabase.LoadAssetAtPath<GameObject>(path);
+                    string templateId = LintVariant(prefab, path, templateIds, templates);
+                    if (templateId == null)
+                    {
+                        continue;
+                    }
+
+                    if (!pools.TryGetValue(templateId, out List<GameObject> pool))
+                    {
+                        pool = new List<GameObject>();
+                        pools[templateId] = pool;
+                    }
+
+                    pool.Add(prefab);
+                }
+            }
+
+            for (int i = 0; i < rooms.Length; i++)
+            {
+                rooms[i].Variants = pools.TryGetValue(rooms[i].TemplateId, out List<GameObject> matched) ? matched.ToArray() : new GameObject[0];
+                Log.D($"[MapGenRuntimeSetup] 변형 풀 {rooms[i].TemplateId}: {rooms[i].Variants.Length}종{(rooms[i].Variants.Length == 0 ? " — 기본 프리팹 폴백" : string.Empty)}");
+            }
+        }
+
+        /// <summary>
+        /// 변형 프리팹 린트 — NetworkObject 포함 거부(방은 로컬 조립이라 세션에 못 들어간다),
+        /// 테마 바닥 실측(IsFloorRenderer — 셀 정렬 계약), 풋프린트 셀 크기로 후보 템플릿 판별(Hallway 1x2/2x2 판별 겸용).
+        /// 소켓 문 슬롯을 막는 프롭은 경고만 하고 풀에는 넣는다(저작 중 상태 허용).
+        /// </summary>
+        /// <param name="prefab">검사할 프리팹.</param>
+        /// <param name="path">프리팹 경로(로그용).</param>
+        /// <param name="candidateIds">폴더의 후보 템플릿 ID 목록.</param>
+        /// <param name="templates">템플릿 집합.</param>
+        /// <returns>매칭 템플릿 ID — 부적합이면 null(풀 제외).</returns>
+        private static string LintVariant(GameObject prefab, string path, string[] candidateIds, List<RoomTemplateDef> templates)
+        {
+            if (prefab.GetComponentInChildren<NetworkObject>(true) != null)
+            {
+                Log.E($"[MapGenRuntimeSetup] 변형 부적합(NetworkObject 포함) — 풀 제외: {path}");
+                return null;
+            }
+
+            Bounds floor = default;
+            bool found = false;
+            foreach (Renderer renderer in prefab.GetComponentsInChildren<Renderer>(true))
+            {
+                if (!MapRuntimeAssembler.IsFloorRenderer(renderer.name))
+                {
+                    continue;
+                }
+
+                if (!found)
+                {
+                    floor = renderer.bounds;
+                    found = true;
+                }
+                else
+                {
+                    floor.Encapsulate(renderer.bounds);
+                }
+            }
+
+            if (!found)
+            {
+                Log.E($"[MapGenRuntimeSetup] 변형 부적합(테마 바닥 타일 없음 — 셀 정렬 불가, Hall_Floor/Wards_Floor 계열 필요) — 풀 제외: {path}");
+                return null;
+            }
+
+            float cell = MapTemplateCatalog.CellMeters;
+            int cellsX = Mathf.RoundToInt(floor.size.x / cell);
+            int cellsY = Mathf.RoundToInt(floor.size.z / cell);
+            if (Mathf.Abs(floor.size.x - cellsX * cell) > 0.5f || Mathf.Abs(floor.size.z - cellsY * cell) > 0.5f)
+            {
+                Log.W($"[MapGenRuntimeSetup] 변형 바닥 크기 드리프트({floor.size.x:F2}x{floor.size.z:F2}m — 셀 격자 오정렬 의심): {path}");
+            }
+
+            foreach (string id in candidateIds)
+            {
+                foreach (RoomTemplateDef template in templates)
+                {
+                    if (template.TemplateId != id || template.WidthCells != cellsX || template.HeightCells != cellsY)
+                    {
+                        continue;
+                    }
+
+                    WarnSocketBlockers(prefab, template, floor, path);
+                    return id;
+                }
+            }
+
+            Log.E($"[MapGenRuntimeSetup] 변형 부적합(실측 {cellsX}x{cellsY}셀이 폴더 템플릿과 불일치) — 풀 제외: {path}");
+            return null;
+        }
+
+        /// <summary>소켓 문 슬롯 게이트(3.9m 폭 × 5.8m 높이)와 교차하는 프롭(벽·바닥 제외)을 경고한다 — 문 자리를 가구가 막는 사고 예방.</summary>
+        /// <param name="prefab">검사할 프리팹.</param>
+        /// <param name="template">매칭 템플릿.</param>
+        /// <param name="floor">바닥 실측 바운드.</param>
+        /// <param name="path">프리팹 경로(로그용).</param>
+        private static void WarnSocketBlockers(GameObject prefab, RoomTemplateDef template, Bounds floor, string path)
+        {
+            float cell = MapTemplateCatalog.CellMeters;
+            foreach (SocketDef socket in template.Sockets)
+            {
+                Vector3 dirVec;
+                switch (socket.Direction)
+                {
+                    case SocketDirection.North: dirVec = Vector3.forward; break;
+                    case SocketDirection.East: dirVec = Vector3.right; break;
+                    case SocketDirection.South: dirVec = Vector3.back; break;
+                    default: dirVec = Vector3.left; break;
+                }
+
+                var cellCenter = new Vector3(floor.min.x + (socket.LocalCell.X + 0.5f) * cell, floor.max.y, floor.min.z + (socket.LocalCell.Y + 0.5f) * cell);
+                Vector3 gateCenter = cellCenter + dirVec * (cell * 0.5f);
+                bool alongX = socket.Direction == SocketDirection.North || socket.Direction == SocketDirection.South;
+                var gate = new Bounds(gateCenter + Vector3.up * 2.9f, alongX ? new Vector3(3.9f, 5.8f, 1.6f) : new Vector3(1.6f, 5.8f, 3.9f));
+                foreach (Renderer renderer in prefab.GetComponentsInChildren<Renderer>(true))
+                {
+                    if (renderer.name.Contains("Wall") || MapRuntimeAssembler.IsFloorRenderer(renderer.name))
+                    {
+                        continue;
+                    }
+
+                    if (renderer.bounds.Intersects(gate))
+                    {
+                        Log.W($"[MapGenRuntimeSetup] 소켓 {socket.Id} 문 슬롯을 프롭이 막는다({renderer.name}) — 문이 열리면 통행 불가 소지: {path}");
+                        break; // 소켓당 1회만 경고
+                    }
+                }
+            }
         }
 
         /// <summary>MANAGERS 프리팹에 MapGenManager 자식을 확보하고 컴포넌트·참조를 배선한다.</summary>

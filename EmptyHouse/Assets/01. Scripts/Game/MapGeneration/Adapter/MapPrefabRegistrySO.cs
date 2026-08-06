@@ -10,7 +10,8 @@ namespace EmptyHouse.MapGen.Runtime
     public sealed class RoomPrefabEntry
     {
         public string TemplateId; // RoomTemplateDef.TemplateId 매칭 키
-        public GameObject Prefab; // 방/복도 프리팹(정적 지오메트리 — 각 클라 로컬 인스턴스화)
+        public GameObject Prefab; // 기본(폴백) 프리팹 — Variants 가 비었을 때 사용(정적 지오메트리, 각 클라 로컬 인스턴스화)
+        public GameObject[] Variants; // 데코 변형 풀(DecoratedRooms 폴더 스캔·이름 오름차순) — 비어 있지 않으면 시드 결정론 선택으로 Prefab 대신 배치
     }
 
     /// <summary>스폰 종류 ↔ 상태 오브젝트 프리팹 매핑 항목.</summary>

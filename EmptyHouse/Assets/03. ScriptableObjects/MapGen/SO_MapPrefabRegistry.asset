@@ -15,16 +15,29 @@ MonoBehaviour:
   RoomPrefabs:
   - TemplateId: entrance_6x6
     Prefab: {fileID: 6892435844222741874, guid: beb7ea68ce6f53343a8f086b81c19078, type: 3}
+    Variants: []
   - TemplateId: room_3x3
     Prefab: {fileID: 3845632745750674989, guid: 4bf84551b30597a43b30fbaceca9930b, type: 3}
+    Variants:
+    - {fileID: 6884995001170551733, guid: 65aca94d0ebb1714980fd534f6fd0b2b, type: 3}
+    - {fileID: 5712854555400863696, guid: 3fee531f23bfdf34488aad84e54d4b5f, type: 3}
+    - {fileID: 5796169545698128539, guid: 1dc6eae64cb64c742bd4f90f01f529d7, type: 3}
   - TemplateId: room_6x6
     Prefab: {fileID: 8145928778680374126, guid: e73538e70b777fe4aa1c4b7779dbab82, type: 3}
+    Variants:
+    - {fileID: 6381803668119808425, guid: 8a120ed737c3aec4495dfb2d7d005698, type: 3}
   - TemplateId: room_6x9
     Prefab: {fileID: 1602417337666361194, guid: fd7552afd5bb5f94495a7424b5755c70, type: 3}
+    Variants:
+    - {fileID: 8787617439005178457, guid: 74f38775d99afbf40b0449957a7d9694, type: 3}
   - TemplateId: hallway
     Prefab: {fileID: 95024115327502240, guid: a9ee4d290af335a4fad7d27bc4057383, type: 3}
+    Variants:
+    - {fileID: 95024115327502240, guid: d6088508d108b1b428062891d9df6d0e, type: 3}
   - TemplateId: hallway_x2
     Prefab: {fileID: 7278799077404263814, guid: 6d9d40ca7342de84187e0d8d5704884e, type: 3}
+    Variants:
+    - {fileID: 7278799077404263814, guid: d8dde7b21f23e644286cda749de42e9e, type: 3}
   SealWallPrefab: {fileID: 1000013176364378, guid: 2a0e93f1c47975a4c9441aa6b08911c0, type: 3}
   CornerColumnPrefab: {fileID: 1000013264253126, guid: 3f3b782a52279ff468774a90452d285d, type: 3}
   DoorPrefab: {fileID: 8746110194845012855, guid: 192952145331548418883183d3e6c7b2, type: 3}
@@ -58,4 +71,5 @@ MonoBehaviour:
   - {fileID: 2699189445424204619, guid: ffcabcab405128e4291ee145680c358d, type: 3}
   - {fileID: 5276409015530844624, guid: 8fb14a6567d43f044a21ec27569f7039, type: 3}
   - {fileID: 4711619013909315878, guid: b9ab08c9af633fc4dad969e8d6c50d54, type: 3}
+  - {fileID: 0}
   CellMeters: 4
