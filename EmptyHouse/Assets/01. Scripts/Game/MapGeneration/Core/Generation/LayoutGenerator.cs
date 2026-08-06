@@ -101,11 +101,20 @@ namespace EmptyHouse.MapGen.Core
                 }
             }
 
-            // 프런티어 = (방 인덱스, 소켓 배열 인덱스). 입구 앵커의 소켓으로 시작한다.
+            // 의무 문 소켓(입구 기존 개구)은 어떤 확장보다 먼저 연결한다 — 실패 시 리롤(X3)
             var frontier = new List<(int room, int socket)>();
+            if (!TryConnectMandatoryDoors(rng, templates, usedCount, blueprint, frontier))
+            {
+                return false;
+            }
+
+            // 프런티어 = (방 인덱스, 소켓 배열 인덱스). 입구 앵커의 잔여(미소비) 소켓으로 시작한다.
             for (int s = 0; s < placedTemplates[0].Sockets.Length; s++)
             {
-                frontier.Add((0, s));
+                if (!usedSockets.Contains(SocketKey(0, placedTemplates[0].Sockets[s].Id)))
+                {
+                    frontier.Add((0, s));
+                }
             }
 
             while (countableRooms < targetRooms && frontier.Count > 0)
@@ -142,7 +151,7 @@ namespace EmptyHouse.MapGen.Core
                     && TryAttachCorridorLink(rng, templates, usedCount, blueprint, frontier, openRoom, openSocket, targetCell, openWorldDir);
                 if (!attached)
                 {
-                    TryAttachDirectRoom(rng, templates, usedCount, unmetOnly, blueprint, frontier, openRoom, openSocket, targetCell, neededDir);
+                    TryAttachDirectRoom(rng, templates, usedCount, unmetOnly, false, blueprint, frontier, openRoom, openSocket, targetCell, neededDir);
                 }
 
                 // 성공이면 소켓 소비, 실패면 죽은 소켓 — 어느 쪽이든 프런티어에서 뺀다(실패분은 나중에 봉인)
@@ -166,12 +175,48 @@ namespace EmptyHouse.MapGen.Core
         }
 
         /// <summary>
+        /// 입구 앵커의 의무 문 소켓을 방 직결 + 문 고정으로 연결한다 — 하나라도 실패하면 false(리롤).
+        /// 복도 경유를 금지하는 이유: 복도 연결부는 문 금지(개방 통로)라 "항상 문" 요구와 모순이고,
+        /// 입구 개구의 문틀 아트는 절단 후 문 프리팹이 전고(4×6m 슬롯)를 채워야 완성된다.
+        /// </summary>
+        /// <param name="rng">단일 난수 스트림.</param>
+        /// <param name="templates">템플릿 집합.</param>
+        /// <param name="usedCount">템플릿별 사용 횟수(성공 시 갱신).</param>
+        /// <param name="blueprint">대상 블루프린트.</param>
+        /// <param name="frontier">새 방의 잔여 소켓을 추가할 프런티어.</param>
+        /// <returns>의무 소켓 전부 연결 성공 여부.</returns>
+        private bool TryConnectMandatoryDoors(DeterministicRng rng, IReadOnlyList<RoomTemplateDef> templates, int[] usedCount, MapBlueprint blueprint, List<(int room, int socket)> frontier)
+        {
+            RoomTemplateDef entrance = placedTemplates[0];
+            BlueprintRoom entranceRoom = blueprint.Rooms[0];
+            for (int s = 0; s < entrance.Sockets.Length; s++)
+            {
+                SocketDef socket = entrance.Sockets[s];
+                if (!socket.MandatoryDoor)
+                {
+                    continue;
+                }
+
+                CellCoord worldCell = ToWorldCell(entranceRoom, entrance, socket);
+                SocketDirection worldDir = CellMath.RotateDirection(socket.Direction, entranceRoom.Rotation);
+                CellCoord targetCell = Step(worldCell, worldDir);
+                if (!TryAttachDirectRoom(rng, templates, usedCount, false, true, blueprint, frontier, 0, socket, targetCell, Opposite(worldDir)))
+                {
+                    return false;
+                }
+            }
+
+            return true;
+        }
+
+        /// <summary>
         /// 방 템플릿(비복도·비앵커)을 열린 소켓에 직결로 붙인다 — 풋프린트 충돌 시 다른 후보, 소진 시 false.
         /// </summary>
         /// <param name="rng">단일 난수 스트림.</param>
         /// <param name="templates">템플릿 집합.</param>
         /// <param name="usedCount">템플릿별 사용 횟수(성공 시 갱신).</param>
         /// <param name="unmetOnly">MinCount 미달 템플릿만 후보로 삼을지.</param>
+        /// <param name="forceDoor">간선 상태를 문으로 고정할지(의무 문 소켓 전용).</param>
         /// <param name="blueprint">대상 블루프린트.</param>
         /// <param name="frontier">새 방의 잔여 소켓을 추가할 프런티어.</param>
         /// <param name="openRoom">열린 소켓의 방 인덱스.</param>
@@ -179,7 +224,7 @@ namespace EmptyHouse.MapGen.Core
         /// <param name="targetCell">새 방 소켓이 놓일 월드 셀.</param>
         /// <param name="neededDir">새 방 소켓이 향해야 할 월드 방향.</param>
         /// <returns>부착 성공 여부.</returns>
-        private bool TryAttachDirectRoom(DeterministicRng rng, IReadOnlyList<RoomTemplateDef> templates, int[] usedCount, bool unmetOnly, MapBlueprint blueprint, List<(int room, int socket)> frontier, int openRoom, SocketDef openSocket, CellCoord targetCell, SocketDirection neededDir)
+        private bool TryAttachDirectRoom(DeterministicRng rng, IReadOnlyList<RoomTemplateDef> templates, int[] usedCount, bool unmetOnly, bool forceDoor, MapBlueprint blueprint, List<(int room, int socket)> frontier, int openRoom, SocketDef openSocket, CellCoord targetCell, SocketDirection neededDir)
         {
             directCandidates.Clear();
             for (int t = 0; t < templates.Count; t++)
@@ -221,7 +266,7 @@ namespace EmptyHouse.MapGen.Core
 
                 int newRoom = PlaceRoom(template, origin, rotation, blueprint);
                 usedCount[templateIndex]++;
-                AddEdge(rng, blueprint, openRoom, openSocket.Id, newRoom, newSocket.Id);
+                AddEdge(rng, blueprint, openRoom, openSocket.Id, newRoom, newSocket.Id, forceDoor);
 
                 for (int s = 0; s < template.Sockets.Length; s++)
                 {
@@ -307,7 +352,7 @@ namespace EmptyHouse.MapGen.Core
                     SocketDirection farWorldDir = CellMath.RotateDirection(farSocket.Direction, rotation);
                     CellCoord farWorld = ToWorldCell(blueprint.Rooms[corridorRoom], corridor, farSocket);
                     CellCoord roomTarget = Step(farWorld, farWorldDir);
-                    if (!TryAttachDirectRoom(rng, templates, usedCount, false, blueprint, frontier, corridorRoom, farSocket, roomTarget, Opposite(farWorldDir)))
+                    if (!TryAttachDirectRoom(rng, templates, usedCount, false, false, blueprint, frontier, corridorRoom, farSocket, roomTarget, Opposite(farWorldDir)))
                     {
                         continue;
                     }
@@ -334,14 +379,15 @@ namespace EmptyHouse.MapGen.Core
             return false;
         }
 
-        /// <summary>연결 간선을 추가하고 양쪽 소켓을 소비 처리한다 — 복도가 한쪽이라도 끼면 항상 개방 통로(복도 연결부에는 문 금지), 방↔방만 문/통로 랜덤.</summary>
+        /// <summary>연결 간선을 추가하고 양쪽 소켓을 소비 처리한다 — 복도가 한쪽이라도 끼면 항상 개방 통로(복도 연결부에는 문 금지), 의무 문은 문 고정, 그 외 방↔방은 문/통로 랜덤.</summary>
         /// <param name="rng">단일 난수 스트림.</param>
         /// <param name="blueprint">대상 블루프린트.</param>
         /// <param name="roomA">A 방 인덱스.</param>
         /// <param name="socketA">A 소켓 Id.</param>
         /// <param name="roomB">B 방 인덱스.</param>
         /// <param name="socketB">B 소켓 Id.</param>
-        private void AddEdge(DeterministicRng rng, MapBlueprint blueprint, int roomA, int socketA, int roomB, int socketB)
+        /// <param name="forceDoor">문 고정 여부(의무 문 소켓 전용 — 복도 간선에는 적용 불가).</param>
+        private void AddEdge(DeterministicRng rng, MapBlueprint blueprint, int roomA, int socketA, int roomB, int socketB, bool forceDoor = false)
         {
             bool corridorInvolved = placedTemplates[roomA].IsCorridor || placedTemplates[roomB].IsCorridor;
             blueprint.Edges.Add(new BlueprintEdge
@@ -350,7 +396,9 @@ namespace EmptyHouse.MapGen.Core
                 SocketA = socketA,
                 RoomB = roomB,
                 SocketB = socketB,
-                State = corridorInvolved ? EdgeState.OpenPassage : (rng.Next(2) == 0 ? EdgeState.DoorOpen : EdgeState.OpenPassage),
+                State = corridorInvolved ? EdgeState.OpenPassage
+                    : forceDoor ? EdgeState.DoorOpen
+                    : rng.Next(2) == 0 ? EdgeState.DoorOpen : EdgeState.OpenPassage,
                 LockNumber = 0,
             });
             usedSockets.Add(SocketKey(roomA, socketA));

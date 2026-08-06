@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using EmptyHouse.MapGen.Runtime;
 using NUnit.Framework;
 
 namespace EmptyHouse.MapGen.Core.Tests
@@ -266,6 +267,63 @@ namespace EmptyHouse.MapGen.Core.Tests
             }
 
             Assert.That(corridorEdges, Is.GreaterThan(0), "시드 20개에서 복도 연결 간선이 한 번도 안 나와 검증이 공허하다");
+        }
+
+        /// <summary>
+        /// 입구 의무 문 소켓(북쪽 4번째 칸 기존 개구)은 모든 시드에서 "방 직결 + 문"으로 연결된다 —
+        /// 프리팹 카탈로그 기준(실기 재료). 복도가 붙으면 복도 연결부 문 금지 규칙과 모순이라 직결만 허용된다.
+        /// 자물쇠 배치(LockKeyPlacer)가 이후 잠글 수 있으므로 DoorOpen/DoorLocked 둘 다 문으로 인정한다.
+        /// </summary>
+        [Test]
+        public void Generate_입구_의무_문은_항상_방_직결_문으로_연결된다()
+        {
+            List<RoomTemplateDef> catalog = MapTemplateCatalog.Create();
+            var templateById = new Dictionary<string, RoomTemplateDef>();
+            int mandatorySocketId = -1;
+            for (int t = 0; t < catalog.Count; t++)
+            {
+                templateById[catalog[t].TemplateId] = catalog[t];
+                if (!catalog[t].IsEntranceAnchor)
+                {
+                    continue;
+                }
+
+                for (int s = 0; s < catalog[t].Sockets.Length; s++)
+                {
+                    if (catalog[t].Sockets[s].MandatoryDoor)
+                    {
+                        mandatorySocketId = catalog[t].Sockets[s].Id;
+                    }
+                }
+            }
+
+            Assert.That(mandatorySocketId, Is.GreaterThanOrEqualTo(0), "카탈로그 입구에 의무 문 소켓이 없다");
+
+            for (int seed = 1; seed <= 20; seed++)
+            {
+                MapGenParams genParams = CreateParams(seed);
+                MapGenResult result = new MapGenerator().Generate(genParams, MapTemplateCatalog.Create());
+                Assert.That(result.Success, Is.True,
+                    $"시드 {seed}: 카탈로그 생성 실패 — {string.Join(" / ", result.FailReasons)}");
+
+                MapBlueprint blueprint = result.Blueprint;
+                BlueprintEdge doorEdge = null;
+                for (int e = 0; e < blueprint.Edges.Count; e++)
+                {
+                    if (blueprint.Edges[e].RoomA == 0 && blueprint.Edges[e].SocketA == mandatorySocketId)
+                    {
+                        doorEdge = blueprint.Edges[e];
+                        break;
+                    }
+                }
+
+                Assert.That(doorEdge, Is.Not.Null, $"시드 {seed}: 입구 의무 소켓의 간선이 없다");
+                Assert.That(doorEdge.RoomB, Is.GreaterThanOrEqualTo(0), $"시드 {seed}: 입구 의무 소켓이 봉인됐다(막힌 벽)");
+                Assert.That(doorEdge.State, Is.EqualTo(EdgeState.DoorOpen).Or.EqualTo(EdgeState.DoorLocked),
+                    $"시드 {seed}: 입구 의무 간선이 {doorEdge.State} — 항상 문이어야 한다");
+                Assert.That(templateById[blueprint.Rooms[doorEdge.RoomB].TemplateId].IsCorridor, Is.False,
+                    $"시드 {seed}: 입구 의무 문 상대가 복도({blueprint.Rooms[doorEdge.RoomB].TemplateId}) — 방 직결이어야 한다");
+            }
         }
 
         /// <summary>3타입 전부 활성화한 테스트 파라미터를 만든다.</summary>

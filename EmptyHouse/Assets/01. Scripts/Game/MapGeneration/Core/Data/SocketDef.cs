@@ -9,5 +9,6 @@ namespace EmptyHouse.MapGen.Core
         public int Id; // 템플릿 내 소켓 번호
         public CellCoord LocalCell; // 템플릿 로컬 셀 좌표(둘레, 셀 경계 정렬 — G1)
         public SocketDirection Direction; // 소켓이 향하는 바깥 방향
+        public bool MandatoryDoor; // 의무 문 소켓 — 항상 방 직결 + 문 고정(복도 경유 금지, 연결 실패 시 리롤). v1 은 입구 앵커 전용(X4)
     }
 }

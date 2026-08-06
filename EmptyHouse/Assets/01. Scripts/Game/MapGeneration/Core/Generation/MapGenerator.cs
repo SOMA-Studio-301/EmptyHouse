@@ -10,7 +10,7 @@ namespace EmptyHouse.MapGen.Core
     /// </summary>
     public sealed class MapGenerator
     {
-        public const string GeneratorVersion = "0.2.0"; // 생성기 버전 — MapBlueprintMeta에 스냅샷(1절). 0.2.0: 복도 연결자 원자 배치·방 전용 예산(같은 시드 ≠ 0.1.0 결과)
+        public const string GeneratorVersion = "0.3.0"; // 생성기 버전 — MapBlueprintMeta에 스냅샷(1절). 0.3.0: 입구 의무 문 소켓 우선 연결(같은 시드 ≠ 0.2.0 결과)
 
         private readonly DeterministicRng rng = new DeterministicRng(); // 단일 난수 스트림(8절)
         private readonly LayoutGenerator layoutGenerator = new LayoutGenerator(); // 3절
@@ -146,6 +146,15 @@ namespace EmptyHouse.MapGen.Core
                     if (openingDirs.Count > 2)
                     {
                         errors.Add($"X4: 복도 {template.TemplateId} 개구 변 {openingDirs.Count}개 — v1 은 2변(직선·코너)까지만 지원(막다른 끝 0 보장 불가)");
+                    }
+                }
+
+                // 의무 문 소켓은 입구 앵커 전용 — 다른 방의 것은 연결 보장 경로가 없어 조용히 무시되므로 사전 차단
+                for (int s = 0; s < template.Sockets.Length; s++)
+                {
+                    if (template.Sockets[s].MandatoryDoor && !template.IsEntranceAnchor)
+                    {
+                        errors.Add($"X4: 템플릿 {template.TemplateId} 소켓 {template.Sockets[s].Id} 이 의무 문 — v1 은 입구 앵커 전용");
                     }
                 }
                 for (int m = 0; m < template.Markers.Length; m++)

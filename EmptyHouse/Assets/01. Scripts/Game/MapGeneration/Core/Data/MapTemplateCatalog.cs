@@ -30,7 +30,9 @@ namespace EmptyHouse.MapGen.Runtime
             {
                 new RoomTemplateDef
                 {
-                    // 입구 = Rooms/EmptyRoom-6x6 공용 프리팹(벽 6m) — 소켓은 {1,4} 격자 위상(3의 배수 규칙)
+                    // 입구 = Rooms/Entrance-EmptyRoom-6x6 전용 프리팹(벽 6m). 소켓 실측 규약(2026-08-06 확정):
+                    // 북 = 4번째 칸(3,5)의 기존 개구(중심 로컬 x=+0.4, 문틀 아트) — 의무 문(항상 방 직결 + 문),
+                    // 동·서 = 로비·계단 구역을 피한 {1,4}행만, 남 = 버스 입구 벽이라 소켓 없음
                     TemplateId = "entrance_6x6",
                     WidthCells = 6,
                     HeightCells = 6,
@@ -42,9 +44,11 @@ namespace EmptyHouse.MapGen.Runtime
                     IsEntranceAnchor = true,
                     Sockets = new[]
                     {
-                        new SocketDef { Id = 0, LocalCell = new CellCoord(1, 5), Direction = SocketDirection.North },
+                        new SocketDef { Id = 0, LocalCell = new CellCoord(3, 5), Direction = SocketDirection.North, MandatoryDoor = true },
                         new SocketDef { Id = 1, LocalCell = new CellCoord(0, 1), Direction = SocketDirection.West },
-                        new SocketDef { Id = 2, LocalCell = new CellCoord(5, 1), Direction = SocketDirection.East },
+                        new SocketDef { Id = 2, LocalCell = new CellCoord(0, 4), Direction = SocketDirection.West },
+                        new SocketDef { Id = 3, LocalCell = new CellCoord(5, 1), Direction = SocketDirection.East },
+                        new SocketDef { Id = 4, LocalCell = new CellCoord(5, 4), Direction = SocketDirection.East },
                     },
                     Markers = new MarkerDef[0],
                 },
