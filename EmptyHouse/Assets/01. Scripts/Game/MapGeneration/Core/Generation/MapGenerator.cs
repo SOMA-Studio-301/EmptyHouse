@@ -10,7 +10,7 @@ namespace EmptyHouse.MapGen.Core
     /// </summary>
     public sealed class MapGenerator
     {
-        public const string GeneratorVersion = "0.3.0"; // 생성기 버전 — MapBlueprintMeta에 스냅샷(1절). 0.3.0: 입구 의무 문 소켓 우선 연결(같은 시드 ≠ 0.2.0 결과)
+        public const string GeneratorVersion = "0.5.0"; // 생성기 버전 — MapBlueprintMeta에 스냅샷(1절). 0.5.0: 복도 연쇄(CorridorChainMax) 원자 배치(같은 시드 ≠ 0.4.0 결과)
 
         private readonly DeterministicRng rng = new DeterministicRng(); // 단일 난수 스트림(8절)
         private readonly LayoutGenerator layoutGenerator = new LayoutGenerator(); // 3절
@@ -104,6 +104,16 @@ namespace EmptyHouse.MapGen.Core
             if (genParams.RoomsTotalMin < 2 || genParams.RoomsTotalMin > genParams.RoomsTotalMax)
             {
                 errors.Add($"X4: 총 방 수 범위 모순(Min {genParams.RoomsTotalMin} · Max {genParams.RoomsTotalMax})");
+            }
+
+            if (genParams.CycleRoomPercent < 0 || genParams.CycleRoomPercent > 100)
+            {
+                errors.Add($"X4: 사이클 소속 방 목표 비율({genParams.CycleRoomPercent}%)이 0~100 밖");
+            }
+
+            if (genParams.CorridorChainMax < 1)
+            {
+                errors.Add($"X4: 복도 연쇄 최대({genParams.CorridorChainMax}) < 1 — 최소 1(연쇄 없음)이어야 한다");
             }
 
             bool hasAnchor = false;

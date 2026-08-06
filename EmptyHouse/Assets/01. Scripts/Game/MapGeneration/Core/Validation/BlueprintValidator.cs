@@ -27,6 +27,13 @@ namespace EmptyHouse.MapGen.Core
             report.KeyInvariantHolds = CheckKeyInvariant(blueprint, report);
             report.HardlockPairsHold = CheckHardlockPairs(blueprint, genParams, report);
             report.ShortcutValuesHold = CheckShortcutValues(blueprint, genParams, report);
+
+            // 사이클 소속 방 비율 목표 미달은 기하 후보 소진(베스트에포트) — 실패가 아니라 경고만(X6)
+            if (blueprint.Meta.CycleRoomPercentAchieved + 0.5f < genParams.CycleRoomPercent)
+            {
+                report.Warnings.Add($"X6 경고: 사이클 소속 방 {blueprint.Meta.CycleRoomPercentAchieved:F1}% — 목표 {genParams.CycleRoomPercent}% 미달(기하 후보 소진, 베스트에포트)");
+            }
+
             report.AllPassed = report.EssentialsReachable && report.KeyInvariantHolds
                 && report.HardlockPairsHold && report.ShortcutValuesHold;
             return report;

@@ -102,17 +102,18 @@ namespace EmptyHouse.MapGen.Core.Tests
         }
 
         /// <summary>
-        /// 랜덤(비복도) 루프 간선 수가 파라미터 min/max 범위 안이다(AC-07).
-        /// 복도 개구 의무 연결은 예산 밖 — 연결 간선은 트리(방-1개) → 루프 순으로 추가된다(생성 순서 계약).
+        /// 사이클 비율 0% 는 순수 트리 — 방↔방 루프 간선이 없다(의무 연결(복도 개구)은 목표와 무관하게 수행된다).
+        /// 연결 간선은 트리(방-1개) → 루프 순으로 추가된다(생성 순서 계약).
         /// </summary>
         [Test]
-        public void TryGenerate_루프_간선_수가_파라미터_범위_안이다()
+        public void TryGenerate_사이클_비율_0은_방방_루프를_만들지_않는다()
         {
-            ForEachSeed((seed, blueprint, templates, genParams) =>
+            IReadOnlyList<RoomTemplateDef> templates = BlueprintFixtures.CreateFakeTemplates();
+            for (int seed = 1; seed <= 30; seed++)
             {
+                MapBlueprint blueprint = GenerateWithReroll(seed, out _, p => p.CycleRoomPercent = 0);
                 int treeCount = blueprint.Rooms.Count - 1;
                 int connectingSeen = 0;
-                int randomLoops = 0;
                 for (int e = 0; e < blueprint.Edges.Count; e++)
                 {
                     BlueprintEdge edge = blueprint.Edges[e];
@@ -129,15 +130,39 @@ namespace EmptyHouse.MapGen.Core.Tests
 
                     bool corridorInvolved = FindTemplate(templates, blueprint.Rooms[edge.RoomA].TemplateId).IsCorridor
                         || FindTemplate(templates, blueprint.Rooms[edge.RoomB].TemplateId).IsCorridor;
-                    if (!corridorInvolved)
-                    {
-                        randomLoops++;
-                    }
+                    Assert.That(corridorInvolved, Is.True,
+                        $"시드 {seed}: 비율 0% 인데 방↔방 루프 간선 {edge.RoomA}↔{edge.RoomB} 이 채택됐다");
                 }
+            }
+        }
 
-                Assert.That(randomLoops, Is.InRange(genParams.LoopEdgeCountMin, genParams.LoopEdgeCountMax),
-                    $"시드 {seed}: 랜덤 루프 간선 수 {randomLoops} 가 범위 밖이다(AC-07)");
-            });
+        /// <summary>
+        /// 사이클 목표 비율에 달성치가 단조 반응한다 — 같은 시드에서 100% 달성치 ≥ 0% 달성치,
+        /// 전체적으로는 반드시 상승. Meta 달성치와 CycleMetrics 재계산이 일치해야 한다.
+        /// </summary>
+        [Test]
+        public void TryGenerate_사이클_비율은_목표에_단조_반응한다()
+        {
+            IReadOnlyList<RoomTemplateDef> templates = BlueprintFixtures.CreateFakeTemplates();
+            float sumLow = 0f;
+            float sumHigh = 0f;
+            for (int seed = 1; seed <= 30; seed++)
+            {
+                MapBlueprint lowBlueprint = GenerateWithReroll(seed, out _, p => p.CycleRoomPercent = 0);
+                MapBlueprint highBlueprint = GenerateWithReroll(seed, out _, p => p.CycleRoomPercent = 100);
+
+                float low = lowBlueprint.Meta.CycleRoomPercentAchieved;
+                float high = highBlueprint.Meta.CycleRoomPercentAchieved;
+                Assert.That(high, Is.GreaterThanOrEqualTo(low),
+                    $"시드 {seed}: 목표 100% 달성치({high:F1})가 0% 달성치({low:F1})보다 낮다");
+                Assert.That(CycleMetrics.ComputeCycleRoomPercent(highBlueprint, templates), Is.EqualTo(high).Within(0.01f),
+                    $"시드 {seed}: Meta 달성치와 재계산이 불일치");
+
+                sumLow += low;
+                sumHigh += high;
+            }
+
+            Assert.That(sumHigh, Is.GreaterThan(sumLow), "시드 30개 전체에서 목표 100% 가 0% 보다 사이클을 늘리지 못했다");
         }
 
         /// <summary>
@@ -290,10 +315,12 @@ namespace EmptyHouse.MapGen.Core.Tests
         /// </summary>
         /// <param name="seed">확정 시드.</param>
         /// <param name="genParams">사용한 생성 파라미터(출력).</param>
+        /// <param name="configure">파라미터 오버라이드(선택 — 사이클 비율 등 개별 테스트 조정용).</param>
         /// <returns>레이아웃이 완성된 블루프린트.</returns>
-        private static MapBlueprint GenerateWithReroll(int seed, out MapGenParams genParams)
+        private static MapBlueprint GenerateWithReroll(int seed, out MapGenParams genParams, System.Action<MapGenParams> configure = null)
         {
             genParams = BlueprintFixtures.CreateTestParams(seed);
+            configure?.Invoke(genParams);
             IReadOnlyList<RoomTemplateDef> templates = BlueprintFixtures.CreateFakeTemplates();
             var rng = new DeterministicRng();
             rng.Reseed(seed);

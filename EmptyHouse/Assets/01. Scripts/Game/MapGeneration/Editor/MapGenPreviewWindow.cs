@@ -123,9 +123,9 @@ namespace EmptyHouse.MapGen.Editor
                 MapGenParams p = workingParams;
                 p.RoomsTotalMin = EditorGUILayout.IntField("총 방 수 Min", p.RoomsTotalMin);
                 p.RoomsTotalMax = EditorGUILayout.IntField("총 방 수 Max", p.RoomsTotalMax);
-                p.LoopEdgeCountMin = EditorGUILayout.IntField("루프 간선 Min", p.LoopEdgeCountMin);
-                p.LoopEdgeCountMax = EditorGUILayout.IntField("루프 간선 Max", p.LoopEdgeCountMax);
+                p.CycleRoomPercent = EditorGUILayout.IntSlider("사이클 소속 방 목표 %", p.CycleRoomPercent, 0, 100);
                 p.CorridorLinkPercent = EditorGUILayout.IntSlider("복도 경유 확률 %", p.CorridorLinkPercent, 0, 100);
+                p.CorridorChainMax = EditorGUILayout.IntField("복도 연쇄 Max", p.CorridorChainMax);
                 p.ShortcutValueMin = EditorGUILayout.IntField("지름길 최소 가치", p.ShortcutValueMin);
                 p.ListenerCounterDist = EditorGUILayout.IntField("Listener 보장 거리", p.ListenerCounterDist);
                 p.RerollMax = EditorGUILayout.IntField("리롤 상한", p.RerollMax);
@@ -289,8 +289,42 @@ namespace EmptyHouse.MapGen.Editor
                 }
             }
 
+            // 사이클 지표 — 잎 방(연결 1개) 비율과 사이클 소속 방 비율(외딴길↔순환 튜닝 눈금)
+            var degrees = new int[blueprint.Rooms.Count];
+            for (int e = 0; e < blueprint.Edges.Count; e++)
+            {
+                BlueprintEdge edge = blueprint.Edges[e];
+                if (edge.RoomB < 0 || edge.State == EdgeState.BlockedWall)
+                {
+                    continue;
+                }
+
+                degrees[edge.RoomA]++;
+                degrees[edge.RoomB]++;
+            }
+
+            int leafRooms = 0;
+            int nonCorridorRooms = 0;
+            for (int r = 0; r < blueprint.Rooms.Count; r++)
+            {
+                RoomTemplateDef template = FindTemplate(blueprint.Rooms[r].TemplateId);
+                if (template == null || template.IsCorridor)
+                {
+                    continue;
+                }
+
+                nonCorridorRooms++;
+                if (degrees[r] == 1)
+                {
+                    leafRooms++;
+                }
+            }
+
+            float leafPct = nonCorridorRooms == 0 ? 0f : 100f * leafRooms / nonCorridorRooms;
+
             EditorGUILayout.LabelField($"방 {roomCount} + 입구 1 · 복도 {corridorCount}", EditorStyles.miniLabel);
             EditorGUILayout.LabelField($"방↔방 직결 {directEdges} · 방↔복도 {roomCorridorEdges} · 복도↔복도 {corridorCorridorEdges}", EditorStyles.miniLabel);
+            EditorGUILayout.LabelField($"사이클 소속 방 {blueprint.Meta.CycleRoomPercentAchieved:F1}% (목표 {workingParams.CycleRoomPercent}%) · 잎 방 {leafPct:F1}%", EditorStyles.miniLabel);
         }
 
         /// <summary>마지막 생성 템플릿 목록에서 ID 로 템플릿을 찾는다.</summary>

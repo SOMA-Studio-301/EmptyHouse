@@ -148,7 +148,7 @@ namespace EmptyHouse.MapGen.Runtime
                     AllowedFloors = FloorMask.F1,
                     Tags = RoomTagMask.None,
                     MinCount = 0,
-                    MaxCount = 30, // 방 60개·경유율 50% 기준 복도 수요 감당(예산 밖 — 개수 제한은 이 값뿐)
+                    MaxCount = 44, // 방 60개·경유율 100% 수요(~30) + 사이클 복도 브리지 여유분(실측 평균 13.6쌍, 2026-08-06). 예산 밖 — 개수 제한은 이 값뿐
                     IsCorridor = true,
                     IsEntranceAnchor = false,
                     Sockets = new[]

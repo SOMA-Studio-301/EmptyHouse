@@ -8,6 +8,7 @@ namespace EmptyHouse.MapGen.Core
         public int Seed; // 확정 시드
         public string GeneratorVersion; // 생성기 버전 — "같은 빌드 + 같은 시드 = 같은 결과" 보장 범위(8절)
         public MapGenParams ParamsSnapshot; // 생성 시점 파라미터 스냅샷
+        public float CycleRoomPercentAchieved; // 달성한 사이클 소속 방 비율 %(비복도 방 기준) — 목표(CycleRoomPercent) 미달 시 X6 경고 근거. 해시 미포함 진단값
     }
 
     /// <summary>

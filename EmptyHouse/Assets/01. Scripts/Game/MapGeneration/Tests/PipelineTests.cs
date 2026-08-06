@@ -193,13 +193,12 @@ namespace EmptyHouse.MapGen.Core.Tests
         }
 
         /// <summary>
-        /// 복도끼리는 트리에서 이어지지 않는다 — 복도는 "복도+끝방" 원자 배치 전용이라 dev 2소켓 복도는
-        /// 소켓이 트랜잭션 안에서 전부 소비되고, 복도 소켓 확장은 직결(방)만 허용된다(복도 체인 금지).
-        /// 인접 의무 연결로 복도쌍이 생길 수 있는 건 잔여 소켓이 있는 광폭 복도(프리팹 hallway_x2)뿐이며
-        /// 그 경우도 AddEdge 가 항상 개방 통로를 강제한다(문틀 없음) — 이 픽스처에서는 0개가 규칙이다.
+        /// 복도 연쇄는 CorridorChainMax 를 따른다 — Max 1 이면 복도↔복도 간선 0(연쇄 없음 = 구 동작 보존),
+        /// 기본(3)에서는 시드 집합 전체에서 연쇄가 실제로 발생해야 한다(공허성 가드).
+        /// 연쇄 간선의 개방 통로 강제는 별도 테스트(복도_연결부는_항상_개방_통로다)가 검증한다.
         /// </summary>
         [Test]
-        public void Generate_복도끼리는_간선으로_이어지지_않는다()
+        public void Generate_복도_연쇄는_ChainMax를_따른다()
         {
             var corridorIds = new HashSet<string>();
             foreach (RoomTemplateDef template in DevTemplateSet.Create())
@@ -210,24 +209,43 @@ namespace EmptyHouse.MapGen.Core.Tests
                 }
             }
 
+            int chainedTotal = 0;
             for (int seed = 1; seed <= 20; seed++)
             {
-                MapGenResult result = GenerateSuccess(seed, out _);
-                MapBlueprint blueprint = result.Blueprint;
-                for (int e = 0; e < blueprint.Edges.Count; e++)
-                {
-                    BlueprintEdge edge = blueprint.Edges[e];
-                    if (edge.RoomB < 0
-                        || !corridorIds.Contains(blueprint.Rooms[edge.RoomA].TemplateId)
-                        || !corridorIds.Contains(blueprint.Rooms[edge.RoomB].TemplateId))
-                    {
-                        continue;
-                    }
+                MapGenParams noChain = CreateParams(seed);
+                noChain.CorridorChainMax = 1;
+                MapGenResult single = new MapGenerator().Generate(noChain, BlueprintFixtures.CreateFakeTemplates());
+                Assert.That(single.Success, Is.True,
+                    $"시드 {seed}: ChainMax 1 생성 실패 — {string.Join(" / ", single.FailReasons)}");
+                Assert.That(CountCorridorPairEdges(single.Blueprint, corridorIds), Is.EqualTo(0),
+                    $"시드 {seed}: ChainMax 1 인데 복도↔복도 간선이 있다(연쇄 없음 위반)");
 
-                    Assert.Fail(
-                        $"시드 {seed}: 복도 {edge.RoomA}↔복도 {edge.RoomB} 간선({edge.State}) — dev 2소켓 복도는 원자 배치로 소켓이 남지 않아 복도쌍 간선이 불가능해야 한다");
+                MapGenResult chained = GenerateSuccess(seed, out _);
+                chainedTotal += CountCorridorPairEdges(chained.Blueprint, corridorIds);
+            }
+
+            Assert.That(chainedTotal, Is.GreaterThan(0), "시드 20개 기본 ChainMax 에서 복도 연쇄가 한 번도 발생하지 않아 검증이 공허하다");
+        }
+
+        /// <summary>복도↔복도 연결 간선 수를 센다.</summary>
+        /// <param name="blueprint">대상 블루프린트.</param>
+        /// <param name="corridorIds">복도 템플릿 ID 집합.</param>
+        /// <returns>복도쌍 간선 수.</returns>
+        private static int CountCorridorPairEdges(MapBlueprint blueprint, HashSet<string> corridorIds)
+        {
+            int count = 0;
+            for (int e = 0; e < blueprint.Edges.Count; e++)
+            {
+                BlueprintEdge edge = blueprint.Edges[e];
+                if (edge.RoomB >= 0
+                    && corridorIds.Contains(blueprint.Rooms[edge.RoomA].TemplateId)
+                    && corridorIds.Contains(blueprint.Rooms[edge.RoomB].TemplateId))
+                {
+                    count++;
                 }
             }
+
+            return count;
         }
 
         /// <summary>복도 연결부(복도가 한쪽이라도 낀 간선)는 항상 개방 통로다 — 문·자물쇠 금지(복도 개구에는 문틀이 없다).</summary>
