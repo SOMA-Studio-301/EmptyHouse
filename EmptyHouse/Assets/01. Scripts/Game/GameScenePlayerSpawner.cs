@@ -1,5 +1,6 @@
 using System.Collections.Generic;
 using Border.Core;
+using Border.Events;
 using Unity.Netcode;
 using UnityEngine;
 using UnityEngine.SceneManagement;
@@ -8,6 +9,7 @@ using UnityEngine.SceneManagement;
 /// 모든 클라이언트의 게임 씬 로드가 끝난 시점(LoadEventCompleted)에 PlayerObject 를 일괄 생성한다 —
 /// 먼저 로드된 쪽(주로 호스트)만 혼자 게임을 시작하는 문제를 막는 진입 동시화.
 /// Load 이벤트를 놓치고 전체 동기화로 합류한 클라(SynchronizeComplete)는 그 시점에 개별 스폰한다.
+/// 절차 맵이 조립되기 전(X7 발화 전)의 스폰 요청은 대기 큐로 보류한다 — 입구방 바닥이 아직 없어 추락한다.
 /// 스폰/연결끊김을 PlayerLifecycleEventChannelSO 로 발화해 ServerGameManager 로스터에 반영시킨다 —
 /// 서버 전용 컴포넌트라 이 발화는 항상 서버에서 일어난다(채널 계약). 매니저를 직접 참조하지 않는다.
 /// </summary>
@@ -18,35 +20,125 @@ public class GameScenePlayerSpawner : MonoBehaviour
     /// <summary>합류/이탈 신호 발화 채널. 로스터 등록·이탈이 이 채널로만 흐른다.</summary>
     [SerializeField] private PlayerLifecycleEventChannelSO playerLifecycle;
 
+    [Header("Map")]
+    [SerializeField] private VoidEventChannelSO onMapAssembledServer; // 맵 조립 완료(X7) 수신 — 발화 전 스폰 요청은 대기 큐 보류, 발화는 서버에서만 일어난다
+
     private const float GroundClearance = 0.05f; // 스폰 시 바닥 겹침 방지 여유 높이
 
     private readonly HashSet<ulong> spawnedClients = new HashSet<ulong>();
+    private readonly List<ulong> pendingClients = new List<ulong>(); // 맵 조립 전 도착한 스폰 요청 — 조립 완료 시 도착 순서대로 일괄 스폰
 
     private NetworkManager networkManager;
     private string gameSceneName;
     private int nextSpawnIndex; // 순차 스폰 포인트 인덱스 — 랜덤 중복 배정으로 인한 스폰 겹침 방지
     private float spawnHeightOffset; // 스폰 포인트(바닥) 기준 캡슐 피벗 높이 — Awake 에서 프리팹 캡슐로 계산
     private bool initialSpawnDone; // 전원 로드 완료 일괄 스폰을 마쳤는지 — 이후 LoadComplete 는 낙오자 개별 스폰으로 처리
+    private bool mapReady; // 맵 조립 완료(X7) 수신 여부 — 이전에는 스폰 금지(입구방 바닥이 아직 없다)
 
     private void Awake()
     {
-        networkManager = NetworkManager.Singleton;
-        if (networkManager == null || !networkManager.IsServer)
+        TryInitialize();
+    }
+
+    /// <summary>맵 조립 완료(X7) 채널 구독.</summary>
+    private void OnEnable()
+    {
+        onMapAssembledServer.OnEventRaised += HandleMapAssembled;
+    }
+
+    /// <summary>채널 구독 해제.</summary>
+    private void OnDisable()
+    {
+        onMapAssembledServer.OnEventRaised -= HandleMapAssembled;
+    }
+
+    /// <summary>
+    /// 맵 조립 완료 수신 — 이후 스폰을 허용하고, 대기 중이던 클라를 도착 순서대로 일괄 스폰한다.
+    /// 이 채널은 서버에서만 발화되므로(X7 집계) 별도 IsServer 가드가 필요 없다.
+    /// </summary>
+    private void HandleMapAssembled()
+    {
+        mapReady = true;
+        Log.D($"[GameScenePlayerSpawner] 맵 조립 완료(X7) 수신 — 대기 {pendingClients.Count}명 스폰");
+        foreach (ulong clientId in pendingClients)
         {
-            enabled = false;
-            return;
+            SpawnPlayer(clientId);
         }
+
+        pendingClients.Clear();
+    }
+
+    /// <summary>
+    /// 직접 플레이에서는 같은 씬의 NetworkManager Awake(싱글턴 할당)가 스포너 Awake 보다 늦을 수 있어,
+    /// 모든 Awake 가 끝난 Start 에서 한 번 더 초기화를 시도한다.
+    /// </summary>
+    private void Start()
+    {
+        TryInitialize();
+    }
+
+    /// <summary>
+    /// NetworkManager 를 찾아 1회 초기화한다. 로비 흐름(이미 서버)은 즉시 구독하고,
+    /// 직접 플레이(아직 서버 아님)는 OnServerStarted 를 기다린다 — 클라 인스턴스는 그 콜백이 오지 않아 잠든다.
+    /// </summary>
+    private void TryInitialize()
+    {
+        if (networkManager != null) return;
+
+        networkManager = NetworkManager.Singleton;
+        if (networkManager == null) return; // Awake 시점에 싱글턴이 아직 없으면 Start 재시도에 맡긴다
 
         // Awake에서 생성하면 씬 로딩 중인 동적 Player가 ScenePlacedObject로 수집될 수 있다.
         gameSceneName = gameObject.scene.name;
-        networkManager.SceneManager.OnLoadComplete += HandleLoadComplete;
-        networkManager.SceneManager.OnLoadEventCompleted += HandleLoadEventCompleted;
-        networkManager.SceneManager.OnSynchronizeComplete += HandleSynchronizeComplete;
-        networkManager.OnClientDisconnectCallback += HandleClientDisconnected;
 
         // 캡슐 피벗이 중심이라, 바닥에 붙은 스폰 포인트 기준 스폰 높이 = 반높이 − center.y + 여유.
         CapsuleCollider capsule = playerPrefab.GetComponent<CapsuleCollider>();
         spawnHeightOffset = capsule.height * 0.5f - capsule.center.y + GroundClearance;
+
+        if (networkManager.IsServer)
+        {
+            SubscribeServerEvents();
+            return;
+        }
+
+        // 개발용 직접 플레이(DevBootstrap): StartHost 는 부트스트랩이 한 프레임 늦게 호출하므로 여기서는 아직 서버가 아니다.
+        // 서버가 되는 순간 초기화한다.
+        networkManager.OnServerStarted += HandleServerStarted;
+    }
+
+    /// <summary>
+    /// 직접 플레이에서 StartHost 완료를 받아 서버 구독을 걸고, 이미 접속된 클라(호스트 자신 포함)를 스폰한다.
+    /// 이 경로는 씬 로드 이벤트가 발생하지 않아 접속 콜백이 스폰 트리거를 대신한다.
+    /// </summary>
+    private void HandleServerStarted()
+    {
+        networkManager.OnServerStarted -= HandleServerStarted;
+        SubscribeServerEvents();
+
+        foreach (ulong clientId in networkManager.ConnectedClientsIds)
+        {
+            SpawnPlayer(clientId);
+        }
+    }
+
+    /// <summary>서버 전용 이벤트 구독. 로비 흐름은 Awake, 직접 플레이는 OnServerStarted 시점에 걸린다.</summary>
+    private void SubscribeServerEvents()
+    {
+        networkManager.SceneManager.OnLoadComplete += HandleLoadComplete;
+        networkManager.SceneManager.OnLoadEventCompleted += HandleLoadEventCompleted;
+        networkManager.SceneManager.OnSynchronizeComplete += HandleSynchronizeComplete;
+        networkManager.OnClientConnectedCallback += HandleClientConnected;
+        networkManager.OnClientDisconnectCallback += HandleClientDisconnected;
+    }
+
+    /// <summary>
+    /// 접속 즉시 스폰 — 씬 로드 이벤트가 없는 직접 플레이의 기본 스폰 트리거.
+    /// 로비 흐름에서는 씬 이벤트가 먼저 처리하므로 중복은 spawnedClients 가 거른다.
+    /// </summary>
+    /// <param name="clientId">접속한 클라이언트 ID.</param>
+    private void HandleClientConnected(ulong clientId)
+    {
+        SpawnPlayer(clientId);
     }
 
     /// <summary>
@@ -108,6 +200,18 @@ public class GameScenePlayerSpawner : MonoBehaviour
     private void SpawnPlayer(ulong clientId)
     {
         if (spawnedClients.Contains(clientId)) return;
+
+        if (!mapReady)
+        {
+            if (!pendingClients.Contains(clientId))
+            {
+                pendingClients.Add(clientId);
+                Log.D($"[GameScenePlayerSpawner] client {clientId}: 맵 조립 전 — 스폰 대기");
+            }
+
+            return;
+        }
+
         if (!networkManager.ConnectedClients.TryGetValue(clientId, out NetworkClient client)) return;
 
         if (client.PlayerObject != null)
@@ -143,12 +247,15 @@ public class GameScenePlayerSpawner : MonoBehaviour
     private void HandleClientDisconnected(ulong clientId)
     {
         spawnedClients.Remove(clientId);
+        pendingClients.Remove(clientId);
         playerLifecycle.RaiseLeft(clientId);
     }
 
     private void OnDestroy()
     {
         if (networkManager == null) return;
+
+        networkManager.OnServerStarted -= HandleServerStarted;
 
         if (networkManager.SceneManager != null)
         {
@@ -157,6 +264,7 @@ public class GameScenePlayerSpawner : MonoBehaviour
             networkManager.SceneManager.OnSynchronizeComplete -= HandleSynchronizeComplete;
         }
 
+        networkManager.OnClientConnectedCallback -= HandleClientConnected;
         networkManager.OnClientDisconnectCallback -= HandleClientDisconnected;
     }
 }

@@ -16,6 +16,9 @@ public class PlayerInteractor : MonoBehaviour
     [Header("Player")]
     [SerializeField] private PlayerInventory inventory;
     [SerializeField] private PlayerDisguise disguise;
+    [SerializeField] private PlayerHiding hiding;
+    [SerializeField] private PlayerDeathHandler deathHandler; // E5 전역 예외(사망) 판정 — 프리팹 내부 참조
+    [SerializeField] private PlayerReturn playerReturn; // E5 전역 예외(귀환 = 관전) 판정 — 프리팹 내부 참조
 
     [Header("UI")]
     [SerializeField] private UIInteractPrompt promptUI;
@@ -57,6 +60,9 @@ public class PlayerInteractor : MonoBehaviour
     public PlayerInventory Inventory => inventory;
     public PlayerDisguise Disguise => disguise;
 
+    /// <summary>이 주체의 은신 상태. 은신 중 상호작용 게이팅(3-8 E9)·컨텍스트 판정이 조회한다.</summary>
+    public PlayerHiding Hiding => hiding;
+
     /// <summary>진행 중인 홀드의 진행률(0~1). 홀드 중이 아니거나 대상이 소멸했으면 0이다. 조준선 게이지가 이 값을 그린다.</summary>
     public float HoldProgress01 => activeHold == null ? 0f : activeHold.Progress01;
 
@@ -84,7 +90,17 @@ public class PlayerInteractor : MonoBehaviour
     /// </summary>
     private void Update()
     {
-        // TODO(impl): E1(위장 중)·E5(사망/관전 중) 전역 예외면 후보를 버린다.
+        // E1(위장 중)·E5(사망/귀환 = 관전 중) 전역 예외 — 후보를 버리고 프롬프트를 숨긴다(3-8).
+        // 진행 중이던 홀드도 같은 프레임에 취소된다(SyncActiveHold 가 후보 불일치로 정리).
+        if (disguise.IsDisguised || deathHandler.IsDead.Value || playerReturn.HasExtracted.Value)
+        {
+            currentCandidate = null;
+            CurrentPromptInfo = HiddenPrompt;
+            SyncActiveHold();
+            promptUI.Render(CurrentPromptInfo);
+            holdGaugeUI.Render(HoldProgress01);
+            return;
+        }
 
         currentCandidate = FindCandidate();
         CurrentPromptInfo = currentCandidate == null ? HiddenPrompt : currentCandidate.GetPromptInfo(this);

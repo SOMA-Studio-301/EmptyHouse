@@ -313,6 +313,22 @@ public class ZombieController : NetworkBehaviour
         wanderEnabled = enabled;
     }
 
+    /// <summary>
+    /// 절차 스폰 직후 서버가 배회 원점·반경을 주입한다(MapStateObjectSpawner 전용 경로 — Spawn() 이후 호출).
+    /// 수동 배치 좀비는 homeAnchor/인스펙터 값 그대로 동작한다. AI 가 서버 전용이라 복제는 불필요.
+    /// </summary>
+    /// <param name="home">배회 기준 원점(스폰 마커 위치).</param>
+    /// <param name="patrolRadiusMeters">배회 반경(m). 음수면 기존 값(ZombieDataSO.PatrolRadius) 유지.</param>
+    public void ServerConfigureSpawn(Vector3 home, float patrolRadiusMeters)
+    {
+        homePosition = home;
+        lastKnownPosition = home;
+        if (patrolRadiusMeters >= 0f)
+        {
+            patrolRadiusOverride = patrolRadiusMeters;
+        }
+    }
+
     public void ServerDowngradeToInvestigation()
     {
         if (!IsServer) return;

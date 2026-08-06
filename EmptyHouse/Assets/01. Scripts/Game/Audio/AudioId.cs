@@ -23,6 +23,8 @@ public enum AudioId
     Sfx_Ui_SlotSelect = 111,
     Sfx_Ui_TabClose = 112,
     Sfx_Ui_TabOpen = 113,
+    Sfx_Wardrobe_Close = 114,
+    Sfx_Wardrobe_Open = 115,
 
     // Ambient (500~)
     Amb_1F_Wind = 500,

@@ -11,96 +11,69 @@ using UnityEngine;
 public class PlayerController : NetworkBehaviour
 {
     [Header("Input")]
-    [SerializeField] private InputReader inputReader;
+    [SerializeField] private InputReader inputReader; // 입력 이벤트 소스. OnNetworkSpawn 에서 소유자만 구독한다
 
     [Header("Look")]
-    [SerializeField] private Transform cameraPivot;
+    [SerializeField] private Transform cameraPivot; // pitch 회전 축이자 Main Camera 부착 지점(눈 높이)
     [SerializeField] private float lookSensitivity = 0.1f; // 기본 시선 감도(튜닝값). 설정창의 배율이 여기에 곱해진다
-    [SerializeField] private float pitchClamp = 89f;
+    [SerializeField] private float pitchClamp = 89f; // pitch 상하 클램프 각도(±)
+    [SerializeField] private float wardrobeLookAngleDeg = 60f; // 은신 중 시야 콘 반각(3-10 wardrobe_look_angle_deg). 진입 시점 정면 기준 yaw·pitch 를 ±이 각도로 클램프
+    [SerializeField] private float upperBodyYawLimitDeg = 60f; // 정지 중 상체만 시선을 따라가는 yaw 한계각(±). 초과분은 하체가 따라 돈다
+    [SerializeField] private float bodyTurnSpeedDeg = 360f; // 하체(bodyYaw)가 시선을 따라 도는 속도(도/초)
 
     [Header("Settings")]
-    [SerializeField] private SaveLoadSystem saveLoadSystem;                     // 스폰 시 저장된 감도 배율을 읽어오는 원본
-    [SerializeField] private FloatEventChannelSO changeMouseSensitivityEvent;   // 설정창에서 감도를 바꾸면 방송되는 라이브 채널
+    [SerializeField] private SaveLoadSystem saveLoadSystem; // 스폰 시 저장된 감도 배율을 읽어오는 원본
+    [SerializeField] private FloatEventChannelSO changeMouseSensitivityEvent; // 설정창에서 감도를 바꾸면 방송되는 라이브 채널
 
     [Header("Movement")]
-    [SerializeField] private float moveSpeed = 3f;
+    [SerializeField] private float moveSpeed = 3f; // 기본 이동 속도(m/s)
+    [SerializeField] private float crouchSpeedMultiplier = 0.5f; // 웅크림 중 이동속도 배율. moveSpeed 에 곱해 적용한다
 
-    /// <summary>웅크림 중 이동속도 배율. moveSpeed 에 곱해 적용한다.</summary>
-    [SerializeField] private float crouchSpeedMultiplier = 0.5f;
-
-    /// <summary>점프 시작 시 설정할 상승 속도. v²/2g ≈ 1.27m 상승한다.</summary>
     [Header("Jump")]
-    [SerializeField] private float jumpSpeed = 5f;
-
-    /// <summary>접지 판정 대상 레이어. 인스펙터에서 Ground 만 선택한다.</summary>
-    [SerializeField] private LayerMask groundMask;
-
-    /// <summary>접지 판정 SphereCast 의 반지름. 캡슐 반지름(0.5)보다 작아야 벽 모서리를 바닥으로 오검출하지 않는다.</summary>
-    [SerializeField] private float groundCheckRadius = 0.4f;
-
-    /// <summary>접지 판정 SphereCast 의 거리. 중심→바닥 1.0 - 반지름 0.4 + 여유 0.1.</summary>
-    [SerializeField] private float groundCheckDistance = 0.7f;
+    [SerializeField] private float jumpSpeed = 5f; // 점프 시작 시 설정할 상승 속도. v²/2g ≈ 1.27m 상승한다
+    [SerializeField] private LayerMask groundMask; // 접지 판정 대상 레이어. 인스펙터에서 Ground 만 선택한다
+    [SerializeField] private float groundCheckRadius = 0.4f; // 접지 판정 SphereCast 의 반지름. 캡슐 반지름(0.5)보다 작아야 벽 모서리를 바닥으로 오검출하지 않는다
+    [SerializeField] private float groundCheckDistance = 0.7f; // 접지 판정 SphereCast 의 거리. 중심→바닥 1.0 - 반지름 0.4 + 여유 0.1
 
     [Header("Ownership-gated")]
-    [SerializeField] private PlayerInteractor interactor;
-    [SerializeField] private PlayerInventory inventory;
+    [SerializeField] private PlayerInteractor interactor; // 상호작용 판정. 비소유자 인스턴스에서는 OnNetworkSpawn 에서 끈다
+    [SerializeField] private PlayerInventory inventory; // 인벤토리. 비소유자 인스턴스에서는 OnNetworkSpawn 에서 끈다
+    [SerializeField] private PlayerItemUser itemUser; // 좌·우클릭 아이템 사용 라우팅. InputReader 가 전역 SO 라, 끄지 않으면 남의 캐릭터가 내 클릭에 반응한다
+    [SerializeField] private ThrowAimIndicator aimIndicator; // 투척 조준 궤적. 로컬 표시물이므로 비소유자 인스턴스에서는 그릴 이유가 없다
+    [SerializeField] private Canvas promptCanvas; // 상호작용 프롬프트 전용 Canvas. 다른 HUD 요소와 분리해 두어, 프롬프트가 매 프레임 갱신돼도 그쪽 Canvas 는 리빌드되지 않는다
 
-    /// <summary>좌·우클릭 아이템 사용 라우팅. InputReader 가 전역 SO 라, 끄지 않으면 남의 캐릭터가 내 클릭에 반응한다.</summary>
-    [SerializeField] private PlayerItemUser itemUser;
+    private Rigidbody body; // Awake 캐시
+    private NetworkTransform networkTransform; // Owner 권한 NetworkTransform — 스폰 포즈 강제 적용(Teleport)에 쓴다. Awake 캐시
+    private PlayerDeathHandler deathHandler; // 비활성 게이팅 소스 — 형제. 사망 시 이동·시선·상호작용·인벤을 차단한다(2-1·관전은 PlayerSpectatorController)
+    private PlayerReturn playerReturn; // 비활성 게이팅 소스 — 형제. 귀환도 사망과 똑같이 조작을 차단한다(세션루프.md 3장)
+    private PlayerHiding hiding; // 은신 게이팅 소스 — 형제. 은신 중 이동·점프를 차단하고 시선을 콘 안으로 제한한다(2-1, 조작상호작용UI.md 3-5-1)
 
-    /// <summary>투척 조준 궤적. 로컬 표시물이므로 비소유자 인스턴스에서는 그릴 이유가 없다.</summary>
-    [SerializeField] private ThrowAimIndicator aimIndicator;
+    private bool IsInactive => deathHandler.IsDead.Value || playerReturn.HasExtracted.Value; // 비활성(사망 OR 귀환) 여부. 어느 쪽이든 조작을 차단하고 관전으로 넘긴다 — PlayerSpectatorController 진입 조건과 같다
 
-    /// <summary>상호작용 프롬프트 전용 Canvas. 다른 HUD 요소와 분리해 두어, 프롬프트가 매 프레임 갱신돼도 그쪽 Canvas 는 리빌드되지 않는다.</summary>
-    [SerializeField] private Canvas promptCanvas;
+    private Transform cameraTransform; // 소유자 카메라 — OnNetworkSpawn 에서 Main Camera 를 cameraPivot 아래로 붙이고 캐시한다
 
-    private Rigidbody body;
+    private Vector2 moveInput; // 이동 입력 캐시 — OnMoveInput 이 쓰고 HandleMove 가 읽는다
+    private Vector2 lookInput; // 시선 입력 캐시 — OnLookInput 이 쓰고 HandleLook 이 읽고 소비 후 zero 로 리셋한다
 
-    // Owner 권한 NetworkTransform — 스폰 포즈 강제 적용(Teleport)에 쓴다. Awake 캐시.
-    private NetworkTransform networkTransform;
+    private bool jumpRequested; // 점프 요청 — 입력 콜백이 세우고 FixedUpdate 의 HandleJump 가 소비한다
+    private bool isCrouching; // 웅크림 상태(홀드) — Crouch 입력 콜백이 켜고 끄며, HandleMove 가 이동속도 배율에 반영한다
 
-    // 비활성 게이팅 소스 — 형제 PlayerDeathHandler. 사망 시 이동·시선·상호작용·인벤을 차단한다(2-1·관전은 PlayerSpectatorController).
-    private PlayerDeathHandler deathHandler;
+    private float pitch; // 시선 상태 — cameraPivot 의 로컬 X 회전
+    private float yaw; // 시선 상태 — 카메라가 향하는 월드 Y 회전. 본체 회전(bodyYaw)과 분리되어 있다
+    private float bodyYaw; // 하체(본체)의 Y 회전 — 시선이 상체 한계각을 넘거나 이동 중일 때만 시선을 따라온다
 
-    // 비활성 게이팅 소스 — 형제 PlayerReturn. 귀환도 사망과 똑같이 조작을 차단한다(세션루프.md 3장).
-    private PlayerReturn playerReturn;
-
-    // 비활성(사망 OR 귀환) 여부. 어느 쪽이든 조작을 차단하고 관전으로 넘긴다 — PlayerSpectatorController 의 진입 조건과 같다.
-    private bool IsInactive => deathHandler.IsDead.Value || playerReturn.HasExtracted.Value;
-
-    // 소유자 카메라 — OnNetworkSpawn 에서 Main Camera 를 cameraPivot 아래로 붙이고 캐시한다.
-    private Transform cameraTransform;
-
-    // 입력 캐시 — 콜백이 쓰고 Update/FixedUpdate 가 읽는다.
-    private Vector2 moveInput;
-    private Vector2 lookInput;
-
-    // 점프 요청 — 입력 콜백이 세우고 FixedUpdate 의 HandleJump 가 소비한다.
-    private bool jumpRequested;
-
-    // 웅크림 상태(홀드) — Crouch 입력 콜백이 켜고 끄며, HandleMove 가 이동속도 배율에 반영한다.
-    private bool isCrouching;
-
-    // 시선 상태 — pitch 는 cameraPivot 의 로컬 X, yaw 는 본체의 Y 회전.
-    private float pitch;
-    private float yaw;
-
-    // 시선 감도 배율 — 스폰 시 Profile 에서 읽고, 설정창 변경 시 채널로 갱신된다. lookSensitivity 에 곱해 실효 감도를 만든다.
-    private float sensitivityMultiplier = 1f;
+    private float hiddenBaseYaw; // 은신 시야 콘의 기준 yaw. 은신 진입 순간의 시선(또는 스냅 앵커 정면)이다. 은신 중에만 유효하다
+    private bool wasHidden; // 직전 프레임의 은신 여부 — 진입 순간(false→true)에 hiddenBaseYaw 를 잡기 위한 에지 검출용
+    private float sensitivityMultiplier = 1f; // 시선 감도 배율 — 스폰 시 Profile 에서 읽고, 설정창 변경 시 채널로 갱신된다. lookSensitivity 에 곱해 실효 감도를 만든다
 
     // ── 애니메이션 노출 (읽기 전용) — PlayerAnimator 가 소유자에서 참조한다 ──
 
-    /// <summary>수평(XZ) 이동 속력. 이동 블렌드 파라미터용. 단위 m/s.</summary>
-    public float PlanarSpeed => new Vector2(body.linearVelocity.x, body.linearVelocity.z).magnitude; // XZ 속력
-
-    /// <summary>접지 여부. 애니메이션 파라미터용.</summary>
-    public bool Grounded => IsGrounded(); // 접지 여부
-
-    /// <summary>웅크림 상태 여부. 애니메이션 파라미터용.</summary>
-    public bool Crouching => isCrouching; // 웅크림 여부
-
-    /// <summary>점프가 실제로 발동한 순간 발행된다. 애니메이션 트리거용.</summary>
-    public event System.Action JumpPerformed;
+    public float PlanarSpeed => new Vector2(body.linearVelocity.x, body.linearVelocity.z).magnitude; // 수평(XZ) 이동 속력(m/s). 이동 블렌드 파라미터용
+    public bool Grounded => IsGrounded(); // 접지 여부. 애니메이션 파라미터용
+    public bool Crouching => isCrouching; // 웅크림 상태 여부. 애니메이션 파라미터용
+    public float AimPitchDeg => pitch; // 시선 pitch(도). 상체 조준 표현(AimPitch 파라미터)용
+    public float AimYawOffsetDeg => Mathf.DeltaAngle(bodyYaw, yaw); // 시선-하체 yaw 차(도). 상체 비틀림 표현(AimYawOffset 파라미터)용
+    public event System.Action JumpPerformed; // 점프가 실제로 발동한 순간 발행된다. 애니메이션 트리거용
 
     /// <summary>Rigidbody 와 형제 PlayerDeathHandler·PlayerReturn 참조를 캐시한다.</summary>
     private void Awake()
@@ -109,6 +82,7 @@ public class PlayerController : NetworkBehaviour
         networkTransform = GetComponent<NetworkTransform>();
         deathHandler = GetComponent<PlayerDeathHandler>();
         playerReturn = GetComponent<PlayerReturn>();
+        hiding = GetComponent<PlayerHiding>();
     }
 
     /// <summary>
@@ -179,7 +153,6 @@ public class PlayerController : NetworkBehaviour
             Vector3 now = transform.position;
             if ((now - last).sqrMagnitude > 4f)
             {
-                //Log.D($"[PlayerController] 포스트 스폰 순간이동 원복: {now} → {position}");
                 ForcePose(position, rotation);
                 yield break;
             }
@@ -196,6 +169,27 @@ public class PlayerController : NetworkBehaviour
         body.position = position;
         body.rotation = rotation;
         body.linearVelocity = Vector3.zero;
+    }
+
+    /// <summary>
+    /// 서버가 지정한 포즈를 소유자가 즉시 1회 적용한다(벽장 진입/탈출 앵커 스냅 등).
+    /// 플레이어 NetworkTransform 이 소유자 권위라 서버가 직접 위치를 쓸 수 없어 소유자에게 위임한다.
+    /// 스폰 경로(<see cref="SetSpawnPoseClientRpc"/>)와 달리 감시 코루틴이 없다 — 짧은 간격의 연속 스냅(진입↔탈출)을 서로 되돌리지 않기 위함.
+    /// yaw/pitch 필드와 시야 콘 기준도 함께 동기화한다 — 빼먹으면 다음 프레임 HandleLook 이 옛 시선으로 회전을 되돌린다.
+    /// </summary>
+    /// <param name="position">적용할 위치.</param>
+    /// <param name="rotation">적용할 회전(정면). yaw 로 흡수되고 pitch 는 수평으로 초기화한다.</param>
+    [ClientRpc]
+    public void SnapPoseClientRpc(Vector3 position, Quaternion rotation)
+    {
+        if (!IsOwner) return;
+
+        ForcePose(position, rotation);
+        yaw = rotation.eulerAngles.y;
+        bodyYaw = yaw;
+        pitch = 0f;
+        cameraPivot.localRotation = Quaternion.Euler(pitch, 0f, 0f);
+        hiddenBaseYaw = yaw; // 은신 스냅이면 콘 기준을 앵커 정면으로 재설정. 비은신 스냅에서는 쓰이지 않는 값이라 무해하다.
     }
 
     /// <summary>네트워크 디스폰 시 소유자에 한해 구독을 해제한다. 액션맵 비활성화는 ClientGameManager 소관이다.</summary>
@@ -224,6 +218,11 @@ public class PlayerController : NetworkBehaviour
     {
         if (!IsOwner || IsInactive) return;
 
+        // 은신 진입 순간(false→true)의 시선을 시야 콘 기준으로 잡는다. 스냅 RPC 가 나중에 도착하면 그쪽이 앵커 정면으로 갱신한다.
+        bool isHidden = hiding.IsHidden;
+        if (isHidden && !wasHidden) hiddenBaseYaw = yaw;
+        wasHidden = isHidden;
+
         HandleLook();
     }
 
@@ -235,6 +234,14 @@ public class PlayerController : NetworkBehaviour
     private void FixedUpdate()
     {
         if (!IsOwner || IsInactive) return;
+
+        // 은신 중에는 이동·점프를 차단하고 자리에 고정한다(2-1: WASD 무반응). 시선은 Update 쪽 콘 클램프가 맡는다.
+        if (hiding.IsHidden)
+        {
+            jumpRequested = false;
+            body.linearVelocity = new Vector3(0f, body.linearVelocity.y, 0f);
+            return;
+        }
 
         HandleMove();
         HandleJump();
@@ -305,14 +312,12 @@ public class PlayerController : NetworkBehaviour
     /// <summary>웅크리기 버튼을 누르기 시작했을 때 호출된다. 웅크림 상태로 진입한다.</summary>
     private void OnCrouchInput()
     {
-        //Log.D("[PlayerController] Crouch");
         isCrouching = true;
     }
 
     /// <summary>웅크리기 버튼에서 손을 뗐을 때 호출된다. 웅크림 상태를 해제한다.</summary>
     private void OnCrouchCanceledInput()
     {
-        //Log.D("[PlayerController] Crouch canceled");
         isCrouching = false;
     }
 
@@ -325,7 +330,6 @@ public class PlayerController : NetworkBehaviour
     /// <summary>공격 버튼에서 손을 뗐을 때 호출된다. 아직 처리할 동작이 없다.</summary>
     private void OnAttackCanceledInput()
     {
-        //Log.D("[PlayerController] Attack canceled");
     }
 
     /// <summary>설정창에서 감도가 바뀌면 배율을 갱신한다. 다음 프레임 HandleLook 부터 즉시 반영된다.</summary>
@@ -338,7 +342,8 @@ public class PlayerController : NetworkBehaviour
     // ── 실제 행동 ───────────────────────────────────────────────
 
     /// <summary>
-    /// 캐시된 시선 입력으로 yaw/pitch 를 누적해 본체와 cameraPivot 을 회전시킨다.
+    /// 캐시된 시선 입력으로 yaw/pitch 를 누적하고, 시선(cameraPivot)과 하체(bodyYaw) 회전을 분리 적용한다.
+    /// 본체는 bodyYaw 로 회전하고, cameraPivot 로컬 회전이 pitch 와 시선-하체 yaw 차를 흡수한다.
     /// Look 바인딩이 &lt;Pointer&gt;/delta 이므로, 소비 후 lookInput 을 반드시 zero 로 리셋해야 한다.
     /// 리셋하지 않으면 마우스를 멈춰도 마지막 delta 가 매 프레임 재적용되어 계속 회전한다.
     /// </summary>
@@ -349,12 +354,44 @@ public class PlayerController : NetworkBehaviour
         pitch -= lookInput.y * sensitivity;
         pitch = Mathf.Clamp(pitch, -pitchClamp, pitchClamp);
 
-        transform.rotation = Quaternion.Euler(0f, yaw, 0f);
-        cameraPivot.localRotation = Quaternion.Euler(pitch, 0f, 0f);
+        // 은신 중에는 시선을 기준 정면(hiddenBaseYaw)의 콘 안으로 제한한다(3-5-1 문틈 시야, 3-10 wardrobe_look_angle_deg).
+        if (hiding.IsHidden)
+        {
+            float yawDelta = Mathf.DeltaAngle(hiddenBaseYaw, yaw);
+            yaw = hiddenBaseYaw + Mathf.Clamp(yawDelta, -wardrobeLookAngleDeg, wardrobeLookAngleDeg);
+            pitch = Mathf.Clamp(pitch, -wardrobeLookAngleDeg, wardrobeLookAngleDeg);
+            bodyYaw = hiddenBaseYaw; // 문틈 시야는 상체·카메라만 움직인다 — 하체는 앵커 정면에 고정
+        }
+        else
+        {
+            HandleBodyTurn();
+        }
+
+        transform.rotation = Quaternion.Euler(0f, bodyYaw, 0f);
+        cameraPivot.localRotation = Quaternion.Euler(pitch, Mathf.DeltaAngle(bodyYaw, yaw), 0f);
 
         // <Pointer>/delta 는 이번 프레임에 소비하고 반드시 zero 로 리셋한다. 그러지 않으면
         // 마우스를 멈춰도 마지막 delta 가 매 프레임 재적용되어 계속 회전한다.
         lookInput = Vector2.zero;
+    }
+
+    /// <summary>
+    /// 하체(bodyYaw)를 시선에 맞춰 따라 돌린다.
+    /// 이동 중에는 시선으로 정렬하고, 정지 중에는 시선-하체 차가 상체 한계각을 넘었을 때만 한계 안으로 끌어온다.
+    /// </summary>
+    private void HandleBodyTurn()
+    {
+        float offset = Mathf.DeltaAngle(bodyYaw, yaw);
+        float step = bodyTurnSpeedDeg * Time.deltaTime;
+
+        if (moveInput.sqrMagnitude > 0.0001f)
+        {
+            bodyYaw = Mathf.MoveTowardsAngle(bodyYaw, yaw, step);
+        }
+        else if (Mathf.Abs(offset) > upperBodyYawLimitDeg)
+        {
+            bodyYaw = Mathf.MoveTowardsAngle(bodyYaw, yaw - Mathf.Sign(offset) * upperBodyYawLimitDeg, step);
+        }
     }
 
     /// <summary>

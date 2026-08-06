@@ -11,15 +11,19 @@ using UnityEngine;
 public class DevHostBootstrap : MonoBehaviour
 {
     /// <summary>
-    /// 씬 시작과 동시에 Host 를 시도하고, 이미 다른 인스턴스가 호스팅 중이면 Client 로 접속한다.
+    /// 씬 시작 후 한 프레임 뒤에 Host 를 시도하고, 이미 다른 인스턴스가 호스팅 중이면 Client 로 접속한다.
+    /// 한 프레임 미루는 이유: 씬 오브젝트들의 Start 초기화(GameScenePlayerSpawner 의 OnServerStarted 구독 등)가
+    /// 전부 끝난 뒤에 StartHost 가 돌아야 서버 시작 콜백을 놓치는 인스턴스가 없다.
     /// </summary>
-    private void Start()
+    private System.Collections.IEnumerator Start()
     {
+        yield return null;
+
         Log.D("[DevHostBootstrap] Host 자동 시작 시도");
         bool started = NetworkManager.Singleton.StartHost();
         Log.D($"[DevHostBootstrap] StartHost 결과: {started}");
 
-        if (started) return;
+        if (started) yield break;
 
         // StartHost 실패 = 이미 다른 인스턴스가 이 포트로 호스팅 중이라는 뜻.
         // 두 인스턴스가 각각 Host 로 남으면 서로의 세션에 플레이어가 스폰되지 않으므로 Client 로 전환한다.
