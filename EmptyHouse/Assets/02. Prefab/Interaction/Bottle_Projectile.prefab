@@ -231,9 +231,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::ThrownProjectile
   impactNoiseDb: 45
   emittedChannel: {fileID: 11400000, guid: 22360f3f2e054bf0afcd98bc8c6a0121, type: 2}
-  impactMask:
-    serializedVersion: 2
-    m_Bits: 1216
+  armingDistanceMeters: 0.5
   despawnDelaySeconds: 0.15
   maxLifeSeconds: 15
   sfxEventChannel: {fileID: 11400000, guid: 0338426556d75b241bee37e3eca8f958, type: 2}

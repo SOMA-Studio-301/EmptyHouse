@@ -20,7 +20,7 @@ public class ThrowAimIndicator : MonoBehaviour
     [Header("Trajectory")]
     [SerializeField] private LineRenderer line; // 점선 타일링 머티리얼을 물린 궤적선. useWorldSpace = true
     [SerializeField] private Transform landingMarker; // 착지 지점 마커. 충돌면 법선에 맞춰 눕힌다
-    [SerializeField] private LayerMask hitMask; // 궤적이 끊길 레이어. Ground · Wall · Door 를 선택한다
+    [SerializeField] private LayerMask hitMask; // 궤적이 끊길 레이어. 비행체가 레이어를 가리지 않고 착지하므로 Everything 을 선택한다 — 좁히면 궤적선이 실제보다 멀리 뻗는다
     [SerializeField] private int sampleCount = 40; // 궤적 샘플 수. 늘리면 더 멀리·매끄럽게 그린다
     [SerializeField] private float sampleStepSeconds = 0.05f; // 샘플 간 시간 간격(초)
 
@@ -145,8 +145,10 @@ public class ThrowAimIndicator : MonoBehaviour
     {
         if (!IsAiming) return;
 
+        // 던지는 사람은 궤적에서 뺀다 — 발사 지점이 자기 캡슐 안이라 그대로 두면 발밑에서 궤적이 끊긴다.
+        // 실제 비행체도 ThrownProjectile.ServerLaunch 가 같은 계층을 IgnoreCollision 으로 빼므로 판정 기준이 일치한다.
         int count = ThrowTrajectory.Simulate(
-            LaunchOrigin, ResolveLaunchVelocity(), projectileRadius, hitMask,
+            LaunchOrigin, ResolveLaunchVelocity(), projectileRadius, hitMask, transform.root,
             points, sampleStepSeconds, out RaycastHit impact);
 
         // 버퍼는 최대 길이로 잡혀 있고 count 만큼만 유효하다. SetPositions 는 배열 전체를 요구하므로

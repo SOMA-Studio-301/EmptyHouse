@@ -27,8 +27,8 @@ public class ThrownProjectile : NetworkBehaviour
     [SerializeField] private NoiseEmittedEventChannelSO emittedChannel;
 
     [Header("Impact")]
-    [Tooltip("착지로 칠 레이어. Ground · Wall · Door 를 선택한다 — 좀비나 플레이어 몸에 맞은 건 착지가 아니다")]
-    [SerializeField] private LayerMask impactMask;
+    [Tooltip("발사 지점에서 이 거리(m)를 벗어나기 전의 충돌은 착지로 치지 않는다. 발사 지점이 던진 사람의 머리 안이라, 손 근처에서 스친 것까지 착지로 잡으면 발밑에서 즉시 끝난다")]
+    [SerializeField] private float armingDistanceMeters = 0.5f;
 
     [Tooltip("착지 후 소멸까지의 유예(초). 0 이면 원격 클라에서 보간이 따라오기 전에 사라져 벽 앞에서 증발한 것처럼 보인다")]
     [SerializeField] private float despawnDelaySeconds = 0.15f;
@@ -51,10 +51,16 @@ public class ThrownProjectile : NetworkBehaviour
     // 스폰 후 경과 시간(초). maxLifeSeconds 초과 시 소음 없이 정리한다.
     private float aliveSeconds;
 
-    /// <summary>Rigidbody 참조를 캐시한다.</summary>
+    // 발사 지점(월드). 착지 판정을 무장시키는 기준점이다.
+    private Vector3 launchOrigin;
+
+    /// <summary>Rigidbody 참조와 무장 기준점을 캐시한다.</summary>
     private void Awake()
     {
         body = GetComponent<Rigidbody>();
+
+        // ServerLaunch 이전에 부딪혀도 기준점이 월드 원점이 되지 않게 스폰 좌표로 먼저 채운다.
+        launchOrigin = transform.position;
     }
 
     /// <summary>
@@ -92,6 +98,7 @@ public class ThrownProjectile : NetworkBehaviour
             }
         }
 
+        launchOrigin = transform.position;
         body.linearVelocity = velocity;
     }
 
@@ -116,15 +123,27 @@ public class ThrownProjectile : NetworkBehaviour
     }
 
     /// <summary>
-    /// 착지를 판정해 소음을 발행하고 소멸을 예약한다. 물리가 서버에서만 돌므로 이 콜백도 서버에서만 유효하다.
+    /// 첫 충돌을 착지로 보고 소음을 발행한 뒤 소멸을 예약한다. 물리가 서버에서만 돌므로 이 콜백도 서버에서만 유효하다.
+    ///
+    /// 무엇에 맞았는지는 가리지 않는다(기획 확정 2026-08-07) — 바닥이든 벽이든 좀비 몸이든, 부딪힌 그 지점에서 소리가 난다.
+    /// 레이어로 거르던 시절에는 맵 지오메트리가 Ground/Wall 로 칠해져 있어야만 소리가 났고, 하나라도 빠지면
+    /// 투척물이 무음으로 굴러다니다 수명으로 사라졌다. 판정 대상을 없애 그 실패 모드 자체를 지운다.
+    ///
+    /// 대신 <see cref="armingDistanceMeters"/> 만큼 날아가기 전에는 착지로 치지 않는다. 발사 지점이 던진 사람의
+    /// 머리 안이라, 대상을 안 가리는 판정과 겹치면 손 근처의 무엇이든(동료 몸·문짝·방금 놓은 픽업) 스치는 순간
+    /// 발밑에서 끝나 버린다 — 던진 사람 본인은 <see cref="ServerLaunch"/> 가 IgnoreCollision 으로 빼지만
+    /// 그 예외는 딱 본인까지다. 무시된 충돌도 물리적으로는 튕기므로 병은 그대로 날아간다.
     /// </summary>
     /// <param name="collision">충돌 정보.</param>
     private void OnCollisionEnter(Collision collision)
     {
         if (!IsServer || !IsSpawned || hasLanded) return;
 
-        // 좀비 몸에 맞고 튕긴 것은 착지가 아니다 — 그대로 굴러 바닥에 닿을 때 소음이 난다.
-        if ((impactMask.value & (1 << collision.gameObject.layer)) == 0) return;
+        if ((transform.position - launchOrigin).sqrMagnitude < armingDistanceMeters * armingDistanceMeters)
+        {
+            Log.D($"[ThrownProjectile] 손 근처({armingDistanceMeters}m 이내) 충돌 무시 — {collision.gameObject.name}(layer {collision.gameObject.layer})");
+            return;
+        }
 
         hasLanded = true;
         despawnTimer = despawnDelaySeconds;
@@ -133,7 +152,7 @@ public class ThrownProjectile : NetworkBehaviour
 
         // SourceId 는 이 투척물 자신이다. 던진 사람 ID 를 넘기면 좀비가 그를 타겟으로 물어 유인이 성립하지 않는다.
         emittedChannel.RaiseEvent(new NoiseEmittedEvent(NetworkObjectId, point, impactNoiseDb));
-        Log.D($"[ThrownProjectile] 착지 {impactNoiseDb}dB at {point}, source={NetworkObjectId}");
+        Log.D($"[ThrownProjectile] 착지 {impactNoiseDb}dB at {point} — {collision.gameObject.name}(layer {collision.gameObject.layer}), source={NetworkObjectId}");
 
         PlayImpactClientRpc(point);
     }
