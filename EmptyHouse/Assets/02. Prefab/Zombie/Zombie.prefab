@@ -49,6 +49,7 @@ GameObject:
   - component: {fileID: 936554292871143504}
   - component: {fileID: 7204894998762647704}
   - component: {fileID: 8851832382508360351}
+  - component: {fileID: 2915033471820556104}
   m_Layer: 9
   m_Name: Zombie
   m_TagString: Untagged
@@ -277,6 +278,31 @@ MonoBehaviour:
   ShowTopMostFoldoutHeaderGroup: 1
   controller: {fileID: 7330228090429543508}
   animator: {fileID: 3818358682471580016}
+--- !u!114 &2915033471820556104
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 3277295559903884011}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 3c7d63c6a8d742328f0271dbd3978d58, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::ZombieSfx
+  ShowTopMostFoldoutHeaderGroup: 1
+  controller: {fileID: 7330228090429543508}
+  sfxEventChannel: {fileID: 11400000, guid: 0338426556d75b241bee37e3eca8f958, type: 2}
+  roarAudioId: 120
+  attackAudioId: 120
+  idleAudioIds:
+  - 119
+  chaseAudioIds:
+  - 116
+  - 117
+  - 118
+  idleIntervalSeconds: 9
+  chaseIntervalSeconds: 4
 --- !u!1 &5914860488420177794
 GameObject:
   m_ObjectHideFlags: 0
