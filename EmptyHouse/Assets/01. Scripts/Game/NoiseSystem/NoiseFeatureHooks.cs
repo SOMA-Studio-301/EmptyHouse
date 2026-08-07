@@ -35,17 +35,4 @@ namespace EmptyHouse.NoiseSystem
         public CrouchNoiseStateEvent(ulong sourceId, bool isCrouching)
         { SourceId = sourceId; IsCrouching = isCrouching; }
     }
-
-    [CreateAssetMenu(fileName = "SO_Event_VoiceNoiseHook", menuName = "Events/Noise/Hooks/Voice")]
-    public sealed class VoiceNoiseEventChannelSO : NoiseEventChannelSO<VoiceNoiseEvent> { }
-
-    [CreateAssetMenu(fileName = "SO_Event_RadioNoiseHook", menuName = "Events/Noise/Hooks/Radio Reception")]
-    public sealed class RadioReceivedNoiseEventChannelSO : NoiseEventChannelSO<RadioReceivedNoiseEvent> { }
-
-    [CreateAssetMenu(fileName = "SO_Event_CamouflageNoiseHook", menuName = "Events/Noise/Hooks/Camouflage")]
-    public sealed class CamouflageNoiseStateEventChannelSO : NoiseEventChannelSO<CamouflageNoiseStateEvent> { }
-
-    [CreateAssetMenu(fileName = "SO_Event_CrouchNoiseHook", menuName = "Events/Noise/Hooks/Crouch")]
-    public sealed class CrouchNoiseStateEventChannelSO : NoiseEventChannelSO<CrouchNoiseStateEvent> { }
-
 }

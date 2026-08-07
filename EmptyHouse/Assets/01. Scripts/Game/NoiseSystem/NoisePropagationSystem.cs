@@ -9,6 +9,7 @@ namespace EmptyHouse.NoiseSystem
         [SerializeField] private NoisePropagationSettingsSO settings;
         [SerializeField] private NoiseEmittedEventChannelSO emittedChannel;
         [SerializeField] private NoiseDetectedEventChannelSO detectedChannel;
+        [SerializeField] private NoiseMeterSampleEventChannelSO meterSampleChannel; // 데시벨 미터 표본. 가청 임계 컷 이전의 발생 dB 를 흘린다
         [SerializeField] private LayerMask zombieMask;
         [SerializeField] private LayerMask occlusionMask;
 
@@ -64,6 +65,9 @@ namespace EmptyHouse.NoiseSystem
                 ulong sourceId = flushKeys[i];
                 SourceBucket bucket = buckets[sourceId];
                 buckets.Remove(sourceId);
+                // 미터는 Propagate 의 가청 임계 컷(LowestHearingThresholdDb) 이전에 발행한다 —
+                // 뒤에 두면 웅크림(8dB)처럼 아무도 못 듣는 소음이 미터에 0 으로 뜬다 (소음시스템.md 9-1 ①)
+                meterSampleChannel.RaiseEvent(new NoiseMeterSampleEvent(sourceId, bucket.Db));
                 Propagate(sourceId, bucket.Origin, bucket.Db);
             }
         }

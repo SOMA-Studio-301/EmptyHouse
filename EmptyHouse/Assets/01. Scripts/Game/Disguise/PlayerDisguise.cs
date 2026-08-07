@@ -15,6 +15,7 @@ public sealed class PlayerDisguise : NetworkBehaviour
     [Header("Event Channels")]
     [SerializeField] private DisguiseStateChangedEventChannelSO disguiseStateChanged;
     [SerializeField] private DisguiseRefillRequestedEventChannelSO disguiseRefillRequested;
+    [SerializeField] private DisguiseGaugeChangedEventChannelSO disguiseGaugeChanged; // 발행: 잔량(0~1). 오너만 발행하며 씬 레벨 HUD 가 구독한다
 
     [Header("Gauge")]
     [SerializeField, Min(1f)] private float maxGauge = 100f;
@@ -64,6 +65,9 @@ public sealed class PlayerDisguise : NetworkBehaviour
         {
             inputReader.DisguisePressedEvent += RequestEnter;
             inputReader.DisguiseCanceledEvent += RequestExit;
+
+            currentGauge.OnValueChanged += HandleGaugeChanged;
+            PublishGauge(currentGauge.Value);
         }
     }
 
@@ -78,6 +82,9 @@ public sealed class PlayerDisguise : NetworkBehaviour
         {
             inputReader.DisguisePressedEvent -= RequestEnter;
             inputReader.DisguiseCanceledEvent -= RequestExit;
+
+            currentGauge.OnValueChanged -= HandleGaugeChanged;
+            PublishGauge(0f);
         }
     }
 
@@ -160,6 +167,24 @@ public sealed class PlayerDisguise : NetworkBehaviour
     private void HandleDisguiseChanged(bool previous, bool current)
     {
         PublishState(current);
+    }
+
+    /// <summary>복제된 잔량 변경을 HUD 채널로 중계한다(오너 전용 구독이라 남의 잔량은 여기로 오지 않는다).</summary>
+    /// <param name="previous">직전 잔량.</param>
+    /// <param name="current">변경된 잔량.</param>
+    private void HandleGaugeChanged(float previous, float current)
+    {
+        // 위장 중 0.1초 주기로 호출되므로 진입 트레이스를 두지 않는다.
+        PublishGauge(current);
+    }
+
+    /// <summary>잔량을 0~1 로 정규화해 HUD 채널에 발행한다.</summary>
+    /// <param name="gauge">발행할 잔량(0~maxGauge).</param>
+    private void PublishGauge(float gauge)
+    {
+        // 위장 중 0.1초 주기로 호출되므로 진입 트레이스를 두지 않는다.
+        // maxGauge 는 [Min(1f)] 이지만, 0 으로 새면 슬라이더가 NaN 을 먹으므로 나눗셈 전에 막는다.
+        disguiseGaugeChanged.RaiseEvent(maxGauge <= 0f ? 0f : gauge / maxGauge);
     }
 
     private void PublishState(bool value)

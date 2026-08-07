@@ -33,16 +33,17 @@ namespace EmptyHouse.NoiseSystem
         }
     }
 
+    /// <summary>
+    /// 소음 이벤트 채널의 제네릭 베이스. 파생 채널은 <b>클래스명과 같은 이름의 파일 하나</b>에 둔다 —
+    /// Unity 는 파일명과 일치하는 클래스에만 MonoScript 를 만들어서, 한 파일에 모으면 에셋의 스크립트 참조가 비어버린다.
+    /// </summary>
+    /// <typeparam name="T">채널이 나르는 페이로드 구조체.</typeparam>
     public abstract class NoiseEventChannelSO<T> : ScriptableObject where T : struct
     {
         public event Action<T> OnEventRaised;
+
+        /// <summary>페이로드를 구독자에게 방송한다.</summary>
+        /// <param name="payload">방송할 페이로드.</param>
         public void RaiseEvent(T payload) => OnEventRaised?.Invoke(payload);
     }
-
-    [CreateAssetMenu(fileName = "SO_Event_NoiseEmitted", menuName = "Events/Noise/Noise Emitted")]
-    public sealed class NoiseEmittedEventChannelSO : NoiseEventChannelSO<NoiseEmittedEvent> { }
-
-    [CreateAssetMenu(fileName = "SO_Event_NoiseDetected", menuName = "Events/Noise/Noise Detected")]
-    public sealed class NoiseDetectedEventChannelSO : NoiseEventChannelSO<NoiseDetectedEvent> { }
-
 }

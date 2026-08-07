@@ -458,6 +458,10 @@ MonoBehaviour:
   movingSpeedThreshold: 0.05
   walkingDb: 20
   crouchingDb: 8
+  meterSampleChannel: {fileID: 11400000, guid: ade8c10254835274582e217562187b55, type: 2}
+  meterLevelChanged: {fileID: 11400000, guid: 921d962283ca85149a5299193c133801, type: 2}
+  settings: {fileID: 11400000, guid: f98030f04d614a5aadd0118115f3237c, type: 2}
+  silenceWindowMultiplier: 2
 --- !u!114 &8714832752457740018
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -543,6 +547,7 @@ MonoBehaviour:
   inputReader: {fileID: 11400000, guid: eaa08e0560934b24b9f7d5f7d9f863dd, type: 2}
   disguiseStateChanged: {fileID: 11400000, guid: c1f48fbd7d4b4d33a5a1c7e6b7f10003, type: 2}
   disguiseRefillRequested: {fileID: 11400000, guid: c1f48fbd7d4b4d33a5a1c7e6b7f10006, type: 2}
+  disguiseGaugeChanged: {fileID: 11400000, guid: 85ccf9fc593c69d4f8582f3357839640, type: 2}
   maxGauge: 100
   drainPerSecond: 10
 --- !u!114 &8607324735264274788
