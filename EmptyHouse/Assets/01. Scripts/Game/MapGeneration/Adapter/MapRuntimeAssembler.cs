@@ -83,7 +83,69 @@ namespace EmptyHouse.MapGen.Runtime
             int entranceIndex = EntranceRoomIndex(blueprint, templates);
             mapRoot.transform.position += parent.position - roomInstances[entranceIndex].transform.position;
 
+            AssignPhysicsLayers(mapRoot);
+
             return mapRoot;
+        }
+
+        /// <summary>
+        /// 조립된 지오메트리에 물리 레이어를 찍는다. 아트 팩 프리팹은 전부 Default 로 들어오는데,
+        /// 게임플레이 판정 여럿이 레이어로 바닥·벽을 구분한다 — 좀비 시야 차단
+        /// (<see cref="ZombieSensorySystem"/> obstructionMask = Wall|Door), 소음 벽 감쇠
+        /// (NoisePropagationSystem occlusionMask = Wall|Door), 접지 판정(groundMask) 등.
+        /// 아트 프리팹 수백 개를 칠하는 대신 조립 시점에 코드로 찍어, 맵젠이 어떤 아트 세트를 쓰든
+        /// 규칙이 한 곳에 남게 한다.
+        ///
+        /// 판별 토큰은 조립기가 이미 기하 판단에 쓰는 것과 같다 — 바닥은 <see cref="IsFloorRenderer"/>,
+        /// 벽은 이름의 "Wall"(DisableWallsIntersecting 과 동일 규칙). 새 테마 토큰이 생기면 세 곳을 함께 갱신한다.
+        /// 그 외(천장·기둥·소품)는 Default 로 남긴다 — 벽으로 칠하면 소음 차폐가 소품 하나마다
+        /// WallAttenuationDb 를 먹어 유인이 방 하나를 못 넘는다.
+        /// </summary>
+        /// <param name="mapRoot">조립된 맵 루트.</param>
+        private static void AssignPhysicsLayers(GameObject mapRoot)
+        {
+            int groundLayer = LayerMask.NameToLayer("Ground");
+            int wallLayer = LayerMask.NameToLayer("Wall");
+            if (groundLayer < 0 || wallLayer < 0)
+            {
+                Log.W($"[MapRuntimeAssembler] 레이어 미정의(Ground={groundLayer} Wall={wallLayer}) — 배정 생략. TagManager 확인 필요");
+                return;
+            }
+
+            int floors = 0;
+            int walls = 0;
+
+            // 비활성 렌더러(개구부로 잘려 꺼진 벽)도 포함한다 — 다시 켜질 때 레이어가 남아 있어야 한다.
+            foreach (Renderer renderer in mapRoot.GetComponentsInChildren<Renderer>(true))
+            {
+                if (IsFloorRenderer(renderer.name))
+                {
+                    ApplyLayerRecursively(renderer.transform, groundLayer);
+                    floors++;
+                }
+                else if (renderer.name.Contains("Wall"))
+                {
+                    ApplyLayerRecursively(renderer.transform, wallLayer);
+                    walls++;
+                }
+            }
+
+            Log.D($"[MapRuntimeAssembler] 레이어 배정 — 바닥 {floors} · 벽 {walls}");
+        }
+
+        /// <summary>
+        /// 대상과 그 하위 전체에 레이어를 적용한다. 물리 질의가 보는 것은 콜라이더의 레이어인데,
+        /// 아트 조각에 따라 콜라이더가 렌더러의 자식에 달려 있어 대상만 바꾸면 누락된다.
+        /// </summary>
+        /// <param name="target">시작 Transform.</param>
+        /// <param name="layer">적용할 레이어 인덱스.</param>
+        private static void ApplyLayerRecursively(Transform target, int layer)
+        {
+            target.gameObject.layer = layer;
+            for (int i = 0; i < target.childCount; i++)
+            {
+                ApplyLayerRecursively(target.GetChild(i), layer);
+            }
         }
 
         /// <summary>입구 앵커 방(IsEntranceAnchor 템플릿) 인덱스 — 레이아웃 1단계가 항상 배치한다.</summary>
