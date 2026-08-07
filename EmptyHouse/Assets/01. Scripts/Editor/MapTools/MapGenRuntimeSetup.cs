@@ -22,6 +22,7 @@ namespace EmptyHouse.EditorTools
         private const string assembledChannelPath = eventFolder + "/SO_Event_MapAssembledServer.asset"; // 조립 완료(X7) 채널
         private const string navReadyChannelPath = eventFolder + "/SO_Event_MapNavMeshReadyServer.asset"; // 베이크 완료 채널
         private const string registryPath = mapGenFolder + "/SO_MapPrefabRegistry.asset"; // 프리팹 레지스트리
+        private const string genParamsPath = mapGenFolder + "/SO_MapGenParams.asset"; // 생성 파라미터 단일 출처(런타임·에디터 프리뷰 공유)
         private const string managersPrefabPath = "Assets/02. Prefab/GameScene/=====MANAGERS=====.prefab"; // 상주 매니저 프리팹
         private const string managerChildName = "MapGenManager"; // MANAGERS 하위 자식 이름
         private const string playerSpawnerPrefabPath = "Assets/02. Prefab/Manager/GameScenePlayerSpawner.prefab"; // 플레이어 스포너(맵 조립 게이트 배선 대상)
@@ -65,7 +66,8 @@ namespace EmptyHouse.EditorTools
             VoidEventChannelSO assembledChannel = EnsureChannel(assembledChannelPath);
             VoidEventChannelSO navReadyChannel = EnsureChannel(navReadyChannelPath);
             MapPrefabRegistrySO registry = EnsureRegistry();
-            SetupManagersPrefab(registry, assembledChannel, navReadyChannel);
+            MapGenParamsSO genParams = EnsureGenParams();
+            SetupManagersPrefab(registry, genParams, assembledChannel, navReadyChannel);
             SetupPlayerSpawnerPrefab(assembledChannel);
             SetupPlayerPrefabs();
             AssetDatabase.SaveAssets();
@@ -88,6 +90,23 @@ namespace EmptyHouse.EditorTools
             AssetDatabase.CreateAsset(channel, path);
             Log.D($"[MapGenRuntimeSetup] 채널 생성 {path}");
             return channel;
+        }
+
+        /// <summary>생성 파라미터 에셋을 확보한다(없으면 코드 기본값으로 생성) — 기존 값은 절대 덮지 않는다(튜닝 결과 보존).</summary>
+        /// <returns>파라미터 에셋.</returns>
+        private static MapGenParamsSO EnsureGenParams()
+        {
+            var asset = AssetDatabase.LoadAssetAtPath<MapGenParamsSO>(genParamsPath);
+            if (asset != null)
+            {
+                return asset;
+            }
+
+            EnsureFolder(mapGenFolder);
+            asset = ScriptableObject.CreateInstance<MapGenParamsSO>();
+            AssetDatabase.CreateAsset(asset, genParamsPath);
+            Log.D($"[MapGenRuntimeSetup] 파라미터 에셋 생성 {genParamsPath} — 값은 코드 기본값. 인스펙터에서 조정하면 런타임·프리뷰가 함께 따라간다");
+            return asset;
         }
 
         /// <summary>프리팹 레지스트리를 확보하고 방·봉인 벽·기둥을 채운다 — 문·스폰 프리팹 기존 값은 보존한다.</summary>
@@ -295,9 +314,10 @@ namespace EmptyHouse.EditorTools
 
         /// <summary>MANAGERS 프리팹에 MapGenManager 자식을 확보하고 컴포넌트·참조를 배선한다.</summary>
         /// <param name="registry">프리팹 레지스트리.</param>
+        /// <param name="genParams">생성 파라미터 에셋.</param>
         /// <param name="assembledChannel">조립 완료 채널.</param>
         /// <param name="navReadyChannel">베이크 완료 채널.</param>
-        private static void SetupManagersPrefab(MapPrefabRegistrySO registry, VoidEventChannelSO assembledChannel, VoidEventChannelSO navReadyChannel)
+        private static void SetupManagersPrefab(MapPrefabRegistrySO registry, MapGenParamsSO genParams, VoidEventChannelSO assembledChannel, VoidEventChannelSO navReadyChannel)
         {
             GameObject root = PrefabUtility.LoadPrefabContents(managersPrefabPath);
             Transform child = root.transform.Find(managerChildName);
@@ -306,6 +326,16 @@ namespace EmptyHouse.EditorTools
                 var go = new GameObject(managerChildName);
                 go.transform.SetParent(root.transform, false);
                 child = go.transform;
+            }
+
+            // MapGenManager 가 별도 프리팹으로 분리돼 있으면 그 원본에 배선한다 —
+            // 여기(중첩 인스턴스)에 쓰면 오버라이드로 박혀 원본과 값이 갈린다(설정 출처 이원화 방지)
+            if (PrefabUtility.IsPartOfPrefabInstance(child.gameObject))
+            {
+                string sourcePath = PrefabUtility.GetPrefabAssetPathOfNearestInstanceRoot(child.gameObject);
+                PrefabUtility.UnloadPrefabContents(root);
+                WireManagerComponents(sourcePath, registry, genParams, assembledChannel, navReadyChannel);
+                return;
             }
 
             // 조립 앵커 고정 — 입구 앵커 방이 이 transform 위치에 오므로(MapRuntimeAssembler 계약)
@@ -321,6 +351,7 @@ namespace EmptyHouse.EditorTools
             // private [SerializeField] 배선 — SerializedObject 경유(프리팹 에셋 직접 수정)
             var driverSo = new SerializedObject(driver);
             driverSo.FindProperty("prefabRegistry").objectReferenceValue = registry;
+            driverSo.FindProperty("genParamsAsset").objectReferenceValue = genParams;
             driverSo.FindProperty("onMapAssembledServer").objectReferenceValue = assembledChannel;
             driverSo.ApplyModifiedPropertiesWithoutUndo();
 
@@ -339,6 +370,46 @@ namespace EmptyHouse.EditorTools
             PrefabUtility.SaveAsPrefabAsset(root, managersPrefabPath);
             PrefabUtility.UnloadPrefabContents(root);
             Log.D($"[MapGenRuntimeSetup] MANAGERS 프리팹 배선 완료 — {managerChildName}");
+        }
+
+        /// <summary>
+        /// 분리된 MapGenManager 프리팹 원본에 컴포넌트·참조를 배선한다 — 중첩 인스턴스 오버라이드가 아니라
+        /// 원본을 고쳐야 어디에 배치하든 같은 값이 나온다(설정 단일 출처).
+        /// </summary>
+        /// <param name="prefabPath">MapGenManager 프리팹 경로.</param>
+        /// <param name="registry">프리팹 레지스트리.</param>
+        /// <param name="genParams">생성 파라미터 에셋.</param>
+        /// <param name="assembledChannel">조립 완료 채널.</param>
+        /// <param name="navReadyChannel">베이크 완료 채널.</param>
+        private static void WireManagerComponents(string prefabPath, MapPrefabRegistrySO registry, MapGenParamsSO genParams, VoidEventChannelSO assembledChannel, VoidEventChannelSO navReadyChannel)
+        {
+            GameObject root = PrefabUtility.LoadPrefabContents(prefabPath);
+            EnsureComponent<NetworkObject>(root);
+            MapGenNetworkDriver driver = EnsureComponent<MapGenNetworkDriver>(root);
+            MapNavMeshRuntimeBaker baker = EnsureComponent<MapNavMeshRuntimeBaker>(root);
+            MapStateObjectSpawner spawner = EnsureComponent<MapStateObjectSpawner>(root);
+
+            var driverSo = new SerializedObject(driver);
+            driverSo.FindProperty("prefabRegistry").objectReferenceValue = registry;
+            driverSo.FindProperty("genParamsAsset").objectReferenceValue = genParams;
+            driverSo.FindProperty("onMapAssembledServer").objectReferenceValue = assembledChannel;
+            driverSo.ApplyModifiedPropertiesWithoutUndo();
+
+            var bakerSo = new SerializedObject(baker);
+            bakerSo.FindProperty("driver").objectReferenceValue = driver;
+            bakerSo.FindProperty("onMapAssembledServer").objectReferenceValue = assembledChannel;
+            bakerSo.FindProperty("onMapNavMeshReadyServer").objectReferenceValue = navReadyChannel;
+            bakerSo.ApplyModifiedPropertiesWithoutUndo();
+
+            var spawnerSo = new SerializedObject(spawner);
+            spawnerSo.FindProperty("driver").objectReferenceValue = driver;
+            spawnerSo.FindProperty("prefabRegistry").objectReferenceValue = registry;
+            spawnerSo.FindProperty("onMapNavMeshReadyServer").objectReferenceValue = navReadyChannel;
+            spawnerSo.ApplyModifiedPropertiesWithoutUndo();
+
+            PrefabUtility.SaveAsPrefabAsset(root, prefabPath);
+            PrefabUtility.UnloadPrefabContents(root);
+            Log.D($"[MapGenRuntimeSetup] MapGenManager 원본 배선 완료 — {prefabPath}");
         }
 
         /// <summary>플레이어 스포너 프리팹에 맵 조립 완료(X7) 채널을 배선한다 — 조립 전 스폰 게이트용.</summary>

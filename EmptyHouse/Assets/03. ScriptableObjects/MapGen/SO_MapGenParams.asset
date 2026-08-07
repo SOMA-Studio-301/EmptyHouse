@@ -1,0 +1,40 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 4b2b328efcc26794d95a87d106161ece, type: 3}
+  m_Name: SO_MapGenParams
+  m_EditorClassIdentifier: Assembly-CSharp::EmptyHouse.MapGen.Runtime.MapGenParamsSO
+  Params:
+    Seed: 0
+    RoomsTotalMin: 58
+    RoomsTotalMax: 60
+    CycleRoomPercent: 75
+    CorridorLinkPercent: 100
+    CorridorChainMax: 3
+    ShortcutValueMin: 3
+    ListenerCounterDist: 2
+    RerollMax: 20
+    ShortcutLockCountMin: 2
+    ShortcutLockCountMax: 3
+    ItemDoorLockCount: 2
+    ZombieDensitySafeMin: 0
+    ZombieDensitySafeMax: 0
+    ZombieDensityMidMin: 0
+    ZombieDensityMidMax: 2
+    ZombieDensityDangerMin: 3
+    ZombieDensityDangerMax: 5
+    ListenerRatioPercent: 25
+    ThrowableBudget: 4
+    OilCount: 3
+    ScrapCount: 6
+    HerdZombieCountMin: 3
+    HerdZombieCountMax: 5
+    EnabledZombieTypes: 1

@@ -18,7 +18,7 @@ namespace EmptyHouse.MapGen.Runtime
     {
         [Header("Config")]
         [SerializeField] private MapPrefabRegistrySO prefabRegistry; // 프리팹 레지스트리(P5 라이트)
-        [SerializeField] private MapGenParams genParams = new MapGenParams(); // 9절 인스펙터 노출 — Seed 0 = 랜덤(서버가 확정, X8)
+        [SerializeField] private MapGenParamsSO genParamsAsset; // 생성 파라미터 단일 출처(9절) — 에디터 프리뷰도 같은 에셋을 읽는다. Seed 0 = 랜덤(서버가 확정, X8)
 
         [Header("Event Channels")]
         [SerializeField] private VoidEventChannelSO onMapAssembledServer; // 서버 전용 발화 — 전 클라 조립 완료(X7). NavMesh 베이커가 구독
@@ -46,7 +46,7 @@ namespace EmptyHouse.MapGen.Runtime
                 return; // 서버 전용 · 시드는 세션 중 불변(재실행 없음)
             }
 
-            int confirmedSeed = genParams.Seed;
+            int confirmedSeed = genParamsAsset.Params.Seed;
             while (confirmedSeed == 0)
             {
                 confirmedSeed = Random.Range(int.MinValue, int.MaxValue); // 0 이 나오면 다시 — 0 은 "미확정" 표지라 시드로 못 쓴다(X8)
@@ -161,12 +161,12 @@ namespace EmptyHouse.MapGen.Runtime
             onMapAssembledServer.RaiseEvent();
         }
 
-        /// <summary>인스펙터 작업본을 오염시키지 않는 파라미터 스냅샷을 만들고 확정 시드를 박는다.</summary>
+        /// <summary>파라미터 에셋을 오염시키지 않는 스냅샷을 만들고 확정 시드를 박는다.</summary>
         /// <param name="seed">확정 시드(0 아님).</param>
         /// <returns>생성에 쓸 파라미터 복제본.</returns>
         private MapGenParams SnapshotParams(int seed)
         {
-            MapGenParams snapshot = JsonUtility.FromJson<MapGenParams>(JsonUtility.ToJson(genParams));
+            MapGenParams snapshot = JsonUtility.FromJson<MapGenParams>(JsonUtility.ToJson(genParamsAsset.Params));
             snapshot.Seed = seed;
             return snapshot;
         }

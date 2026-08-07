@@ -20,6 +20,7 @@ namespace EmptyHouse.MapGen.Editor
         private const float mapZOffset = -400f; // 수작업 맵(Z 0~160)과 겹치지 않는 남쪽 오프셋
         private const string rootName = "GeneratedMaps"; // 생성물 루트 이름(통째 삭제 = 원복)
         private const string markerMaterialFolder = "Assets/02. Prefab/Map/MapGenMarkers"; // 표식 머티리얼 폴더
+        private const string sharedParamsPath = "Assets/03. ScriptableObjects/MapGen/SO_MapGenParams.asset"; // 런타임 드라이버와 공유하는 파라미터 에셋(단일 출처)
 
         /// <summary>
         /// 활성 씬에 기본 파라미터(MapGenParams 기본값 — 방 58~60) 기준 예시 맵 5개를 생성한다 —
@@ -120,16 +121,41 @@ namespace EmptyHouse.MapGen.Editor
             }
         }
 
-        /// <summary>씬 빌더 표준 생성 파라미터 — 방 수는 MapGenParams 기본값(미리보기 튜닝 확정치)을 그대로 따른다. 감사 도구가 같은 파라미터로 블루프린트를 재현한다(드리프트 방지).</summary>
+        /// <summary>
+        /// 씬 빌더 생성 파라미터 — 런타임 드라이버와 **같은 에셋**(SO_MapGenParams)을 읽어 시드만 덮는다.
+        /// 프리뷰에서 본 맵 = 실제 플레이 맵을 보장하는 지점이다(과거 코드 초기값을 쓰다 복도 경유 100 vs 50 으로 갈렸다).
+        /// 에셋 타입은 Assembly-CSharp 소속이라 asmdef 경계상 직접 참조할 수 없어 JSON 경유로 읽는다(레지스트리와 동일 수법).
+        /// 감사 도구가 같은 파라미터로 블루프린트를 재현한다(드리프트 방지).
+        /// </summary>
         /// <param name="seed">확정 시드.</param>
         /// <returns>생성 파라미터.</returns>
         internal static MapGenParams CreateParams(int seed)
         {
-            return new MapGenParams
+            MapGenParams genParams = LoadSharedParams();
+            genParams.Seed = seed;
+            return genParams;
+        }
+
+        /// <summary>파라미터 에셋을 읽어 복제본을 만든다 — 에셋이 없으면 코드 기본값으로 폴백하고 경고한다.</summary>
+        /// <returns>파라미터 복제본.</returns>
+        private static MapGenParams LoadSharedParams()
+        {
+            var asset = AssetDatabase.LoadAssetAtPath<ScriptableObject>(sharedParamsPath);
+            if (asset == null)
             {
-                Seed = seed,
-                EnabledZombieTypes = ZombieTypeMask.Walker | ZombieTypeMask.Listener | ZombieTypeMask.Watcher,
-            };
+                Log.W($"[MapGenSceneBuilder] 파라미터 에셋 없음 — 코드 기본값으로 진행(런타임과 어긋날 수 있다): {sharedParamsPath}");
+                return new MapGenParams();
+            }
+
+            var wrapper = JsonUtility.FromJson<SharedParamsWrapper>(EditorJsonUtility.ToJson(asset));
+            return wrapper.Params ?? new MapGenParams();
+        }
+
+        /// <summary>MapGenParamsSO 의 직렬화 형태만 흉내 내는 JSON 파싱용 래퍼(asmdef 경계 우회).</summary>
+        [System.Serializable]
+        private sealed class SharedParamsWrapper
+        {
+            public MapGenParams Params; // MapGenParamsSO.Params 와 필드명이 일치해야 파싱된다
         }
 
         /// <summary>블루프린트 하나를 방 프리팹·문·스폰 표식으로 조립한다.</summary>
@@ -583,6 +609,11 @@ namespace EmptyHouse.MapGen.Editor
                 piece.transform.position = target;
                 Bounds bounds = RendererBounds(piece);
                 piece.transform.position += new Vector3(target.x - bounds.center.x, mapOrigin.y - bounds.min.y, target.z - bounds.center.z);
+
+                // 깊이축은 중심이 아니라 바깥 면을 경계(바닥 가장자리)에 맞춘다 — 중심 정렬이면 두께 절반이
+                // 바닥 밖으로 튀어나온다. 방 프리팹 벽과 같은 규약(벽 몸통이 바닥 안쪽)
+                float thickness = boundaryAlongX ? bounds.size.z : bounds.size.x;
+                piece.transform.position -= dirVec * (thickness * 0.5f);
                 piece.name = $"SealWall_{edge.RoomA}_{edge.SocketA}";
             }
         }

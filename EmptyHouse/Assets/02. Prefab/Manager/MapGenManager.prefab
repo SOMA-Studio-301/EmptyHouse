@@ -75,32 +75,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::EmptyHouse.MapGen.Runtime.MapGenNetworkDriver
   ShowTopMostFoldoutHeaderGroup: 1
   prefabRegistry: {fileID: 11400000, guid: 8a81f61e4cebe0d4c8c7a8b02ec4afb5, type: 2}
-  genParams:
-    Seed: 0
-    RoomsTotalMin: 58
-    RoomsTotalMax: 60
-    LoopEdgeCountMin: 2
-    LoopEdgeCountMax: 4
-    CorridorLinkPercent: 50
-    ShortcutValueMin: 3
-    ListenerCounterDist: 2
-    RerollMax: 20
-    ShortcutLockCountMin: 2
-    ShortcutLockCountMax: 3
-    ItemDoorLockCount: 2
-    ZombieDensitySafeMin: 0
-    ZombieDensitySafeMax: 0
-    ZombieDensityMidMin: 0
-    ZombieDensityMidMax: 2
-    ZombieDensityDangerMin: 3
-    ZombieDensityDangerMax: 5
-    ListenerRatioPercent: 25
-    ThrowableBudget: 4
-    OilCount: 3
-    ScrapCount: 6
-    HerdZombieCountMin: 3
-    HerdZombieCountMax: 5
-    EnabledZombieTypes: 1
+  genParamsAsset: {fileID: 11400000, guid: c36866e17f947a343af555ed0f58ab60, type: 2}
   onMapAssembledServer: {fileID: 11400000, guid: a66be1575718b7849b4275e3efc01a0a, type: 2}
 --- !u!114 &4772810796278318090
 MonoBehaviour:
