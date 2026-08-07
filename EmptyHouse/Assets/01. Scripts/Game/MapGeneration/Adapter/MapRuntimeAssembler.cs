@@ -276,6 +276,10 @@ namespace EmptyHouse.MapGen.Runtime
                 piece.transform.position = target;
                 Bounds bounds = RendererBounds(piece);
                 piece.transform.position += new Vector3(target.x - bounds.center.x, mapOrigin.y - bounds.min.y, target.z - bounds.center.z);
+
+                // 깊이축은 바깥 면을 경계(바닥 가장자리)에 맞춘다 — 중심 정렬이면 두께 절반이 바닥 밖으로 나온다(빌더 동일 규칙)
+                float thickness = boundaryAlongX ? bounds.size.z : bounds.size.x;
+                piece.transform.position -= dirVec * (thickness * 0.5f);
                 piece.name = $"SealWall_{edge.RoomA}_{edge.SocketA}";
             }
         }

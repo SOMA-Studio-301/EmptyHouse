@@ -10,7 +10,7 @@ namespace EmptyHouse.MapGen.Core
         public int Seed; // 확정 시드 — 0(랜덤)은 코어 진입 전에 서버가 실제 값으로 확정한다(X8)
         public int RoomsTotalMin = 58; // 총 방 수 하한 — 방 전용 집계(복도·입구 앵커 제외), 미리보기 튜닝 확정(2026-08-06)
         public int RoomsTotalMax = 60; // 총 방 수 상한 — 방 전용 집계
-        public int CycleRoomPercent = 40; // 사이클 소속 방 목표 비율 %(0 = 순수 트리) — 인접쌍 개방+복도 브리지로 목표까지 채택, 기하 상한(~67, 2026-08-06 실측) 초과분은 베스트에포트+X6 경고
+        public int CycleRoomPercent = 75; // 사이클 소속 방 목표 비율 %(0 = 순수 트리) — 인접쌍 개방+복도 브리지로 목표까지 채택, 기하 상한(~67, 2026-08-06 실측) 초과분은 베스트에포트+X6 경고
         public int CorridorLinkPercent = 100; // 방 확장 시 복도 경유 연결 확률 %(0=전부 직결) — 복도는 방+복도 원자 배치라 막다른 끝이 생기지 않는다. 미리보기 튜닝 확정(2026-08-06, 복도 MaxCount 소진 시 직결 폴백이 혼합을 만든다)
         public int CorridorChainMax = 3; // 복도 연쇄 최대 세그먼트 수(1 = 연쇄 없음) — 경유 연결마다 1~Max 균등 롤, 먼 방 연결용. 체인 전체가 원자 트랜잭션이라 막다른 끝 불변
         public int ShortcutValueMin = 3; // 지름길 채택 최소 귀환 단축 이득(방 수, 4-2절)
