@@ -48,13 +48,14 @@ public class ZombieAnimator : NetworkBehaviour
             case ZombieStateKind.Wander:
             case ZombieStateKind.Investigate:
             case ZombieStateKind.Chase:
+            case ZombieStateKind.Subside: // 홈으로 걸어서 복귀하는 구간이라 보행이다
                 return animWalk;
             case ZombieStateKind.RoarTransition:
                 return animRoar;
             case ZombieStateKind.Attack:
                 return animAttack;
             default:
-                return animIdle; // Alert, Subside
+                return animIdle; // Alert
         }
     }
 }

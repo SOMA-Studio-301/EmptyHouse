@@ -181,6 +181,16 @@ public class ZombieChaseState : IZombieState
     {
         ZombieController controller = machine.Controller;
 
+        // 사거리 판정이 지각 판정보다 먼저다. 상실 분기 안에 두면 대상이 시야 원뿔 밖으로 돌아
+        // 들어왔을 때(뒤·옆에 붙었을 때) 몸이 닿아 있는데도 ChaseToInvestigateSeconds 동안 때리지 않는다.
+        // 유효성은 ServerValidateTarget 이 매 프레임 보장하므로, 여기서 잡히는 대상은 살아 있고 위장도 아니다.
+        if (controller.CurrentTarget != null
+            && Vector3.Distance(controller.AttackOrigin.position, controller.CurrentTarget.position) <= controller.Data.AttackRange)
+        {
+            machine.SwitchState(ZombieStateKind.Attack);
+            return;
+        }
+
         // 추격 상실 판정은 "타겟 본인을 지각했는가"(HasTargetStimulus)로 한다.
         // "아무 자극"(HasTrackingStimulus)으로 판정하면 다른 플레이어의 소음이 타이머를
         // 매 프레임 리셋해 좀비가 Chase 에서 영영 내려오지 못한다.
@@ -199,12 +209,6 @@ public class ZombieChaseState : IZombieState
         controller.ResetChaseLostTimer();
         machine.SetSpeed(controller.Data.ChaseSpeed);
         machine.MoveToTarget();
-
-        if (controller.CurrentTarget != null
-            && Vector3.Distance(controller.AttackOrigin.position, controller.CurrentTarget.position) <= controller.Data.AttackRange)
-        {
-            machine.SwitchState(ZombieStateKind.Attack);
-        }
     }
 
     public void Exit(ZombieStateMachine machine) { }

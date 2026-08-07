@@ -59,15 +59,19 @@ public class ZombieStateMachine : NetworkBehaviour
         if (value >= controller.Data.ThInvestigate)
         {
             SwitchState(ZombieStateKind.Investigate);
+            return;
         }
-        else if (value >= controller.Data.ThAlert)
-        {
-            SwitchState(ZombieStateKind.Alert);
-        }
-        else if (kind == ZombieStateKind.Alert)
-        {
-            SwitchState(ZombieStateKind.Wander);
-        }
+
+        // 하향 전이는 의심도 밴드로 하지 않는다. 각 상태가 스스로 내려간다(Investigate → Subside → Wander).
+        // 밴드로 끌어내리면 조사 상태가 냉각 시작(SuspicionGraceSeconds) 직후 곧바로 Alert 에 뺏겨
+        // 조사 타이머(InvestigateToWanderSeconds)도 Subside 도 영영 성립하지 않는다. 그 결과
+        // 교전 직후 좀비는 아무 동작도 없는 Alert 에 굳고(정지·무회전), 스쿼드 해제 조건(Subside/Wander)도
+        // 성립하지 않아 주변 무리가 leash 만료까지 자기 지각을 멈춘 채 리더만 복사한다.
+        if (kind != ZombieStateKind.Wander && kind != ZombieStateKind.Alert) return;
+
+        SwitchState(value >= controller.Data.ThAlert
+            ? ZombieStateKind.Alert
+            : ZombieStateKind.Wander);
     }
 
     public void SwitchState(ZombieStateKind nextState, bool force = false)
@@ -194,9 +198,23 @@ public class ZombieStateMachine : NetworkBehaviour
 
     private void UpdateFacing(float deltaTime)
     {
-        if (agent == null || agent.isStopped) return;
+        if (agent == null || !agent.enabled || !agent.isOnNavMesh) return;
 
-        Vector3 direction = agent.desiredVelocity;
+        Vector3 direction;
+        if (!agent.isStopped)
+        {
+            direction = agent.desiredVelocity;
+        }
+        else
+        {
+            // 정지 중에도 관심 지점을 향해 돈다. 멈췄다고 회전을 막으면 시야 원뿔이 마지막 이동 방향에
+            // 그대로 굳어, 경계·조사·타격 락처럼 제자리에 서는 구간에서는 바로 옆을 지나가도 영영 보지 못한다.
+            Vector3 focus = controller.CurrentTarget != null
+                ? controller.CurrentTarget.position
+                : controller.LastKnownPosition;
+            direction = focus - transform.position;
+        }
+
         direction.y = 0f;
         if (direction.sqrMagnitude < 0.01f) return;
 
