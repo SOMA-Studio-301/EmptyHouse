@@ -4,6 +4,7 @@ using Border.Events;
 using EmptyHouse.MapGen.Core;
 using Unity.Netcode;
 using UnityEngine;
+using UnityEngine.AI;
 
 namespace EmptyHouse.MapGen.Runtime
 {
@@ -22,9 +23,17 @@ namespace EmptyHouse.MapGen.Runtime
         [Header("Event Channels")]
         [SerializeField] private VoidEventChannelSO onMapNavMeshReadyServer; // 구독 — 발화 시 서버 스폰 개시
 
+        [Header("Zombie Placement")]
+        [SerializeField] private float zombieClearanceRadius = 0.45f; // 좀비 스폰 여유 반경(m) — 프랍·벽·먼저 스폰된 좀비와의 최소 간격
+        [SerializeField] private float zombieSearchRadius = 3f; // 마커에서 빈 자리를 찾는 최대 거리(m)
+        [SerializeField] private LayerMask zombieBlockMask = ~0; // 스폰 차단 판정 레이어(트리거는 항상 무시)
+
         private const float itemGroundClearance = 0.05f; // 아이템 스폰 바닥 겹침 방지 여유(m)
+        private const float clearanceProbeHeight = 1f; // 여유 검사 구 중심 높이(m) — 바닥은 걸리지 않고 프랍·벽만 잡히는 높이
 
         private readonly HashSet<SpawnKind> missingPrefabWarned = new HashSet<SpawnKind>(); // 미등록 종류 경고 1회 가드
+        private readonly Dictionary<int, List<MapItemAnchor>> anchorsByRoom = new Dictionary<int, List<MapItemAnchor>>(); // 방 인덱스 → 아이템 앵커(맵 조립본에서 수집)
+        private readonly HashSet<int> anchorMissWarned = new HashSet<int>(); // 앵커 부족 경고 1회 가드(방 단위)
 
         /// <summary>onMapNavMeshReadyServer 구독.</summary>
         private void OnEnable()
@@ -51,6 +60,7 @@ namespace EmptyHouse.MapGen.Runtime
 
             MapBlueprint blueprint = driver.LocalBlueprint;
             List<RoomTemplateDef> templates = MapTemplateCatalog.Create();
+            CollectItemAnchors(blueprint);
             SpawnDoors(blueprint, templates);
             SpawnItems(blueprint, templates);
             SpawnZombies(blueprint, templates);
@@ -105,8 +115,143 @@ namespace EmptyHouse.MapGen.Runtime
         }
 
         /// <summary>
+        /// 조립본에서 방별 아이템 앵커(MapItemAnchor)를 수집한다 — 방 인스턴스 이름 Room_{인덱스}_{템플릿} 이 연결고리.
+        /// 앵커는 방 프리팹 소속이라 변형(데코) 프리팹마다 다르며, 없으면 그 방은 바닥 폴백으로 떨어진다.
+        /// </summary>
+        /// <param name="blueprint">대상 블루프린트.</param>
+        private void CollectItemAnchors(MapBlueprint blueprint)
+        {
+            Log.D("[MapStateObjectSpawner] CollectItemAnchors");
+            anchorsByRoom.Clear();
+            anchorMissWarned.Clear();
+
+            Transform mapRoot = driver.LocalMapRoot.transform;
+            int total = 0;
+            for (int i = 0; i < mapRoot.childCount; i++)
+            {
+                Transform child = mapRoot.GetChild(i);
+                if (!child.name.StartsWith("Room_"))
+                {
+                    continue;
+                }
+
+                string[] tokens = child.name.Split('_');
+                if (tokens.Length < 2 || !int.TryParse(tokens[1], out int roomIndex))
+                {
+                    continue;
+                }
+
+                MapItemAnchor[] anchors = child.GetComponentsInChildren<MapItemAnchor>(false);
+                if (anchors.Length == 0)
+                {
+                    continue;
+                }
+
+                anchorsByRoom[roomIndex] = new List<MapItemAnchor>(anchors);
+                total += anchors.Length;
+            }
+
+            Log.D($"[MapStateObjectSpawner] 아이템 앵커 {total}개 / 앵커 보유 방 {anchorsByRoom.Count}개");
+        }
+
+        /// <summary>
+        /// 스폰이 놓일 앵커를 고른다 — 그 방의 미점유·마스크 허용 앵커 중 시드 결정적 선택 후 점유 표시.
+        /// 후보가 없으면 null(호출자가 바닥 폴백) + 방당 1회 경고 — 어느 프리팹에 앵커를 보강할지 로그로 드러난다.
+        /// </summary>
+        /// <param name="spawn">배치할 스폰.</param>
+        /// <param name="spawnIndex">스폰 목록 인덱스(선택 해시 키).</param>
+        /// <returns>선택된 앵커. 없으면 null.</returns>
+        private MapItemAnchor TakeAnchor(BlueprintSpawn spawn, int spawnIndex)
+        {
+            if (!anchorsByRoom.TryGetValue(spawn.RoomIndex, out List<MapItemAnchor> anchors))
+            {
+                WarnAnchorMiss(spawn);
+                return null;
+            }
+
+            var candidates = new List<MapItemAnchor>();
+            for (int i = 0; i < anchors.Count; i++)
+            {
+                if (anchors[i].Accepts(spawn.Kind))
+                {
+                    candidates.Add(anchors[i]);
+                }
+            }
+
+            if (candidates.Count == 0)
+            {
+                WarnAnchorMiss(spawn);
+                return null;
+            }
+
+            // 시드·스폰 인덱스 해시로 고정 선택 — 같은 시드면 같은 앵커(재현성)
+            uint hash = (uint)(driver.LocalBlueprint.Meta.Seed * 486187739 + spawnIndex * 31 + (int)spawn.Kind);
+            MapItemAnchor picked = candidates[(int)(hash % (uint)candidates.Count)];
+            picked.MarkOccupied();
+            return picked;
+        }
+
+        /// <summary>앵커 부족 경고 — 방당 1회만 남긴다(같은 방에 여러 스폰이 몰려도 로그가 도배되지 않게).</summary>
+        /// <param name="spawn">폴백된 스폰.</param>
+        private void WarnAnchorMiss(BlueprintSpawn spawn)
+        {
+            if (anchorMissWarned.Add(spawn.RoomIndex))
+            {
+                Log.W($"[MapStateObjectSpawner] 방 {spawn.RoomIndex}: {spawn.Kind} 를 받을 MapItemAnchor 부족 — 마커 셀 바닥으로 폴백(방 프리팹에 앵커 보강 필요)");
+            }
+        }
+
+        /// <summary>
+        /// 좀비 스폰 지점을 보행 가능한 빈 자리로 해결한다 — NavMesh 스냅 + 여유 검사(프랍·벽·먼저 스폰된 좀비).
+        /// 마커 지점부터 링 탐색(고정 각도·반경 순)으로 결정적으로 훑고, 전부 막히면 NavMesh 스냅 지점 + 경고.
+        /// </summary>
+        /// <param name="desired">마커가 지시한 원 지점.</param>
+        /// <param name="roomIndex">로그용 방 인덱스.</param>
+        /// <returns>스폰할 월드 좌표.</returns>
+        private Vector3 ResolveWalkablePosition(Vector3 desired, int roomIndex)
+        {
+            if (IsFreeWalkable(desired, out Vector3 direct))
+            {
+                return direct;
+            }
+
+            for (float radius = zombieSearchRadius / 4f; radius <= zombieSearchRadius + 0.01f; radius += zombieSearchRadius / 4f)
+            {
+                for (int step = 0; step < 8; step++)
+                {
+                    float angle = step * 45f * Mathf.Deg2Rad;
+                    var candidate = new Vector3(desired.x + Mathf.Cos(angle) * radius, desired.y, desired.z + Mathf.Sin(angle) * radius);
+                    if (IsFreeWalkable(candidate, out Vector3 resolved))
+                    {
+                        return resolved;
+                    }
+                }
+            }
+
+            Log.W($"[MapStateObjectSpawner] 방 {roomIndex}: 좀비 스폰 빈 자리 탐색 실패(반경 {zombieSearchRadius}m) — NavMesh 최근접 지점 사용");
+            return NavMesh.SamplePosition(desired, out NavMeshHit fallback, zombieSearchRadius, NavMesh.AllAreas) ? fallback.position : desired;
+        }
+
+        /// <summary>후보 지점이 보행 가능하고(NavMesh) 프랍·벽·다른 오브젝트와 겹치지 않는지 검사한다.</summary>
+        /// <param name="candidate">검사할 지점.</param>
+        /// <param name="resolved">NavMesh 로 스냅된 실제 지점.</param>
+        /// <returns>스폰 가능 여부.</returns>
+        private bool IsFreeWalkable(Vector3 candidate, out Vector3 resolved)
+        {
+            resolved = candidate;
+            if (!NavMesh.SamplePosition(candidate, out NavMeshHit hit, 1.5f, NavMesh.AllAreas))
+            {
+                return false; // 보행 불가(책장 속·벽 안·바닥 없음)
+            }
+
+            resolved = hit.position;
+            return !Physics.CheckSphere(resolved + Vector3.up * clearanceProbeHeight, zombieClearanceRadius, zombieBlockMask, QueryTriggerInteraction.Ignore);
+        }
+
+        /// <summary>
         /// 아이템·설비 스폰 — 열쇠(pairId = 자물쇠 번호 주입)·백신·기름·스크랩·투척물·사체 충전소·발전기를
-        /// 마커 좌표에 스폰한다. 종류별 프리팹 미등록은 스폰 생략 + 경고(개발 중 부분 등록 허용).
+        /// 방 프리팹의 아이템 앵커(MapItemAnchor)에 스폰한다. 앵커가 없으면 마커 셀 바닥 폴백 + 경고.
+        /// 종류별 프리팹 미등록은 스폰 생략 + 경고(개발 중 부분 등록 허용).
         /// </summary>
         /// <param name="blueprint">대상 블루프린트.</param>
         /// <param name="templates">템플릿 목록.</param>
@@ -137,8 +282,22 @@ namespace EmptyHouse.MapGen.Runtime
                     }
                 }
 
-                Vector3 position = MarkerWorldPosition(blueprint, templates, spawn) + Vector3.up * itemGroundClearance;
-                NetworkObject instance = Object.Instantiate(prefab, position, Quaternion.identity);
+                // 배치 지점은 방 프리팹의 아이템 앵커가 결정한다 — 앵커가 없거나 전부 점유면 마커 셀 바닥 폴백(+경고)
+                Vector3 position;
+                Quaternion rotation;
+                MapItemAnchor anchor = TakeAnchor(spawn, s);
+                if (anchor != null)
+                {
+                    position = anchor.transform.position;
+                    rotation = anchor.transform.rotation;
+                }
+                else
+                {
+                    position = MarkerWorldPosition(blueprint, templates, spawn) + Vector3.up * itemGroundClearance;
+                    rotation = Quaternion.identity;
+                }
+
+                NetworkObject instance = Object.Instantiate(prefab, position, rotation);
                 instance.Spawn();
                 if (spawn.Kind == SpawnKind.Key)
                 {
@@ -187,7 +346,8 @@ namespace EmptyHouse.MapGen.Runtime
                     continue;
                 }
 
-                Vector3 position = MarkerWorldPosition(blueprint, templates, spawn);
+                // 마커는 템플릿 셀 좌표라 방 변형(책장·가구)을 모른다 — 베이크된 NavMesh + 여유 검사로 빈 자리를 찾는다
+                Vector3 position = ResolveWalkablePosition(MarkerWorldPosition(blueprint, templates, spawn), spawn.RoomIndex);
                 NetworkObject instance = Object.Instantiate(prefab, position, Quaternion.identity);
                 instance.Spawn();
 

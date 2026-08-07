@@ -42,6 +42,8 @@ namespace EmptyHouse.MapGen.Runtime
             for (int r = 0; r < blueprint.Rooms.Count; r++)
             {
                 roomInstances[r] = PlaceRoom(blueprint.Rooms[r], FindTemplate(templates, blueprint.Rooms[r].TemplateId), registry, mapRoot.transform, minX, minY, blueprint.Meta.Seed, r);
+                // 방 인덱스를 이름에 박는다 — 스포너가 아이템 앵커(MapItemAnchor)를 방 단위로 찾을 때 쓰는 유일한 연결고리
+                roomInstances[r].name = $"Room_{r}_{blueprint.Rooms[r].TemplateId}";
             }
 
             // 간선 처리 순서·컨테이너 이름은 에디터 빌더와 동일 — 스포너·감사가 이름으로 조회한다

@@ -180,6 +180,8 @@ namespace EmptyHouse.MapGen.Editor
             for (int r = 0; r < blueprint.Rooms.Count; r++)
             {
                 roomInstances[r] = PlaceRoom(blueprint.Rooms[r], FindTemplate(templates, blueprint.Rooms[r].TemplateId), mapRoot.transform, minX, minY, blueprint.Meta.Seed, r);
+                // 런타임 조립기와 동일 명명 — 방 인덱스가 이름에 있어야 앵커 검수(어느 방에 앵커가 없는지)가 가능하다
+                roomInstances[r].name = $"Room_{r}_{blueprint.Rooms[r].TemplateId}";
             }
 
             // 간선 처리 — 개구부 벽 비활성화 + 문 프리팹 + 복도 개구 봉인 벽
