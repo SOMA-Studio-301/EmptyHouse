@@ -36,10 +36,14 @@ public class RoomManager : MonoBehaviour
     private bool isReady;
     private bool isInRoom;
     private bool isStartingGame; // 게임 시작 절차 진행 중 UI 잠금 플래그
+    private bool hasSeenRoomState; // 방 진입 후 Room 상태 스냅샷을 본 적 있는지. 그 전 스냅샷은 직전 판의 잔여 상태(출발중·준비 완료)라 신뢰하지 않는다
     private CancellationTokenSource lobbyPollCts;
 
     private Callback<AvatarImageLoaded_t> avatarLoadedCallback;
     private Callback<PersonaStateChange_t> personaStateCallback;
+
+    private static string LocalPlayerId => // 로컬 플레이어의 UGS ID. 로그인 전이면 어떤 슬롯과도 안 맞는 빈 문자열
+        AuthenticationService.Instance.IsSignedIn ? AuthenticationService.Instance.PlayerId : string.Empty;
 
     /// <summary>세션 이벤트를 구독한다. 뷰 의도 배선은 UIMenuManager 몫이다.</summary>
     private void OnEnable()
@@ -85,6 +89,7 @@ public class RoomManager : MonoBehaviour
         isReady = false;
         isInRoom = true;
         isStartingGame = false;
+        hasSeenRoomState = false; // 게임에서 막 돌아온 경우 첫 스냅샷이 직전 판 상태라 Room 을 확인하기 전까지 출발중·준비 완료를 그리지 않는다
 
         UpdateRoomUI();
         StartLobbyPolling();
@@ -100,7 +105,7 @@ public class RoomManager : MonoBehaviour
         }
     }
 
-    /// <summary>세션 로비 갱신을 받아 화면을 다시 그린다. 게임 시작 상태면 '출발중...' 을 조기 표시한다.</summary>
+    /// <summary>세션 로비 갱신을 받아 화면을 다시 그린다. Room → 게임 시작으로 넘어가는 전이에서만 '출발중...' 을 조기 표시한다.</summary>
     /// <param name="lobby">최신 로비</param>
     private void HandleLobbyUpdated(Lobby lobby)
     {
@@ -108,10 +113,15 @@ public class RoomManager : MonoBehaviour
 
         if (!isInRoom) return;
 
+        bool isStartingState = IsGameStartingState(lobby);
+        if (!isStartingState) hasSeenRoomState = true;
+
         // 게스트 조기 신호 — NGO 접속·씬 로드 이벤트를 기다리지 않고 폴링 스냅샷만으로 연출을 띄운다.
+        // 단 '지금 InGame' 이 아니라 'Room 을 본 뒤 InGame 이 됐다'는 전이로 판정한다 — Game 에서 막 돌아왔을 때
+        // 호스트가 Room 을 게시하기 전까지 남아 있는 직전 판의 상태를 새 출발로 오인하지 않기 위해서다.
         // 중복 호출은 ShowDepartText 의 활성 가드가 거른다. 시작 실패로 Room 원복되면 잔상을 지운다
         // (호스트는 클릭 직후 스냅샷이 아직 Room 일 수 있어 isStartingGame 동안 끄지 않는다).
-        if (IsGameStartingState(lobby)) uiRoom.ShowDepartText();
+        if (isStartingState && hasSeenRoomState) uiRoom.ShowDepartText();
         else if (!isStartingGame) uiRoom.HideDepartText();
     }
 
@@ -139,6 +149,7 @@ public class RoomManager : MonoBehaviour
         isInRoom = false;
         isReady = false;
         isStartingGame = false;
+        hasSeenRoomState = false;
         CancelLobbyPolling();
     }
 
@@ -347,11 +358,26 @@ public class RoomManager : MonoBehaviour
             slots.Add(new RoomSlotInfo(
                 GetPlayerName(player),
                 player.Id == lobby.HostId,
-                GetPlayerReadyStatus(player),
+                ResolveReadyStatus(player),
                 steamId));
         }
 
         return slots;
+    }
+
+    /// <summary>
+    /// 표시·판정에 쓸 준비 상태를 정한다. 스냅샷을 그대로 믿지 않는 두 경우가 있다.
+    /// 내 슬롯은 로컬 값이 진실이고(서버 왕복을 기다리며 옛 값을 그리지 않는다),
+    /// Room 상태를 보기 전 스냅샷은 직전 판의 준비 상태라 전원 미준비로 본다.
+    /// </summary>
+    /// <param name="player">대상 플레이어</param>
+    /// <returns>준비 완료로 그릴지 여부</returns>
+    private bool ResolveReadyStatus(Player player)
+    {
+        if (player.Id == LocalPlayerId) return isReady;
+        if (!hasSeenRoomState) return false;
+
+        return GetPlayerReadyStatus(player);
     }
 
     /// <summary>방장/게스트에 따라 버튼 표시와 잠금을 정한다.</summary>
@@ -381,7 +407,7 @@ public class RoomManager : MonoBehaviour
         {
             if (player.Id == lobby.HostId) continue;
 
-            if (!GetPlayerReadyStatus(player)) return false;
+            if (!ResolveReadyStatus(player)) return false;
         }
 
         return true;
