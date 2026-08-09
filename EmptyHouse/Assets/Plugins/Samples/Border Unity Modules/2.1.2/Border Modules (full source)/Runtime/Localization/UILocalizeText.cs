@@ -1,7 +1,9 @@
 using System.Collections;
+using System.Collections.Generic;
 using System.Text;
 using TMPro;
 using UnityEngine;
+using UnityEngine.UI;
 using Border.Core;
 using Border.Events;
 
@@ -53,6 +55,12 @@ namespace Border.Localization
         // 합성 출력 전용 버퍼. SetText(StringBuilder) 로 전달해 string 할당을 피한다.
         private readonly StringBuilder composeBuilder = new StringBuilder(128);
 
+        private RectTransform cachedLayoutRoot; // 텍스트 변경 시 무효화할 레이아웃 루트. 조상에 없으면 null
+        private bool layoutRootResolved; // cachedLayoutRoot 계산 완료 여부. OnEnable 에서 리셋
+
+        // 조상 탐색용 재사용 버퍼. GetComponents 논알로케이팅 오버로드에 전달한다.
+        private static readonly List<ILayoutController> layoutControllerBuffer = new List<ILayoutController>(4);
+
         /// <summary>
         /// 대상 Text 컴포넌트를 자동 탐색한다.
         /// </summary>
@@ -67,9 +75,14 @@ namespace Border.Localization
         /// <summary>
         /// provider 에 바인딩한다. 아직 없으면 등장할 때까지 대기 후 바인딩한다.
         /// 스크립트 실행 순서가 미지정이라 UI 가 LocalizationManager 보다 먼저 깨는 경우가 있다.
+        /// 재부모화(풀링)·조상 활성 상태 변화를 반영하기 위해 레이아웃 루트 캐시를 버리고 다시 무효화한다.
+        /// 비활성 중에는 TMP/UGUI 양쪽이 마크를 무시하므로, 활성화 시점의 이 호출이 유일한 복구 지점이다.
         /// </summary>
         private void OnEnable()
         {
+            layoutRootResolved = false;
+            MarkLayoutDirty();
+
             ILocalizationProvider localizationManager = LocalizationManager.Current;
             if (localizationManager != null)
             {
@@ -172,7 +185,7 @@ namespace Border.Localization
         }
 
         /// <summary>
-        /// 정적/동적 조각을 합성 순서에 맞춰 TMP 에 출력한다.
+        /// 정적/동적 조각을 합성 순서에 맞춰 TMP 에 출력하고 상위 레이아웃을 무효화한다.
         /// 모든 조각이 비어 있으면 빈 문자열을 출력한다.
         /// </summary>
         private void Apply()
@@ -188,6 +201,65 @@ namespace Border.Localization
             AppendAffixGroup(cachedSuffix, dynamicSuffix, suffixDynamicFirst);
 
             tmpText.SetText(composeBuilder);
+            MarkLayoutDirty();
+        }
+
+        /// <summary>
+        /// 텍스트 확정 후 상위 레이아웃을 다시 계산하도록 무효화한다.
+        /// 비활성 상태면 TMP·UGUI 양쪽이 마크를 무시하므로 그냥 반환한다. 복구는 OnEnable 이 담당한다.
+        /// </summary>
+        private void MarkLayoutDirty()
+        {
+            if (!isActiveAndEnabled)
+            {
+                return;
+            }
+
+            if (!layoutRootResolved)
+            {
+                cachedLayoutRoot = ResolveLayoutRoot();
+                layoutRootResolved = true;
+            }
+
+            if (cachedLayoutRoot != null)
+            {
+                LayoutRebuilder.MarkLayoutForRebuild(cachedLayoutRoot);
+            }
+        }
+
+        /// <summary>
+        /// Canvas 경계까지 조상을 거슬러 올라가며 활성 ILayoutController 를 가진 최상위 조상을 찾는다.
+        /// UGUI 기본 탐색은 ILayoutGroup 없는 중간 노드에서 끊겨 상위 ContentSizeFitter 를 놓치므로 직접 훑는다.
+        /// </summary>
+        /// <returns>무효화 대상 레이아웃 루트. 조상에 레이아웃 컨트롤러가 없으면 null.</returns>
+        private RectTransform ResolveLayoutRoot()
+        {
+            RectTransform layoutRoot = null;
+            Transform cursor = tmpText.rectTransform;
+
+            while (cursor != null)
+            {
+                cursor.GetComponents(layoutControllerBuffer);
+                for (int i = 0; i < layoutControllerBuffer.Count; i++)
+                {
+                    if (layoutControllerBuffer[i] is Behaviour behaviour && behaviour.isActiveAndEnabled)
+                    {
+                        layoutRoot = cursor as RectTransform;
+                        break;
+                    }
+                }
+
+                // 중첩 Canvas 는 레이아웃 격리 경계로 취급해 그 위로는 올라가지 않는다.
+                if (cursor.GetComponent<Canvas>() != null)
+                {
+                    break;
+                }
+
+                cursor = cursor.parent;
+            }
+
+            layoutControllerBuffer.Clear();
+            return layoutRoot;
         }
 
         /// <summary>
