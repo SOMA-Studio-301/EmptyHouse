@@ -15,7 +15,7 @@ namespace EmptyHouse.MapGen.Core
         public int CorridorChainMax = 3; // 복도 연쇄 최대 세그먼트 수(1 = 연쇄 없음) — 경유 연결마다 1~Max 균등 롤, 먼 방 연결용. 체인 전체가 원자 트랜잭션이라 막다른 끝 불변
         public int ReturnExitCount = 2; // 탈출문(Door-Return) 개수 — 입구(방 0)와 별개. 가장 깊은 잎 방의 바깥 향 봉인 소켓을 대체한다. 후보 부족 시 있는 만큼(X6 경고)
         public int WardrobeCount = 6; // 벽장(은신) 배치 수 — 좀비 있는 방 우선 분산
-        public int ShortcutValueMin = 2; // 지름길 채택 최소 귀환 단축 이득(방 단위 거리 — 복도 비용 0, RoomHopMetric). 2026-08-07 실측 튜닝: 전체 hop 기준 3이던 값을 방 단위로 바꾸며 재설정(복도-방 후보 포함 시 시드당 ≥2 후보 4.3개)
+        public int ShortcutValueMin = 1; // 지름길 채택 최소 귀환 단축 이득(방 단위 거리 — 복도 비용 0, RoomHopMetric). 1 = "어느 방이 실제로 방 1개만큼 멀어진다" — 이득 0(복도만 우회하는 가짜 지름길)은 계속 배제된다. 2026-08-07 실측: 임계 2면 시드 31%가 지름길 0개, 1이면 3%(채택 2.38개로 목표 2~3 충족)
         public int ListenerCounterDist = 2; // Listener 관문 앞 투척물 배치 보장 그래프 거리(방 수, 5절)
         public int RerollMax = 20; // 검증 실패 시 리롤 상한(X2)
         public int ShortcutLockCountMin = 2; // 지름길 자물쇠 최소(레벨디자인 5절 🟢 2~3) — 가치 통과 후보가 부족하면 있는 만큼만 채택
