@@ -9,7 +9,7 @@ using UnityEngine;
 /// </summary>
 public static class SteamAvatarUtility
 {
-    /// <summary>스팀 ID 문자열로 중간 크기 아바타 텍스처를 만든다.</summary>
+    /// <summary>스팀 ID 문자열로 큰 크기(184x184) 아바타 텍스처를 만든다. 스팀이 제공하는 최대 해상도다.</summary>
     /// <param name="steamId">대상 스팀 ID 문자열.</param>
     /// <returns>생성된 텍스처. 스팀 미초기화·ID 파싱 실패·이미지 미도착이면 null.</returns>
     public static Texture2D Load(string steamId)
@@ -18,7 +18,12 @@ public static class SteamAvatarUtility
 
         try
         {
-            int avatarHandle = SteamFriends.GetMediumFriendAvatar(new CSteamID(steamIdValue));
+            CSteamID targetId = new CSteamID(steamIdValue);
+
+            // -1 은 큰 이미지가 아직 안 왔다는 뜻. 그동안은 중간 크기(64x64)로 대체해 빈 칸을 피한다
+            int avatarHandle = SteamFriends.GetLargeFriendAvatar(targetId);
+            if (avatarHandle == -1) avatarHandle = SteamFriends.GetMediumFriendAvatar(targetId);
+
             return CreateTexture(avatarHandle);
         }
         catch (Exception e)
@@ -43,7 +48,8 @@ public static class SteamAvatarUtility
             CSteamID targetId = new CSteamID(steamIdValue);
 
             // -1 은 "이미지가 아직 안 왔다"는 뜻. 0(아바타 없음)이나 유효 핸들은 더 기다릴 게 없다
-            if (SteamFriends.GetMediumFriendAvatar(targetId) != -1) return true;
+            // Load 가 큰 크기를 쓰므로 판정 기준도 같은 크기여야 한다 — 중간 크기로 재면 저해상도인 채 통과한다
+            if (SteamFriends.GetLargeFriendAvatar(targetId) != -1) return true;
 
             SteamFriends.RequestUserInformation(targetId, false); // 아바타까지 받아오도록 요청만 걸어 둔다
             return false;
@@ -78,6 +84,7 @@ public static class SteamAvatarUtility
         }
 
         Texture2D texture = new Texture2D((int)width, (int)height, TextureFormat.RGBA32, false);
+        texture.filterMode = FilterMode.Bilinear; // 슬롯이 원본보다 크면 업스케일되므로 계단 현상을 막는다
         texture.LoadRawTextureData(flippedBuffer);
         texture.Apply();
         return texture;
