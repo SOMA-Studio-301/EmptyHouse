@@ -62,8 +62,49 @@ namespace EmptyHouse.MapGen.Runtime
             List<RoomTemplateDef> templates = MapTemplateCatalog.Create();
             CollectItemAnchors(blueprint);
             SpawnDoors(blueprint, templates);
+            SpawnReturnExits(blueprint);
             SpawnItems(blueprint, templates);
             SpawnZombies(blueprint, templates);
+        }
+
+        /// <summary>
+        /// 탈출문(ReturnExit 간선)마다 Door-Return 프리팹을 스폰한다 — 조립기가 남긴 ReturnAnchor 기준,
+        /// 문틀 정렬은 일반 문과 동일. 문은 열리지 않고 홀드 즉시 탈출이라 잠금·자물쇠 개념이 없다.
+        /// </summary>
+        /// <param name="blueprint">대상 블루프린트.</param>
+        private void SpawnReturnExits(MapBlueprint blueprint)
+        {
+            Log.D("[MapStateObjectSpawner] SpawnReturnExits");
+            if (prefabRegistry.ReturnExitPrefab == null)
+            {
+                Log.W("[MapStateObjectSpawner] 탈출문 프리팹 미등록(ReturnExitPrefab) — 탈출구 없음, 세션 종료 불가");
+                return;
+            }
+
+            Transform doorsRoot = driver.LocalMapRoot.transform.Find("Doors");
+            int spawned = 0;
+            for (int e = 0; e < blueprint.Edges.Count; e++)
+            {
+                if (blueprint.Edges[e].State != EdgeState.ReturnExit)
+                {
+                    continue;
+                }
+
+                Transform anchor = doorsRoot.Find($"ReturnAnchor_e{e}");
+                if (anchor == null)
+                {
+                    Log.W($"[MapStateObjectSpawner] 간선 e{e} 탈출문 앵커 없음 — 스폰 생략");
+                    continue;
+                }
+
+                NetworkObject exitDoor = Object.Instantiate(prefabRegistry.ReturnExitPrefab, anchor.position, anchor.rotation);
+                Bounds frame = MapRuntimeAssembler.FrameBounds(exitDoor.gameObject);
+                exitDoor.transform.position += new Vector3(anchor.position.x - frame.center.x, 0f, anchor.position.z - frame.center.z);
+                exitDoor.Spawn();
+                spawned++;
+            }
+
+            Log.D($"[MapStateObjectSpawner] 탈출문 스폰 {spawned}건");
         }
 
         /// <summary>
@@ -290,6 +331,10 @@ namespace EmptyHouse.MapGen.Runtime
                 {
                     position = anchor.transform.position;
                     rotation = anchor.transform.rotation;
+                }
+                else if (spawn.MarkerId < 0)
+                {
+                    continue; // 마커 없는 종류(벽장)는 앵커 전용 — 바닥 폴백을 두면 프랍 속에 박힌다(경고는 TakeAnchor 가 남긴다)
                 }
                 else
                 {

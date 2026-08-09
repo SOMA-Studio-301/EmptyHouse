@@ -54,6 +54,13 @@ namespace EmptyHouse.MapGen.Runtime
             for (int e = 0; e < blueprint.Edges.Count; e++)
             {
                 BlueprintEdge edge = blueprint.Edges[e];
+                if (edge.State == EdgeState.ReturnExit)
+                {
+                    // 탈출문 — 잎 방 바깥 벽을 문 개구로 뚫고 앵커만 남긴다(문 오브젝트는 서버 스폰)
+                    PlaceOuterExitOpening(blueprint, templates, edge, e, roomInstances, registry, doorsRoot.transform, mapRoot.transform.position, minX, minY);
+                    continue;
+                }
+
                 if (edge.RoomB < 0)
                 {
                     // 방 봉인 소켓 = 벽 유지. 복도 봉인 소켓 = 단부에 벽이 없어 물리 처리 필요:
@@ -456,6 +463,50 @@ namespace EmptyHouse.MapGen.Runtime
             }
 
             return bounds;
+        }
+
+        /// <summary>
+        /// 탈출문 개구 — 잎 방의 바깥 향 소켓(맞은편 = 맵 바깥) 벽을 문 슬롯만큼 절단하고
+        /// 스포너용 앵커 ReturnAnchor_e{n} 을 남긴다. 상대 방이 없으므로 절단은 한쪽뿐이고,
+        /// 문은 열리지 않아(홀드 즉시 탈출) 너머가 비어 있어도 무방하다.
+        /// </summary>
+        /// <param name="blueprint">대상 블루프린트.</param>
+        /// <param name="templates">템플릿 목록.</param>
+        /// <param name="edge">탈출문 간선(RoomB = -1).</param>
+        /// <param name="edgeIndex">간선 인덱스(앵커 이름).</param>
+        /// <param name="roomInstances">방 인스턴스 배열.</param>
+        /// <param name="registry">프리팹 레지스트리.</param>
+        /// <param name="doorsRoot">앵커·충진 조각 컨테이너.</param>
+        /// <param name="mapOrigin">맵 원점 월드 좌표.</param>
+        /// <param name="minX">맵 최소 셀 X.</param>
+        /// <param name="minY">맵 최소 셀 Y.</param>
+        private static void PlaceOuterExitOpening(MapBlueprint blueprint, IReadOnlyList<RoomTemplateDef> templates, BlueprintEdge edge, int edgeIndex, GameObject[] roomInstances, MapPrefabRegistrySO registry, Transform doorsRoot, Vector3 mapOrigin, int minX, int minY)
+        {
+            RoomTemplateDef template = FindTemplate(templates, blueprint.Rooms[edge.RoomA].TemplateId);
+            SocketDef socket = FindSocket(template, edge.SocketA);
+            CellCoord worldCell = CellMath.WorldCell(blueprint.Rooms[edge.RoomA], template, socket.LocalCell);
+            SocketDirection dir = CellMath.RotateDirection(socket.Direction, blueprint.Rooms[edge.RoomA].Rotation);
+
+            float cell = registry.CellMeters;
+            Vector3 cellCenter = mapOrigin + new Vector3((worldCell.X - minX + 0.5f) * cell, 0f, (worldCell.Y - minY + 0.5f) * cell);
+            Vector3 gateCenter = cellCenter + DirectionVector(dir) * (cell * 0.5f);
+            bool boundaryAlongX = dir == SocketDirection.North || dir == SocketDirection.South;
+            var gate = new Bounds(gateCenter + Vector3.up * 3f, boundaryAlongX ? new Vector3(3.9f, 5.8f, 1.6f) : new Vector3(1.6f, 5.8f, 3.9f));
+            var cut = new List<Bounds>();
+            DisableWallsIntersecting(roomInstances[edge.RoomA], gate, boundaryAlongX, cut);
+
+            // 잔여 슬릿 충진 — 공칭 4m 슬롯 프로파일(문 간선과 동일 수치)
+            float cellCenterAxis = boundaryAlongX ? gateCenter.x : gateCenter.z;
+            Vector3 profileCenter = boundaryAlongX
+                ? new Vector3(cellCenterAxis, mapOrigin.y + 3f, gateCenter.z)
+                : new Vector3(gateCenter.x, mapOrigin.y + 3f, cellCenterAxis);
+            var profile = new Bounds(profileCenter, boundaryAlongX ? new Vector3(4f, 6f, 1.6f) : new Vector3(1.6f, 6f, 4f));
+            CoverOpeningSlits(cut, profile, boundaryAlongX, registry, doorsRoot, mapOrigin.y, edgeIndex);
+
+            var anchor = new GameObject($"ReturnAnchor_e{edgeIndex}");
+            anchor.transform.SetParent(doorsRoot, false);
+            anchor.transform.position = gateCenter;
+            anchor.transform.rotation = Quaternion.Euler(0f, YawFor(dir), 0f);
         }
 
         /// <summary>

@@ -103,6 +103,7 @@ namespace EmptyHouse.MapGen.Editor
                 }
 
                 DrawHoverTooltip(localRect, blueprint, templates, cachedDepths);
+                DrawLegend(localRect);
             }
 
             GUI.EndClip();
@@ -331,8 +332,17 @@ namespace EmptyHouse.MapGen.Editor
 
                 if (edge.RoomB < 0)
                 {
-                    // 봉인(빈 소켓 막힌 벽) — 소켓 자리 바깥쪽 경계에 어두운 눈금만 표기
                     SocketDirection dir = CellMath.RotateDirection(socketA.Direction, blueprint.Rooms[edge.RoomA].Rotation);
+                    if (edge.State == EdgeState.ReturnExit)
+                    {
+                        // 탈출문 — 잎 방 바깥 벽의 출구. 초록 배지로 크게 표기(맵에서 즉시 찾을 수 있어야 한다)
+                        var exitBadge = new Rect(centerA.x - 11f, centerA.y - 8f, 22f, 16f);
+                        EditorGUI.DrawRect(exitBadge, new Color(0.2f, 0.85f, 0.35f));
+                        GUI.Label(exitBadge, "EXIT", badgeStyle);
+                        continue;
+                    }
+
+                    // 봉인(빈 소켓 막힌 벽) — 소켓 자리 바깥쪽 경계에 어두운 눈금만 표기
                     DrawSealTick(worldA, dir, canvasRect);
                     continue;
                 }
@@ -404,6 +414,11 @@ namespace EmptyHouse.MapGen.Editor
 
                 RoomTemplateDef template = cachedRoomTemplates[spawn.RoomIndex];
                 MarkerDef marker = FindMarker(template, spawn.MarkerId);
+                if (marker == null)
+                {
+                    continue; // 앵커 전용 종류(벽장 — MarkerId -1)는 코어 마커가 없다 — 좌표는 방 프리팹 앵커 소관
+                }
+
                 CellCoord world = CellMath.WorldCell(blueprint.Rooms[spawn.RoomIndex], template, marker.LocalCell);
                 long key = ((long)world.X << 32) ^ (uint)world.Y;
                 stackCount.TryGetValue(key, out int stack);
@@ -437,7 +452,52 @@ namespace EmptyHouse.MapGen.Editor
                 case SpawnKind.Throwable: return ("T", new Color(0.1f, 0.5f, 0.6f));
                 case SpawnKind.CorpseStation: return ("C", new Color(0.4f, 0.25f, 0.55f));
                 case SpawnKind.Generator: return ("G", new Color(0.15f, 0.35f, 0.7f));
+                case SpawnKind.Wardrobe: return ("B", new Color(0.2f, 0.6f, 0.75f));
                 default: return ("H", new Color(0.45f, 0.1f, 0.1f)); // HerdArea
+            }
+        }
+
+        /// <summary>
+        /// 범례 — 캔버스 좌상단에 배지 문자·간선 색의 뜻을 표기한다(오버레이 토글과 무관하게 항상 표시).
+        /// 배지 색은 SpawnBadge 와 같은 값을 쓴다 — 갈라지면 범례가 거짓말이 된다.
+        /// </summary>
+        /// <param name="localRect">클립 로컬 캔버스 영역.</param>
+        private void DrawLegend(Rect localRect)
+        {
+            (string label, string desc, Color color)[] entries =
+            {
+                ("Z", "Walker", new Color(0.7f, 0.15f, 0.15f)),
+                ("L", "Listener", new Color(0.85f, 0.3f, 0.1f)),
+                ("W", "Watcher", new Color(0.55f, 0.1f, 0.4f)),
+                ("H", "무리 구역", new Color(0.45f, 0.1f, 0.1f)),
+                ("V1~3", "백신 3종", new Color(0.1f, 0.55f, 0.25f)),
+                ("K#", "열쇠(번호)", new Color(0.8f, 0.7f, 0.1f)),
+                ("O", "연료", new Color(0.5f, 0.35f, 0.1f)),
+                ("S", "스크랩", new Color(0.45f, 0.45f, 0.45f)),
+                ("T", "투척물", new Color(0.1f, 0.5f, 0.6f)),
+                ("C", "사체 충전소", new Color(0.4f, 0.25f, 0.55f)),
+                ("G", "발전기", new Color(0.15f, 0.35f, 0.7f)),
+                ("B", "벽장(앵커 배치)", new Color(0.2f, 0.6f, 0.75f)),
+                ("EXIT", "탈출문", new Color(0.2f, 0.85f, 0.35f)),
+                ("─", "통로", new Color(0.85f, 0.85f, 0.85f, 0.75f)),
+                ("─", "문(열림)", new Color(0.8f, 0.65f, 0.3f)),
+                ("━", "자물쇠(물품)", new Color(1f, 0.45f, 0.15f)),
+                ("━", "자물쇠(지름길)", new Color(0.75f, 0.4f, 0.95f)),
+            };
+
+            const float rowHeight = 14f;
+            const float width = 132f;
+            var panel = new Rect(6f, 6f, width, entries.Length * rowHeight + 20f);
+            EditorGUI.DrawRect(panel, new Color(0.08f, 0.08f, 0.1f, 0.88f));
+            GUI.Label(new Rect(panel.x + 6f, panel.y + 2f, width, 14f), "범례", EditorStyles.miniBoldLabel);
+
+            for (int i = 0; i < entries.Length; i++)
+            {
+                float y = panel.y + 18f + i * rowHeight;
+                var swatch = new Rect(panel.x + 6f, y + 1f, 26f, 11f);
+                EditorGUI.DrawRect(swatch, entries[i].color);
+                GUI.Label(swatch, entries[i].label, badgeStyle);
+                GUI.Label(new Rect(panel.x + 36f, y - 1f, width - 40f, 14f), entries[i].desc, EditorStyles.miniLabel);
             }
         }
 
@@ -458,6 +518,11 @@ namespace EmptyHouse.MapGen.Editor
 
                 RoomTemplateDef template = cachedRoomTemplates[spawn.RoomIndex];
                 MarkerDef marker = FindMarker(template, spawn.MarkerId);
+                if (marker == null)
+                {
+                    continue; // 앵커 전용 종류(벽장 — MarkerId -1)는 코어 마커가 없다 — 좌표는 방 프리팹 앵커 소관
+                }
+
                 CellCoord world = CellMath.WorldCell(blueprint.Rooms[spawn.RoomIndex], template, marker.LocalCell);
                 Vector2 center = CellCenter(world, canvasRect);
                 Handles.DrawWireDisc(new Vector3(center.x, center.y, 0f), Vector3.forward, spawn.WanderRadiusCells * zoom);
@@ -488,6 +553,11 @@ namespace EmptyHouse.MapGen.Editor
 
                 RoomTemplateDef template = cachedRoomTemplates[spawn.RoomIndex];
                 MarkerDef marker = FindMarker(template, spawn.MarkerId);
+                if (marker == null)
+                {
+                    continue; // 앵커 전용 종류(벽장 — MarkerId -1)는 코어 마커가 없다 — 좌표는 방 프리팹 앵커 소관
+                }
+
                 CellCoord world = CellMath.WorldCell(blueprint.Rooms[spawn.RoomIndex], template, marker.LocalCell);
                 Vector2 center = CellCenter(world, canvasRect);
                 Handles.DrawWireDisc(new Vector3(center.x, center.y, 0f), Vector3.forward, radiusCells * zoom);

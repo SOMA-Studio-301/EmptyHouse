@@ -8,7 +8,8 @@ namespace EmptyHouse.MapGen.Core
         OpenPassage,
         DoorOpen,
         DoorLocked,
-        BlockedWall
+        BlockedWall,
+        ReturnExit // 탈출문(Door-Return) — 잎 방의 바깥 향 봉인 소켓을 대체한다. 열리지 않고 홀드 즉시 탈출이라 너머는 맵 바깥(빈 공간). 값은 끝에 추가 = 기존 해시 안정
     }
 
     /// <summary>자물쇠 용도 구분(4-1절 — 중요 물품 문/지름길). 그래프 뷰 간선 표시(10절)와 어댑터가 소비한다.</summary>
@@ -102,6 +103,7 @@ namespace EmptyHouse.MapGen.Core
         Throwable,
         CorpseStation,
         Generator,
-        HerdArea
+        HerdArea,
+        Wardrobe // 벽장(은신) — 값은 끝에 추가(기존 해시 안정)
     }
 }

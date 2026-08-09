@@ -126,6 +126,8 @@ namespace EmptyHouse.MapGen.Editor
                 p.CycleRoomPercent = EditorGUILayout.IntSlider("사이클 소속 방 목표 %", p.CycleRoomPercent, 0, 100);
                 p.CorridorLinkPercent = EditorGUILayout.IntSlider("복도 경유 확률 %", p.CorridorLinkPercent, 0, 100);
                 p.CorridorChainMax = EditorGUILayout.IntField("복도 연쇄 Max", p.CorridorChainMax);
+                p.ReturnExitCount = EditorGUILayout.IntField("탈출문 수", p.ReturnExitCount);
+                p.WardrobeCount = EditorGUILayout.IntField("벽장 수", p.WardrobeCount);
                 p.ShortcutValueMin = EditorGUILayout.IntField("지름길 최소 가치", p.ShortcutValueMin);
                 p.ListenerCounterDist = EditorGUILayout.IntField("Listener 보장 거리", p.ListenerCounterDist);
                 p.RerollMax = EditorGUILayout.IntField("리롤 상한", p.RerollMax);

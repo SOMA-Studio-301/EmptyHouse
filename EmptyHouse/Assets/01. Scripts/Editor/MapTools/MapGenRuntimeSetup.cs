@@ -37,7 +37,7 @@ namespace EmptyHouse.EditorTools
         /// <summary>TemplateId → 기본(폴백) 방 프리팹 경로(MapGen.Editor asmdef 가 비참조라 PrefabRoomTemplates.PrefabPaths 를 복제 — 경로 변경 시 양쪽 갱신).</summary>
         private static readonly (string id, string path)[] roomPrefabPaths =
         {
-            ("entrance_6x6", "Assets/02. Prefab/Map/EmptyRooms/Entrance-EmptyRoom-6x6.prefab"),
+            ("entrance_6x6", "Assets/02. Prefab/Map/DecoratedRooms/Entrance/Entrance-EmptyRoom-6x6.prefab"),
             ("room_3x3", "Assets/02. Prefab/Map/EmptyRooms/EmptyRoom-3x3.prefab"),
             ("room_6x6", "Assets/02. Prefab/Map/EmptyRooms/EmptyRoom-6x6.prefab"),
             ("room_6x9", "Assets/02. Prefab/Map/EmptyRooms/EmptyRoom-6x9.prefab"),

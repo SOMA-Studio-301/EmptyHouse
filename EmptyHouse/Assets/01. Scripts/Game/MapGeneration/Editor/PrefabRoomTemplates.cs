@@ -27,7 +27,7 @@ namespace EmptyHouse.MapGen.Editor
         /// </remarks>
         public static readonly Dictionary<string, string> PrefabPaths = new Dictionary<string, string>
         {
-            { "entrance_6x6", "Assets/02. Prefab/Map/EmptyRooms/Entrance-EmptyRoom-6x6.prefab" },
+            { "entrance_6x6", "Assets/02. Prefab/Map/DecoratedRooms/Entrance/Entrance-EmptyRoom-6x6.prefab" },
             { "room_3x3", "Assets/02. Prefab/Map/EmptyRooms/EmptyRoom-3x3.prefab" },
             { "room_6x6", "Assets/02. Prefab/Map/EmptyRooms/EmptyRoom-6x6.prefab" },
             { "room_6x9", "Assets/02. Prefab/Map/EmptyRooms/EmptyRoom-6x9.prefab" },
@@ -36,6 +36,7 @@ namespace EmptyHouse.MapGen.Editor
         };
 
         public const string DoorPath = "Assets/02. Prefab/Map/DecoratedRooms/Door/Door.prefab"; // 단일 문 프리팹(닫힌 버전, 4m 슬롯 전폭·전고 6m) — 열림/잠김 모두 이것 하나로 배치해 위치 계산 분기를 없앤다
+        public const string ReturnDoorPath = "Assets/02. Prefab/Map/DecoratedRooms/Door/Door_Return.prefab"; // 탈출문(Door-Return) — 문 구조 + ReturnInteractable, 열리지 않는다(홀드 즉시 탈출)
         public const string SealWallPath = "Assets/04. Arts/Environment/HorrorPack/!Prefabs/Architectural/Hall_Props/Hall_Wall_6M_1Side.prefab"; // 복도 개구 봉인 벽(2×6m)
         public const string CornerColumnPath = "Assets/04. Arts/Environment/HorrorPack/!Prefabs/Architectural/Hall_Props/Hall_Clumn_Large_6M.prefab"; // 코너 이음 기둥(0.86×5.93m)
 

@@ -100,7 +100,11 @@ namespace EmptyHouse.MapGen.Core.Tests
             }
         }
 
-        /// <summary>마커 밖 좌표(마커 참조 없는 스폰)가 0개다(AC-15 · 2절).</summary>
+        /// <summary>
+        /// 마커 밖 좌표(마커 참조 없는 스폰)가 0개다(AC-15 · 2절).
+        /// 예외 — 앵커 전용 종류(벽장)는 MarkerId = -1 이다: 좌표를 방 프리팹의 MapItemAnchor 가 정하므로
+        /// 코어 마커가 없다. 어댑터가 앵커 없는 방에서는 스폰 자체를 생략해 "마커 밖 배치"가 생기지 않는다.
+        /// </summary>
         [Test]
         public void TryDistribute_마커_밖_스폰이_없다()
         {
@@ -110,6 +114,13 @@ namespace EmptyHouse.MapGen.Core.Tests
                 for (int s = 0; s < blueprint.Spawns.Count; s++)
                 {
                     BlueprintSpawn spawn = blueprint.Spawns[s];
+                    if (spawn.Kind == SpawnKind.Wardrobe)
+                    {
+                        Assert.That(spawn.MarkerId, Is.EqualTo(-1),
+                            $"시드 {seed}: 벽장 스폰 {s} 가 마커 {spawn.MarkerId} 를 참조한다 — 앵커 전용 종류는 -1 이어야 한다");
+                        continue;
+                    }
+
                     MarkerDef marker = FindMarker(templates, blueprint, spawn.RoomIndex, spawn.MarkerId);
                     Assert.That(marker, Is.Not.Null,
                         $"시드 {seed}: 스폰 {s}({spawn.Kind}) 가 방 {spawn.RoomIndex} 에 없는 마커 {spawn.MarkerId} 를 참조한다(AC-15)");

@@ -17,8 +17,9 @@ namespace EmptyHouse.MapGen.Runtime
         Throwable = 16, // 투척물
         CorpseStation = 32, // 사체 충전소(바닥 전용)
         Generator = 64, // 발전기(바닥 전용)
+        Wardrobe = 128, // 벽장(은신) — 바닥·벽면 전용. 사람이 들어가므로 앞이 트인 자리여야 한다
         SmallItems = Vaccine | Key | Scrap | Throwable, // 선반·탁자용 묶음
-        All = Vaccine | Key | Fuel | Scrap | Throwable | CorpseStation | Generator
+        All = Vaccine | Key | Fuel | Scrap | Throwable | CorpseStation | Generator | Wardrobe
     }
 
     /// <summary>
@@ -64,6 +65,7 @@ namespace EmptyHouse.MapGen.Runtime
                 case SpawnKind.Throwable: return SpawnAnchorMask.Throwable;
                 case SpawnKind.CorpseStation: return SpawnAnchorMask.CorpseStation;
                 case SpawnKind.Generator: return SpawnAnchorMask.Generator;
+                case SpawnKind.Wardrobe: return SpawnAnchorMask.Wardrobe;
                 default: return SpawnAnchorMask.None;
             }
         }
