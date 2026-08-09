@@ -43,7 +43,82 @@ namespace EmptyHouse.MapGen.Core
                 DistributeFacilities(rng, blueprint, dangerDepths, templates);
             }
 
+            if (!failed)
+            {
+                DistributeWardrobes(rng, genParams, blueprint);
+            }
+
             return !failed;
+        }
+
+        /// <summary>
+        /// 벽장(은신)을 분배한다 — 좀비가 있는 방 우선(회피 수단이 필요한 곳), 남는 예산은 나머지 방에.
+        /// 한 방에 몰리지 않게 방당 1개까지만 배치한다. 실제 좌표는 방 프리팹의 MapItemAnchor 가 정한다(어댑터).
+        /// 예산보다 방이 적으면 있는 만큼만 — 실패로 보지 않는다(회피 수단은 X6 경고 대상).
+        /// </summary>
+        /// <param name="rng">단일 난수 스트림.</param>
+        /// <param name="genParams">생성 파라미터(벽장 수).</param>
+        /// <param name="blueprint">대상 블루프린트.</param>
+        private void DistributeWardrobes(DeterministicRng rng, MapGenParams genParams, MapBlueprint blueprint)
+        {
+            Log.D("[SpawnDistributor] DistributeWardrobes");
+
+            var zombieRooms = new HashSet<int>();
+            for (int s = 0; s < blueprint.Spawns.Count; s++)
+            {
+                SpawnKind kind = blueprint.Spawns[s].Kind;
+                if (kind == SpawnKind.ZombieWalker || kind == SpawnKind.ZombieListener || kind == SpawnKind.ZombieWatcher)
+                {
+                    zombieRooms.Add(blueprint.Spawns[s].RoomIndex);
+                }
+            }
+
+            // 후보 = 좀비 방 먼저(셔플), 그 다음 나머지 방(셔플) — 입구·복도는 제외
+            var primary = new List<int>();
+            var secondary = new List<int>();
+            for (int r = 1; r < blueprint.Rooms.Count; r++)
+            {
+                if (roomTemplates[r].IsCorridor || roomTemplates[r].IsEntranceAnchor)
+                {
+                    continue;
+                }
+
+                if (zombieRooms.Contains(r))
+                {
+                    primary.Add(r);
+                }
+                else
+                {
+                    secondary.Add(r);
+                }
+            }
+
+            Shuffle(rng, primary);
+            Shuffle(rng, secondary);
+            primary.AddRange(secondary);
+
+            int placed = 0;
+            for (int i = 0; i < primary.Count && placed < genParams.WardrobeCount; i++)
+            {
+                blueprint.Spawns.Add(new BlueprintSpawn { RoomIndex = primary[i], MarkerId = -1, Kind = SpawnKind.Wardrobe, WanderRadiusCells = 0f });
+                placed++;
+            }
+
+            Log.D($"[SpawnDistributor] 벽장 {placed}/{genParams.WardrobeCount} 개 배치(좀비 방 우선)");
+        }
+
+        /// <summary>리스트를 Fisher-Yates 로 제자리 셔플한다(단일 rng 스트림).</summary>
+        /// <param name="rng">단일 난수 스트림.</param>
+        /// <param name="list">셔플 대상.</param>
+        private static void Shuffle(DeterministicRng rng, List<int> list)
+        {
+            for (int i = list.Count - 1; i > 0; i--)
+            {
+                int j = rng.Next(i + 1);
+                int tmp = list[i];
+                list[i] = list[j];
+                list[j] = tmp;
+            }
         }
 
         /// <summary>
@@ -180,6 +255,82 @@ namespace EmptyHouse.MapGen.Core
         /// </summary>
         /// <param name="rng">단일 난수 스트림.</param>
         /// <param name="genParams">생성 파라미터(Listener 보장 거리).</param>
+        /// <summary>
+        /// 중요 물품 문(ItemDoor) 자물쇠마다 그 문을 막았을 때 끊기는 뒤 구역을 모은다 — 희귀 아이템 강제 배치 대상.
+        /// 자물쇠 번호 순서(간선 인덱스 순회)라 결정론이 유지된다.
+        /// </summary>
+        /// <param name="blueprint">대상 블루프린트.</param>
+        /// <returns>자물쇠별 뒤 구역 방 집합 목록.</returns>
+        private static List<HashSet<int>> CollectItemDoorRegions(MapBlueprint blueprint)
+        {
+            var regions = new List<HashSet<int>>();
+            for (int e = 0; e < blueprint.Edges.Count; e++)
+            {
+                BlueprintEdge edge = blueprint.Edges[e];
+                if (edge.State != EdgeState.DoorLocked || edge.LockKind != LockKind.ItemDoor)
+                {
+                    continue;
+                }
+
+                HashSet<int> front = ReachabilityAnalyzer.ComputeReachableWithEdgeBlocked(blueprint, e);
+                var behind = new HashSet<int>();
+                for (int r = 0; r < blueprint.Rooms.Count; r++)
+                {
+                    if (!front.Contains(r))
+                    {
+                        behind.Add(r);
+                    }
+                }
+
+                regions.Add(behind);
+            }
+
+            return regions;
+        }
+
+        /// <summary>
+        /// 아직 희귀 아이템이 없는 자물쇠 뒤 구역이 있으면 후보 풀을 그 구역으로 좁힌다(강제 배치).
+        /// 구역과 겹치는 후보가 없으면 풀을 그대로 두고 넘어간다 — 강제가 생성 실패를 만들지 않게(베스트에포트).
+        /// </summary>
+        /// <param name="regions">자물쇠별 뒤 구역.</param>
+        /// <param name="chosenRooms">이미 희귀 아이템이 배정된 방.</param>
+        /// <param name="pool">좁힐 후보 풀(제자리 수정).</param>
+        private static void RestrictToUncoveredLockRegion(List<HashSet<int>> regions, List<int> chosenRooms, List<(int room, int weight)> pool)
+        {
+            for (int g = 0; g < regions.Count; g++)
+            {
+                bool covered = false;
+                for (int c = 0; c < chosenRooms.Count && !covered; c++)
+                {
+                    covered = regions[g].Contains(chosenRooms[c]);
+                }
+
+                if (covered)
+                {
+                    continue;
+                }
+
+                var narrowed = new List<(int room, int weight)>();
+                for (int i = 0; i < pool.Count; i++)
+                {
+                    if (regions[g].Contains(pool[i].room))
+                    {
+                        narrowed.Add(pool[i]);
+                    }
+                }
+
+                if (narrowed.Count == 0)
+                {
+                    Log.W($"[SpawnDistributor] 자물쇠 뒤 구역에 백신 배치 가능 방이 없다 — 그 문은 빈 구역을 지킨다(구역 {g})");
+                    continue;
+                }
+
+                pool.Clear();
+                pool.AddRange(narrowed);
+                return;
+            }
+        }
+
         /// <param name="blueprint">대상 블루프린트.</param>
         /// <param name="dangerDepths">방별 위험 깊이.</param>
         /// <param name="templates">템플릿 집합.</param>
@@ -187,8 +338,11 @@ namespace EmptyHouse.MapGen.Core
         {
             Log.D("[SpawnDistributor] DistributeItems");
 
-            // 백신 3종 — 깊이 가중, 상호 트리 조상 금지
+            // 백신 3종 — 깊이 가중, 상호 트리 조상 금지.
+            // 중요 물품 문(ItemDoor) 자물쇠 뒤 구역에는 반드시 하나가 들어가야 한다 — 자물쇠는 "뒤에 놓을 수 있는 방이 있는가"만
+            // 보고 걸리므로, 여기서 실제 배치를 강제하지 않으면 자물쇠 뒤가 텅 빈다(2026-08-07 실측: 채택 199건 중 127건이 빈 상태)
             var vaccineKinds = new[] { SpawnKind.VaccineAntigen, SpawnKind.VaccineSerum, SpawnKind.VaccineStabilizer };
+            List<HashSet<int>> itemDoorRegions = CollectItemDoorRegions(blueprint);
             var chosenVaccineRooms = new List<int>();
             var pool = new List<(int room, int weight)>();
             for (int v = 0; v < vaccineKinds.Length; v++)
@@ -219,6 +373,7 @@ namespace EmptyHouse.MapGen.Core
                     return;
                 }
 
+                RestrictToUncoveredLockRegion(itemDoorRegions, chosenVaccineRooms, pool);
                 int room = PickWeighted(rng, pool);
                 chosenVaccineRooms.Add(room);
                 int markerId = PickMarker(rng, room, MarkerKind.ItemSpawn, out _, itemMask: ItemCategoryMask.Vaccine);

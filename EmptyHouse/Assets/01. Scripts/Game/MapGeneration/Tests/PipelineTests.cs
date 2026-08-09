@@ -30,7 +30,7 @@ namespace EmptyHouse.MapGen.Core.Tests
                 }
             }
 
-            ValidationReport report = new BlueprintValidator().Validate(blueprint, genParams);
+            ValidationReport report = new BlueprintValidator().Validate(blueprint, genParams, MapTemplateCatalog.Create());
             Assert.That(report.EssentialsReachable, Is.False, "백신 방을 봉인했는데 패스 1이 통과했다");
             Assert.That(report.AllPassed, Is.False);
         }
@@ -71,7 +71,7 @@ namespace EmptyHouse.MapGen.Core.Tests
                     }
 
                     blueprint.Spawns[keySpawnIndices[i - 1]].RoomIndex = outsideRoom;
-                    ValidationReport report = new BlueprintValidator().Validate(blueprint, genParams);
+                    ValidationReport report = new BlueprintValidator().Validate(blueprint, genParams, MapTemplateCatalog.Create());
                     Assert.That(report.KeyInvariantHolds, Is.False,
                         $"시드 {seed}: 열쇠_{i} 를 R_{i} 밖(방 {outsideRoom})으로 옮겼는데 패스 2가 통과했다");
                     Assert.That(report.AllPassed, Is.False);
@@ -96,7 +96,7 @@ namespace EmptyHouse.MapGen.Core.Tests
                 }
 
                 RemoveSpawns(blueprint, SpawnKind.Throwable);
-                ValidationReport report = new BlueprintValidator().Validate(blueprint, genParams);
+                ValidationReport report = new BlueprintValidator().Validate(blueprint, genParams, MapTemplateCatalog.Create());
                 Assert.That(report.HardlockPairsHold, Is.False,
                     $"시드 {seed}: 투척물을 전부 제거했는데 A등급 파훼 쌍 검사가 통과했다");
                 Assert.That(report.AllPassed, Is.False);
@@ -121,7 +121,7 @@ namespace EmptyHouse.MapGen.Core.Tests
 
                 // 임계만 올려 채택된 지름길 전부를 가치 미달로 만든다(블루프린트 자체는 무손상)
                 genParams.ShortcutValueMin = int.MaxValue;
-                ValidationReport report = new BlueprintValidator().Validate(blueprint, genParams);
+                ValidationReport report = new BlueprintValidator().Validate(blueprint, genParams, MapTemplateCatalog.Create());
                 Assert.That(report.ShortcutValuesHold, Is.False,
                     $"시드 {seed}: 임계를 무한대로 올렸는데 패스 4가 통과했다");
                 Assert.That(report.AllPassed, Is.False);
@@ -145,7 +145,7 @@ namespace EmptyHouse.MapGen.Core.Tests
                 }
 
                 RemoveSpawns(blueprint, SpawnKind.Generator);
-                ValidationReport report = new BlueprintValidator().Validate(blueprint, genParams);
+                ValidationReport report = new BlueprintValidator().Validate(blueprint, genParams, MapTemplateCatalog.Create());
                 Assert.That(report.Warnings.Count, Is.GreaterThan(0),
                     $"시드 {seed}: 발전기를 전부 제거했는데 X6 경고가 없다");
                 Assert.That(report.HardlockPairsHold, Is.True,

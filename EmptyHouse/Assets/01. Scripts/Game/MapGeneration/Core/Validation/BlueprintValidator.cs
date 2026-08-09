@@ -17,8 +17,9 @@ namespace EmptyHouse.MapGen.Core
         /// </summary>
         /// <param name="blueprint">검증할 블루프린트.</param>
         /// <param name="genParams">생성 파라미터(지름길 임계·Listener 보장 거리).</param>
+        /// <param name="templates">템플릿 집합 — 지름길 가치의 방 단위 거리 계산에 복도 판별이 필요하다.</param>
         /// <returns>패스별 통과/실패와 사유를 담은 리포트.</returns>
-        public ValidationReport Validate(MapBlueprint blueprint, MapGenParams genParams)
+        public ValidationReport Validate(MapBlueprint blueprint, MapGenParams genParams, IReadOnlyList<RoomTemplateDef> templates)
         {
             Log.D("[BlueprintValidator] Validate");
             BuildAdjacency(blueprint);
@@ -26,12 +27,41 @@ namespace EmptyHouse.MapGen.Core
             report.EssentialsReachable = CheckEssentialsReachable(blueprint, report);
             report.KeyInvariantHolds = CheckKeyInvariant(blueprint, report);
             report.HardlockPairsHold = CheckHardlockPairs(blueprint, genParams, report);
-            report.ShortcutValuesHold = CheckShortcutValues(blueprint, genParams, report);
+            report.ShortcutValuesHold = CheckShortcutValues(blueprint, genParams, templates, report);
 
             // 사이클 소속 방 비율 목표 미달은 기하 후보 소진(베스트에포트) — 실패가 아니라 경고만(X6)
             if (blueprint.Meta.CycleRoomPercentAchieved + 0.5f < genParams.CycleRoomPercent)
             {
                 report.Warnings.Add($"X6 경고: 사이클 소속 방 {blueprint.Meta.CycleRoomPercentAchieved:F1}% — 목표 {genParams.CycleRoomPercent}% 미달(기하 후보 소진, 베스트에포트)");
+            }
+
+            // 탈출문·벽장 미달도 경고(X6) — 잎 방·방 수가 모자란 배치 사정이지 그래프 결함이 아니다
+            int returnExits = 0;
+            for (int e = 0; e < blueprint.Edges.Count; e++)
+            {
+                if (blueprint.Edges[e].State == EdgeState.ReturnExit)
+                {
+                    returnExits++;
+                }
+            }
+
+            if (returnExits < genParams.ReturnExitCount)
+            {
+                report.Warnings.Add($"X6 경고: 탈출문 {returnExits}/{genParams.ReturnExitCount} — 바깥 향 봉인 소켓을 가진 잎 방 부족");
+            }
+
+            int wardrobes = 0;
+            for (int s = 0; s < blueprint.Spawns.Count; s++)
+            {
+                if (blueprint.Spawns[s].Kind == SpawnKind.Wardrobe)
+                {
+                    wardrobes++;
+                }
+            }
+
+            if (wardrobes < genParams.WardrobeCount)
+            {
+                report.Warnings.Add($"X6 경고: 벽장 {wardrobes}/{genParams.WardrobeCount} — 배치 가능 방 부족");
             }
 
             report.AllPassed = report.EssentialsReachable && report.KeyInvariantHolds
@@ -214,15 +244,17 @@ namespace EmptyHouse.MapGen.Core
             return passed;
         }
 
-        /// <summary>패스 4 — 채택된 지름길 전부 귀환 단축 이득 ≥ ShortcutValueMin 검사(7절 4·AC-10).</summary>
+        /// <summary>패스 4 — 채택된 지름길 전부 귀환 단축 이득 ≥ ShortcutValueMin 검사(7절 4·AC-10). 척도는 배치와 동일한 방 단위 거리.</summary>
         /// <param name="blueprint">대상 블루프린트.</param>
         /// <param name="genParams">생성 파라미터(지름길 임계).</param>
+        /// <param name="templates">템플릿 집합(복도 판별).</param>
         /// <param name="report">결과를 기록할 리포트.</param>
         /// <returns>통과 여부.</returns>
-        private bool CheckShortcutValues(MapBlueprint blueprint, MapGenParams genParams, ValidationReport report)
+        private bool CheckShortcutValues(MapBlueprint blueprint, MapGenParams genParams, IReadOnlyList<RoomTemplateDef> templates, ValidationReport report)
         {
             Log.D("[BlueprintValidator] CheckShortcutValues");
-            int[] baseDepths = DangerGradeCalculator.ComputeDepths(blueprint);
+            bool[] isCorridor = RoomHopMetric.CorridorFlags(blueprint, templates);
+            int[] baseDepths = RoomHopMetric.Distances(blueprint, isCorridor, 0);
             bool passed = true;
             for (int e = 0; e < blueprint.Edges.Count; e++)
             {
@@ -239,7 +271,7 @@ namespace EmptyHouse.MapGen.Core
                     continue;
                 }
 
-                int gain = ComputeShortcutValue(blueprint, e, baseDepths);
+                int gain = RoomHopMetric.ShortcutValue(blueprint, e, isCorridor, baseDepths);
                 if (gain < genParams.ShortcutValueMin)
                 {
                     report.FailReasons.Add($"패스4: 지름길 자물쇠_{edge.LockNumber} 귀환 단축 이득({gain}) < 임계({genParams.ShortcutValueMin})(AC-10)");
@@ -248,40 +280,6 @@ namespace EmptyHouse.MapGen.Core
             }
 
             return passed;
-        }
-
-        /// <summary>
-        /// 지름길 가치 = 그 간선을 막았을 때 늘어나는 귀환 최단 거리의 최대치(방 수) — LockKeyPlacer 4-2 와 동일 계산.
-        /// 간선 상태를 잠시 바꾸고 반드시 원복한다.
-        /// </summary>
-        /// <param name="blueprint">대상 블루프린트.</param>
-        /// <param name="edgeIndex">평가할 루프 간선 인덱스.</param>
-        /// <param name="baseDepths">전 간선 포함 기준 깊이.</param>
-        /// <returns>귀환 단축 이득(방 수).</returns>
-        private static int ComputeShortcutValue(MapBlueprint blueprint, int edgeIndex, int[] baseDepths)
-        {
-            BlueprintEdge edge = blueprint.Edges[edgeIndex];
-            EdgeState original = edge.State;
-            edge.State = EdgeState.BlockedWall;
-            int[] without = DangerGradeCalculator.ComputeDepths(blueprint);
-            edge.State = original;
-
-            int best = 0;
-            for (int r = 0; r < without.Length; r++)
-            {
-                if (without[r] < 0)
-                {
-                    continue;
-                }
-
-                int gain = without[r] - baseDepths[r];
-                if (gain > best)
-                {
-                    best = gain;
-                }
-            }
-
-            return best;
         }
 
         /// <summary>연결 간선(봉인·막힌 벽 제외)으로 인접 리스트를 재구축한다(간선 인덱스 순 — 결정론).</summary>

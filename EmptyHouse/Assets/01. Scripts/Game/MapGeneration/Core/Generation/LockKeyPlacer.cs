@@ -22,7 +22,7 @@ namespace EmptyHouse.MapGen.Core
         {
             Log.D("[LockKeyPlacer] TryPlace");
             PlaceLocks(rng, genParams, blueprint, dangerDepths, templates);
-            return TryPlaceKeys(rng, blueprint, dangerDepths, templates);
+            return TryPlaceKeys(rng, genParams, blueprint, dangerDepths, templates);
         }
 
         /// <summary>
@@ -39,6 +39,8 @@ namespace EmptyHouse.MapGen.Core
         {
             Log.D("[LockKeyPlacer] PlaceLocks");
             int roomCount = blueprint.Rooms.Count;
+            bool[] isCorridor = RoomHopMetric.CorridorFlags(blueprint, templates);
+            int[] roomHops = RoomHopMetric.Distances(blueprint, isCorridor, 0);
 
             // 연결 간선 분류: 브리지(차단 시 뒤 구역이 끊김) vs 루프(비브리지 — 지름길 후보)
             var itemDoorCandidates = new List<(int edge, int weight)>();
@@ -51,9 +53,10 @@ namespace EmptyHouse.MapGen.Core
                     continue;
                 }
 
-                // 복도 포함 간선은 자물쇠 부적격 — 복도 연결부에는 문(잠긴 문 포함)이 올 수 없다(문 배치 불가 물리 제약)
-                if (FindTemplate(templates, blueprint.Rooms[edge.RoomA].TemplateId).IsCorridor
-                    || FindTemplate(templates, blueprint.Rooms[edge.RoomB].TemplateId).IsCorridor)
+                // 복도-복도 간선만 자물쇠 부적격 — 양쪽 단부에 벽이 없어 문틀을 물릴 데가 없다.
+                // 복도-방은 방 쪽 벽을 절단해 문을 세울 수 있어 후보로 인정한다(2026-08-07 완화 —
+                // 방-방 직결만 인정하면 후보의 67%가 이득 0이라 지름길이 시드당 1개 남짓밖에 안 채택됐다)
+                if (isCorridor[edge.RoomA] && isCorridor[edge.RoomB])
                 {
                     continue;
                 }
@@ -61,8 +64,8 @@ namespace EmptyHouse.MapGen.Core
                 HashSet<int> front = ReachabilityAnalyzer.ComputeReachableWithEdgeBlocked(blueprint, e);
                 if (front.Count == roomCount)
                 {
-                    // 루프 간선 — 지름길 가치 평가(4-2)
-                    if (ComputeShortcutValue(blueprint, e, dangerDepths) >= genParams.ShortcutValueMin)
+                    // 루프 간선 — 지름길 가치 평가(4-2, 방 단위 거리 기준)
+                    if (RoomHopMetric.ShortcutValue(blueprint, e, isCorridor, roomHops) >= genParams.ShortcutValueMin)
                     {
                         int weight = dangerDepths[edge.RoomA] > dangerDepths[edge.RoomB] ? dangerDepths[edge.RoomA] : dangerDepths[edge.RoomB];
                         shortcutCandidates.Add((e, weight < 1 ? 1 : weight));
@@ -115,55 +118,23 @@ namespace EmptyHouse.MapGen.Core
         }
 
         /// <summary>
-        /// 지름길 가치 = 그 문을 열었을 때 고위험 구역 → 버스(입구=출구) 귀환 최단 거리가 줄어드는 방 수(4-2).
-        /// 간선을 잠시 막고 깊이를 재계산해(DangerGradeCalculator 재사용) 최대 단축량을 구한다.
-        /// 두 방 사이만 가까워지고 귀환에 무의미한 간선은 이 정의로 자동 탈락한다.
-        /// </summary>
-        /// <param name="blueprint">대상 블루프린트.</param>
-        /// <param name="edgeIndex">평가할 루프 간선 인덱스.</param>
-        /// <param name="dangerDepths">방별 위험 깊이(전 간선 포함 기준).</param>
-        /// <returns>귀환 단축 이득(방 수).</returns>
-        private int ComputeShortcutValue(MapBlueprint blueprint, int edgeIndex, int[] dangerDepths)
-        {
-            Log.D("[LockKeyPlacer] ComputeShortcutValue");
-            BlueprintEdge edge = blueprint.Edges[edgeIndex];
-            EdgeState original = edge.State;
-            edge.State = EdgeState.BlockedWall;
-            int[] without = DangerGradeCalculator.ComputeDepths(blueprint);
-            edge.State = original;
-
-            int best = 0;
-            for (int r = 0; r < without.Length; r++)
-            {
-                if (without[r] < 0)
-                {
-                    continue;
-                }
-
-                int gain = without[r] - dangerDepths[r];
-                if (gain > best)
-                {
-                    best = gain;
-                }
-            }
-
-            return best;
-        }
-
-        /// <summary>
         /// 열쇠_i 를 반드시 R_i 안에 배치한다(4-3 절대 규칙 — 예외 없음).
-        /// 후보는 Key 가능 ItemSpawn 마커 보유 방 한정. 위험도 2단 폴백
-        /// (1순위: 위험도 ≥ 자물쇠 방 / 폴백: R_i 내 최고 위험 방, 발동 시 X5 로그),
+        /// 후보는 Key 가능 ItemSpawn 마커 보유 방 한정. 3단 폴백:
+        /// 1순위 자물쇠에서 방 단위 거리 KeyDistanceMin~Max 창 안(너무 붙거나 정반대에 놓이는 것을 막는다 —
+        /// 2026-08-07 실측: 거리 0~11 로 퍼져 있고 6건은 자물쇠와 같은 방),
+        /// 2순위 창 밖 최근접, 3순위 기존 위험도 규칙(발동 시 X5 로그).
         /// 자물쇠 문 인접 방은 후보 우선순위 최하위(배제 아님).
         /// </summary>
         /// <param name="rng">단일 난수 스트림.</param>
+        /// <param name="genParams">생성 파라미터(열쇠 거리 창).</param>
         /// <param name="blueprint">자물쇠가 걸린 블루프린트.</param>
         /// <param name="dangerDepths">방별 위험 깊이.</param>
         /// <param name="templates">템플릿 집합(열쇠 마커 조회용).</param>
         /// <returns>전 열쇠 배치 성공 여부.</returns>
-        private bool TryPlaceKeys(DeterministicRng rng, MapBlueprint blueprint, int[] dangerDepths, IReadOnlyList<RoomTemplateDef> templates)
+        private bool TryPlaceKeys(DeterministicRng rng, MapGenParams genParams, MapBlueprint blueprint, int[] dangerDepths, IReadOnlyList<RoomTemplateDef> templates)
         {
             Log.D("[LockKeyPlacer] TryPlaceKeys");
+            bool[] isCorridor = RoomHopMetric.CorridorFlags(blueprint, templates);
             int lockCount = 0;
             for (int e = 0; e < blueprint.Edges.Count; e++)
             {
@@ -177,17 +148,27 @@ namespace EmptyHouse.MapGen.Core
             var tier1Adjacent = new List<int>();
             var fallbackNonAdjacent = new List<int>();
             var fallbackAdjacent = new List<int>();
+            var windowed = new List<int>(); // 1순위 — 자물쇠에서 거리 창 안
+            var nearest = new List<int>(); // 2순위 — 창 밖 최근접(동률 전부)
             for (int i = 1; i <= lockCount; i++)
             {
                 BlueprintEdge lockEdge = FindLockEdge(blueprint, i);
                 int lockDepth = dangerDepths[lockEdge.RoomA] > dangerDepths[lockEdge.RoomB] ? dangerDepths[lockEdge.RoomA] : dangerDepths[lockEdge.RoomB];
                 HashSet<int> reachable = ReachabilityAnalyzer.ComputeReachableRooms(blueprint, i);
 
+                // 자물쇠 기준점 = 문 양쪽 중 입구에 가까운 쪽(플레이어가 문 앞에 서는 자리)
+                int[] fromEntrance = RoomHopMetric.Distances(blueprint, isCorridor, 0);
+                int lockSide = fromEntrance[lockEdge.RoomA] <= fromEntrance[lockEdge.RoomB] ? lockEdge.RoomA : lockEdge.RoomB;
+                int[] fromLock = RoomHopMetric.Distances(blueprint, isCorridor, lockSide);
+
                 // 후보 분류 — 방 인덱스 오름차순(결정론)
                 tier1NonAdjacent.Clear();
                 tier1Adjacent.Clear();
                 fallbackNonAdjacent.Clear();
                 fallbackAdjacent.Clear();
+                windowed.Clear();
+                nearest.Clear();
+                int nearestMiss = int.MaxValue;
                 int maxDepth = -1;
                 for (int r = 0; r < blueprint.Rooms.Count; r++)
                 {
@@ -206,10 +187,40 @@ namespace EmptyHouse.MapGen.Core
                     {
                         (adjacent ? tier1Adjacent : tier1NonAdjacent).Add(r);
                     }
+
+                    // 거리 창 후보 — 자물쇠에서 방 단위로 KeyDistanceMin~Max 떨어진 방(인접 방은 창 하한에서 자연 배제)
+                    int distance = fromLock[r];
+                    if (distance >= genParams.KeyDistanceMin && distance <= genParams.KeyDistanceMax)
+                    {
+                        windowed.Add(r);
+                    }
+                    else if (distance >= 0)
+                    {
+                        int miss = distance < genParams.KeyDistanceMin ? genParams.KeyDistanceMin - distance : distance - genParams.KeyDistanceMax;
+                        if (miss < nearestMiss)
+                        {
+                            nearestMiss = miss;
+                            nearest.Clear();
+                            nearest.Add(r);
+                        }
+                        else if (miss == nearestMiss)
+                        {
+                            nearest.Add(r);
+                        }
+                    }
                 }
 
                 List<int> pool;
-                if (tier1NonAdjacent.Count > 0)
+                if (windowed.Count > 0)
+                {
+                    pool = windowed;
+                }
+                else if (nearest.Count > 0)
+                {
+                    Log.W($"[LockKeyPlacer] 열쇠_{i}: 거리 창({genParams.KeyDistanceMin}~{genParams.KeyDistanceMax}) 밖 최근접 방으로 폴백(초과 {nearestMiss})");
+                    pool = nearest;
+                }
+                else if (tier1NonAdjacent.Count > 0)
                 {
                     pool = tier1NonAdjacent;
                 }

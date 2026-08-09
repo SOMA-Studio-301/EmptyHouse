@@ -10,7 +10,7 @@ namespace EmptyHouse.MapGen.Core
     /// </summary>
     public sealed class MapGenerator
     {
-        public const string GeneratorVersion = "0.5.0"; // 생성기 버전 — MapBlueprintMeta에 스냅샷(1절). 0.5.0: 복도 연쇄(CorridorChainMax) 원자 배치(같은 시드 ≠ 0.4.0 결과)
+        public const string GeneratorVersion = "0.6.0"; // 생성기 버전 — MapBlueprintMeta에 스냅샷(1절). 0.6.0: 탈출문(ReturnExit)·벽장 배치 추가(같은 시드 ≠ 0.5.0 결과)
 
         private readonly DeterministicRng rng = new DeterministicRng(); // 단일 난수 스트림(8절)
         private readonly LayoutGenerator layoutGenerator = new LayoutGenerator(); // 3절
@@ -53,6 +53,10 @@ namespace EmptyHouse.MapGen.Core
                 }
 
                 int[] depths = DangerGradeCalculator.ComputeDepths(blueprint);
+
+                // 탈출문 전환은 자물쇠·스폰보다 먼저 — 봉인 간선을 바꾸는 작업이라 이후 단계가 최종 그래프를 본다
+                ReturnExitPlacer.Place(genParams, blueprint, templates, depths);
+
                 if (!lockKeyPlacer.TryPlace(rng, genParams, blueprint, depths, templates))
                 {
                     result.FailReasons.Add($"시도 {attempt + 1}: 열쇠·자물쇠 배치 실패");
@@ -65,7 +69,7 @@ namespace EmptyHouse.MapGen.Core
                     continue;
                 }
 
-                ValidationReport report = validator.Validate(blueprint, genParams);
+                ValidationReport report = validator.Validate(blueprint, genParams, templates);
                 result.LastReport = report;
                 if (report.AllPassed)
                 {
@@ -114,6 +118,16 @@ namespace EmptyHouse.MapGen.Core
             if (genParams.CorridorChainMax < 1)
             {
                 errors.Add($"X4: 복도 연쇄 최대({genParams.CorridorChainMax}) < 1 — 최소 1(연쇄 없음)이어야 한다");
+            }
+
+            if (genParams.ReturnExitCount < 1)
+            {
+                errors.Add($"X4: 탈출문 수({genParams.ReturnExitCount}) < 1 — 탈출 경로가 없으면 세션이 끝나지 않는다");
+            }
+
+            if (genParams.WardrobeCount < 0)
+            {
+                errors.Add($"X4: 벽장 수({genParams.WardrobeCount}) < 0");
             }
 
             bool hasAnchor = false;
