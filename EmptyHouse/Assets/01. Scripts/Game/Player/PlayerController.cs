@@ -58,6 +58,14 @@ public class PlayerController : NetworkBehaviour
     private bool jumpRequested; // 점프 요청 — 입력 콜백이 세우고 FixedUpdate 의 HandleJump 가 소비한다
     private bool isCrouching; // 웅크림 상태(홀드) — Crouch 입력 콜백이 켜고 끄며, HandleMove 가 이동속도 배율에 반영한다
 
+    // 웅크림 상태의 네트워크 사본. 입력은 소유자에게만 오므로 비소유자 인스턴스의 isCrouching 은 항상 false 인데,
+    // 발소리(PlayerFootstepSfx)는 모든 클라에서 각자 울리고 소음 발신은 서버에서 판정한다 — 둘 다 남의 웅크림을 알아야 한다.
+    // 소유자 권한이라 소유자 인스턴스에는 즉시 반영된다(자기 발소리가 RTT 만큼 새지 않는다).
+    private readonly NetworkVariable<bool> networkCrouching = new(
+        false,
+        NetworkVariableReadPermission.Everyone,
+        NetworkVariableWritePermission.Owner);
+
     private float pitch; // 시선 상태 — cameraPivot 의 로컬 X 회전
     private float yaw; // 시선 상태 — 카메라가 향하는 월드 Y 회전. 본체 회전(bodyYaw)과 분리되어 있다
     private float bodyYaw; // 하체(본체)의 Y 회전 — 시선이 상체 한계각을 넘거나 이동 중일 때만 시선을 따라온다
@@ -70,7 +78,7 @@ public class PlayerController : NetworkBehaviour
 
     public float PlanarSpeed => new Vector2(body.linearVelocity.x, body.linearVelocity.z).magnitude; // 수평(XZ) 이동 속력(m/s). 이동 블렌드 파라미터용
     public bool Grounded => IsGrounded(); // 접지 여부. 애니메이션 파라미터용
-    public bool Crouching => isCrouching; // 웅크림 상태 여부. 애니메이션 파라미터용
+    public bool Crouching => networkCrouching.Value; // 웅크림 상태 여부. 애니메이션 파라미터·발소리·소음 발신 공통 창구다(비소유자 인스턴스에서도 유효)
     public float AimPitchDeg => pitch; // 시선 pitch(도). 상체 조준 표현(AimPitch 파라미터)용
     public float AimYawOffsetDeg => Mathf.DeltaAngle(bodyYaw, yaw); // 시선-하체 yaw 차(도). 상체 비틀림 표현(AimYawOffset 파라미터)용
     public event System.Action JumpPerformed; // 점프가 실제로 발동한 순간 발행된다. 애니메이션 트리거용
@@ -279,7 +287,7 @@ public class PlayerController : NetworkBehaviour
         moveInput = Vector2.zero;
         lookInput = Vector2.zero;
         jumpRequested = false;
-        isCrouching = false;
+        SetCrouching(false);
     }
 
     // ── 입력 콜백 — 캐시 갱신만 한다 ────────────────────────────
@@ -312,13 +320,24 @@ public class PlayerController : NetworkBehaviour
     /// <summary>웅크리기 버튼을 누르기 시작했을 때 호출된다. 웅크림 상태로 진입한다.</summary>
     private void OnCrouchInput()
     {
-        isCrouching = true;
+        SetCrouching(true);
     }
 
     /// <summary>웅크리기 버튼에서 손을 뗐을 때 호출된다. 웅크림 상태를 해제한다.</summary>
     private void OnCrouchCanceledInput()
     {
-        isCrouching = false;
+        SetCrouching(false);
+    }
+
+    /// <summary>
+    /// 웅크림 상태를 로컬 캐시와 네트워크 사본에 함께 반영한다.
+    /// 네트워크 쓰기는 소유자 권한이므로, 비소유자·스폰 전에는 로컬 캐시만 갱신한다(예외 방지).
+    /// </summary>
+    /// <param name="value">적용할 웅크림 상태.</param>
+    private void SetCrouching(bool value)
+    {
+        isCrouching = value;
+        if (IsSpawned && IsOwner) networkCrouching.Value = value;
     }
 
     /// <summary>공격 입력을 받아 공격 처리를 호출한다.</summary>

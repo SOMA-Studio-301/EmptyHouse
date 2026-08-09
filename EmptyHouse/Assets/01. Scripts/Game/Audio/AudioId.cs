@@ -25,6 +25,11 @@ public enum AudioId
     Sfx_Ui_TabOpen = 113,
     Sfx_Wardrobe_Close = 114,
     Sfx_Wardrobe_Open = 115,
+    Sfx_Zombie_Chase0 = 116,
+    Sfx_Zombie_Chase1 = 117,
+    Sfx_Zombie_Chase2 = 118,
+    Sfx_Zombie_Idle = 119,
+    Sfx_Zombie_Roar = 120,
 
     // Ambient (500~)
     Amb_1F_Wind = 500,

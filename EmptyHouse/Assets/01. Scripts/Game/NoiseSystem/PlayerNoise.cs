@@ -11,6 +11,9 @@ namespace EmptyHouse.NoiseSystem
     /// 서버가 <see cref="emittedDb"/> 에 쓴 것을 오너만 읽는다 — 규칙이 두 벌이 되는 순간 미터가 거짓말을 한다(9-3).
     /// HUD 위젯은 참조하지 않는다 — 오너가 <see cref="NoiseMeterLevelChangedEventChannelSO"/> 로 발행하고 씬 레벨 Canvas-HUD 가 구독한다
     /// (<c>PlayerDisguise</c> → <c>UIDisguiseGauge</c> 와 같은 형태). 표시 스무딩(Q4-B)은 표시 관심사라 HUD 쪽이 맡는다.
+    ///
+    /// 웅크린 동안은 이동 거리를 아예 누적하지 않아 소음이 발생하지 않는다 — 웅크림은 청각 은신 수단이고,
+    /// 대신 시각 탐지에는 그대로 걸린다(<see cref="ZombiePerceptionSource"/>).
     /// </summary>
     [RequireComponent(typeof(PlayerController), typeof(NetworkObject))]
     public sealed class PlayerNoise : NetworkBehaviour
@@ -19,7 +22,6 @@ namespace EmptyHouse.NoiseSystem
         [Min(0.51f)] [SerializeField] private float emissionIntervalSeconds = 0.6f;
         [Min(0f)] [SerializeField] private float movingSpeedThreshold = 0.05f;
         [Min(0f)] [SerializeField] private float walkingDb = 20f;
-        [Min(0f)] [SerializeField] private float crouchingDb = 8f;
 
         [Header("Meter")]
         [SerializeField] private NoiseMeterSampleEventChannelSO meterSampleChannel; // 구독(서버): 합산 창이 닫힌 표본. 자기 SourceId 것만 채택한다
@@ -38,11 +40,7 @@ namespace EmptyHouse.NoiseSystem
 
         // 서버가 마지막 표본을 받은 시각. 무음 타임아웃의 기준점이다
         private float lastSampleTime;
-        private readonly NetworkVariable<bool> serverCrouching = new NetworkVariable<bool>(
-            false,
-            NetworkVariableReadPermission.Everyone,
-            NetworkVariableWritePermission.Server);
-        private bool lastReportedCrouching;
+        private bool lastReportedCrouching; // 시각 탐지 쪽에 마지막으로 전달한 웅크림 상태. 변화 순간에만 전달하기 위한 비교값
         private float elapsed;
         private Vector3 previousServerPosition;
         private float planarDistanceSinceEmission;
@@ -96,14 +94,21 @@ namespace EmptyHouse.NoiseSystem
 
         private void FixedUpdate()
         {
-            SynchronizeCrouching();
-            if (!IsServer || !IsSpawned || emittedChannel == null) return;
+            if (!IsServer || !IsSpawned) return;
+
+            bool crouching = playerController != null && playerController.Crouching;
+            SynchronizeCrouching(crouching);
+
+            if (emittedChannel == null) return;
 
             Vector3 currentPosition = transform.position;
             Vector3 displacement = currentPosition - previousServerPosition;
             displacement.y = 0f;
-            planarDistanceSinceEmission += displacement.magnitude;
             previousServerPosition = currentPosition;
+
+            // 웅크린 프레임의 이동은 소음이 아니다 — 기준점만 옮기고 누적에서 뺀다.
+            // 발신 순간에 웅크림을 묻지 않고 프레임 단위로 거르므로, 표본 구간 중간에 웅크렸다 편 경우도 그만큼만 반영된다.
+            if (!crouching) planarDistanceSinceEmission += displacement.magnitude;
 
             elapsed += Time.fixedDeltaTime;
             if (elapsed < emissionIntervalSeconds) return;
@@ -118,7 +123,7 @@ namespace EmptyHouse.NoiseSystem
             emittedChannel.RaiseEvent(new NoiseEmittedEvent(
                 NetworkObjectId,
                 transform.position,
-                serverCrouching.Value ? crouchingDb : walkingDb));
+                walkingDb));
         }
 
         /// <summary>
@@ -173,33 +178,15 @@ namespace EmptyHouse.NoiseSystem
             meterLevelChanged.RaiseEvent(db);
         }
 
-        private void SynchronizeCrouching()
+        /// <summary>
+        /// 웅크림 상태가 바뀐 순간에만 시각 탐지 쪽(<see cref="ZombiePerceptionSource"/>)에 전달한다.
+        /// 상태 자체는 PlayerController 의 소유자 권한 NetworkVariable 로 복제되므로 서버가 그대로 읽으면 된다.
+        /// </summary>
+        /// <param name="crouching">이번 프레임의 웅크림 상태.</param>
+        private void SynchronizeCrouching(bool crouching)
         {
-            if (!IsSpawned || !IsOwner || playerController == null) return;
-
-            bool crouching = playerController.Crouching;
             if (crouching == lastReportedCrouching) return;
             lastReportedCrouching = crouching;
-
-            if (IsServer)
-            {
-                ApplyCrouchingServer(crouching);
-            }
-            else
-            {
-                SetCrouchingServerRpc(crouching);
-            }
-        }
-
-        [ServerRpc]
-        private void SetCrouchingServerRpc(bool crouching)
-        {
-            ApplyCrouchingServer(crouching);
-        }
-
-        private void ApplyCrouchingServer(bool crouching)
-        {
-            serverCrouching.Value = crouching;
             perceptionSource?.ServerSetCrouching(crouching);
         }
     }

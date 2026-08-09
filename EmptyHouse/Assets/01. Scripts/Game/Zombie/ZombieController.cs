@@ -135,9 +135,13 @@ public class ZombieController : NetworkBehaviour
         // 좀비가 시신에 영구 고착된다.
         ServerValidateTarget();
 
-        if (stateMachine.CurrentStateKind == ZombieStateKind.Attack)
+        // 지각을 멈추는 구간은 "공격 상태 전체"가 아니라 "타격 대상을 물고 있는 동안"이다 — 윈드업 중 대상 교체를 막는 게 목적이다.
+        // 타격이 확정되면 ZombieAttackState 가 ServerReleaseTarget 을 돌려 currentTarget 을 비우므로 이 조건이 풀리고,
+        // 남은 락 시간 동안에도 다시 보고 듣는다. 락 전체를 눈멀게 하면 AttackLockSeconds(5초) 내내
+        // 눈앞을 지나가도 반응하지 못해 좀비가 한 번 잡을 때마다 5초짜리 석상이 된다.
+        if (stateMachine.CurrentStateKind == ZombieStateKind.Attack && currentTarget != null)
         {
-            // 타격 락 동안은 지각을 멈춘다(연출 고정). 자극 플래그도 함께 내려 잔상이 남지 않게 한다.
+            // 자극 플래그도 함께 내려 잔상이 남지 않게 한다.
             hadStimulusThisFrame = false;
             hasTrackingStimulus = false;
             hasTargetStimulus = false;

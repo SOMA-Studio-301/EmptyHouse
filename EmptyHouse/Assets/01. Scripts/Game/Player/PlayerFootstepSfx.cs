@@ -9,6 +9,9 @@ using UnityEngine;
 ///
 /// 오브젝트 사운드이므로 IsOwner/IsServer 로 가르지 않는다 — 위치는 NetworkTransform 이 전 클라에 복제하므로
 /// 각 클라가 자기 인스턴스의 이동만 보고 스스로 울리고, 누구에게 들리는지는 3D 감쇠가 정한다.
+///
+/// 웅크린 동안은 울리지 않는다. 이 인스턴스가 남의 캐릭터일 수도 있으므로 웅크림 판단은
+/// PlayerController 의 네트워크 사본(<see cref="PlayerController.Crouching"/>)을 읽는다.
 /// </summary>
 public class PlayerFootstepSfx : NetworkBehaviour
 {
@@ -22,7 +25,7 @@ public class PlayerFootstepSfx : NetworkBehaviour
     [SerializeField] private float teleportDistance = 3f; // 한 프레임에 이 거리(m)를 넘게 움직이면 순간이동으로 보고 누적을 버린다(스폰·귀환)
 
     [Header("Refs")]
-    [SerializeField] private PlayerController controller; // 같은 프리팹의 형제 — 접지 여부만 읽는다(물리 질의라 비소유 클라에서도 유효하다)
+    [SerializeField] private PlayerController controller; // 같은 프리팹의 형제 — 접지·웅크림 여부를 읽는다(각각 물리 질의·네트워크 사본이라 비소유 클라에서도 유효하다)
 
     private Vector3 previousPosition; // 직전 프레임의 위치. 이동량은 이 차이로 구한다
     private float distanceSinceStep; // 마지막 발소리 이후 누적 이동 거리(m)
@@ -44,6 +47,14 @@ public class PlayerFootstepSfx : NetworkBehaviour
         delta.y = 0f;
 
         float distance = delta.magnitude;
+
+        // 웅크린 동안은 발소리가 나지 않는다. 누적도 버려서 일어선 직후에 밀린 보폭이 한 번에 터지지 않게 한다.
+        // 기준점(previousPosition)은 위에서 이미 갱신했으므로 웅크린 채 이동한 거리가 순간이동으로 오인되지 않는다.
+        if (controller.Crouching)
+        {
+            distanceSinceStep = 0f;
+            return;
+        }
 
         // 스폰·귀환 같은 순간이동은 걸은 게 아니다 — 누적을 버리고 다음 프레임부터 다시 센다.
         if (distance > teleportDistance)
