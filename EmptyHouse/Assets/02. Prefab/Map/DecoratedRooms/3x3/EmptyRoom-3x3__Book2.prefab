@@ -187,6 +187,7 @@ GameObject:
   m_Component:
   - component: {fileID: 1933145143965558221}
   - component: {fileID: 8858650966968037756}
+  - component: {fileID: 2528106697643888506}
   m_Layer: 0
   m_Name: PointLight
   m_TagString: Untagged
@@ -219,7 +220,7 @@ Light:
   m_Enabled: 1
   serializedVersion: 12
   m_Type: 2
-  m_Color: {r: 0.55, g: 0.72, b: 1, a: 1}
+  m_Color: {r: 0.70685, g: 0.64030004, b: 0.41329998, a: 1}
   m_Intensity: 1.1
   m_Range: 9
   m_SpotAngle: 30
@@ -274,6 +275,21 @@ Light:
   m_LightUnit: 1
   m_LuxAtDistance: 1
   m_EnableSpotReflector: 1
+--- !u!114 &2528106697643888506
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 3170130487198325599}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 9f291954e10f1354f96a4d5cb32a155c, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::EmptyHouse.Environment.LightProfileBinder
+  profile: {fileID: 11400000, guid: 3fecb8432b1bb4f4e9e08b5d04b81086, type: 2}
+  kind: 0
+  themeOverride: -1
 --- !u!1 &4394150585356014199
 GameObject:
   m_ObjectHideFlags: 0
@@ -285,6 +301,7 @@ GameObject:
   - component: {fileID: 5001510851095636851}
   - component: {fileID: 6236012020441417896}
   - component: {fileID: 1111283577839696555}
+  - component: {fileID: 7481039220651207769}
   m_Layer: 0
   m_Name: Spotlight
   m_TagString: Untagged
@@ -317,7 +334,7 @@ Light:
   m_Enabled: 1
   serializedVersion: 12
   m_Type: 0
-  m_Color: {r: 0.8466531, g: 1, b: 0.58823526, a: 1}
+  m_Color: {r: 0.70685, g: 0.64030004, b: 0.41329998, a: 1}
   m_Intensity: 1.11
   m_Range: 8.1
   m_SpotAngle: 124.67
@@ -401,6 +418,21 @@ MonoBehaviour:
   m_ShadowLayerMask: 1
   m_RenderingLayers: 1
   m_ShadowRenderingLayers: 1
+--- !u!114 &7481039220651207769
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 4394150585356014199}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 9f291954e10f1354f96a4d5cb32a155c, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::EmptyHouse.Environment.LightProfileBinder
+  profile: {fileID: 11400000, guid: 3fecb8432b1bb4f4e9e08b5d04b81086, type: 2}
+  kind: 0
+  themeOverride: -1
 --- !u!1 &4656327000559418818
 GameObject:
   m_ObjectHideFlags: 0
@@ -495,6 +527,7 @@ GameObject:
   m_Component:
   - component: {fileID: 984520198321535776}
   - component: {fileID: 6898059082055427967}
+  - component: {fileID: 6647938072082131704}
   m_Layer: 0
   m_Name: PointLight
   m_TagString: Untagged
@@ -527,7 +560,7 @@ Light:
   m_Enabled: 1
   serializedVersion: 12
   m_Type: 2
-  m_Color: {r: 0.55, g: 0.72, b: 1, a: 1}
+  m_Color: {r: 0.70685, g: 0.64030004, b: 0.41329998, a: 1}
   m_Intensity: 1.1
   m_Range: 9
   m_SpotAngle: 30
@@ -582,6 +615,21 @@ Light:
   m_LightUnit: 1
   m_LuxAtDistance: 1
   m_EnableSpotReflector: 1
+--- !u!114 &6647938072082131704
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 6079751062679418430}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 9f291954e10f1354f96a4d5cb32a155c, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::EmptyHouse.Environment.LightProfileBinder
+  profile: {fileID: 11400000, guid: 3fecb8432b1bb4f4e9e08b5d04b81086, type: 2}
+  kind: 0
+  themeOverride: -1
 --- !u!1 &6512040773176106992
 GameObject:
   m_ObjectHideFlags: 0
@@ -1008,6 +1056,18 @@ PrefabInstance:
       propertyPath: m_LocalEulerAnglesHint.z
       value: 0
       objectReference: {fileID: 0}
+    - target: {fileID: 8769459539362618970, guid: 41b0902622eccdb40b33a8648e54a547, type: 3}
+      propertyPath: m_Color.b
+      value: 0.41329998
+      objectReference: {fileID: 0}
+    - target: {fileID: 8769459539362618970, guid: 41b0902622eccdb40b33a8648e54a547, type: 3}
+      propertyPath: m_Color.g
+      value: 0.64030004
+      objectReference: {fileID: 0}
+    - target: {fileID: 8769459539362618970, guid: 41b0902622eccdb40b33a8648e54a547, type: 3}
+      propertyPath: m_Color.r
+      value: 0.70685
+      objectReference: {fileID: 0}
     m_RemovedComponents: []
     m_RemovedGameObjects: []
     m_AddedGameObjects: []
@@ -1147,6 +1207,18 @@ PrefabInstance:
     - target: {fileID: 23000010641512916, guid: c8446ee1d04f9fb499c22570dc63253e, type: 3}
       propertyPath: m_CastShadows
       value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 8064546964514451667, guid: c8446ee1d04f9fb499c22570dc63253e, type: 3}
+      propertyPath: m_Color.b
+      value: 0.4614
+      objectReference: {fileID: 0}
+    - target: {fileID: 8064546964514451667, guid: c8446ee1d04f9fb499c22570dc63253e, type: 3}
+      propertyPath: m_Color.g
+      value: 0.67539996
+      objectReference: {fileID: 0}
+    - target: {fileID: 8064546964514451667, guid: c8446ee1d04f9fb499c22570dc63253e, type: 3}
+      propertyPath: m_Color.r
+      value: 0.7348
       objectReference: {fileID: 0}
     m_RemovedComponents: []
     m_RemovedGameObjects: []
@@ -1645,6 +1717,18 @@ PrefabInstance:
     - target: {fileID: 4000010480409478, guid: 41b0902622eccdb40b33a8648e54a547, type: 3}
       propertyPath: m_LocalEulerAnglesHint.z
       value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 8769459539362618970, guid: 41b0902622eccdb40b33a8648e54a547, type: 3}
+      propertyPath: m_Color.b
+      value: 0.41329998
+      objectReference: {fileID: 0}
+    - target: {fileID: 8769459539362618970, guid: 41b0902622eccdb40b33a8648e54a547, type: 3}
+      propertyPath: m_Color.g
+      value: 0.64030004
+      objectReference: {fileID: 0}
+    - target: {fileID: 8769459539362618970, guid: 41b0902622eccdb40b33a8648e54a547, type: 3}
+      propertyPath: m_Color.r
+      value: 0.70685
       objectReference: {fileID: 0}
     m_RemovedComponents: []
     m_RemovedGameObjects: []
@@ -2591,6 +2675,18 @@ PrefabInstance:
     - target: {fileID: 4000010695614972, guid: 4e49114833098b047ac65680e1d5307b, type: 3}
       propertyPath: m_LocalEulerAnglesHint.z
       value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 4990075248667735134, guid: 4e49114833098b047ac65680e1d5307b, type: 3}
+      propertyPath: m_Color.b
+      value: 0.2963
+      objectReference: {fileID: 0}
+    - target: {fileID: 4990075248667735134, guid: 4e49114833098b047ac65680e1d5307b, type: 3}
+      propertyPath: m_Color.g
+      value: 0.4973
+      objectReference: {fileID: 0}
+    - target: {fileID: 4990075248667735134, guid: 4e49114833098b047ac65680e1d5307b, type: 3}
+      propertyPath: m_Color.r
+      value: 0.51575
       objectReference: {fileID: 0}
     m_RemovedComponents: []
     m_RemovedGameObjects: []
@@ -7561,6 +7657,18 @@ PrefabInstance:
       propertyPath: m_LocalEulerAnglesHint.z
       value: 0
       objectReference: {fileID: 0}
+    - target: {fileID: 8769459539362618970, guid: 41b0902622eccdb40b33a8648e54a547, type: 3}
+      propertyPath: m_Color.b
+      value: 0.41329998
+      objectReference: {fileID: 0}
+    - target: {fileID: 8769459539362618970, guid: 41b0902622eccdb40b33a8648e54a547, type: 3}
+      propertyPath: m_Color.g
+      value: 0.64030004
+      objectReference: {fileID: 0}
+    - target: {fileID: 8769459539362618970, guid: 41b0902622eccdb40b33a8648e54a547, type: 3}
+      propertyPath: m_Color.r
+      value: 0.70685
+      objectReference: {fileID: 0}
     m_RemovedComponents: []
     m_RemovedGameObjects: []
     m_AddedGameObjects: []
@@ -7992,6 +8100,18 @@ PrefabInstance:
     - target: {fileID: 23000010641512916, guid: c8446ee1d04f9fb499c22570dc63253e, type: 3}
       propertyPath: m_CastShadows
       value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 8064546964514451667, guid: c8446ee1d04f9fb499c22570dc63253e, type: 3}
+      propertyPath: m_Color.b
+      value: 0.4614
+      objectReference: {fileID: 0}
+    - target: {fileID: 8064546964514451667, guid: c8446ee1d04f9fb499c22570dc63253e, type: 3}
+      propertyPath: m_Color.g
+      value: 0.67539996
+      objectReference: {fileID: 0}
+    - target: {fileID: 8064546964514451667, guid: c8446ee1d04f9fb499c22570dc63253e, type: 3}
+      propertyPath: m_Color.r
+      value: 0.7348
       objectReference: {fileID: 0}
     m_RemovedComponents: []
     m_RemovedGameObjects: []
@@ -10447,6 +10567,18 @@ PrefabInstance:
       propertyPath: 'm_Materials.Array.data[0]'
       value: 
       objectReference: {fileID: 2100000, guid: 0757b4a2a98238e4f888e158327250e0, type: 2}
+    - target: {fileID: 4416029385712334903, guid: 337864711e703a44894460a1b1203f59, type: 3}
+      propertyPath: m_Color.b
+      value: 0.4614
+      objectReference: {fileID: 0}
+    - target: {fileID: 4416029385712334903, guid: 337864711e703a44894460a1b1203f59, type: 3}
+      propertyPath: m_Color.g
+      value: 0.67539996
+      objectReference: {fileID: 0}
+    - target: {fileID: 4416029385712334903, guid: 337864711e703a44894460a1b1203f59, type: 3}
+      propertyPath: m_Color.r
+      value: 0.7348
+      objectReference: {fileID: 0}
     m_RemovedComponents: []
     m_RemovedGameObjects: []
     m_AddedGameObjects: []
@@ -10512,6 +10644,18 @@ PrefabInstance:
     - target: {fileID: 4000010480409478, guid: 41b0902622eccdb40b33a8648e54a547, type: 3}
       propertyPath: m_LocalEulerAnglesHint.z
       value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 8769459539362618970, guid: 41b0902622eccdb40b33a8648e54a547, type: 3}
+      propertyPath: m_Color.b
+      value: 0.41329998
+      objectReference: {fileID: 0}
+    - target: {fileID: 8769459539362618970, guid: 41b0902622eccdb40b33a8648e54a547, type: 3}
+      propertyPath: m_Color.g
+      value: 0.64030004
+      objectReference: {fileID: 0}
+    - target: {fileID: 8769459539362618970, guid: 41b0902622eccdb40b33a8648e54a547, type: 3}
+      propertyPath: m_Color.r
+      value: 0.70685
       objectReference: {fileID: 0}
     m_RemovedComponents: []
     m_RemovedGameObjects: []
@@ -10582,6 +10726,18 @@ PrefabInstance:
     - target: {fileID: 23000010641512916, guid: c8446ee1d04f9fb499c22570dc63253e, type: 3}
       propertyPath: m_CastShadows
       value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 8064546964514451667, guid: c8446ee1d04f9fb499c22570dc63253e, type: 3}
+      propertyPath: m_Color.b
+      value: 0.4614
+      objectReference: {fileID: 0}
+    - target: {fileID: 8064546964514451667, guid: c8446ee1d04f9fb499c22570dc63253e, type: 3}
+      propertyPath: m_Color.g
+      value: 0.67539996
+      objectReference: {fileID: 0}
+    - target: {fileID: 8064546964514451667, guid: c8446ee1d04f9fb499c22570dc63253e, type: 3}
+      propertyPath: m_Color.r
+      value: 0.7348
       objectReference: {fileID: 0}
     m_RemovedComponents: []
     m_RemovedGameObjects: []
@@ -12883,7 +13039,10 @@ PrefabInstance:
     - targetCorrespondingSourceObject: {fileID: 800781962086291911, guid: 4bf84551b30597a43b30fbaceca9930b, type: 3}
       insertIndex: -1
       addedObject: {fileID: 901006629562258909}
-    m_AddedComponents: []
+    m_AddedComponents:
+    - targetCorrespondingSourceObject: {fileID: 3845632745750674989, guid: 4bf84551b30597a43b30fbaceca9930b, type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 8348498690875673608}
   m_SourcePrefab: {fileID: 100100000, guid: 4bf84551b30597a43b30fbaceca9930b, type: 3}
 --- !u!4 &403566853412529848 stripped
 Transform:
@@ -12895,6 +13054,24 @@ Transform:
   m_CorrespondingSourceObject: {fileID: 8596120632969841610, guid: 4bf84551b30597a43b30fbaceca9930b, type: 3}
   m_PrefabInstance: {fileID: 8797302933004206589}
   m_PrefabAsset: {fileID: 0}
+--- !u!1 &5712854555400863696 stripped
+GameObject:
+  m_CorrespondingSourceObject: {fileID: 3845632745750674989, guid: 4bf84551b30597a43b30fbaceca9930b, type: 3}
+  m_PrefabInstance: {fileID: 8797302933004206589}
+  m_PrefabAsset: {fileID: 0}
+--- !u!114 &8348498690875673608
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 5712854555400863696}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: c321e8b6f58eff449b2e0e7e2e65de2f, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::EmptyHouse.Environment.RoomLightTheme
+  theme: 1
 --- !u!4 &6185755948336810875 stripped
 Transform:
   m_CorrespondingSourceObject: {fileID: 3444818491420953222, guid: 4bf84551b30597a43b30fbaceca9930b, type: 3}

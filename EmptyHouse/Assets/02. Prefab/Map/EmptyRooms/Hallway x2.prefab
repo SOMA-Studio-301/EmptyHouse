@@ -11,6 +11,7 @@ GameObject:
   - component: {fileID: 6160395225690103693}
   - component: {fileID: 7064901537835464893}
   - component: {fileID: 4784557850384575733}
+  - component: {fileID: 5139179340766576468}
   m_Layer: 0
   m_Name: PointLight
   m_TagString: Untagged
@@ -43,7 +44,7 @@ Light:
   m_Enabled: 1
   serializedVersion: 12
   m_Type: 2
-  m_Color: {r: 0.42, g: 0.58, b: 0.95, a: 1}
+  m_Color: {r: 0.49095002, g: 0.5481, b: 0.5936, a: 1}
   m_Intensity: 0.85
   m_Range: 7
   m_SpotAngle: 30
@@ -225,6 +226,21 @@ MonoBehaviour:
     m_PostInfinity: 2
     m_RotationOrder: 4
   randomizePhase: 1
+--- !u!114 &5139179340766576468
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 3844683329623927691}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 9f291954e10f1354f96a4d5cb32a155c, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::EmptyHouse.Environment.LightProfileBinder
+  profile: {fileID: 11400000, guid: 3fecb8432b1bb4f4e9e08b5d04b81086, type: 2}
+  kind: 0
+  themeOverride: -1
 --- !u!1 &5490760340748014899
 GameObject:
   m_ObjectHideFlags: 0
@@ -266,6 +282,7 @@ GameObject:
   serializedVersion: 6
   m_Component:
   - component: {fileID: 1228852157477012193}
+  - component: {fileID: 7373718587668039545}
   m_Layer: 0
   m_Name: Hallway x2
   m_TagString: Untagged
@@ -315,6 +332,19 @@ Transform:
   - {fileID: 5191170564642271945}
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &7373718587668039545
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 7278799077404263814}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: c321e8b6f58eff449b2e0e7e2e65de2f, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::EmptyHouse.Environment.RoomLightTheme
+  theme: 6
 --- !u!1001 &226652656408511423
 PrefabInstance:
   m_ObjectHideFlags: 0
@@ -581,6 +611,18 @@ PrefabInstance:
       propertyPath: 'm_Materials.Array.data[0]'
       value: 
       objectReference: {fileID: 2100000, guid: 0757b4a2a98238e4f888e158327250e0, type: 2}
+    - target: {fileID: 7951679397028810965, guid: a103a68d996f18549bb4e7649c94b3e6, type: 3}
+      propertyPath: m_Color.b
+      value: 0.5936
+      objectReference: {fileID: 0}
+    - target: {fileID: 7951679397028810965, guid: a103a68d996f18549bb4e7649c94b3e6, type: 3}
+      propertyPath: m_Color.g
+      value: 0.5481
+      objectReference: {fileID: 0}
+    - target: {fileID: 7951679397028810965, guid: a103a68d996f18549bb4e7649c94b3e6, type: 3}
+      propertyPath: m_Color.r
+      value: 0.49095002
+      objectReference: {fileID: 0}
     m_RemovedComponents: []
     m_RemovedGameObjects: []
     m_AddedGameObjects: []
@@ -899,6 +941,18 @@ PrefabInstance:
       propertyPath: 'm_Materials.Array.data[0]'
       value: 
       objectReference: {fileID: 2100000, guid: 0757b4a2a98238e4f888e158327250e0, type: 2}
+    - target: {fileID: 7951679397028810965, guid: a103a68d996f18549bb4e7649c94b3e6, type: 3}
+      propertyPath: m_Color.b
+      value: 0.5936
+      objectReference: {fileID: 0}
+    - target: {fileID: 7951679397028810965, guid: a103a68d996f18549bb4e7649c94b3e6, type: 3}
+      propertyPath: m_Color.g
+      value: 0.5481
+      objectReference: {fileID: 0}
+    - target: {fileID: 7951679397028810965, guid: a103a68d996f18549bb4e7649c94b3e6, type: 3}
+      propertyPath: m_Color.r
+      value: 0.49095002
+      objectReference: {fileID: 0}
     m_RemovedComponents: []
     m_RemovedGameObjects: []
     m_AddedGameObjects: []
@@ -1085,6 +1139,18 @@ PrefabInstance:
       propertyPath: 'm_Materials.Array.data[0]'
       value: 
       objectReference: {fileID: 2100000, guid: 0757b4a2a98238e4f888e158327250e0, type: 2}
+    - target: {fileID: 7951679397028810965, guid: a103a68d996f18549bb4e7649c94b3e6, type: 3}
+      propertyPath: m_Color.b
+      value: 0.5936
+      objectReference: {fileID: 0}
+    - target: {fileID: 7951679397028810965, guid: a103a68d996f18549bb4e7649c94b3e6, type: 3}
+      propertyPath: m_Color.g
+      value: 0.5481
+      objectReference: {fileID: 0}
+    - target: {fileID: 7951679397028810965, guid: a103a68d996f18549bb4e7649c94b3e6, type: 3}
+      propertyPath: m_Color.r
+      value: 0.49095002
+      objectReference: {fileID: 0}
     m_RemovedComponents: []
     m_RemovedGameObjects: []
     m_AddedGameObjects: []
@@ -1477,6 +1543,18 @@ PrefabInstance:
       propertyPath: 'm_Materials.Array.data[0]'
       value: 
       objectReference: {fileID: 2100000, guid: 0757b4a2a98238e4f888e158327250e0, type: 2}
+    - target: {fileID: 7951679397028810965, guid: a103a68d996f18549bb4e7649c94b3e6, type: 3}
+      propertyPath: m_Color.b
+      value: 0.5936
+      objectReference: {fileID: 0}
+    - target: {fileID: 7951679397028810965, guid: a103a68d996f18549bb4e7649c94b3e6, type: 3}
+      propertyPath: m_Color.g
+      value: 0.5481
+      objectReference: {fileID: 0}
+    - target: {fileID: 7951679397028810965, guid: a103a68d996f18549bb4e7649c94b3e6, type: 3}
+      propertyPath: m_Color.r
+      value: 0.49095002
+      objectReference: {fileID: 0}
     m_RemovedComponents: []
     m_RemovedGameObjects: []
     m_AddedGameObjects: []

@@ -609,6 +609,7 @@ GameObject:
   serializedVersion: 6
   m_Component:
   - component: {fileID: 8050979372693490335}
+  - component: {fileID: 202813908387013789}
   m_Layer: 0
   m_Name: EmptyRoom-6x6__Book
   m_TagString: Untagged
@@ -646,6 +647,19 @@ Transform:
   - {fileID: 2409475322797156497}
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &202813908387013789
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 6381803668119808425}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: c321e8b6f58eff449b2e0e7e2e65de2f, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::EmptyHouse.Environment.RoomLightTheme
+  theme: 1
 --- !u!1 &6865701117238377939
 GameObject:
   m_ObjectHideFlags: 0
@@ -694,6 +708,7 @@ GameObject:
   m_Component:
   - component: {fileID: 5271772587754969447}
   - component: {fileID: 3227357965026911384}
+  - component: {fileID: 793581779617111517}
   m_Layer: 0
   m_Name: PointLight
   m_TagString: Untagged
@@ -726,7 +741,7 @@ Light:
   m_Enabled: 1
   serializedVersion: 12
   m_Type: 2
-  m_Color: {r: 0.55, g: 0.72, b: 1, a: 1}
+  m_Color: {r: 0.70685, g: 0.64030004, b: 0.41329998, a: 1}
   m_Intensity: 1.2
   m_Range: 10
   m_SpotAngle: 30
@@ -781,6 +796,21 @@ Light:
   m_LightUnit: 1
   m_LuxAtDistance: 1
   m_EnableSpotReflector: 1
+--- !u!114 &793581779617111517
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 7686629217456607964}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 9f291954e10f1354f96a4d5cb32a155c, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::EmptyHouse.Environment.LightProfileBinder
+  profile: {fileID: 11400000, guid: 3fecb8432b1bb4f4e9e08b5d04b81086, type: 2}
+  kind: 0
+  themeOverride: -1
 --- !u!1 &7947207124233133912
 GameObject:
   m_ObjectHideFlags: 0
@@ -837,6 +867,7 @@ GameObject:
   m_Component:
   - component: {fileID: 4264151925888637576}
   - component: {fileID: 2116937998760305701}
+  - component: {fileID: 5312262037936808970}
   m_Layer: 0
   m_Name: PointLight
   m_TagString: Untagged
@@ -869,7 +900,7 @@ Light:
   m_Enabled: 1
   serializedVersion: 12
   m_Type: 2
-  m_Color: {r: 0.55, g: 0.72, b: 1, a: 1}
+  m_Color: {r: 0.70685, g: 0.64030004, b: 0.41329998, a: 1}
   m_Intensity: 1.2
   m_Range: 10
   m_SpotAngle: 30
@@ -924,6 +955,21 @@ Light:
   m_LightUnit: 1
   m_LuxAtDistance: 1
   m_EnableSpotReflector: 1
+--- !u!114 &5312262037936808970
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 8962271376219396640}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 9f291954e10f1354f96a4d5cb32a155c, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::EmptyHouse.Environment.LightProfileBinder
+  profile: {fileID: 11400000, guid: 3fecb8432b1bb4f4e9e08b5d04b81086, type: 2}
+  kind: 0
+  themeOverride: -1
 --- !u!1 &9017712034109551023
 GameObject:
   m_ObjectHideFlags: 0
