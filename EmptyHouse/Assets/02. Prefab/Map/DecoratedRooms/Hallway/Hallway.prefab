@@ -47,9 +47,8 @@ Transform:
   - {fileID: 5062636145958363706}
   - {fileID: 2603969487736140839}
   - {fileID: 1265491384952012400}
-  - {fileID: 3517021808103918372}
-  - {fileID: 3091059211517600910}
   - {fileID: 1893716767920015657}
+  - {fileID: 3985912997750238199}
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!114 &2781438213944186574
@@ -65,6 +64,39 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::EmptyHouse.Environment.RoomLightTheme
   theme: 6
+--- !u!1 &937099399806501499
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 3985912997750238199}
+  m_Layer: 0
+  m_Name: Lights
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &3985912997750238199
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 937099399806501499}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children:
+  - {fileID: 3517021808103918372}
+  - {fileID: 3091059211517600910}
+  m_Father: {fileID: 1409203272831164083}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1 &5084952406804716667
 GameObject:
   m_ObjectHideFlags: 0
@@ -83,7 +115,7 @@ GameObject:
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
-  m_IsActive: 1
+  m_IsActive: 0
 --- !u!4 &2818871838330512093
 Transform:
   m_ObjectHideFlags: 0
@@ -109,8 +141,8 @@ Light:
   m_Enabled: 1
   serializedVersion: 12
   m_Type: 2
-  m_Color: {r: 0.49095002, g: 0.5481, b: 0.5936, a: 1}
-  m_Intensity: 1
+  m_Color: {r: 0.4941663, g: 0.6330004, b: 0.35953623, a: 1}
+  m_Intensity: 0.1
   m_Range: 10
   m_SpotAngle: 30
   m_InnerSpotAngle: 21.80208
@@ -252,8 +284,8 @@ Light:
   m_Enabled: 1
   serializedVersion: 12
   m_Type: 2
-  m_Color: {r: 0.49095002, g: 0.5481, b: 0.5936, a: 1}
-  m_Intensity: 1
+  m_Color: {r: 0.4941663, g: 0.6330004, b: 0.35953623, a: 1}
+  m_Intensity: 0.1
   m_Range: 10
   m_SpotAngle: 30
   m_InnerSpotAngle: 21.80208
@@ -811,7 +843,7 @@ PrefabInstance:
   serializedVersion: 2
   m_Modification:
     serializedVersion: 3
-    m_TransformParent: {fileID: 1409203272831164083}
+    m_TransformParent: {fileID: 3985912997750238199}
     m_Modifications:
     - target: {fileID: 1000014049678892, guid: a103a68d996f18549bb4e7649c94b3e6, type: 3}
       propertyPath: m_Name
@@ -835,7 +867,7 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 4000012142986822, guid: a103a68d996f18549bb4e7649c94b3e6, type: 3}
       propertyPath: m_LocalPosition.x
-      value: -2.0060043
+      value: -2.0060124
       objectReference: {fileID: 0}
     - target: {fileID: 4000012142986822, guid: a103a68d996f18549bb4e7649c94b3e6, type: 3}
       propertyPath: m_LocalPosition.y
@@ -843,7 +875,7 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 4000012142986822, guid: a103a68d996f18549bb4e7649c94b3e6, type: 3}
       propertyPath: m_LocalPosition.z
-      value: -0.96099854
+      value: -0.9609983
       objectReference: {fileID: 0}
     - target: {fileID: 4000012142986822, guid: a103a68d996f18549bb4e7649c94b3e6, type: 3}
       propertyPath: m_LocalRotation.w
@@ -868,18 +900,22 @@ PrefabInstance:
     - target: {fileID: 23000011469317396, guid: a103a68d996f18549bb4e7649c94b3e6, type: 3}
       propertyPath: 'm_Materials.Array.data[0]'
       value: 
-      objectReference: {fileID: 2100000, guid: 5e9e8d9c3ddaabb4794c7596020a7e0d, type: 2}
+      objectReference: {fileID: 2100000, guid: 0757b4a2a98238e4f888e158327250e0, type: 2}
+    - target: {fileID: 470567477175867831, guid: a103a68d996f18549bb4e7649c94b3e6, type: 3}
+      propertyPath: m_IsActive
+      value: 0
+      objectReference: {fileID: 0}
     - target: {fileID: 7951679397028810965, guid: a103a68d996f18549bb4e7649c94b3e6, type: 3}
       propertyPath: m_Color.b
-      value: 0.5936
+      value: 0.35953623
       objectReference: {fileID: 0}
     - target: {fileID: 7951679397028810965, guid: a103a68d996f18549bb4e7649c94b3e6, type: 3}
       propertyPath: m_Color.g
-      value: 0.5481
+      value: 0.6330004
       objectReference: {fileID: 0}
     - target: {fileID: 7951679397028810965, guid: a103a68d996f18549bb4e7649c94b3e6, type: 3}
       propertyPath: m_Color.r
-      value: 0.49095002
+      value: 0.4941663
       objectReference: {fileID: 0}
     m_RemovedComponents: []
     m_RemovedGameObjects: []
@@ -900,7 +936,7 @@ PrefabInstance:
   serializedVersion: 2
   m_Modification:
     serializedVersion: 3
-    m_TransformParent: {fileID: 1409203272831164083}
+    m_TransformParent: {fileID: 3985912997750238199}
     m_Modifications:
     - target: {fileID: 1000014049678892, guid: a103a68d996f18549bb4e7649c94b3e6, type: 3}
       propertyPath: m_Name
@@ -924,7 +960,7 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 4000012142986822, guid: a103a68d996f18549bb4e7649c94b3e6, type: 3}
       propertyPath: m_LocalPosition.x
-      value: -2.0060043
+      value: -2.0059974
       objectReference: {fileID: 0}
     - target: {fileID: 4000012142986822, guid: a103a68d996f18549bb4e7649c94b3e6, type: 3}
       propertyPath: m_LocalPosition.y
@@ -932,7 +968,7 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 4000012142986822, guid: a103a68d996f18549bb4e7649c94b3e6, type: 3}
       propertyPath: m_LocalPosition.z
-      value: -4.993
+      value: -4.993004
       objectReference: {fileID: 0}
     - target: {fileID: 4000012142986822, guid: a103a68d996f18549bb4e7649c94b3e6, type: 3}
       propertyPath: m_LocalRotation.w
@@ -960,15 +996,15 @@ PrefabInstance:
       objectReference: {fileID: 2100000, guid: 5e9e8d9c3ddaabb4794c7596020a7e0d, type: 2}
     - target: {fileID: 7951679397028810965, guid: a103a68d996f18549bb4e7649c94b3e6, type: 3}
       propertyPath: m_Color.b
-      value: 0.5936
+      value: 0.35953623
       objectReference: {fileID: 0}
     - target: {fileID: 7951679397028810965, guid: a103a68d996f18549bb4e7649c94b3e6, type: 3}
       propertyPath: m_Color.g
-      value: 0.5481
+      value: 0.6330004
       objectReference: {fileID: 0}
     - target: {fileID: 7951679397028810965, guid: a103a68d996f18549bb4e7649c94b3e6, type: 3}
       propertyPath: m_Color.r
-      value: 0.49095002
+      value: 0.4941663
       objectReference: {fileID: 0}
     m_RemovedComponents: []
     m_RemovedGameObjects: []
@@ -976,13 +1012,148 @@ PrefabInstance:
     - targetCorrespondingSourceObject: {fileID: 4000012142986822, guid: a103a68d996f18549bb4e7649c94b3e6, type: 3}
       insertIndex: -1
       addedObject: {fileID: 3409607037227294345}
-    m_AddedComponents: []
+    m_AddedComponents:
+    - targetCorrespondingSourceObject: {fileID: 470567477175867831, guid: a103a68d996f18549bb4e7649c94b3e6, type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 469863845168425994}
   m_SourcePrefab: {fileID: 100100000, guid: a103a68d996f18549bb4e7649c94b3e6, type: 3}
 --- !u!4 &3517021808103918372 stripped
 Transform:
   m_CorrespondingSourceObject: {fileID: 4000012142986822, guid: a103a68d996f18549bb4e7649c94b3e6, type: 3}
   m_PrefabInstance: {fileID: 3513033445141335394}
   m_PrefabAsset: {fileID: 0}
+--- !u!1 &3911103522902119637 stripped
+GameObject:
+  m_CorrespondingSourceObject: {fileID: 470567477175867831, guid: a103a68d996f18549bb4e7649c94b3e6, type: 3}
+  m_PrefabInstance: {fileID: 3513033445141335394}
+  m_PrefabAsset: {fileID: 0}
+--- !u!114 &469863845168425994
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 3911103522902119637}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 72bc4ed3968b0144389ec3eb93945254, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::EmptyHouse.Environment.FlickeringLight
+  intensityCurve:
+    serializedVersion: 2
+    m_Curve:
+    - serializedVersion: 3
+      time: 0
+      value: 1
+      inSlope: 0
+      outSlope: 0
+      tangentMode: 0
+      weightedMode: 0
+      inWeight: 0
+      outWeight: 0
+    - serializedVersion: 3
+      time: 1.6
+      value: 0.92
+      inSlope: 0
+      outSlope: 0
+      tangentMode: 0
+      weightedMode: 0
+      inWeight: 0
+      outWeight: 0
+    - serializedVersion: 3
+      time: 2.4
+      value: 1
+      inSlope: 0
+      outSlope: 0
+      tangentMode: 0
+      weightedMode: 0
+      inWeight: 0
+      outWeight: 0
+    - serializedVersion: 3
+      time: 3.8
+      value: 1
+      inSlope: 0
+      outSlope: 0
+      tangentMode: 0
+      weightedMode: 0
+      inWeight: 0
+      outWeight: 0
+    - serializedVersion: 3
+      time: 3.82
+      value: 0
+      inSlope: 0
+      outSlope: 0
+      tangentMode: 0
+      weightedMode: 0
+      inWeight: 0
+      outWeight: 0
+    - serializedVersion: 3
+      time: 3.94
+      value: 0
+      inSlope: 0
+      outSlope: 0
+      tangentMode: 0
+      weightedMode: 0
+      inWeight: 0
+      outWeight: 0
+    - serializedVersion: 3
+      time: 3.96
+      value: 1
+      inSlope: 0
+      outSlope: 0
+      tangentMode: 0
+      weightedMode: 0
+      inWeight: 0
+      outWeight: 0
+    - serializedVersion: 3
+      time: 4.6
+      value: 1
+      inSlope: 0
+      outSlope: 0
+      tangentMode: 0
+      weightedMode: 0
+      inWeight: 0
+      outWeight: 0
+    - serializedVersion: 3
+      time: 4.62
+      value: 0
+      inSlope: 0
+      outSlope: 0
+      tangentMode: 0
+      weightedMode: 0
+      inWeight: 0
+      outWeight: 0
+    - serializedVersion: 3
+      time: 4.7
+      value: 0
+      inSlope: 0
+      outSlope: 0
+      tangentMode: 0
+      weightedMode: 0
+      inWeight: 0
+      outWeight: 0
+    - serializedVersion: 3
+      time: 4.72
+      value: 1
+      inSlope: 0
+      outSlope: 0
+      tangentMode: 0
+      weightedMode: 0
+      inWeight: 0
+      outWeight: 0
+    - serializedVersion: 3
+      time: 6
+      value: 1
+      inSlope: 0
+      outSlope: 0
+      tangentMode: 0
+      weightedMode: 0
+      inWeight: 0
+      outWeight: 0
+    m_PreInfinity: 2
+    m_PostInfinity: 2
+    m_RotationOrder: 4
+  randomizePhase: 1
 --- !u!1001 &3961355289755856690
 PrefabInstance:
   m_ObjectHideFlags: 0

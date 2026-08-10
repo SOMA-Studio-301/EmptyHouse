@@ -14,17 +14,17 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::EmptyHouse.Environment.LightingProfileSO
   fixtures:
   - kind: 0
-    baseColor: {r: 0.549, g: 0.522, b: 0.302, a: 1}
+    baseColor: {r: 0.3998255, g: 0.54901963, b: 0.3019608, a: 1}
   - kind: 1
     baseColor: {r: 0.592, g: 0.576, b: 0.376, a: 1}
   - kind: 2
-    baseColor: {r: 0.549, g: 0.522, b: 0.302, a: 1}
+    baseColor: {r: 0.41900596, g: 0.54901963, b: 0.3019608, a: 1}
   - kind: 3
-    baseColor: {r: 0.592, g: 0.576, b: 0.376, a: 1}
+    baseColor: {r: 0.5015432, g: 0.70440245, b: 0.07752849, a: 1}
   - kind: 4
     baseColor: {r: 0.592, g: 0.576, b: 0.376, a: 1}
   - kind: 5
-    baseColor: {r: 0.64, g: 0.52, b: 0.3, a: 1}
+    baseColor: {r: 0.47316784, g: 0.6392157, b: 0.29803923, a: 1}
   - kind: 6
     baseColor: {r: 0.255, g: 0.302, b: 0.122, a: 1}
   themes:
@@ -35,7 +35,7 @@ MonoBehaviour:
     tint: {r: 1, g: 0.86, b: 0.62, a: 1}
     blend: 0.35
   - theme: 2
-    tint: {r: 0.55, g: 0.72, b: 1, a: 1}
+    tint: {r: 0.54901963, g: 1, b: 0.7184823, a: 1}
     blend: 0.4
   - theme: 3
     tint: {r: 0.55, g: 0.72, b: 1, a: 1}
@@ -47,6 +47,6 @@ MonoBehaviour:
     tint: {r: 0.55, g: 0.72, b: 1, a: 1}
     blend: 0.3
   - theme: 6
-    tint: {r: 0.42, g: 0.58, b: 0.95, a: 1}
-    blend: 0.45
+    tint: {r: 0.5885071, g: 0.7169812, b: 0.41711164, a: 1}
+    blend: 0.5
   globalTint: {r: 1, g: 1, b: 1, a: 1}
