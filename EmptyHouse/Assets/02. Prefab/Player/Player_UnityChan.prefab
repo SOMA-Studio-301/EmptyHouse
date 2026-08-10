@@ -458,7 +458,6 @@ MonoBehaviour:
   emissionIntervalSeconds: 0.6
   movingSpeedThreshold: 0.05
   walkingDb: 20
-  crouchingDb: 8
   meterSampleChannel: {fileID: 11400000, guid: ade8c10254835274582e217562187b55, type: 2}
   meterLevelChanged: {fileID: 11400000, guid: 921d962283ca85149a5299193c133801, type: 2}
   settings: {fileID: 11400000, guid: f98030f04d614a5aadd0118115f3237c, type: 2}
@@ -1109,6 +1108,7 @@ GameObject:
   - component: {fileID: 1086853532919239533}
   - component: {fileID: 3854702875124569604}
   - component: {fileID: 2879577744624497627}
+  - component: {fileID: 1044635068119972260}
   m_Layer: 0
   m_Name: Spot Light
   m_TagString: Untagged
@@ -1225,6 +1225,21 @@ MonoBehaviour:
   m_ShadowLayerMask: 1
   m_RenderingLayers: 1
   m_ShadowRenderingLayers: 1
+--- !u!114 &1044635068119972260
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 5659754684837053560}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 5c8bca95f7c947b4db5fb152a0d693d8, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: com.cqf.urpvolumetricfog.runtime::VolumetricAdditionalLight
+  anisotropy: 0.25
+  scattering: 1
+  radius: 0.2
 --- !u!1 &6374001794688972338
 GameObject:
   m_ObjectHideFlags: 0
