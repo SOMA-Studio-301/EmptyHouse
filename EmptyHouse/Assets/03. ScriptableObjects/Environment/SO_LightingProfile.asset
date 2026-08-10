@@ -44,9 +44,13 @@ MonoBehaviour:
     tint: {r: 0.55, g: 1, b: 0.72, a: 1}
     blend: 0.5
   - theme: 5
-    tint: {r: 0.55, g: 0.72, b: 1, a: 1}
+    tint: {r: 0.90735483, g: 1, b: 0.54901963, a: 1}
     blend: 0.3
   - theme: 6
     tint: {r: 0.5885071, g: 0.7169812, b: 0.41711164, a: 1}
     blend: 0.5
   globalTint: {r: 1, g: 1, b: 1, a: 1}
+  cullUpdateInterval: 0.4
+  cullEnableRadius: 18
+  cullDisableRadius: 24
+  cullMaxActiveRooms: 12

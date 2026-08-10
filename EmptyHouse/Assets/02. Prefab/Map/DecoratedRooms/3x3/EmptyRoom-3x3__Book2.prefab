@@ -164,8 +164,6 @@ Transform:
   - {fileID: 6903107649006042936}
   - {fileID: 313388642886896440}
   - {fileID: 151455134760745007}
-  - {fileID: 6831010506703924864}
-  - {fileID: 1677397199196512661}
   - {fileID: 5471690603337438344}
   - {fileID: 1948159897816557727}
   - {fileID: 5581197208424924067}
@@ -188,6 +186,7 @@ GameObject:
   - component: {fileID: 1933145143965558221}
   - component: {fileID: 8858650966968037756}
   - component: {fileID: 2528106697643888506}
+  - component: {fileID: 3862366004195755867}
   m_Layer: 0
   m_Name: PointLight
   m_TagString: Untagged
@@ -290,6 +289,35 @@ MonoBehaviour:
   profile: {fileID: 11400000, guid: 3fecb8432b1bb4f4e9e08b5d04b81086, type: 2}
   kind: 0
   themeOverride: -1
+--- !u!114 &3862366004195755867
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 3170130487198325599}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 474bcb49853aa07438625e644c072ee6, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Unity.RenderPipelines.Universal.Runtime::UnityEngine.Rendering.Universal.UniversalAdditionalLightData
+  m_UsePipelineSettings: 1
+  m_AdditionalLightsShadowResolutionTier: 2
+  m_CustomShadowLayers: 0
+  m_LightCookieSize: {x: 1, y: 1}
+  m_LightCookieOffset: {x: 0, y: 0}
+  m_SoftShadowQuality: 0
+  m_RenderingLayersMask:
+    serializedVersion: 0
+    m_Bits: 1
+  m_ShadowRenderingLayersMask:
+    serializedVersion: 0
+    m_Bits: 1
+  m_Version: 4
+  m_LightLayerMask: 1
+  m_ShadowLayerMask: 1
+  m_RenderingLayers: 1
+  m_ShadowRenderingLayers: 1
 --- !u!1 &4394150585356014199
 GameObject:
   m_ObjectHideFlags: 0
@@ -528,6 +556,7 @@ GameObject:
   - component: {fileID: 984520198321535776}
   - component: {fileID: 6898059082055427967}
   - component: {fileID: 6647938072082131704}
+  - component: {fileID: 595203247863131047}
   m_Layer: 0
   m_Name: PointLight
   m_TagString: Untagged
@@ -630,6 +659,35 @@ MonoBehaviour:
   profile: {fileID: 11400000, guid: 3fecb8432b1bb4f4e9e08b5d04b81086, type: 2}
   kind: 0
   themeOverride: -1
+--- !u!114 &595203247863131047
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 6079751062679418430}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 474bcb49853aa07438625e644c072ee6, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Unity.RenderPipelines.Universal.Runtime::UnityEngine.Rendering.Universal.UniversalAdditionalLightData
+  m_UsePipelineSettings: 1
+  m_AdditionalLightsShadowResolutionTier: 2
+  m_CustomShadowLayers: 0
+  m_LightCookieSize: {x: 1, y: 1}
+  m_LightCookieOffset: {x: 0, y: 0}
+  m_SoftShadowQuality: 0
+  m_RenderingLayersMask:
+    serializedVersion: 0
+    m_Bits: 1
+  m_ShadowRenderingLayersMask:
+    serializedVersion: 0
+    m_Bits: 1
+  m_Version: 4
+  m_LightLayerMask: 1
+  m_ShadowLayerMask: 1
+  m_RenderingLayers: 1
+  m_ShadowRenderingLayers: 1
 --- !u!1 &6512040773176106992
 GameObject:
   m_ObjectHideFlags: 0
@@ -640,7 +698,7 @@ GameObject:
   m_Component:
   - component: {fileID: 2544200945056142562}
   m_Layer: 0
-  m_Name: Lighting_Auto
+  m_Name: Lighting
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
@@ -661,6 +719,8 @@ Transform:
   m_Children:
   - {fileID: 187348869072002833}
   - {fileID: 7235414992868268102}
+  - {fileID: 6831010506703924864}
+  - {fileID: 1677397199196512661}
   m_Father: {fileID: 6270574514267709735}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1001 &64319214932657586
@@ -2614,7 +2674,7 @@ PrefabInstance:
   serializedVersion: 2
   m_Modification:
     serializedVersion: 3
-    m_TransformParent: {fileID: 7585352006904168619}
+    m_TransformParent: {fileID: 2544200945056142562}
     m_Modifications:
     - target: {fileID: 1000014151800470, guid: baa3b3a83255aba4b9407ad793a4ff06, type: 3}
       propertyPath: m_Name
@@ -2626,7 +2686,7 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 4000010695614972, guid: baa3b3a83255aba4b9407ad793a4ff06, type: 3}
       propertyPath: m_LocalScale.x
-      value: 1.3653687
+      value: 1.3653686
       objectReference: {fileID: 0}
     - target: {fileID: 4000010695614972, guid: baa3b3a83255aba4b9407ad793a4ff06, type: 3}
       propertyPath: m_LocalScale.y
@@ -2634,19 +2694,19 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 4000010695614972, guid: baa3b3a83255aba4b9407ad793a4ff06, type: 3}
       propertyPath: m_LocalScale.z
-      value: 1.3653687
+      value: 1.3653686
       objectReference: {fileID: 0}
     - target: {fileID: 4000010695614972, guid: baa3b3a83255aba4b9407ad793a4ff06, type: 3}
       propertyPath: m_LocalPosition.x
-      value: -5.206719
+      value: -3.1567261
       objectReference: {fileID: 0}
     - target: {fileID: 4000010695614972, guid: baa3b3a83255aba4b9407ad793a4ff06, type: 3}
       propertyPath: m_LocalPosition.y
-      value: -8.42094
+      value: -0.02094078
       objectReference: {fileID: 0}
     - target: {fileID: 4000010695614972, guid: baa3b3a83255aba4b9407ad793a4ff06, type: 3}
       propertyPath: m_LocalPosition.z
-      value: 22.586866
+      value: 4.8868694
       objectReference: {fileID: 0}
     - target: {fileID: 4000010695614972, guid: baa3b3a83255aba4b9407ad793a4ff06, type: 3}
       propertyPath: m_LocalRotation.w
@@ -10493,7 +10553,7 @@ PrefabInstance:
   serializedVersion: 2
   m_Modification:
     serializedVersion: 3
-    m_TransformParent: {fileID: 7585352006904168619}
+    m_TransformParent: {fileID: 2544200945056142562}
     m_Modifications:
     - target: {fileID: 1000011497775234, guid: f1d0a323fa23d914eb1f811def661b54, type: 3}
       propertyPath: m_Name
@@ -10517,15 +10577,15 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 4000012539284992, guid: f1d0a323fa23d914eb1f811def661b54, type: 3}
       propertyPath: m_LocalPosition.x
-      value: -1.189682
+      value: 0.8603103
       objectReference: {fileID: 0}
     - target: {fileID: 4000012539284992, guid: f1d0a323fa23d914eb1f811def661b54, type: 3}
       propertyPath: m_LocalPosition.y
-      value: -2.4209414
+      value: 5.979059
       objectReference: {fileID: 0}
     - target: {fileID: 4000012539284992, guid: f1d0a323fa23d914eb1f811def661b54, type: 3}
       propertyPath: m_LocalPosition.z
-      value: 18.201233
+      value: 0.50123405
       objectReference: {fileID: 0}
     - target: {fileID: 4000012539284992, guid: f1d0a323fa23d914eb1f811def661b54, type: 3}
       propertyPath: m_LocalRotation.w
@@ -10566,7 +10626,7 @@ PrefabInstance:
     - target: {fileID: 23000012003499722, guid: f1d0a323fa23d914eb1f811def661b54, type: 3}
       propertyPath: 'm_Materials.Array.data[0]'
       value: 
-      objectReference: {fileID: 2100000, guid: 0757b4a2a98238e4f888e158327250e0, type: 2}
+      objectReference: {fileID: 2100000, guid: 5e9e8d9c3ddaabb4794c7596020a7e0d, type: 2}
     - target: {fileID: 4416029385712334903, guid: f1d0a323fa23d914eb1f811def661b54, type: 3}
       propertyPath: m_Color.b
       value: 0.4614
@@ -13043,6 +13103,9 @@ PrefabInstance:
     - targetCorrespondingSourceObject: {fileID: 3845632745750674989, guid: 4bf84551b30597a43b30fbaceca9930b, type: 3}
       insertIndex: -1
       addedObject: {fileID: 8348498690875673608}
+    - targetCorrespondingSourceObject: {fileID: 3845632745750674989, guid: 4bf84551b30597a43b30fbaceca9930b, type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 1908899078615775084}
   m_SourcePrefab: {fileID: 100100000, guid: 4bf84551b30597a43b30fbaceca9930b, type: 3}
 --- !u!4 &403566853412529848 stripped
 Transform:
@@ -13072,6 +13135,19 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::EmptyHouse.Environment.RoomLightTheme
   theme: 1
+--- !u!114 &1908899078615775084
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 5712854555400863696}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 1f9cce2d650d1a249a64b7d8db358e8e, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::EmptyHouse.Environment.RoomLightGroup
+  profile: {fileID: 11400000, guid: 3fecb8432b1bb4f4e9e08b5d04b81086, type: 2}
 --- !u!4 &6185755948336810875 stripped
 Transform:
   m_CorrespondingSourceObject: {fileID: 3444818491420953222, guid: 4bf84551b30597a43b30fbaceca9930b, type: 3}

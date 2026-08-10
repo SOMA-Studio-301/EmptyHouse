@@ -283,6 +283,7 @@ GameObject:
   m_Component:
   - component: {fileID: 1228852157477012193}
   - component: {fileID: 7373718587668039545}
+  - component: {fileID: 8457260188907840264}
   m_Layer: 0
   m_Name: Hallway x2
   m_TagString: Untagged
@@ -345,6 +346,19 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::EmptyHouse.Environment.RoomLightTheme
   theme: 6
+--- !u!114 &8457260188907840264
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 7278799077404263814}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 1f9cce2d650d1a249a64b7d8db358e8e, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::EmptyHouse.Environment.RoomLightGroup
+  profile: {fileID: 11400000, guid: 3fecb8432b1bb4f4e9e08b5d04b81086, type: 2}
 --- !u!1001 &226652656408511423
 PrefabInstance:
   m_ObjectHideFlags: 0
