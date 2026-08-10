@@ -344,6 +344,83 @@ namespace EmptyHouse.MapGen.Core.Tests
             }
         }
 
+        /// <summary>
+        /// 입구의 "소켓 없는 변" 바깥(카탈로그 = 남쪽 = 버스 정면)에는 어떤 방·복도 풋프린트도 들어오지 않는다 —
+        /// 침범하면 입구 정면이 막혀 버스·진입로를 놓을 자리가 사라진다(0.7.0 확보 대역).
+        /// </summary>
+        [Test]
+        public void Generate_입구_바깥_확보_대역은_비어_있다()
+        {
+            List<RoomTemplateDef> catalog = MapTemplateCatalog.Create();
+            var templateById = new Dictionary<string, RoomTemplateDef>();
+            RoomTemplateDef entrance = null;
+            for (int t = 0; t < catalog.Count; t++)
+            {
+                templateById[catalog[t].TemplateId] = catalog[t];
+                if (catalog[t].IsEntranceAnchor)
+                {
+                    entrance = catalog[t];
+                }
+            }
+
+            Assert.That(entrance, Is.Not.Null, "카탈로그에 입구 앵커가 없다");
+
+            var blockedSides = new List<SocketDirection>();
+            for (int d = 0; d < 4; d++)
+            {
+                var side = (SocketDirection)d;
+                bool hasSocket = false;
+                for (int s = 0; s < entrance.Sockets.Length; s++)
+                {
+                    hasSocket |= entrance.Sockets[s].Direction == side;
+                }
+
+                if (!hasSocket)
+                {
+                    blockedSides.Add(side);
+                }
+            }
+
+            Assert.That(blockedSides, Is.Not.Empty, "입구 4변 전부에 소켓이 있어 검증이 공허하다");
+
+            for (int seed = 1; seed <= 20; seed++)
+            {
+                MapGenResult result = new MapGenerator().Generate(CreateParams(seed), MapTemplateCatalog.Create());
+                Assert.That(result.Success, Is.True,
+                    $"시드 {seed}: 카탈로그 생성 실패 — {string.Join(" / ", result.FailReasons)}");
+
+                MapBlueprint blueprint = result.Blueprint;
+                CellCoord ent = blueprint.Rooms[0].Cell;
+                int entMaxX = ent.X + entrance.WidthCells - 1;
+                int entMaxY = ent.Y + entrance.HeightCells - 1;
+                for (int r = 1; r < blueprint.Rooms.Count; r++)
+                {
+                    BlueprintRoom room = blueprint.Rooms[r];
+                    (int width, int height) = CellMath.RotatedSize(
+                        templateById[room.TemplateId].WidthCells, templateById[room.TemplateId].HeightCells, room.Rotation);
+                    for (int x = 0; x < width; x++)
+                    {
+                        for (int y = 0; y < height; y++)
+                        {
+                            int cx = room.Cell.X + x;
+                            int cy = room.Cell.Y + y;
+                            for (int b = 0; b < blockedSides.Count; b++)
+                            {
+                                SocketDirection side = blockedSides[b];
+                                bool invaded =
+                                    (side == SocketDirection.South && cy < ent.Y && cx >= ent.X && cx <= entMaxX)
+                                    || (side == SocketDirection.North && cy > entMaxY && cx >= ent.X && cx <= entMaxX)
+                                    || (side == SocketDirection.West && cx < ent.X && cy >= ent.Y && cy <= entMaxY)
+                                    || (side == SocketDirection.East && cx > entMaxX && cy >= ent.Y && cy <= entMaxY);
+                                Assert.That(invaded, Is.False,
+                                    $"시드 {seed}: 방 {r}({room.TemplateId}) 셀({cx},{cy})이 입구 {side} 바깥 확보 대역을 침범했다");
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
         /// <summary>3타입 전부 활성화한 테스트 파라미터를 만든다.</summary>
         /// <param name="seed">확정 시드.</param>
         /// <returns>테스트용 생성 파라미터.</returns>

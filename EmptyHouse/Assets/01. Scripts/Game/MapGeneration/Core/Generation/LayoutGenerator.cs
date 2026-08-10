@@ -8,6 +8,7 @@ namespace EmptyHouse.MapGen.Core
     /// 버스 입구 앵커에서 열린 소켓에 방을 직결 또는 복도 경유(복도+끝방 원자 배치)로 붙여 트리를 만들고,
     /// 인접 소켓 일부를 뚫어 루프를 더한다. 복도는 연결자로만 배치되어 막다른 끝이 구조적으로 없다.
     /// 총 방 수 예산은 방 전용 집계(복도·입구 앵커 제외).
+    /// 입구 앵커의 소켓 없는 변 바깥은 확보 대역 — 어떤 풋프린트도 배치 금지(집 밖 = 버스·진입로 영역).
     /// 회전 규약: Deg90 = 시계방향(North→East). 셀 좌표계는 +X=East, +Y=North.
     /// </summary>
     public sealed class LayoutGenerator
@@ -20,6 +21,7 @@ namespace EmptyHouse.MapGen.Core
         private readonly List<(int template, int socket)> corridorCandidates = new List<(int template, int socket)>(); // 복도 후보 재사용 버퍼
         private readonly List<int> farSockets = new List<int>(); // 복도 원단 소켓 재사용 버퍼
         private readonly List<ChainSegment> chainSegments = new List<ChainSegment>(); // 복도 연쇄 세그먼트 재사용 버퍼(커밋·롤백 기록)
+        private readonly List<KeepOutStrip> entranceKeepOut = new List<KeepOutStrip>(); // 입구 바깥 확보 대역(소켓 없는 변 너머 — 어떤 풋프린트도 금지)
 
         /// <summary>
         /// 방 배치와 간선(트리 + 루프)을 생성해 blueprint 의 Rooms/Edges 를 채운다.
@@ -36,6 +38,7 @@ namespace EmptyHouse.MapGen.Core
             placedTemplates.Clear();
             occupiedCells.Clear();
             usedSockets.Clear();
+            entranceKeepOut.Clear();
             countableRooms = 0;
 
             if (!TryPlaceEntranceAnchor(templates, blueprint))
@@ -76,7 +79,9 @@ namespace EmptyHouse.MapGen.Core
             {
                 if (templates[i].IsEntranceAnchor)
                 {
-                    PlaceRoom(templates[i], new CellCoord(0, 0), Rotation4.Deg0, blueprint);
+                    var origin = new CellCoord(0, 0);
+                    PlaceRoom(templates[i], origin, Rotation4.Deg0, blueprint);
+                    BuildEntranceKeepOut(templates[i], origin);
                     return true;
                 }
             }
@@ -930,7 +935,76 @@ namespace EmptyHouse.MapGen.Core
             }
         }
 
-        /// <summary>해당 원점·회전으로 템플릿 풋프린트가 기존 점유와 겹치지 않는지 검사한다.</summary>
+        /// <summary>
+        /// 입구 앵커의 "소켓 없는 변" 바깥을 영구 확보 대역으로 등록한다 — 그 변은 집 밖(버스·진입로)이라
+        /// 어떤 방·복도도 뒤로 돌아 들어오면 안 된다(정면 차폐 방지). 변 폭만큼 잘린 무한 반평면.
+        /// 소켓 유무에서 파생하므로 카탈로그에 그 변 소켓이 생기면 대역도 자동으로 사라진다.
+        /// </summary>
+        /// <param name="entrance">입구 템플릿.</param>
+        /// <param name="origin">입구 풋프린트 원점(셀) — 회전 Deg0 고정이라 로컬 = 월드 방향.</param>
+        private void BuildEntranceKeepOut(RoomTemplateDef entrance, CellCoord origin)
+        {
+            Log.D("[LayoutGenerator] BuildEntranceKeepOut");
+            int maxX = origin.X + entrance.WidthCells - 1;
+            int maxY = origin.Y + entrance.HeightCells - 1;
+            for (int d = 0; d < 4; d++)
+            {
+                var side = (SocketDirection)d;
+                bool hasSocket = false;
+                for (int s = 0; s < entrance.Sockets.Length; s++)
+                {
+                    hasSocket |= entrance.Sockets[s].Direction == side;
+                }
+
+                if (hasSocket)
+                {
+                    continue;
+                }
+
+                bool alongX = side == SocketDirection.North || side == SocketDirection.South;
+                entranceKeepOut.Add(new KeepOutStrip
+                {
+                    Side = side,
+                    Boundary = side == SocketDirection.North ? maxY
+                        : side == SocketDirection.South ? origin.Y
+                        : side == SocketDirection.East ? maxX
+                        : origin.X,
+                    SpanMin = alongX ? origin.X : origin.Y,
+                    SpanMax = alongX ? maxX : maxY,
+                });
+            }
+        }
+
+        /// <summary>해당 셀이 입구 바깥 확보 대역에 드는지 판정한다.</summary>
+        /// <param name="x">셀 X.</param>
+        /// <param name="y">셀 Y.</param>
+        /// <returns>확보 대역 여부(true = 배치 금지).</returns>
+        private bool IsEntranceKeepOut(int x, int y)
+        {
+            for (int i = 0; i < entranceKeepOut.Count; i++)
+            {
+                KeepOutStrip strip = entranceKeepOut[i];
+                switch (strip.Side)
+                {
+                    case SocketDirection.North:
+                        if (y > strip.Boundary && x >= strip.SpanMin && x <= strip.SpanMax) return true;
+                        break;
+                    case SocketDirection.South:
+                        if (y < strip.Boundary && x >= strip.SpanMin && x <= strip.SpanMax) return true;
+                        break;
+                    case SocketDirection.East:
+                        if (x > strip.Boundary && y >= strip.SpanMin && y <= strip.SpanMax) return true;
+                        break;
+                    case SocketDirection.West:
+                        if (x < strip.Boundary && y >= strip.SpanMin && y <= strip.SpanMax) return true;
+                        break;
+                }
+            }
+
+            return false;
+        }
+
+        /// <summary>해당 원점·회전으로 템플릿 풋프린트가 기존 점유·입구 확보 대역과 겹치지 않는지 검사한다.</summary>
         /// <param name="template">검사할 템플릿.</param>
         /// <param name="origin">풋프린트 원점(셀).</param>
         /// <param name="rotation">회전.</param>
@@ -942,7 +1016,8 @@ namespace EmptyHouse.MapGen.Core
             {
                 for (int y = 0; y < height; y++)
                 {
-                    if (occupiedCells.Contains(CellKey(origin.X + x, origin.Y + y)))
+                    if (occupiedCells.Contains(CellKey(origin.X + x, origin.Y + y))
+                        || IsEntranceKeepOut(origin.X + x, origin.Y + y))
                     {
                         return false;
                     }
@@ -950,6 +1025,15 @@ namespace EmptyHouse.MapGen.Core
             }
 
             return true;
+        }
+
+        /// <summary>입구 바깥 확보 대역 한 줄 — 변 너머 무한 반평면을 변 폭(SpanMin~SpanMax)으로 자른 띠.</summary>
+        private struct KeepOutStrip
+        {
+            public SocketDirection Side; // 입구에서 바깥을 향하는 변
+            public int Boundary; // 그 변의 셀 좌표(넘어서면 금지)
+            public int SpanMin; // 변에 평행한 축의 하한
+            public int SpanMax; // 변에 평행한 축의 상한
         }
 
         /// <summary>소켓의 월드 셀 좌표(방 원점 + 회전 적용 로컬 셀) — CellMath.WorldCell 위임.</summary>
