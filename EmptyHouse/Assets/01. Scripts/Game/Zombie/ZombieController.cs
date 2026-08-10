@@ -326,6 +326,18 @@ public class ZombieController : NetworkBehaviour
     }
 
     /// <summary>
+    /// 배회 반경만 설정한다(군중 구성 전용). 홈 원점은 건드리지 않는다 —
+    /// <see cref="ServerConfigureSpawn"/> 는 원점까지 덮어써서 각자의 homeAnchor 로 서 있는
+    /// 무리 좀비에는 쓸 수 없고, Awake 에서 주입해도 OnNetworkSpawn 의 CacheHomePosition 이 되돌린다.
+    /// patrolRadiusOverride 는 그 경로가 건드리지 않으므로 씬 로드 시점 주입이 유효하다.
+    /// </summary>
+    /// <param name="radiusMeters">배회 반경(m). 음수면 ZombieDataSO.PatrolRadius 를 쓴다.</param>
+    public void SetPatrolRadius(float radiusMeters)
+    {
+        patrolRadiusOverride = radiusMeters;
+    }
+
+    /// <summary>
     /// 절차 스폰 직후 서버가 배회 원점·반경을 주입한다(MapStateObjectSpawner 전용 경로 — Spawn() 이후 호출).
     /// 수동 배치 좀비는 homeAnchor/인스펙터 값 그대로 동작한다. AI 가 서버 전용이라 복제는 불필요.
     /// </summary>

@@ -152,12 +152,16 @@ public class ZombieStateMachine : NetworkBehaviour
         float radius = controller.PatrolRadius;
         if (radius <= 0f) return false;
 
+        // 스냅 거리는 배회 반경을 넘지 않는다. 2m 로 고정하면 반경이 그보다 좁은 무리 좀비(ZombieCrowd)의
+        // 후보가 반경 밖으로 스냅돼 아래 반경 검사에서 계속 버려지고, 순찰점이 영영 안 잡혀 재시도만 돈다.
+        float snapDistance = Mathf.Min(2f, radius);
+
         int attempts = Mathf.Max(1, controller.Data.PatrolSampleAttempts);
         for (int i = 0; i < attempts; i++)
         {
             Vector2 offset = Random.insideUnitCircle * radius;
             Vector3 candidate = controller.HomePosition + new Vector3(offset.x, 0f, offset.y);
-            if (!NavMesh.SamplePosition(candidate, out NavMeshHit hit, 2f, agent.areaMask)) continue;
+            if (!NavMesh.SamplePosition(candidate, out NavMeshHit hit, snapDistance, agent.areaMask)) continue;
 
             Vector3 homeToPoint = hit.position - controller.HomePosition;
             homeToPoint.y = 0f;
