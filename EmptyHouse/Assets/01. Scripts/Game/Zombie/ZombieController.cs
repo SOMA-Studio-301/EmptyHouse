@@ -105,7 +105,15 @@ public class ZombieController : NetworkBehaviour
         // 상태는 서버가 쓰고 전 클라이언트에 복제된다. 애니메이션은 이 복제 상태로 구동하므로 서버 게이트 앞에서 구독한다.
         stateKind.OnValueChanged += HandleStateKindChanged;
 
-        if (!IsServer) return;
+        if (!IsServer)
+        {
+            // 좀비 AI 도 NavMesh 베이크도 서버 전용이다(AC-20) — 비서버 인스턴스의 에이전트는 딛을 NavMesh 가
+            // 아예 없어, 켜지는 순간 좀비 수만큼 "Failed to create agent because there is no valid NavMesh" 가
+            // 쏟아져 진짜 에러를 덮는다. 위치는 NetworkTransform 이 밀어 주고 ZombieAnimator 도 복제 좌표로
+            // 구동하므로(agent.velocity 를 쓰지 않는다) 꺼도 잃는 것이 없다.
+            agent.enabled = false;
+            return;
+        }
 
         stateMachine.ServerInitialize();
     }

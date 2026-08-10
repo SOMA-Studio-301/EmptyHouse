@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using Border.Core;
 using Unity.Netcode;
 using UnityEngine;
 
@@ -79,6 +80,7 @@ namespace EmptyHouse.NoiseSystem
                 (emittedDb - settings.LowestHearingThresholdDb) / settings.FalloffDbPerMeter);
 
             Collider[] hits = Physics.OverlapSphere(origin, radius, zombieMask, QueryTriggerInteraction.Collide);
+            Log.D($"[NoisePropagationSystem] 전파 {emittedDb:F0}dB at {origin} 반경 {radius:F1}m — 후보 콜라이더 {hits.Length}");
             candidateIds.Clear();
             for (int i = 0; i < hits.Length; i++)
             {
@@ -87,9 +89,16 @@ namespace EmptyHouse.NoiseSystem
                 {
                     if (!candidateIds.Add(existingZombie.NetworkObjectId)) continue;
                     float reachedDb = CalculateReachedDb(origin, existingZombie.VisionOrigin.position, emittedDb);
-                    if (existingZombie.Data == null || reachedDb < existingZombie.Data.HearMinDb) continue;
+                    if (existingZombie.Data == null || reachedDb < existingZombie.Data.HearMinDb)
+                    {
+                        // 못 들은 이유가 감쇠인지 데이터 미할당인지 구분되지 않으면 "좀비가 안 온다"를 추적할 방법이 없다.
+                        Log.D($"[NoisePropagationSystem] 좀비 {existingZombie.NetworkObjectId} 미달 — 도달 {reachedDb:F1}dB, 하한 {(existingZombie.Data == null ? "Data 미할당" : existingZombie.Data.HearMinDb.ToString("F0"))}");
+                        continue;
+                    }
+
                     detectedChannel.RaiseEvent(new NoiseDetectedEvent(
                         existingZombie.NetworkObjectId, sourceId, origin, reachedDb));
+                    Log.D($"[NoisePropagationSystem] 좀비 {existingZombie.NetworkObjectId} 감지 — 도달 {reachedDb:F1}dB, 지점 {origin}");
                     continue;
                 }
 
