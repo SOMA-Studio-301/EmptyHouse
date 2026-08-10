@@ -2142,10 +2142,6 @@ PrefabInstance:
     serializedVersion: 3
     m_TransformParent: {fileID: 5932410225484504730}
     m_Modifications:
-    - target: {fileID: 7146571762968933627, guid: 96c358bbb0044dd44b1b3df27759c0ba, type: 3}
-      propertyPath: m_Intensity
-      value: 0.25
-      objectReference: {fileID: 0}
     - target: {fileID: 1000011634355054, guid: 4846ce89c22a82a41857500ad345ddeb, type: 3}
       propertyPath: m_Name
       value: Lantern
@@ -2193,6 +2189,10 @@ PrefabInstance:
     - target: {fileID: 4000013526220236, guid: 4846ce89c22a82a41857500ad345ddeb, type: 3}
       propertyPath: m_LocalEulerAnglesHint.z
       value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 7146571762968933627, guid: 96c358bbb0044dd44b1b3df27759c0ba, type: 3}
+      propertyPath: m_Intensity
+      value: 0.25
       objectReference: {fileID: 0}
     m_RemovedComponents: []
     m_RemovedGameObjects: []
