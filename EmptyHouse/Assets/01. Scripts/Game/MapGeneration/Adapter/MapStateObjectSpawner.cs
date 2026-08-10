@@ -358,7 +358,7 @@ namespace EmptyHouse.MapGen.Runtime
         /// <summary>
         /// 좀비 스폰(단계 ④) — 마커 좌표에 타입별 프리팹을 스폰하고, 배회 원점(스폰 지점)·반경
         /// (WanderRadiusCells × CellMeters)을 서버 주입한다. NavMesh 베이크 완료가 전제(AC-20).
-        /// HerdArea 방(위장 무대)의 Walker 는 무리라 배회를 끈다(ZombieCrowd 수동 배치와 동일 효과 — 제자리 대기).
+        /// HerdArea 방(위장 무대)의 Walker 도 배회를 따로 끄지 않는다 — 마커 반경대로 움직인다.
         /// </summary>
         /// <param name="blueprint">대상 블루프린트.</param>
         /// <param name="templates">템플릿 목록.</param>
@@ -398,11 +398,6 @@ namespace EmptyHouse.MapGen.Runtime
 
                 ZombieController zombie = instance.GetComponentInChildren<ZombieController>();
                 zombie.ServerConfigureSpawn(position, spawn.WanderRadiusCells * prefabRegistry.CellMeters);
-                if (spawn.Kind == SpawnKind.ZombieWalker && herdRooms.Contains(spawn.RoomIndex))
-                {
-                    zombie.SetWanderEnabled(false); // 위장 무대 무리 — 제자리 대기(레벨디자인 4절)
-                }
-
                 spawned++;
             }
 
