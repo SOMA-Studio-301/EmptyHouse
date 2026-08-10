@@ -51,16 +51,12 @@ public class UINoiseMeter : MonoBehaviour
     /// <summary>칸을 만들어 둔다. 구독보다 먼저 실행돼야 초기 표시가 빈 배열에 부딪히지 않는다.</summary>
     private void Awake()
     {
-        Log.D($"[UINoiseMeter] Awake — 세그먼트 {segmentCount}칸");
-
         BuildSegments();
     }
 
     /// <summary>채널을 구독하고, 이미 발행된 마지막 dB 로 초기 표시를 맞춘다(늦은 구독자 동기화).</summary>
     private void OnEnable()
     {
-        Log.D($"[UINoiseMeter] 구독 — 초기 dB {noiseMeterLevelChanged.CurrentDb:F1}");
-
         noiseMeterLevelChanged.OnEventRaised += HandleLevelChanged;
 
         // 늦게 켜진 HUD 는 다음 표본까지 기다리지 않고 마지막 발행값에서 시작한다.
@@ -72,8 +68,6 @@ public class UINoiseMeter : MonoBehaviour
     /// <summary>구독을 해제한다. 채널은 SO 라 씬 밖에서 살아남으므로 죽은 델리게이트를 남기지 않는다.</summary>
     private void OnDisable()
     {
-        Log.D("[UINoiseMeter] 구독 해제");
-
         noiseMeterLevelChanged.OnEventRaised -= HandleLevelChanged;
     }
 
@@ -101,8 +95,6 @@ public class UINoiseMeter : MonoBehaviour
     /// <summary>segmentPrefab 을 segmentCount 개 복제해 <see cref="segments"/> 를 채운다. 원본 프리팹 인스턴스는 화면에 남기지 않는다.</summary>
     private void BuildSegments()
     {
-        Log.D($"[UINoiseMeter] BuildSegments {segmentCount}");
-
         segments = new Image[segmentCount];
         for (int i = 0; i < segmentCount; i++)
         {

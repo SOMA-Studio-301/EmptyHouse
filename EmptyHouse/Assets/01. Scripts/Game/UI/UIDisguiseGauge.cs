@@ -34,8 +34,6 @@ public class UIDisguiseGauge : MonoBehaviour
     /// <summary>채널을 구독하고, 이미 발행된 마지막 잔량으로 초기 표시를 맞춘다(늦은 구독자 동기화).</summary>
     private void OnEnable()
     {
-        Log.D($"[UIDisguiseGauge] 구독 — 초기 잔량 {disguiseGaugeChanged.CurrentGauge01:F2}");
-
         ApplyBackgroundArc();
 
         disguiseGaugeChanged.OnEventRaised += Render;
@@ -45,8 +43,6 @@ public class UIDisguiseGauge : MonoBehaviour
     /// <summary>구독을 해제한다. 채널은 SO 라 씬 밖에서 살아남으므로 죽은 델리게이트를 남기지 않는다.</summary>
     private void OnDisable()
     {
-        Log.D("[UIDisguiseGauge] 구독 해제");
-
         disguiseGaugeChanged.OnEventRaised -= Render;
     }
 
