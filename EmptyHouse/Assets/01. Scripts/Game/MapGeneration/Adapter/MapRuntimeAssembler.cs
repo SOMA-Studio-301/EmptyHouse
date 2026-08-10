@@ -94,6 +94,9 @@ namespace EmptyHouse.MapGen.Runtime
 
             AssignPhysicsLayers(mapRoot);
 
+            // 조명 컬러 — 방 그룹 수집·기준점 계산은 컬러가 첫 Update 에서 처리한다(배치 확정 이후)
+            mapRoot.AddComponent<EmptyHouse.Environment.MapLightCuller>();
+
             return mapRoot;
         }
 
@@ -191,12 +194,8 @@ namespace EmptyHouse.MapGen.Runtime
             instance.transform.localRotation = Quaternion.Euler(0f, 90f * (int)room.Rotation, 0f);
             instance.transform.localPosition = Vector3.zero;
 
-            // 프리팹 내장 라이트 비활성화 — 90+ 노드(방 60 + 복도)면 URP Forward+ 라이트 한도를 넘는다.
-            // 절차 맵 라이팅은 P5(템플릿 SO 세트) 소관 — 에디터 빌더와 같은 정책
-            foreach (Light light in instance.GetComponentsInChildren<Light>(true))
-            {
-                light.enabled = false;
-            }
+            // 내장 라이트는 여기서 끄지 않는다 — 조립 후 맵 루트의 MapLightCuller 가
+            // 카메라 주변 방만 켜 Forward+ 라이트 한도를 지킨다(방 프리팹의 RoomLightGroup 단위)
 
             Bounds floor = FloorBounds(instance);
             float cell = registry.CellMeters;

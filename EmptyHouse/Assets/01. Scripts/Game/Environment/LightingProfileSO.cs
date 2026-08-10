@@ -59,6 +59,34 @@ namespace EmptyHouse.Environment
         [Header("Global")]
         [SerializeField] private Color globalTint = Color.white; // 맵 전체 색 보정(곱)
 
+        [Header("Fixture State")]
+        [Range(0f, 1f)][SerializeField] private float offChance = 0.25f;     // 소등될 확률(픽스처에서 개별 오버라이드 가능)
+        [Range(0f, 1f)][SerializeField] private float flickerChance = 0.25f; // 점등된 것 중 깜빡일 확률
+
+        /// <summary>소등될 확률.</summary>
+        public float OffChance => offChance;
+
+        /// <summary>점등된 것 중 깜빡일 확률.</summary>
+        public float FlickerChance => flickerChance;
+
+        [Header("Culling")]
+        [SerializeField] private float cullUpdateInterval = 0.4f; // 컬링 갱신 주기(초)
+        [SerializeField] private float cullEnableRadius = 18f;    // 조명을 켜는 반경(m)
+        [SerializeField] private float cullDisableRadius = 24f;   // 조명을 끄는 반경(m) — 켜는 반경보다 커야 히스테리시스가 성립
+        [SerializeField] private int cullMaxActiveRooms = 12;     // 동시에 조명을 켤 방 수 상한(Forward+ 라이트 한도 안전판)
+
+        /// <summary>컬링 갱신 주기(초).</summary>
+        public float CullUpdateInterval => cullUpdateInterval;
+
+        /// <summary>조명을 켜는 반경(m).</summary>
+        public float CullEnableRadius => cullEnableRadius;
+
+        /// <summary>조명을 끄는 반경(m).</summary>
+        public float CullDisableRadius => cullDisableRadius;
+
+        /// <summary>동시에 조명을 켤 방 수 상한.</summary>
+        public int CullMaxActiveRooms => cullMaxActiveRooms;
+
         /// <summary>프로파일 값이 바뀌었을 때 발생한다(에디터 인스펙터 편집 · 플레이 중 포함).</summary>
         public static event Action Changed;
 
