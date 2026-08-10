@@ -10,9 +10,9 @@ namespace EmptyHouse.Environment
     public class RandomLightFixture : MonoBehaviour
     {
         [Header("References")]
-        [SerializeField] private Light targetLight;         // 제어할 자식 라이트
+        [SerializeField] private Light[] targetLights;      // 함께 켜고 끌 자식 라이트들(주광원 + 보조광)
         [SerializeField] private Renderer fixtureRenderer;  // 머티리얼을 교체할 픽스처 메시
-        [SerializeField] private FlickeringLight flicker;   // 깜빡임 컴포넌트(자식 라이트에 부착)
+        [SerializeField] private FlickeringLight flicker;   // 깜빡임 컴포넌트(주광원에 부착)
 
         [Header("Materials")]
         [SerializeField] private Material onMaterial;   // 점등 머티리얼
@@ -32,7 +32,6 @@ namespace EmptyHouse.Environment
             bool isOn = rng.NextDouble() >= offChance;
             bool isFlickering = isOn && rng.NextDouble() < flickerChance;
 
-            targetLight.enabled = isOn;
             ApplyLit(isOn);
 
             // 깜빡임 중에는 소등 순간마다 머티리얼도 함께 꺼진 것으로 바꾼다
@@ -49,11 +48,13 @@ namespace EmptyHouse.Environment
         }
 
         /// <summary>
-        /// 점등 여부에 맞춰 픽스처 머티리얼을 교체한다.
+        /// 점등 여부에 맞춰 라이트 전체를 켜고 끄고 픽스처 머티리얼을 교체한다.
+        /// 보조광까지 함께 꺼야 픽스처만 꺼지고 빛은 남는 어색함이 생기지 않는다.
         /// </summary>
         /// <param name="isLit">점등 여부.</param>
         private void ApplyLit(bool isLit)
         {
+            for (int i = 0; i < targetLights.Length; i++) targetLights[i].enabled = isLit;
             fixtureRenderer.sharedMaterial = isLit ? onMaterial : offMaterial;
         }
 
@@ -75,9 +76,9 @@ namespace EmptyHouse.Environment
         /// </summary>
         private void Reset()
         {
-            targetLight = GetComponentInChildren<Light>(true);
-            fixtureRenderer = GetComponent<Renderer>();
-            if (targetLight != null) flicker = targetLight.GetComponent<FlickeringLight>();
+            targetLights = GetComponentsInChildren<Light>(true);
+            fixtureRenderer = GetComponentInChildren<Renderer>(true);
+            if (targetLights.Length > 0) flicker = targetLights[0].GetComponent<FlickeringLight>();
         }
     }
 }
