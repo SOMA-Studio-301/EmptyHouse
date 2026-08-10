@@ -4,8 +4,9 @@ using UnityEngine;
 
 /// <summary>
 /// 플레이어 위장 상태의 네트워크 권위자.
-/// 소유 클라이언트는 V 누름/해제를 서버에 요청하고, 서버만 상태와 게이지를 변경한다.
+/// 소유 클라이언트는 V 토글을 서버에 요청하고, 서버만 상태와 게이지를 변경한다.
 /// 위장 중 게이지는 초당 설정값만큼 감소하며 0이 되면 서버가 위장을 해제한다.
+/// 위장 중 이동(자동 전진·감속)은 <see cref="PlayerController"/> 가 이 플래그를 읽어 처리한다.
 /// </summary>
 public sealed class PlayerDisguise : NetworkBehaviour
 {
@@ -63,8 +64,7 @@ public sealed class PlayerDisguise : NetworkBehaviour
 
         if (IsOwner)
         {
-            inputReader.DisguisePressedEvent += RequestEnter;
-            inputReader.DisguiseCanceledEvent += RequestExit;
+            inputReader.DisguiseEvent += RequestToggle;
 
             currentGauge.OnValueChanged += HandleGaugeChanged;
             PublishGauge(currentGauge.Value);
@@ -80,8 +80,7 @@ public sealed class PlayerDisguise : NetworkBehaviour
 
         if (IsOwner)
         {
-            inputReader.DisguisePressedEvent -= RequestEnter;
-            inputReader.DisguiseCanceledEvent -= RequestExit;
+            inputReader.DisguiseEvent -= RequestToggle;
 
             currentGauge.OnValueChanged -= HandleGaugeChanged;
             PublishGauge(0f);
@@ -98,20 +97,17 @@ public sealed class PlayerDisguise : NetworkBehaviour
         ServerDrainGauge(now);
     }
 
-    private void RequestEnter()
-    {
-        RequestState(true);
-    }
-
-    private void RequestExit()
-    {
-        RequestState(false);
-    }
-
-    private void RequestState(bool requestedState)
+    /// <summary>
+    /// V 토글 입력. 복제된 현재 상태의 반대를 목표 상태로 서버에 요청한다.
+    /// "뒤집어라"가 아니라 "이 상태로 만들어라"를 보내는 이유는 멱등성이다 —
+    /// 요청이 중복 도착하거나 게이지 고갈로 서버가 이미 해제한 뒤에 도착해도 결과가 어긋나지 않는다.
+    /// isDisguised 는 Everyone 읽기라 소유자가 그대로 읽을 수 있고, 왕복 지연 동안 다시 누르면
+    /// 아직 갱신되지 않은 값으로 같은 요청을 한 번 더 보내는 것이라 무해하다.
+    /// </summary>
+    private void RequestToggle()
     {
         if (!IsOwner || !IsSpawned) return;
-        RequestStateRpc(requestedState);
+        RequestStateRpc(!isDisguised.Value);
     }
 
     /// <summary>소유자의 요청을 받아 서버에서만 위장 유지 상태를 변경한다.</summary>

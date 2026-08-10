@@ -28,6 +28,7 @@ public class PlayerController : NetworkBehaviour
     [Header("Movement")]
     [SerializeField] private float moveSpeed = 3f; // 기본 이동 속도(m/s)
     [SerializeField] private float crouchSpeedMultiplier = 0.5f; // 웅크림 중 이동속도 배율. moveSpeed 에 곱해 적용한다
+    [SerializeField] private float disguiseSpeedMultiplier = 0.6f; // 위장 중 자동 전진 속도 배율. moveSpeed 에 곱해 적용한다
 
     [Header("Jump")]
     [SerializeField] private float jumpSpeed = 5f; // 점프 시작 시 설정할 상승 속도. v²/2g ≈ 1.27m 상승한다
@@ -47,6 +48,7 @@ public class PlayerController : NetworkBehaviour
     private PlayerDeathHandler deathHandler; // 비활성 게이팅 소스 — 형제. 사망 시 이동·시선·상호작용·인벤을 차단한다(2-1·관전은 PlayerSpectatorController)
     private PlayerReturn playerReturn; // 비활성 게이팅 소스 — 형제. 귀환도 사망과 똑같이 조작을 차단한다(세션루프.md 3장)
     private PlayerHiding hiding; // 은신 게이팅 소스 — 형제. 은신 중 이동·점프를 차단하고 시선을 콘 안으로 제한한다(2-1, 조작상호작용UI.md 3-5-1)
+    private PlayerDisguise disguise; // 위장 게이팅 소스 — 형제. 위장 중 WASD 를 무시하고 시선 정면으로 자동 전진시킨다
 
     private bool IsInactive => deathHandler.IsDead.Value || playerReturn.HasExtracted.Value; // 비활성(사망 OR 귀환) 여부. 어느 쪽이든 조작을 차단하고 관전으로 넘긴다 — PlayerSpectatorController 진입 조건과 같다
 
@@ -83,7 +85,7 @@ public class PlayerController : NetworkBehaviour
     public float AimYawOffsetDeg => Mathf.DeltaAngle(bodyYaw, yaw); // 시선-하체 yaw 차(도). 상체 비틀림 표현(AimYawOffset 파라미터)용
     public event System.Action JumpPerformed; // 점프가 실제로 발동한 순간 발행된다. 애니메이션 트리거용
 
-    /// <summary>Rigidbody 와 형제 PlayerDeathHandler·PlayerReturn 참조를 캐시한다.</summary>
+    /// <summary>Rigidbody 와 형제 PlayerDeathHandler·PlayerReturn·PlayerHiding·PlayerDisguise 참조를 캐시한다.</summary>
     private void Awake()
     {
         body = GetComponent<Rigidbody>();
@@ -91,6 +93,7 @@ public class PlayerController : NetworkBehaviour
         deathHandler = GetComponent<PlayerDeathHandler>();
         playerReturn = GetComponent<PlayerReturn>();
         hiding = GetComponent<PlayerHiding>();
+        disguise = GetComponent<PlayerDisguise>();
     }
 
     /// <summary>
@@ -397,13 +400,15 @@ public class PlayerController : NetworkBehaviour
     /// <summary>
     /// 하체(bodyYaw)를 시선에 맞춰 따라 돌린다.
     /// 이동 중에는 시선으로 정렬하고, 정지 중에는 시선-하체 차가 상체 한계각을 넘었을 때만 한계 안으로 끌어온다.
+    /// 위장 중에는 입력이 없어도 계속 전진하므로 이동 중과 같게 취급한다 — 그러지 않으면 상체 한계각에
+    /// 걸려 몸은 옆을 본 채 게걸음으로 나아간다.
     /// </summary>
     private void HandleBodyTurn()
     {
         float offset = Mathf.DeltaAngle(bodyYaw, yaw);
         float step = bodyTurnSpeedDeg * Time.deltaTime;
 
-        if (moveInput.sqrMagnitude > 0.0001f)
+        if (disguise.IsDisguised || moveInput.sqrMagnitude > 0.0001f)
         {
             bodyYaw = Mathf.MoveTowardsAngle(bodyYaw, yaw, step);
         }
@@ -420,11 +425,22 @@ public class PlayerController : NetworkBehaviour
     /// </summary>
     private void HandleMove()
     {
+        // 위장 중에는 WASD 를 아예 읽지 않고 시선 정면으로만 자동 전진한다 — 조향 수단은 마우스뿐이다.
+        // 속도도 웅크림과 겹치지 않는 단일 배율로 덮어쓴다(웅크려도 느려지지 않는다):
+        // 위장은 "좀비 걸음을 흉내 내는 고정 보행"이라 플레이어가 속도를 고를 여지를 두지 않는다.
+        bool disguised = disguise.IsDisguised;
+
         // transform 의 회전은 Rigidbody 보간이 매 프레임 물리 몸체의 옛 회전으로 되돌려 쓸 수 있어
         // FixedUpdate 시점에 낡은 값이 걸린다(시선은 꺾였는데 이동은 이전 방향으로 가는 간헐 버그).
         // 카메라와 같은 근원인 yaw 필드로 직접 방향을 계산해 시선·이동을 항상 일치시킨다.
-        Vector3 dir = Quaternion.Euler(0f, yaw, 0f) * new Vector3(moveInput.x, 0f, moveInput.y);
-        float speed = isCrouching ? moveSpeed * crouchSpeedMultiplier : moveSpeed;
+        // 전진 방향은 pitch 를 뺀 yaw 평면 정면이다 — 올려다본다고 떠오르거나 내려다본다고 느려지지 않는다.
+        Vector3 local = disguised ? Vector3.forward : new Vector3(moveInput.x, 0f, moveInput.y);
+        Vector3 dir = Quaternion.Euler(0f, yaw, 0f) * local;
+
+        float speed = disguised
+            ? moveSpeed * disguiseSpeedMultiplier
+            : isCrouching ? moveSpeed * crouchSpeedMultiplier : moveSpeed;
+
         Vector3 v = dir.normalized * speed;
         body.linearVelocity = new Vector3(v.x, body.linearVelocity.y, v.z);
     }

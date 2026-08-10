@@ -26,8 +26,7 @@ public class InputReader : ScriptableObject, GameInput.IGameplayActions, GameInp
     public event UnityAction NextEvent     = delegate { }; // 관전 대상 다음 순환(→). 관전 중에만 소비된다
     public event UnityAction PreviousEvent = delegate { }; // 관전 대상 이전 순환(←). 관전 중에만 소비된다
     public event UnityAction DropEvent = delegate { }; // 버리기(G) 버튼이 눌렸을 때 발행
-    public event UnityAction DisguisePressedEvent = delegate { }; // 위장(V) 누름. 실제 상태 변경은 서버 권위 PlayerDisguise가 수행
-    public event UnityAction DisguiseCanceledEvent = delegate { }; // 위장(V) 해제. 누르는 동안만 위장을 유지하기 위한 종료 신호
+    public event UnityAction DisguiseEvent = delegate { }; // 위장(V) 토글 누름. 실제 상태 변경은 서버 권위 PlayerDisguise가 수행
     public event UnityAction RadioPressedEvent = delegate { }; // 무전 Push-To-Talk(J) 누름
     public event UnityAction RadioCanceledEvent = delegate { }; // 무전 Push-To-Talk(J) 해제
     public event UnityAction AimPressedEvent = delegate { }; // 투척 조준(우클릭) 누름. 누르는 동안만 궤적이 유지된다
@@ -308,18 +307,19 @@ public class InputReader : ScriptableObject, GameInput.IGameplayActions, GameInp
         }
     }
 
-    /// <summary>Disguise 액션 콜백. V 누름/해제를 위장 유지 시작/종료 신호로 중계한다.</summary>
+    /// <summary>
+    /// Disguise 액션 콜백. 눌림만 <see cref="DisguiseEvent"/> 로 발행한다(토글 신호).
+    /// 뗌은 중계하지 않는다 — 위장은 누르는 동안 유지하는 홀드가 아니라 켜고 끄는 토글이라,
+    /// 손을 떼는 순간이 곧 해제였던 예전 방식과 달리 해제도 다음 눌림이 맡는다.
+    /// </summary>
+    /// <param name="context">Input System 이 전달하는 콜백 컨텍스트.</param>
     public void OnDisguise(InputAction.CallbackContext context)
     {
         RememberDevice(context);
 
         if (context.phase == InputActionPhase.Performed)
         {
-            DisguisePressedEvent.Invoke();
-        }
-        else if (context.phase == InputActionPhase.Canceled)
-        {
-            DisguiseCanceledEvent.Invoke();
+            DisguiseEvent.Invoke();
         }
     }
 
