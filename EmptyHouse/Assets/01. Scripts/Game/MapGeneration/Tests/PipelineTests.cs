@@ -30,7 +30,7 @@ namespace EmptyHouse.MapGen.Core.Tests
                 }
             }
 
-            ValidationReport report = new BlueprintValidator().Validate(blueprint, genParams, MapTemplateCatalog.Create());
+            ValidationReport report = new BlueprintValidator().Validate(blueprint, genParams, BlueprintFixtures.CreateFakeTemplates());
             Assert.That(report.EssentialsReachable, Is.False, "백신 방을 봉인했는데 패스 1이 통과했다");
             Assert.That(report.AllPassed, Is.False);
         }
@@ -71,7 +71,7 @@ namespace EmptyHouse.MapGen.Core.Tests
                     }
 
                     blueprint.Spawns[keySpawnIndices[i - 1]].RoomIndex = outsideRoom;
-                    ValidationReport report = new BlueprintValidator().Validate(blueprint, genParams, MapTemplateCatalog.Create());
+                    ValidationReport report = new BlueprintValidator().Validate(blueprint, genParams, BlueprintFixtures.CreateFakeTemplates());
                     Assert.That(report.KeyInvariantHolds, Is.False,
                         $"시드 {seed}: 열쇠_{i} 를 R_{i} 밖(방 {outsideRoom})으로 옮겼는데 패스 2가 통과했다");
                     Assert.That(report.AllPassed, Is.False);
@@ -96,7 +96,7 @@ namespace EmptyHouse.MapGen.Core.Tests
                 }
 
                 RemoveSpawns(blueprint, SpawnKind.Throwable);
-                ValidationReport report = new BlueprintValidator().Validate(blueprint, genParams, MapTemplateCatalog.Create());
+                ValidationReport report = new BlueprintValidator().Validate(blueprint, genParams, BlueprintFixtures.CreateFakeTemplates());
                 Assert.That(report.HardlockPairsHold, Is.False,
                     $"시드 {seed}: 투척물을 전부 제거했는데 A등급 파훼 쌍 검사가 통과했다");
                 Assert.That(report.AllPassed, Is.False);
@@ -121,7 +121,7 @@ namespace EmptyHouse.MapGen.Core.Tests
 
                 // 임계만 올려 채택된 지름길 전부를 가치 미달로 만든다(블루프린트 자체는 무손상)
                 genParams.ShortcutValueMin = int.MaxValue;
-                ValidationReport report = new BlueprintValidator().Validate(blueprint, genParams, MapTemplateCatalog.Create());
+                ValidationReport report = new BlueprintValidator().Validate(blueprint, genParams, BlueprintFixtures.CreateFakeTemplates());
                 Assert.That(report.ShortcutValuesHold, Is.False,
                     $"시드 {seed}: 임계를 무한대로 올렸는데 패스 4가 통과했다");
                 Assert.That(report.AllPassed, Is.False);
@@ -145,7 +145,7 @@ namespace EmptyHouse.MapGen.Core.Tests
                 }
 
                 RemoveSpawns(blueprint, SpawnKind.Generator);
-                ValidationReport report = new BlueprintValidator().Validate(blueprint, genParams, MapTemplateCatalog.Create());
+                ValidationReport report = new BlueprintValidator().Validate(blueprint, genParams, BlueprintFixtures.CreateFakeTemplates());
                 Assert.That(report.Warnings.Count, Is.GreaterThan(0),
                     $"시드 {seed}: 발전기를 전부 제거했는데 X6 경고가 없다");
                 Assert.That(report.HardlockPairsHold, Is.True,
@@ -248,9 +248,12 @@ namespace EmptyHouse.MapGen.Core.Tests
             return count;
         }
 
-        /// <summary>복도 연결부(복도가 한쪽이라도 낀 간선)는 항상 개방 통로다 — 문·자물쇠 금지(복도 개구에는 문틀이 없다).</summary>
+        /// <summary>
+        /// 복도↔복도 간선만 개방 통로 고정이다 — 양쪽 단부에 벽이 없어 문틀을 물릴 데가 없다.
+        /// 복도↔방은 방 쪽 벽을 절단해 문을 세울 수 있어 문·자물쇠가 허용된다(2026-08-09 기획 완화, LockKeyPlacer 와 동일 기준).
+        /// </summary>
         [Test]
-        public void Generate_복도_연결부는_항상_개방_통로다()
+        public void Generate_복도끼리_잇는_간선만_개방_통로다()
         {
             var corridorIds = new HashSet<string>();
             foreach (RoomTemplateDef template in DevTemplateSet.Create())
@@ -261,7 +264,8 @@ namespace EmptyHouse.MapGen.Core.Tests
                 }
             }
 
-            int corridorEdges = 0;
+            int corridorPairEdges = 0;
+            int corridorRoomEdges = 0;
             for (int seed = 1; seed <= 20; seed++)
             {
                 MapGenResult result = GenerateSuccess(seed, out _);
@@ -269,22 +273,34 @@ namespace EmptyHouse.MapGen.Core.Tests
                 for (int e = 0; e < blueprint.Edges.Count; e++)
                 {
                     BlueprintEdge edge = blueprint.Edges[e];
-                    if (edge.RoomB < 0
-                        || (!corridorIds.Contains(blueprint.Rooms[edge.RoomA].TemplateId)
-                            && !corridorIds.Contains(blueprint.Rooms[edge.RoomB].TemplateId)))
+                    if (edge.RoomB < 0)
                     {
                         continue;
                     }
 
-                    corridorEdges++;
-                    Assert.That(edge.State, Is.EqualTo(EdgeState.OpenPassage),
-                        $"시드 {seed}: 복도 연결 간선 {edge.RoomA}↔{edge.RoomB} 이 {edge.State} — 복도 연결부는 뚫려 있어야 한다");
-                    Assert.That(edge.LockNumber, Is.EqualTo(0),
-                        $"시드 {seed}: 복도 연결 간선 {edge.RoomA}↔{edge.RoomB} 에 자물쇠 {edge.LockNumber} — 복도 연결부에는 문틀이 없어 잠글 수 없다");
+                    bool corridorA = corridorIds.Contains(blueprint.Rooms[edge.RoomA].TemplateId);
+                    bool corridorB = corridorIds.Contains(blueprint.Rooms[edge.RoomB].TemplateId);
+                    if (corridorA && corridorB)
+                    {
+                        corridorPairEdges++;
+                        Assert.That(edge.State, Is.EqualTo(EdgeState.OpenPassage),
+                            $"시드 {seed}: 복도↔복도 간선 {edge.RoomA}↔{edge.RoomB} 이 {edge.State} — 문틀을 물릴 벽이 없어 개방 통로여야 한다");
+                        Assert.That(edge.LockNumber, Is.EqualTo(0),
+                            $"시드 {seed}: 복도↔복도 간선 {edge.RoomA}↔{edge.RoomB} 에 자물쇠 {edge.LockNumber} — 잠글 문이 없다");
+                    }
+                    else if (corridorA || corridorB)
+                    {
+                        corridorRoomEdges++;
+                        Assert.That(edge.State, Is.Not.EqualTo(EdgeState.BlockedWall),
+                            $"시드 {seed}: 복도↔방 간선 {edge.RoomA}↔{edge.RoomB} 이 막힌 벽 — 연결 간선은 통과 가능해야 한다");
+                        Assert.That(edge.LockNumber > 0, Is.EqualTo(edge.State == EdgeState.DoorLocked),
+                            $"시드 {seed}: 복도↔방 간선 {edge.RoomA}↔{edge.RoomB} 의 상태({edge.State})와 자물쇠({edge.LockNumber})가 어긋난다");
+                    }
                 }
             }
 
-            Assert.That(corridorEdges, Is.GreaterThan(0), "시드 20개에서 복도 연결 간선이 한 번도 안 나와 검증이 공허하다");
+            Assert.That(corridorPairEdges, Is.GreaterThan(0), "시드 20개에서 복도↔복도 간선이 한 번도 안 나와 검증이 공허하다");
+            Assert.That(corridorRoomEdges, Is.GreaterThan(0), "시드 20개에서 복도↔방 간선이 한 번도 안 나와 검증이 공허하다");
         }
 
         /// <summary>

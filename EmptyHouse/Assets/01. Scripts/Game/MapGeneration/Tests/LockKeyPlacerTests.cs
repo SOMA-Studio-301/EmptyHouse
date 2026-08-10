@@ -60,7 +60,10 @@ namespace EmptyHouse.MapGen.Core.Tests
             for (int seed = 1; seed <= 100; seed++)
             {
                 MapBlueprint blueprint = Generate(seed, out MapGenParams genParams, out _);
-                int[] depths = DangerGradeCalculator.ComputeDepths(blueprint);
+
+                // 지름길 가치 척도는 방 단위 거리(복도 비용 0) — 배치기와 같은 척도여야 판정이 일치한다(2026-08-09)
+                bool[] isCorridor = RoomHopMetric.CorridorFlags(blueprint, BlueprintFixtures.CreateFakeTemplates());
+                int[] roomHops = RoomHopMetric.Distances(blueprint, isCorridor, 0);
                 for (int e = 0; e < blueprint.Edges.Count; e++)
                 {
                     BlueprintEdge edge = blueprint.Edges[e];
@@ -75,7 +78,7 @@ namespace EmptyHouse.MapGen.Core.Tests
                         continue;
                     }
 
-                    Assert.That(RecomputeShortcutValue(blueprint, e, depths), Is.GreaterThanOrEqualTo(genParams.ShortcutValueMin),
+                    Assert.That(RoomHopMetric.ShortcutValue(blueprint, e, isCorridor, roomHops), Is.GreaterThanOrEqualTo(genParams.ShortcutValueMin),
                         $"시드 {seed}: 간선 {e} 지름길 자물쇠의 귀환 단축 이득이 임계 미만이다(AC-10)");
                 }
             }
@@ -190,30 +193,6 @@ namespace EmptyHouse.MapGen.Core.Tests
             return null;
         }
 
-        /// <summary>간선을 잠시 막고 깊이를 재계산해 지름길 가치(최대 귀환 단축 방 수)를 재검산한다.</summary>
-        /// <param name="blueprint">대상 블루프린트.</param>
-        /// <param name="edgeIndex">평가할 간선.</param>
-        /// <param name="depths">전 간선 포함 기준 깊이.</param>
-        /// <returns>귀환 단축 이득(방 수).</returns>
-        private static int RecomputeShortcutValue(MapBlueprint blueprint, int edgeIndex, int[] depths)
-        {
-            BlueprintEdge edge = blueprint.Edges[edgeIndex];
-            EdgeState original = edge.State;
-            edge.State = EdgeState.BlockedWall;
-            int[] without = DangerGradeCalculator.ComputeDepths(blueprint);
-            edge.State = original;
-
-            int best = 0;
-            for (int r = 0; r < without.Length; r++)
-            {
-                if (without[r] >= 0 && without[r] - depths[r] > best)
-                {
-                    best = without[r] - depths[r];
-                }
-            }
-
-            return best;
-        }
 
         /// <summary>방 템플릿에 Key 가능 ItemSpawn 마커가 있는지 검사한다.</summary>
         /// <param name="templates">템플릿 집합.</param>
