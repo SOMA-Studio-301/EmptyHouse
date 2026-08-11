@@ -13,9 +13,9 @@ using UnityEngine;
 /// 군중 좀비는 영구). 그 구간에서도 상태는 그대로라, 가만히 선 좀비가 걷기 클립을 제자리에서 돌린다.
 /// 반대로 포효·공격은 이동이 없는 연출이라 이동량으로 고를 수 없다 — 그래서 둘을 나눠서 판정한다.
 ///
-/// 이동량은 transform 위치 델타로 잰다. NavMeshAgent 는 서버에서만 경로를 가져 클라의
-/// agent.velocity 는 0 이지만, 위치는 NetworkTransform 이 보간해 전 클라에 복제하므로
-/// 각 인스턴스가 자기 위치 변화만 보면 서버·클라가 같은 판정을 낸다(PlayerFootstepSfx 와 같은 방식).
+/// 속력의 출처는 서버와 클라가 다르다. 서버는 위치를 루트모션이 만들어(ZombieRootMotion) 위치 델타로
+/// 재면 되먹임이 돌므로, 에이전트가 내려는 속도(desiredVelocity)를 쓴다. 클라는 NavMeshAgent 가 꺼져 있고
+/// NetworkTransform 이 보간해 준 복제 좌표뿐이라 위치 델타로 잰다(PlayerFootstepSfx 와 같은 방식).
 ///
 /// 상태는 서버가 쓰고 전 클라이언트에 복제되므로, 이 컴포넌트는 모든 인스턴스에서 동작한다(NetworkAnimator 불필요).
 /// </summary>
@@ -41,6 +41,22 @@ public class ZombieAnimator : NetworkBehaviour
         new Keyframe(3f, 2.672f),
         new Keyframe(3.406f, 3.429f));
 
+    [Header("Turn (Legs)")]
+    [Tooltip("좀비 회전 각속도(도/초, 절대값)를 다리 회전 세기(0~1)로 바꾸는 곡선. 위로 올릴수록 같은 속도에서 발이 더 많이 돌아간다.")]
+    [SerializeField] private AnimationCurve turnBlendCurve = new AnimationCurve(
+        new Keyframe(0f, 0f),
+        new Keyframe(30f, 0.4f),
+        new Keyframe(90f, 0.85f),
+        new Keyframe(180f, 1f));
+    [Tooltip("Turn 클립이 본래 도는 속도(도/초). 실제 회전 속도를 이 값으로 나눠 재생 배속을 만든다 — 빨리 돌수록 발도 빨리 끈다.")]
+    [SerializeField] private float turnClipDegreesPerSecond = 90f;
+    [Tooltip("이 속력(m/s)에 도달하면 다리 회전 연출을 완전히 끈다. 걷는 중에는 로코모션 클립이 이미 다리를 쓴다.")]
+    [SerializeField] private float turnFadeOutSpeed = 0.4f;
+    [Tooltip("회전 각속도 평활 시간 상수(초). 클라이언트의 복제 회전 보간 지터를 흡수한다.")]
+    [SerializeField] private float turnSmoothingSeconds = 0.12f;
+
+    private const string turnLayerName = "Turn (Legs)"; // AnimationSetupTool 이 만드는 다리 전용 마스크 레이어 이름
+
     private const int animLocomotion = 0; // 대기·보행·질주 — Speed 로 블렌드
     private const int animRoar = 2;       // 포효
     private const int animAttack = 3;     // 공격
@@ -54,10 +70,16 @@ public class ZombieAnimator : NetworkBehaviour
     private static readonly int stateHash = Animator.StringToHash("State");
     private static readonly int speedHash = Animator.StringToHash("Speed");
     private static readonly int speedMulHash = Animator.StringToHash("SpeedMul");
+    private static readonly int turnBlendHash = Animator.StringToHash("TurnBlend");
+    private static readonly int turnMulHash = Animator.StringToHash("TurnMul");
 
     private Vector3 previousPosition; // 직전 프레임의 위치. 이동량은 이 차이로 구한다
     private float smoothedSpeed;      // 평활된 평면 속력(m/s)
     private int appliedAnimState = animNone;
+
+    private float previousYaw;     // 직전 프레임의 좀비 루트 Y 회전(도). 회전 각속도는 이 차이로 구한다
+    private float smoothedYawRate; // 평활된 회전 각속도(도/초, 부호 있음)
+    private int turnLayerIndex;    // 다리 전용 Turn 레이어 인덱스. 스폰 시 이름으로 찾는다
 
     /// <summary>상태 변화를 구독하고 현재 상태를 즉시 반영한다(늦게 접속한 클라이언트 포함).</summary>
     public override void OnNetworkSpawn()
@@ -66,9 +88,16 @@ public class ZombieAnimator : NetworkBehaviour
         smoothedSpeed = 0f;
         appliedAnimState = animNone;
 
+        previousYaw = controller.transform.eulerAngles.y;
+        smoothedYawRate = 0f;
+        turnLayerIndex = animator.GetLayerIndex(turnLayerName);
+
         controller.StateChanged += HandleStateChanged;
         animator.SetFloat(speedHash, 0f);
         animator.SetFloat(speedMulHash, 1f);
+        animator.SetFloat(turnBlendHash, 0f);
+        animator.SetFloat(turnMulHash, 1f);
+        animator.SetLayerWeight(turnLayerIndex, 0f);
         ApplyAnimState();
     }
 
@@ -92,7 +121,12 @@ public class ZombieAnimator : NetworkBehaviour
         float deltaTime = Time.deltaTime;
         if (deltaTime > 0f)
         {
-            float sampleSpeed = delta.magnitude / deltaTime;
+            // 서버는 에이전트가 내려는 속도를 그대로 쓴다. 루트모션이 위치를 만드는 쪽이라, 서버에서
+            // 위치 델타로 속력을 재면 애니 → 위치 → 속력 → 애니 로 되먹임이 돌아 속도가 발산한다.
+            // 클라는 NetworkTransform 이 밀어 준 복제 좌표뿐이므로 지금처럼 위치 델타로 잰다.
+            float sampleSpeed = IsServer
+                ? controller.Agent.desiredVelocity.magnitude
+                : delta.magnitude / deltaTime;
 
             // 순간이동 표본은 평활에 먹이지 않는다. 기준점은 위에서 이미 옮겼으므로 다음 프레임부터 정상 측정된다.
             if (sampleSpeed <= teleportSpeed)
@@ -110,6 +144,54 @@ public class ZombieAnimator : NetworkBehaviour
         animator.SetFloat(speedMulHash, ResolveSpeedMultiplier());
 
         ApplyAnimState();
+        UpdateTurn(deltaTime); // 레이어 가중치가 appliedAnimState 를 읽으므로 상태 확정 뒤에 돈다
+    }
+
+    /// <summary>
+    /// 제자리 회전을 다리 전용 레이어에 반영한다. 회전은 코드가 만들고(ZombieStateMachine.UpdateFacing)
+    /// 클립은 포즈가 제자리인 [RM] 판이라, 이 레이어는 발을 끄는 연출만 얹는다.
+    ///
+    /// 최종 세기는 트리 블렌드(TurnBlend)와 레이어 가중치의 곱이다 — 둘 다 회전량을 타므로 완만하게 붙는다.
+    /// 가중치를 회전량과 무관하게 두면 안 된다. 트리 중앙의 대기 클립이 베이스 레이어와 재생 위상이
+    /// 어긋나 있어서, 가만히 선 좀비의 다리만 따로 떠는 그림이 나온다.
+    /// </summary>
+    /// <param name="deltaTime">이번 프레임 경과 시간(초).</param>
+    private void UpdateTurn(float deltaTime)
+    {
+        float currentYaw = controller.transform.eulerAngles.y;
+        if (deltaTime > 0f)
+        {
+            float sample = Mathf.DeltaAngle(previousYaw, currentYaw) / deltaTime;
+            float weight = turnSmoothingSeconds > 0f
+                ? 1f - Mathf.Exp(-deltaTime / turnSmoothingSeconds)
+                : 1f;
+            smoothedYawRate = Mathf.Lerp(smoothedYawRate, sample, weight);
+        }
+        previousYaw = currentYaw;
+
+        float turnBlend = turnBlendCurve.Evaluate(Mathf.Abs(smoothedYawRate)) * Mathf.Sign(smoothedYawRate);
+        animator.SetFloat(turnBlendHash, turnBlend);
+        animator.SetFloat(turnMulHash, ResolveTurnMultiplier());
+
+        // 이동 중이면 로코모션 클립이 이미 다리를 쓰고, 포효·공격은 다리까지 짜인 연출이다. 둘 다 비켜 준다.
+        float stationary = turnFadeOutSpeed > 0f
+            ? 1f - Mathf.Clamp01(smoothedSpeed / turnFadeOutSpeed)
+            : 1f;
+        float locomotion = appliedAnimState == animLocomotion ? 1f : 0f;
+
+        animator.SetLayerWeight(turnLayerIndex, Mathf.Abs(turnBlend) * stationary * locomotion);
+    }
+
+    /// <summary>실제 회전 속도와 클립 고유 회전 속도의 비로 다리 회전 재생 배속을 구한다.</summary>
+    /// <returns>Turn 상태에 넘길 재생 배속.</returns>
+    private float ResolveTurnMultiplier()
+    {
+        if (turnClipDegreesPerSecond <= 0f) return 1f;
+
+        return Mathf.Clamp(
+            Mathf.Abs(smoothedYawRate) / turnClipDegreesPerSecond,
+            speedMultiplierMin,
+            speedMultiplierMax);
     }
 
     /// <summary>복제된 상태가 바뀐 즉시 반영한다. 포효·공격은 한 프레임도 늦으면 안 되는 연출이다.</summary>

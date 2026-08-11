@@ -72,6 +72,8 @@ public class PlayerController : NetworkBehaviour
     private float yaw; // 시선 상태 — 카메라가 향하는 월드 Y 회전. 본체 회전(bodyYaw)과 분리되어 있다
     private float bodyYaw; // 하체(본체)의 Y 회전 — 시선이 상체 한계각을 넘거나 이동 중일 때만 시선을 따라온다
 
+    private float bodyYawRateDeg; // 이번 프레임 bodyYaw 의 변화량을 초당으로 환산한 값. 제자리 회전 애니메이션이 읽는다
+
     private float hiddenBaseYaw; // 은신 시야 콘의 기준 yaw. 은신 진입 순간의 시선(또는 스냅 앵커 정면)이다. 은신 중에만 유효하다
     private bool wasHidden; // 직전 프레임의 은신 여부 — 진입 순간(false→true)에 hiddenBaseYaw 를 잡기 위한 에지 검출용
     private float sensitivityMultiplier = 1f; // 시선 감도 배율 — 스폰 시 Profile 에서 읽고, 설정창 변경 시 채널로 갱신된다. lookSensitivity 에 곱해 실효 감도를 만든다
@@ -79,6 +81,8 @@ public class PlayerController : NetworkBehaviour
     // ── 애니메이션 노출 (읽기 전용) — PlayerAnimator 가 소유자에서 참조한다 ──
 
     public float PlanarSpeed => new Vector2(body.linearVelocity.x, body.linearVelocity.z).magnitude; // 수평(XZ) 이동 속력(m/s). 이동 블렌드 파라미터용
+    public Vector2 LocalPlanarVelocity => ToLocalPlanar(body.linearVelocity); // 본체 로컬 기준 수평 속도(m/s). x=우, y=전. 2D 스트레이프 블렌드용
+    public float BodyYawRateDeg => bodyYawRateDeg; // 하체 회전 각속도(도/초, 부호 있음). 제자리 회전 연출용
     public bool Grounded => IsGrounded(); // 접지 여부. 애니메이션 파라미터용
     public bool Crouching => networkCrouching.Value; // 웅크림 상태 여부. 애니메이션 파라미터·발소리·소음 발신 공통 창구다(비소유자 인스턴스에서도 유효)
     public float AimPitchDeg => pitch; // 시선 pitch(도). 상체 조준 표현(AimPitch 파라미터)용
@@ -371,6 +375,7 @@ public class PlayerController : NetworkBehaviour
     /// </summary>
     private void HandleLook()
     {
+        float previousBodyYaw = bodyYaw;
         float sensitivity = lookSensitivity * sensitivityMultiplier;
         yaw += lookInput.x * sensitivity;
         pitch -= lookInput.y * sensitivity;
@@ -388,6 +393,11 @@ public class PlayerController : NetworkBehaviour
         {
             HandleBodyTurn();
         }
+
+        // 하체 회전 각속도. 은신 고정이든 시선 추종이든 bodyYaw 가 확정된 뒤 한 번만 재면 두 경로가 모두 잡힌다.
+        bodyYawRateDeg = Time.deltaTime > 0f
+            ? Mathf.DeltaAngle(previousBodyYaw, bodyYaw) / Time.deltaTime
+            : 0f;
 
         transform.rotation = Quaternion.Euler(0f, bodyYaw, 0f);
         cameraPivot.localRotation = Quaternion.Euler(pitch, Mathf.DeltaAngle(bodyYaw, yaw), 0f);
@@ -416,6 +426,15 @@ public class PlayerController : NetworkBehaviour
         {
             bodyYaw = Mathf.MoveTowardsAngle(bodyYaw, yaw - Mathf.Sign(offset) * upperBodyYawLimitDeg, step);
         }
+    }
+
+    /// <summary>월드 속도를 본체 로컬 수평 성분으로 바꾼다. 이동 방향이 정면 기준 어느 쪽인지 재는 용도다.</summary>
+    /// <param name="world">월드 좌표계 속도.</param>
+    /// <returns>x=우, y=전 성분(m/s).</returns>
+    private Vector2 ToLocalPlanar(Vector3 world)
+    {
+        Vector3 local = transform.InverseTransformDirection(world);
+        return new Vector2(local.x, local.z);
     }
 
     /// <summary>
