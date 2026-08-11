@@ -2,7 +2,11 @@ using Unity.Netcode;
 using UnityEngine;
 
 /// <summary>
-/// 좀비 애니메이터를 구동한다. 포효·공격은 복제된 상태로 고르고, 보행·대기는 실제 이동량으로 가른다.
+/// 좀비 애니메이터를 구동한다. 포효·공격은 복제된 상태로 고르고, 대기·보행·질주는 실제 이동 속력을
+/// 그대로 Speed 파라미터로 넘겨 Locomotion 블렌드 트리가 섞는다.
+///
+/// 블렌드 트리의 문턱값은 각 클립의 실측 고유 이동 속도(Idle 0 / Walk 0.957 / Run 3.406 m/s)다.
+/// 그래서 Speed 에 실속력을 그대로 넣으면 보폭이 이동 속도에 맞아 발이 미끄러지지 않는다.
 ///
 /// 클립을 상태만으로 고르면 안 된다 — Wander·Investigate·Chase·Subside 는 모두 목적지 도착 후
 /// StopAgent() 로 제자리에 서는 구간을 갖는다(조사는 InvestigateToWanderSeconds 동안, 배회 OFF 인
@@ -22,27 +26,37 @@ public class ZombieAnimator : NetworkBehaviour
     [SerializeField] private Animator animator;
 
     [Header("Locomotion")]
-    [Tooltip("이 속력(m/s) 이상이면 보행. 가장 느린 이동 속도(WanderSpeed 1.2) 한참 아래로 둔다.")]
-    [SerializeField] private float walkSpeedThreshold = 0.15f;
-    [Tooltip("이 속력(m/s) 이하면 대기. 두 문턱 사이는 직전 판정을 유지해 경계에서 깜빡이지 않는다.")]
-    [SerializeField] private float idleSpeedThreshold = 0.05f;
-    [Tooltip("속력 평활 시간 상수(초). 네트워크 보간 지터와 제자리 회전 중의 미세 이동을 흡수한다. 클수록 멈춘 뒤 보행 클립이 오래 남는다.")]
+    [Tooltip("속력 평활 시간 상수(초). 네트워크 보간 지터와 제자리 회전 중의 미세 이동을 흡수한다. 클수록 속도 변화에 애니가 늦게 반응한다.")]
     [SerializeField] private float speedSmoothingSeconds = 0.1f;
     [Tooltip("이 속력(m/s)을 넘는 표본은 순간이동으로 보고 버린다(스폰·워프·NavMesh 재배치).")]
     [SerializeField] private float teleportSpeed = 20f;
+    [Tooltip("Speed 값별로 블렌드 트리가 실제로 만들어내는 이동 속력(m/s) 실측값. 이 곡선으로 재생 배속을 역보정해 발 미끄러짐을 없앤다. 클립이나 문턱값을 바꾸면 다시 재서 갱신한다.")]
+    [SerializeField] private AnimationCurve blendedSpeedCurve = new AnimationCurve(
+        new Keyframe(0f, 0f),
+        new Keyframe(0.5f, 0.352f),
+        new Keyframe(1.2f, 1.011f),
+        new Keyframe(1.6f, 1.217f),
+        new Keyframe(2f, 1.506f),
+        new Keyframe(2.5f, 1.995f),
+        new Keyframe(3f, 2.672f),
+        new Keyframe(3.406f, 3.429f));
 
-    private const int animIdle = 0;   // 대기
-    private const int animWalk = 1;   // 보행
-    private const int animRoar = 2;   // 포효
-    private const int animAttack = 3; // 공격
+    private const int animLocomotion = 0; // 대기·보행·질주 — Speed 로 블렌드
+    private const int animRoar = 2;       // 포효
+    private const int animAttack = 3;     // 공격
 
     private const int animNone = -1;  // 아직 한 번도 쓰지 않았다 — 첫 판정은 무조건 밀어 넣는다
 
+    private const float minNaturalSpeed = 0.05f;   // 이 아래에서는 배속 보정을 하지 않는다(나눗셈 폭주)
+    private const float speedMultiplierMin = 0.5f; // 배속 하한
+    private const float speedMultiplierMax = 2f;   // 배속 상한
+
     private static readonly int stateHash = Animator.StringToHash("State");
+    private static readonly int speedHash = Animator.StringToHash("Speed");
+    private static readonly int speedMulHash = Animator.StringToHash("SpeedMul");
 
     private Vector3 previousPosition; // 직전 프레임의 위치. 이동량은 이 차이로 구한다
     private float smoothedSpeed;      // 평활된 평면 속력(m/s)
-    private bool moving;              // 히스테리시스가 적용된 보행 여부
     private int appliedAnimState = animNone;
 
     /// <summary>상태 변화를 구독하고 현재 상태를 즉시 반영한다(늦게 접속한 클라이언트 포함).</summary>
@@ -50,10 +64,11 @@ public class ZombieAnimator : NetworkBehaviour
     {
         previousPosition = transform.position;
         smoothedSpeed = 0f;
-        moving = false;
         appliedAnimState = animNone;
 
         controller.StateChanged += HandleStateChanged;
+        animator.SetFloat(speedHash, 0f);
+        animator.SetFloat(speedMulHash, 1f);
         ApplyAnimState();
     }
 
@@ -90,9 +105,9 @@ public class ZombieAnimator : NetworkBehaviour
             }
         }
 
-        // 두 문턱 사이(불감대)에서는 직전 판정을 유지한다 — 문턱 하나면 걷기 시작·정지 직전에 클립이 떤다.
-        if (smoothedSpeed >= walkSpeedThreshold) moving = true;
-        else if (smoothedSpeed <= idleSpeedThreshold) moving = false;
+        // 문턱 판정 없이 실속력을 그대로 넘긴다 — 대기·보행·질주 사이는 블렌드 트리가 이어 준다.
+        animator.SetFloat(speedHash, smoothedSpeed);
+        animator.SetFloat(speedMulHash, ResolveSpeedMultiplier());
 
         ApplyAnimState();
     }
@@ -115,8 +130,22 @@ public class ZombieAnimator : NetworkBehaviour
     }
 
     /// <summary>
+    /// 블렌드 트리가 실제로 만들어내는 속력과 실이동 속력의 비로 재생 배속을 구한다.
+    /// 두 클립을 섞으면 보폭이 짧아져 실이동보다 느리게 걷는 탓에(중간 구간 최대 25%),
+    /// 그만큼 빠르게 돌려야 발이 지면에 붙는다.
+    /// </summary>
+    /// <returns>Locomotion 상태에 넘길 재생 배속.</returns>
+    private float ResolveSpeedMultiplier()
+    {
+        float natural = blendedSpeedCurve.Evaluate(smoothedSpeed);
+        if (natural <= minNaturalSpeed) return 1f;
+
+        return Mathf.Clamp(smoothedSpeed / natural, speedMultiplierMin, speedMultiplierMax);
+    }
+
+    /// <summary>
     /// 애니메이터 상태 인덱스를 결정한다. 포효·공격은 제자리 연출이라 상태로 고르고,
-    /// 나머지는 전부 실제 이동 여부로 보행·대기를 가른다.
+    /// 나머지는 전부 Locomotion 으로 보낸다 — 그 안의 대기·보행·질주는 Speed 가 가른다.
     /// </summary>
     /// <returns>ZombieLocomotion 컨트롤러의 State 파라미터 값.</returns>
     private int ResolveAnimState()
@@ -128,7 +157,7 @@ public class ZombieAnimator : NetworkBehaviour
             case ZombieStateKind.Attack:
                 return animAttack;
             default:
-                return moving ? animWalk : animIdle;
+                return animLocomotion;
         }
     }
 }
