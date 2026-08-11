@@ -25,6 +25,13 @@ public class UIGameHud : MonoBehaviour
     // 관전 진입 여부. 한 번 켜지면 내려가지 않으며, 이후 Game 수신을 퍼즈 복귀로 해석하는 근거가 된다.
     private bool isSpectating;
 
+    private void Awake()
+    {
+        // 관전 진입 전까지는 게임플레이 HUD 를 켠다. 관전 진입 후에는 Game 수신을 퍼즈 복귀로 해석해 관전 HUD 를 유지한다.
+        isSpectating = false;
+        ApplyRoots(true);
+    }
+
     /// <summary>상태 방송을 구독하고, 이미 발행된 마지막 상태로 초기 표시를 맞춘다(늦은 구독자 동기화).</summary>
     private void OnEnable()
     {
