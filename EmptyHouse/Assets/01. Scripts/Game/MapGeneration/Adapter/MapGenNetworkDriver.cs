@@ -19,6 +19,7 @@ namespace EmptyHouse.MapGen.Runtime
         [Header("Config")]
         [SerializeField] private MapPrefabRegistrySO prefabRegistry; // 프리팹 레지스트리(P5 라이트)
         [SerializeField] private MapGenParamsSO genParamsAsset; // 생성 파라미터 단일 출처(9절) — 에디터 프리뷰도 같은 에셋을 읽는다. Seed 0 = 랜덤(서버가 확정, X8)
+        [SerializeField] private EmptyHouse.Environment.LightingProfileSO lightingProfile; // 조명 프로파일 — 조립기가 맵 루트의 조명 컬러에 넘긴다
 
         [Header("Event Channels")]
         [SerializeField] private VoidEventChannelSO onMapAssembledServer; // 서버 전용 발화 — 전 클라 조립 완료(X7). NavMesh 베이커가 구독
@@ -112,7 +113,7 @@ namespace EmptyHouse.MapGen.Runtime
             }
 
             LocalBlueprint = result.Blueprint;
-            LocalMapRoot = MapRuntimeAssembler.Assemble(LocalBlueprint, templates, prefabRegistry, transform);
+            LocalMapRoot = MapRuntimeAssembler.Assemble(LocalBlueprint, templates, prefabRegistry, transform, lightingProfile);
             localHash = BlueprintHash.Compute(LocalBlueprint);
             Log.D($"[MapGenNetworkDriver] 로컬 조립 완료 시드={current} 해시={localHash:X8} 리롤={result.RerollCount}");
             ReportAssembledServerRpc(localHash);

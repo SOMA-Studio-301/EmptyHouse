@@ -16,9 +16,19 @@ namespace EmptyHouse.Environment
     {
         private RoomLightGroup[] groups;   // 맵 안의 방 그룹(1회 수집)
         private Vector3[] centers;         // 그룹별 거리 기준점(1회 계산)
-        private LightingProfileSO profile; // 컬링 파라미터 출처
+        private LightingProfileSO profile; // 컬링 파라미터 출처 — 조립기가 Initialize 로 주입
         private Transform viewer;          // 기준 시점(Camera.main)
         private float nextUpdateAt;        // 다음 갱신 시각
+
+        /// <summary>
+        /// 조명 프로파일을 주입한다. 이 컴포넌트는 조립기가 AddComponent 로 붙이므로
+        /// 인스펙터 직렬화 경로가 없다 — 부착 직후 반드시 호출해야 한다.
+        /// </summary>
+        /// <param name="lightingProfile">컬링 파라미터를 담은 프로파일.</param>
+        public void Initialize(LightingProfileSO lightingProfile)
+        {
+            profile = lightingProfile;
+        }
 
         /// <summary>
         /// 첫 프레임에 그룹·기준점을 캐시하고, 이후 갱신 주기마다 거리로 소등/점등을 갱신한다.
@@ -64,7 +74,6 @@ namespace EmptyHouse.Environment
                 groups[i].SetCulled(true); // 시점이 잡히기 전 전부 켜져 있는 공백을 없앤다
             }
 
-            profile = groups[0].Profile;
             return true;
         }
 

@@ -12,15 +12,12 @@ namespace EmptyHouse.Environment
     [DisallowMultipleComponent]
     public sealed class RoomLightGroup : MonoBehaviour
     {
-        [SerializeField] private LightingProfileSO profile; // 조명 프로파일(컬링 파라미터·점등 확률 출처)
+        [SerializeField] private LightingProfileSO profile; // 조명 프로파일(점등 확률 출처)
 
         private RandomLightFixture[] fixtures; // 라이트+머티리얼을 함께 소유한 픽스처
         private Light[] looseLights;           // 픽스처에 속하지 않은 맨 라이트
         private bool[] restoreEnabled;         // 맨 라이트의 소등 직전 점등 상태
         private bool isCulled;                 // 현재 컬링(소등) 여부
-
-        /// <summary>조명 프로파일.</summary>
-        public LightingProfileSO Profile => profile;
 
         /// <summary>현재 컬링되어 소등된 상태인지.</summary>
         public bool IsCulled => isCulled;

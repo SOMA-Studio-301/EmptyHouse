@@ -27,8 +27,9 @@ namespace EmptyHouse.MapGen.Runtime
         /// <param name="templates">생성에 사용한 템플릿 목록(MapTemplateCatalog).</param>
         /// <param name="registry">프리팹 레지스트리.</param>
         /// <param name="parent">맵 루트를 붙일 부모(씬 배치 앵커 — 입구 앵커 방이 이 위치에 온다).</param>
+        /// <param name="lightingProfile">조명 프로파일 — 맵 루트에 붙는 조명 컬러가 컬링 파라미터를 여기서 읽는다.</param>
         /// <returns>조립된 맵 루트.</returns>
-        public static GameObject Assemble(MapBlueprint blueprint, IReadOnlyList<RoomTemplateDef> templates, MapPrefabRegistrySO registry, Transform parent)
+        public static GameObject Assemble(MapBlueprint blueprint, IReadOnlyList<RoomTemplateDef> templates, MapPrefabRegistrySO registry, Transform parent, EmptyHouse.Environment.LightingProfileSO lightingProfile)
         {
             Log.D($"[MapRuntimeAssembler] Assemble 시드={blueprint.Meta.Seed}");
             var mapRoot = new GameObject($"GeneratedMap_Seed{blueprint.Meta.Seed}");
@@ -95,7 +96,7 @@ namespace EmptyHouse.MapGen.Runtime
             AssignPhysicsLayers(mapRoot);
 
             // 조명 컬러 — 방 그룹 수집·기준점 계산은 컬러가 첫 Update 에서 처리한다(배치 확정 이후)
-            mapRoot.AddComponent<EmptyHouse.Environment.MapLightCuller>();
+            mapRoot.AddComponent<EmptyHouse.Environment.MapLightCuller>().Initialize(lightingProfile);
 
             return mapRoot;
         }

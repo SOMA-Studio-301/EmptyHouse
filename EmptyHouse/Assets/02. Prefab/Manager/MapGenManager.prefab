@@ -76,6 +76,7 @@ MonoBehaviour:
   ShowTopMostFoldoutHeaderGroup: 1
   prefabRegistry: {fileID: 11400000, guid: 8a81f61e4cebe0d4c8c7a8b02ec4afb5, type: 2}
   genParamsAsset: {fileID: 11400000, guid: c36866e17f947a343af555ed0f58ab60, type: 2}
+  lightingProfile: {fileID: 11400000, guid: 3fecb8432b1bb4f4e9e08b5d04b81086, type: 2}
   onMapAssembledServer: {fileID: 11400000, guid: a66be1575718b7849b4275e3efc01a0a, type: 2}
 --- !u!114 &4772810796278318090
 MonoBehaviour:
@@ -107,3 +108,8 @@ MonoBehaviour:
   driver: {fileID: 7804222632144900475}
   prefabRegistry: {fileID: 11400000, guid: 8a81f61e4cebe0d4c8c7a8b02ec4afb5, type: 2}
   onMapNavMeshReadyServer: {fileID: 11400000, guid: 267e6ed54028cd343ab4abd0fc240e8e, type: 2}
+  zombieClearanceRadius: 0.45
+  zombieSearchRadius: 3
+  zombieBlockMask:
+    serializedVersion: 2
+    m_Bits: 4294967295
