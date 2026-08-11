@@ -38,8 +38,6 @@ public class ReturnInteractable : HoldInteractableBase
     /// <param name="interactor">홀드를 완료한 주체(귀환하는 본인, 소유자 클라).</param>
     protected override void OnActivate(PlayerInteractor interactor)
     {
-        Log.D($"[ReturnInteractable] OnActivate on {name}");
-
         // 회수가 아니므로 인벤 편입·Destroy 없이, 주체 플레이어의 네트워크 창구로 서버에 귀환을 통보한다.
         // 소음 발행(RaiseNoise) 여부는 데이터 확정 후 얹는다.
         interactor.GetComponentInParent<PlayerReturn>().RequestReturn();
