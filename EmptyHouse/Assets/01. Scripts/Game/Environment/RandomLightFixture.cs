@@ -6,6 +6,7 @@ namespace EmptyHouse.Environment
     /// 조명 픽스처의 초기 상태(소등 / 점등 / 점등+깜빡임)를 확률로 결정하는 연출 컴포넌트.
     /// 월드 좌표 해시를 난수 시드로 쓰므로 맵 시드가 같으면 모든 클라이언트가 같은 결과를 낸다.
     /// 결정된 상태에 맞춰 라이트 on/off, 픽스처 머티리얼(점등/소등), <see cref="FlickeringLight"/> 활성을 함께 맞춘다.
+    /// <see cref="FlickeringLight"/>는 선택 의존성이라 없으면 깜빡임 단계를 건너뛰고 점등/소등만 처리한다.
     /// 확률은 <see cref="LightingProfileSO"/>의 전역값을 <see cref="RoomLightGroup"/>이 주입하며,
     /// 개별 픽스처가 예외를 두려면 오버라이드를 켠다.
     /// </summary>
@@ -14,7 +15,7 @@ namespace EmptyHouse.Environment
         [Header("References")]
         [SerializeField] private Light[] targetLights;      // 함께 켜고 끌 자식 라이트들(주광원 + 보조광)
         [SerializeField] private Renderer fixtureRenderer;  // 머티리얼을 교체할 픽스처 메시
-        [SerializeField] private FlickeringLight flicker;   // 깜빡임 컴포넌트(주광원에 부착)
+        [SerializeField] private FlickeringLight flicker;   // 깜빡임 컴포넌트(주광원에 부착). 선택 의존성 — 비어 있으면 깜빡임 없이 점등/소등만 한다
 
         [Header("Materials")]
         [SerializeField] private Material onMaterial;   // 점등 머티리얼
@@ -50,10 +51,11 @@ namespace EmptyHouse.Environment
         {
             System.Random rng = new System.Random(ComputeSeed());
             isLit = rng.NextDouble() >= offChance;
-            isFlickering = isLit && rng.NextDouble() < flickerChance;
+            // 난수 소비 순서를 고정하려고 컴포넌트가 없어도 추첨은 그대로 돌린다
+            isFlickering = isLit && rng.NextDouble() < flickerChance && flicker != null;
 
             // 깜빡임 중에는 소등 순간마다 머티리얼도 함께 꺼진 것으로 바꾼다
-            flicker.LitChanged += ApplyLit;
+            if (flicker != null) flicker.LitChanged += ApplyLit;
             ApplyState();
         }
 
@@ -62,7 +64,7 @@ namespace EmptyHouse.Environment
         /// </summary>
         private void OnDestroy()
         {
-            flicker.LitChanged -= ApplyLit;
+            if (flicker != null) flicker.LitChanged -= ApplyLit;
         }
 
         /// <summary>
@@ -83,7 +85,7 @@ namespace EmptyHouse.Environment
         /// </summary>
         private void ApplyState()
         {
-            flicker.enabled = isFlickering && !isCulled;
+            if (flicker != null) flicker.enabled = isFlickering && !isCulled;
             ApplyLit(isLit && !isCulled);
         }
 
