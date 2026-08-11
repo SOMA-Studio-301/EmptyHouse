@@ -15,6 +15,7 @@ namespace EmptyHouse.MapGen.Core
         public int MaxCount; // 최대 등장 횟수
         public bool IsCorridor; // 복도 템플릿 여부(직선/코너/T자)
         public bool IsEntranceAnchor; // 버스 입구 고정 모듈 여부(3절 — 레이아웃 시작 앵커, 입구=출구)
+        public bool IsStairAnchor; // 계단실 여부(M8 SSA) — 시드 층에선 일반 방처럼 소켓 접합으로 심고, 그 좌표를 전 층이 공유한다. 전 층 계단 템플릿은 풋프린트·소켓 배열이 동일해야 한다(X4)
         public SocketDef[] Sockets; // 출입구 소켓 목록
         public MarkerDef[] Markers; // 스폰 마커 목록
     }

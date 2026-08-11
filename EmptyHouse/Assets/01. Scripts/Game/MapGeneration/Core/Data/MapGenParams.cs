@@ -36,5 +36,19 @@ namespace EmptyHouse.MapGen.Core
         public int HerdZombieCountMin = 3; // 위장 무대 Walker 무리 최소(⚪ — 레벨디자인 4절)
         public int HerdZombieCountMax = 5; // 위장 무대 Walker 무리 최대 ⚪
         public ZombieTypeMask EnabledZombieTypes = ZombieTypeMask.Walker; // 배치 활성 좀비 타입 — 현재 Walker만 게임에 구현되어 기본값 Walker. Watcher·Listener 는 구현 후 활성화
+
+        // ── 다층 v2(M8) 전역 ─────────────────────────────────────────
+        // Floors 가 비면(null 또는 길이 0) 위 스칼라 항목으로 층 1개를 합성한다 = v1 동일 경로.
+        // ⚠️ 합성 분기는 반드시 `Floors == null || Floors.Length == 0` 두 조건 모두 — JsonUtility 왕복이
+        // null 배열을 빈 배열로 되살리므로 null 만 검사하면 조용히 깨진다(MapGenNetworkDriver.SnapshotParams).
+        public FloorGenParams[] Floors; // 층별 파라미터(아래→위 순서 무관, FloorIndex 가 서수). 비면 v1 단층
+        public int ShaftCountMin = 2; // 계단 샤프트 최소 수 — 1개면 비시드 층 뿌리가 하나뿐이라 백신 가지 분산이 구조적으로 실패
+        public int ShaftCountMax = 3; // 계단 샤프트 최대 수
+        public int ShaftDepthPercentMin = 25; // 시드 층 방 예산 대비 계단 삽입 시점 하한 % — "중앙"을 깊이 대역으로 근사
+        public int ShaftDepthPercentMax = 60; // 계단 삽입 시점 상한 %
+        public int ShaftMinSeparationCells = 6; // 샤프트 간 최소 이격(체비셰프, 셀) — 몰리면 층간 루프가 생기지 않는다
+        public int FloorRetryMax; // 층 국소 재시도 상한. 기본 0 = 되감기 없이 전체 리롤(되감기는 usedSockets 오염 위험 — M8-7에서 검토)
+        public int[] VaccineFloorPlan; // 백신 3종의 배정 층 서수(레벨디자인 6절: 2F 1 + B1 2 → { +1, -1, -1 }). 비면 층 무관 분산
+        public int[] CorpseStationFloorPlan; // 사체 충전소 층 배분 서수 목록. 비면 층 무관 배치
     }
 }
