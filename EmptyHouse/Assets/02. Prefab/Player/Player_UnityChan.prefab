@@ -102,6 +102,7 @@ GameObject:
   - component: {fileID: 125099242519735681}
   - component: {fileID: 5060746342418038198}
   - component: {fileID: 3814831168945640586}
+  - component: {fileID: 1110419948588627161}
   m_Layer: 0
   m_Name: Player_UnityChan
   m_TagString: Untagged
@@ -728,6 +729,7 @@ MonoBehaviour:
   ShowTopMostFoldoutHeaderGroup: 1
   inputReader: {fileID: 11400000, guid: eaa08e0560934b24b9f7d5f7d9f863dd, type: 2}
   flashlightObject: {fileID: 2078772352530811942}
+  handItem: {fileID: 1110419948588627161}
   sfxEventChannel: {fileID: 11400000, guid: 0338426556d75b241bee37e3eca8f958, type: 2}
   toggleAudioId: 102
 --- !u!114 &5060746342418038198
@@ -772,6 +774,22 @@ MonoBehaviour:
   - {fileID: 6501918125745733984}
   - {fileID: 6501918125745733856}
   hiddenLayer: 31
+--- !u!114 &1110419948588627161
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2490874660187570032}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 7f3c1a9b2e4d50618a9b3c4d5e6f7a02, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::PlayerHandItem
+  ShowTopMostFoldoutHeaderGroup: 1
+  inventory: {fileID: 7556772348847717246}
+  itemRegistry: {fileID: 11400000, guid: 7f3c1a9b2e4d50618a9b3c4d5e6f7a03, type: 2}
+  itemSocket: {fileID: 4886157422136966613}
 --- !u!1 &2490874660187570100
 GameObject:
   m_ObjectHideFlags: 0
@@ -952,6 +970,37 @@ Transform:
   m_Children:
   - {fileID: 4609732463775206134}
   m_Father: {fileID: 6501918125745249546}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!1 &3868826928796993202
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 4886157422136966613}
+  m_Layer: 0
+  m_Name: ItemSocket_L
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &4886157422136966613
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 3868826928796993202}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 6501918125745249482}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1 &4245011486210432608
 GameObject:
@@ -2910,16 +2959,36 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::PlayerFlashlightArmIK
   flashlight: {fileID: 125099242519735681}
+  handItem: {fileID: 1110419948588627161}
   cameraFollow: {fileID: 5060746342418038198}
   controller: {fileID: 8915136794142559673}
-  handOffsetFromEye: {x: 0.2, y: -0.08, z: 0.2}
-  handEulerFromView: {x: 0, y: 0, z: 0}
-  elbowHintOffsetFromEye: {x: 0.45, y: -0.45, z: 0}
+  flashlightPose:
+    HandOffsetFromEye: {x: 0.2, y: -0.08, z: 0.2}
+    HandEulerFromView: {x: 0, y: 0, z: 0}
+    ElbowHintOffsetFromEye: {x: 0.45, y: -0.45, z: 0}
+    PositionYawMinDeg: -20
+    PositionYawMaxDeg: 45
+  oneHandItemPose:
+    HandOffsetFromEye: {x: -0.22, y: -0.12, z: 0.26}
+    HandEulerFromView: {x: 0, y: 0, z: 0}
+    ElbowHintOffsetFromEye: {x: -0.45, y: -0.45, z: 0}
+    PositionYawMinDeg: -45
+    PositionYawMaxDeg: 20
+  twoHandLeftPose:
+    HandOffsetFromEye: {x: -0.16, y: -0.26, z: 0.34}
+    HandEulerFromView: {x: 0, y: 0, z: 0}
+    ElbowHintOffsetFromEye: {x: -0.42, y: -0.5, z: 0}
+    PositionYawMinDeg: -35
+    PositionYawMaxDeg: 25
+  twoHandRightPose:
+    HandOffsetFromEye: {x: 0.16, y: -0.26, z: 0.34}
+    HandEulerFromView: {x: 0, y: 0, z: 0}
+    ElbowHintOffsetFromEye: {x: 0.42, y: -0.5, z: 0}
+    PositionYawMinDeg: -25
+    PositionYawMaxDeg: 35
   maxAimPitchDeg: 60
   maxAimYawOffsetDeg: 70
   handPositionPitchClampDeg: 35
-  handPositionYawMinDeg: -20
-  handPositionYawMaxDeg: 45
   lookBodyWeight: 0.4
   lookHeadWeight: 0.7
   blendSpeed: 4
@@ -7015,6 +7084,7 @@ Transform:
   - {fileID: 6501918125745249636}
   - {fileID: 6501918125745249378}
   - {fileID: 6501918125745249658}
+  - {fileID: 4886157422136966613}
   m_Father: {fileID: 6501918125745249364}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1 &6501918125745733846

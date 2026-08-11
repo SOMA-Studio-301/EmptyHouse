@@ -11,6 +11,13 @@ public enum ItemKind
     Oil // 기름. 버스 연료 — 홀드 적재로 회수(3-5)
 }
 
+/// <summary> 아이템을 손에 들 때 쓰는 손의 개수 </summary>
+public enum ItemHandUsage
+{
+    OneHand, // 한 손(왼손) 전담. 오른손 손전등과 공존한다 — 서로 간섭하지 않는다
+    TwoHand // 양손 점유. 오른손을 빼앗으므로 드는 동안 손전등이 물리적으로 꺼진다
+}
+
 /// <summary>
 /// 아이템 종류별 정적 데이터
 /// 종류당 에셋 1개를 만들고, 픽업 프리팹이 이를 참조
@@ -35,6 +42,14 @@ public class ItemDataSO : ScriptableObject
 
     [Tooltip("회수 실행 시 발행할 소음(dB) ⚪")]
     public float PickupNoiseDb = 12f;
+
+    [Header("손에 들기")]
+    [Tooltip("드는 데 쓰는 손의 개수. TwoHand 는 손전등을 밀어낸다")]
+    public ItemHandUsage HandUsage = ItemHandUsage.OneHand;
+
+    [Tooltip("손 소켓에 붙일 표시 전용 모델(NetworkObject 아님 — 각 클라가 로컬 생성). " +
+             "이 프리팹 루트의 Transform(위치·회전·스케일)이 곧 손 기준 그립 오프셋이다. 비워 두면 팔만 올라간다")]
+    public GameObject HeldPrefab;
 
     [Header("월드 복원")]
     [Tooltip("G 버리기 · 열쇠 소지자 사망 드롭 시 스폰할 픽업 프리팹")]
