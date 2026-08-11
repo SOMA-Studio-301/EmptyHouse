@@ -33,11 +33,12 @@ namespace EmptyHouse.MapGen.Editor
         [SerializeField] private Vector2 inputScroll; // 입력 패널 스크롤 위치
         [SerializeField] private Vector2 validationScroll; // 검증 패널 스크롤 위치
 
-        private static readonly string[] templateSetNames = { "프리팹 실측", "Dev 그레이박스" }; // 템플릿 세트 선택지 — 인덱스는 templateSetIndex 와 계약
+        private static readonly string[] templateSetNames = { "프리팹 실측", "Dev 그레이박스", "3층 스윕 구성(M9)" }; // 템플릿 세트 선택지 — 인덱스는 templateSetIndex 와 계약
 
         private readonly MapGenerator generator = new MapGenerator(); // 게임과 동일 생성 라이브러리(AC-21)
         private MapGenResult lastResult; // 마지막 생성 결과 — 도메인 리로드 시 소실, 재생성으로 복원
         private List<RoomTemplateDef> lastTemplates; // 마지막 생성에 쓴 템플릿 — 오버레이가 풋프린트·마커를 조회
+        private MapBlueprint displayBlueprint; // 캔버스 표시용 블루프린트 — 다층이면 층별 X 오프셋 펼침 사본(원본 좌표는 층간 겹침)
 
         /// <summary>배회 반경 오버라이드 1건 — (템플릿, ZombieSpawn 마커) 기본값을 세션 단위로 대체한다(10절 — 재료 편집).</summary>
         [Serializable]
@@ -80,7 +81,7 @@ namespace EmptyHouse.MapGen.Editor
                     AssumedCellMeters = assumedCellMeters,
                     HearingRefDb = hearingRefDb,
                 };
-                MapBlueprint blueprint = lastResult != null && lastResult.Success ? lastResult.Blueprint : null;
+                MapBlueprint blueprint = lastResult != null && lastResult.Success ? (displayBlueprint ?? lastResult.Blueprint) : null;
                 canvasDrawer.Draw(canvasRect, blueprint, lastTemplates, options);
 
                 using (new EditorGUILayout.VerticalScope(GUILayout.Width(300f)))
@@ -365,6 +366,23 @@ namespace EmptyHouse.MapGen.Editor
         {
             Log.D("[MapGenPreviewWindow] GenerateNow");
             lastConfirmedSeed = ResolveSeed();
+            displayBlueprint = null;
+
+            if (templateSetIndex == 2)
+            {
+                // 3층 스윕 구성(M9) — 파라미터 오버라이드·배회 오버라이드는 미적용(플랜 팩토리가 층 구성을 소유)
+                MapGenPlan plan = EmptyHouse.EditorTools.MapGenFloorSweep.ThreeFloorPlan(lastConfirmedSeed);
+                lastResult = generator.Generate(plan);
+                lastTemplates = new List<RoomTemplateDef>(plan.FlatTemplates);
+                if (lastResult.Success)
+                {
+                    displayBlueprint = FloorSpread(lastResult.Blueprint, plan);
+                }
+
+                canvasDrawer.RequestFit();
+                Repaint();
+                return;
+            }
 
             // 작업본 오염 방지 — 스냅샷은 JSON 복제본으로 넘긴다([Serializable])
             MapGenParams snapshot = JsonUtility.FromJson<MapGenParams>(JsonUtility.ToJson(workingParams));
@@ -379,6 +397,53 @@ namespace EmptyHouse.MapGen.Editor
             lastTemplates = templates;
             canvasDrawer.RequestFit();
             Repaint();
+        }
+
+        /// <summary>
+        /// 다층 블루프린트를 층별 X 오프셋으로 펼친 표시용 사본을 만든다 — 원본 좌표는 층간 XZ 가 겹친다.
+        /// 간선·스폰은 인덱스 참조라 그대로 두고 방 좌표만 이동한다(수직 간선은 층 섬 사이의 긴 선으로 보인다 — 의도).
+        /// </summary>
+        /// <param name="blueprint">원본 블루프린트(수정하지 않는다).</param>
+        /// <param name="plan">층 슬롯 순서 조회용 계획.</param>
+        /// <returns>표시용 사본.</returns>
+        private static MapBlueprint FloorSpread(MapBlueprint blueprint, MapGenPlan plan)
+        {
+            // 층 서수 → 펼침 순번(슬롯 순서) — 좌→우 = 슬롯 0..N
+            var slotOfFloor = new Dictionary<int, int>();
+            for (int i = 0; i < plan.Floors.Length; i++)
+            {
+                slotOfFloor[plan.Floors[i].FloorIndex] = i;
+            }
+
+            // 층 폭 실측 — 오프셋 간격 = 최대 폭 + 6셀
+            int minX = int.MaxValue;
+            int maxX = int.MinValue;
+            for (int r = 0; r < blueprint.Rooms.Count; r++)
+            {
+                minX = Mathf.Min(minX, blueprint.Rooms[r].Cell.X);
+                maxX = Mathf.Max(maxX, blueprint.Rooms[r].Cell.X + 9);
+            }
+
+            int stride = maxX - minX + 6;
+            var copy = new MapBlueprint { Meta = blueprint.Meta };
+            for (int r = 0; r < blueprint.Rooms.Count; r++)
+            {
+                BlueprintRoom room = blueprint.Rooms[r];
+                copy.Rooms.Add(new BlueprintRoom
+                {
+                    TemplateId = room.TemplateId,
+                    Cell = new CellCoord(room.Cell.X + slotOfFloor[room.FloorIndex] * stride, room.Cell.Y),
+                    Rotation = room.Rotation,
+                    FloorIndex = room.FloorIndex,
+                    TemplateIndex = room.TemplateIndex,
+                });
+            }
+
+            copy.Edges.AddRange(blueprint.Edges);
+            copy.Spawns.AddRange(blueprint.Spawns);
+            copy.Floors.AddRange(blueprint.Floors);
+            copy.Shafts.AddRange(blueprint.Shafts);
+            return copy;
         }
 
         /// <summary>입력 시드를 확정 시드로 변환한다 — 0 이면 0 아닌 랜덤 값을 굴려 기록한다(X8 — 랜덤이 재현 불가로 이어지지 않게).</summary>
