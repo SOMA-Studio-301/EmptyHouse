@@ -159,27 +159,11 @@ namespace EmptyHouse.MapGen.Runtime
                     },
                     Markers = new MarkerDef[0],
                 },
-                new RoomTemplateDef
-                {
-                    // 실측: 8×8m 광폭 복도 — 남·북 전폭(2셀) 개구, 동·서는 벽·아치창
-                    TemplateId = "hallway_x2",
-                    WidthCells = 2,
-                    HeightCells = 2,
-                    AllowedFloors = FloorMask.F1,
-                    Tags = RoomTagMask.None,
-                    MinCount = 0,
-                    MaxCount = 8, // 상동 — 60방 스케일 보충
-                    IsCorridor = true,
-                    IsEntranceAnchor = false,
-                    Sockets = new[]
-                    {
-                        new SocketDef { Id = 0, LocalCell = new CellCoord(0, 0), Direction = SocketDirection.South },
-                        new SocketDef { Id = 1, LocalCell = new CellCoord(1, 0), Direction = SocketDirection.South },
-                        new SocketDef { Id = 2, LocalCell = new CellCoord(0, 1), Direction = SocketDirection.North },
-                        new SocketDef { Id = 3, LocalCell = new CellCoord(1, 1), Direction = SocketDirection.North },
-                    },
-                    Markers = new MarkerDef[0],
-                },
+                // hallway_x2(8×8m 광폭 복도)는 2026-08-10 카탈로그에서 제외했다. 단부가 소켓 2개(전폭 8m)라
+                // 한쪽만 짝이 맺히면 나머지 반쪽이 봉인돼 통로 한가운데 가벽이 선다 —
+                // 실측(58~60방 300시드) 맞은편이 차 있는 복도 봉인 2701건이 전부 x2 발이었고, 일반 복도는 0건이었다.
+                // 빼고 나니 복도 봉인 자체가 0이 되고 사이클 소속 방 59.5% → 66.6%, 자물쇠 우회 위험 132 → 0.
+                // 프리팹(Hallway x2)과 레지스트리 항목은 남겨 둔다 — 단부 소켓이 항상 쌍으로 맺히는 규칙이 생기면 되살린다.
             };
         }
     }
