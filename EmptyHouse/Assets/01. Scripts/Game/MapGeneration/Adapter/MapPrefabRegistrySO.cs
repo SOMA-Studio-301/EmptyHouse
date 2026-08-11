@@ -27,7 +27,7 @@ namespace EmptyHouse.MapGen.Runtime
     [Serializable]
     public sealed class PairPrefabEntry
     {
-        public NetworkObject Key; // 그 번호의 열쇠 외형 — 미등재면 SpawnPrefabs 의 Key 공용 프리팹 폴백
+        public NetworkObject Key; // 그 번호의 열쇠 외형 — 열쇠는 공용 프리팹이 없다(외형이 곧 자물쇠와의 짝). 미등재면 그 열쇠가 스폰되지 않아 해당 자물쇠를 열 수 없다
         public NetworkObject Lock; // 그 번호의 자물쇠 외형(DoorLockFace 루트) — 미등재면 자물쇠 없이 잠김(해정 불가) 경고
     }
 

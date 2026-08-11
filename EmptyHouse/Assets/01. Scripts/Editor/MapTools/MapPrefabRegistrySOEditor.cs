@@ -23,7 +23,7 @@ namespace EmptyHouse.EditorTools
         {
             ("좀비", new[] { SpawnKind.ZombieWalker, SpawnKind.ZombieListener, SpawnKind.ZombieWatcher }),
             ("백신", new[] { SpawnKind.VaccineAntigen, SpawnKind.VaccineSerum, SpawnKind.VaccineStabilizer }),
-            ("아이템", new[] { SpawnKind.Key, SpawnKind.Fuel, SpawnKind.Scrap, SpawnKind.Throwable }),
+            ("아이템", new[] { SpawnKind.Fuel, SpawnKind.Scrap, SpawnKind.Throwable }), // Key 는 아래 페어 섹션이 번호별로 관리한다(공용 프리팹 없음)
             ("설비", new[] { SpawnKind.CorpseStation, SpawnKind.Generator }),
         };
 

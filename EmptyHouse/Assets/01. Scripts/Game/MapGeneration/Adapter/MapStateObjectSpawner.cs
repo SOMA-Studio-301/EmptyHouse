@@ -309,19 +309,18 @@ namespace EmptyHouse.MapGen.Runtime
                     continue; // 좀비는 4단계(SpawnZombies), HerdArea 는 구역 표지라 오브젝트가 아니다
                 }
 
-                NetworkObject prefab = FindSpawnPrefab(spawn.Kind, s);
+                // 열쇠는 번호별 외형이 곧 자물쇠와의 짝이라 공용 프리팹이 없다 — 페어 목록에서만 온다
+                NetworkObject prefab = spawn.Kind == SpawnKind.Key
+                    ? PairPrefab(spawn.KeyNumber, true)
+                    : FindSpawnPrefab(spawn.Kind, s);
                 if (prefab == null)
                 {
-                    continue;
-                }
-
-                if (spawn.Kind == SpawnKind.Key)
-                {
-                    NetworkObject variant = PairPrefab(spawn.KeyNumber, true);
-                    if (variant != null)
+                    if (spawn.Kind == SpawnKind.Key && missingPrefabWarned.Add(SpawnKind.Key))
                     {
-                        prefab = variant; // 번호별 비주얼 변종 우선 — 없으면 공용 Key 프리팹
+                        Log.W($"[MapStateObjectSpawner] 열쇠_{spawn.KeyNumber} 미등재 — 그 자물쇠를 열 수단이 없다. 레지스트리 페어 목록 등재 필요");
                     }
+
+                    continue;
                 }
 
                 // 배치 지점은 방 프리팹의 아이템 앵커가 결정한다 — 앵커가 없거나 전부 점유면 마커 셀 바닥 폴백(+경고)
