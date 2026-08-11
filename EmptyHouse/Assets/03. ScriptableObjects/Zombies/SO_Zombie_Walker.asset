@@ -35,6 +35,8 @@ MonoBehaviour:
   WanderSpeed: 1.2
   PatrolRadius: 5
   PatrolSampleAttempts: 12
+  PatrolPauseMinSeconds: 8
+  PatrolPauseMaxSeconds: 10
   AlertSpeed: 0
   InvestigateBaseSpeed: 1.6
   InvestigateCapSpeed: 3.5
@@ -56,3 +58,4 @@ MonoBehaviour:
   ThInvestigate: 60
   CoolRate: 8
   SyncRadius: 15
+  SquadLeashSeconds: 15

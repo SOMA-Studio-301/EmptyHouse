@@ -455,8 +455,8 @@ MonoBehaviour:
       inWeight: 0
       outWeight: 0
     - serializedVersion: 3
-      time: 60
-      value: 0.35
+      time: 10
+      value: 0
       inSlope: 0
       outSlope: 0
       tangentMode: 0
@@ -464,8 +464,8 @@ MonoBehaviour:
       inWeight: 0
       outWeight: 0
     - serializedVersion: 3
-      time: 180
-      value: 0.8
+      time: 25
+      value: 1
       inSlope: 0
       outSlope: 0
       tangentMode: 0
@@ -484,8 +484,8 @@ MonoBehaviour:
     m_PreInfinity: 2
     m_PostInfinity: 2
     m_RotationOrder: 4
-  turnClipDegreesPerSecond: 150
-  turnDampTime: 0.08
+  turnClipDegreesPerSecond: 90
+  turnSmoothingSeconds: 0.08
 --- !u!114 &119432426559719344
 MonoBehaviour:
   m_ObjectHideFlags: 0

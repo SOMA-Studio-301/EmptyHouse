@@ -42,13 +42,13 @@ public class ZombieAnimator : NetworkBehaviour
         new Keyframe(3.406f, 3.429f));
 
     [Header("Turn (Legs)")]
-    [Tooltip("좀비 회전 각속도(도/초, 절대값)를 다리 회전 세기(0~1)로 바꾸는 곡선. 위로 올릴수록 같은 속도에서 발이 더 많이 돌아간다.")]
+    [Tooltip("좀비 회전 각속도(도/초, 절대값)를 다리 회전 세기(0~1)로 바꾸는 진입 게이트. 데드존 밖에서는 반드시 1 이어야 한다 — 1 미만이면 그 부족분이 그대로 발 미끄러짐이 된다. 좀비 선회는 120도/초 고정이라 그보다 훨씬 아래에서 포화시킨다.")]
     [SerializeField] private AnimationCurve turnBlendCurve = new AnimationCurve(
         new Keyframe(0f, 0f),
-        new Keyframe(30f, 0.4f),
-        new Keyframe(90f, 0.85f),
+        new Keyframe(4f, 0f),
+        new Keyframe(15f, 1f),
         new Keyframe(180f, 1f));
-    [Tooltip("Turn 클립이 본래 도는 속도(도/초). 실제 회전 속도를 이 값으로 나눠 재생 배속을 만든다 — 빨리 돌수록 발도 빨리 끈다.")]
+    [Tooltip("Turn 클립이 본래 도는 속도(도/초). 실제 회전 속도를 이 값으로 나눠 재생 배속을 만든다 — 빨리 돌수록 발도 빨리 끈다. 실측 90.")]
     [SerializeField] private float turnClipDegreesPerSecond = 90f;
     [Tooltip("이 속력(m/s)에 도달하면 다리 회전 연출을 완전히 끈다. 걷는 중에는 로코모션 클립이 이미 다리를 쓴다.")]
     [SerializeField] private float turnFadeOutSpeed = 0.4f;
@@ -64,8 +64,13 @@ public class ZombieAnimator : NetworkBehaviour
     private const int animNone = -1;  // 아직 한 번도 쓰지 않았다 — 첫 판정은 무조건 밀어 넣는다
 
     private const float minNaturalSpeed = 0.05f;   // 이 아래에서는 배속 보정을 하지 않는다(나눗셈 폭주)
-    private const float speedMultiplierMin = 0.5f; // 배속 하한
-    private const float speedMultiplierMax = 2f;   // 배속 상한
+    private const float speedMultiplierMin = 0.5f; // 로코모션 배속 하한
+    private const float speedMultiplierMax = 2f;   // 로코모션 배속 상한
+
+    // 회전 배속은 로코모션과 요구 범위가 다르다. 좀비 선회 120도/초 ÷ 클립 90도/초 = 1.33 이 상용값이고,
+    // 하한은 게이트 데드존(4도/초 ÷ 90)보다 낮아야 진입 직후 과회전이 없다.
+    private const float turnMultiplierMin = 0.05f;
+    private const float turnMultiplierMax = 2.5f;
 
     private static readonly int stateHash = Animator.StringToHash("State");
     private static readonly int speedHash = Animator.StringToHash("Speed");
@@ -151,9 +156,12 @@ public class ZombieAnimator : NetworkBehaviour
     /// 제자리 회전을 다리 전용 레이어에 반영한다. 회전은 코드가 만들고(ZombieStateMachine.UpdateFacing)
     /// 클립은 포즈가 제자리인 [RM] 판이라, 이 레이어는 발을 끄는 연출만 얹는다.
     ///
-    /// 최종 세기는 트리 블렌드(TurnBlend)와 레이어 가중치의 곱이다 — 둘 다 회전량을 타므로 완만하게 붙는다.
-    /// 가중치를 회전량과 무관하게 두면 안 된다. 트리 중앙의 대기 클립이 베이스 레이어와 재생 위상이
-    /// 어긋나 있어서, 가만히 선 좀비의 다리만 따로 떠는 그림이 나온다.
+    /// 발이 미끄러지지 않을 조건은 <c>실제 회전 속도 = 클립 고유 속도 × 재생 배속 × 세기</c> 이고,
+    /// 여기서 세기는 트리 블렌드(TurnBlend)와 레이어 가중치의 곱이다. 즉 도는 동안에는 둘 다 1 이어야
+    /// 하며, 낮춘 만큼 그대로 미끄러진다. turnBlendCurve 를 데드존 직후 1 로 포화시키는 이유가 이것이다.
+    ///
+    /// 그런데도 가중치를 회전량에 물려 두는 것은 정지 시 0 을 보장하기 위해서다. 트리 중앙의 대기 클립은
+    /// 베이스 레이어와 재생 위상이 독립이라, 안 도는데 가중치가 남아 있으면 다리만 따로 떠는 그림이 나온다.
     /// </summary>
     /// <param name="deltaTime">이번 프레임 경과 시간(초).</param>
     private void UpdateTurn(float deltaTime)
@@ -190,8 +198,8 @@ public class ZombieAnimator : NetworkBehaviour
 
         return Mathf.Clamp(
             Mathf.Abs(smoothedYawRate) / turnClipDegreesPerSecond,
-            speedMultiplierMin,
-            speedMultiplierMax);
+            turnMultiplierMin,
+            turnMultiplierMax);
     }
 
     /// <summary>복제된 상태가 바뀐 즉시 반영한다. 포효·공격은 한 프레임도 늦으면 안 되는 연출이다.</summary>
