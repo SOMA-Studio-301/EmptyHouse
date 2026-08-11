@@ -51,14 +51,21 @@ namespace EmptyHouse.MapGen.Runtime
             Log.D("[MapNavMeshRuntimeBaker] HandleMapAssembled");
             GameObject mapRoot = driver.LocalMapRoot;
             float rootY = mapRoot.transform.position.y;
+            float[] floorPlanes = driver.FloorPlaneYs(); // 층별 바닥면(M9-8) — 단층은 {0}
 
-            // 바닥 슬래브 태깅 — MapNavMeshBaker v2 판정 규칙(두께·상면 높이·최소 크기), 높이는 맵 원점 기준
+            // 바닥 슬래브 태깅 — MapNavMeshBaker v2 판정 규칙(두께·상면 높이·최소 크기), 높이는 **어느 한 층 바닥면** 기준(다층 M9-8)
             int tagged = 0;
             foreach (MeshRenderer renderer in mapRoot.GetComponentsInChildren<MeshRenderer>(true))
             {
                 Bounds bounds = renderer.bounds;
+                bool onFloorPlane = false;
+                for (int p = 0; p < floorPlanes.Length && !onFloorPlane; p++)
+                {
+                    onFloorPlane = Mathf.Abs(bounds.max.y - (rootY + floorPlanes[p])) <= slabMaxTopY;
+                }
+
                 if (bounds.size.y > slabMaxThickness
-                    || bounds.max.y > rootY + slabMaxTopY
+                    || !onFloorPlane
                     || bounds.size.x < slabMinXZ || bounds.size.z < slabMinXZ)
                 {
                     continue;

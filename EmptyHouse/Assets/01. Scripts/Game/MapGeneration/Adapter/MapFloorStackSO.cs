@@ -1,5 +1,6 @@
 using System;
 using Border.Core;
+using EmptyHouse.MapGen.Core;
 using UnityEngine;
 
 namespace EmptyHouse.MapGen.Runtime
@@ -15,9 +16,11 @@ namespace EmptyHouse.MapGen.Runtime
         public int FloorIndex; // 층 서수(부호) — 코어 FloorGenParams.FloorIndex 와 일치해야 한다
         public string ThemeId; // 테마 키 — 코어 FloorTemplateSet.ThemeId 와 대조(드리프트 표면화·해시 폴딩)
         public MapPrefabRegistrySO Registry; // 이 층 테마의 프리팹 원천(방·변형·봉인 벽·기둥·문·스폰)
+        public FloorGenParams GenParams = new FloorGenParams(); // 이 층 코어 파라미터(예산·난이도·좀비 밴드 — M9-8 플랜 조립 재료)
+        public RoomTemplateSO StairTemplate; // 이 층 테마의 계단실 템플릿(IsStairAnchor + 계단실 프리팹) — 전 층 풋프린트·소켓 동일(X4)
         public float CellMeters = 4f; // 이 층의 셀 실측(m) — 계단 연결 층 쌍은 동일해야 한다(X4 린트). 레지스트리의 동명 필드보다 이쪽이 우선
         public float FloorHeight = 6f; // 이 층 바닥면 → 위층 바닥면 거리(m). 2026-08-11 실측 확정값 6m(벽 Hall_Wall_6M_1Side 통일)
-        public GameObject StairFlightPrefab; // 계단 플라이트(기성 Hall_Stairs = 라이즈 3m) — 층고 6m 는 2단 스위치백
+        public GameObject StairFlightPrefab; // 계단 플라이트(기성 Hall_Stairs = 라이즈 3m) — 층고 6m 는 2단 스위치백(계단실 프리팹 저작 재료)
         public GameObject StairVoidSlabPrefab; // 계단 보이드 슬래브(기성 Hall_Floor_2nd_Floor_Stair_Half/_Full) — 중간·최상 층에 필요
         public GameObject StairRailingPrefab; // 보이드 난간(기성 Hall_Railings_Stair) — 없으면 추락·아이템 낙하 사고(N6)
     }
@@ -36,9 +39,15 @@ namespace EmptyHouse.MapGen.Runtime
         /// <returns>층 설정, 없으면 null.</returns>
         public FloorPrefabSet Find(int floorIndex)
         {
-            // TODO(impl):
-            Log.D($"[MapFloorStackSO] Find floor={floorIndex}");
-            return default;
+            for (int i = 0; i < Floors.Length; i++)
+            {
+                if (Floors[i].FloorIndex == floorIndex)
+                {
+                    return Floors[i];
+                }
+            }
+
+            return null;
         }
     }
 }

@@ -20,6 +20,7 @@ namespace EmptyHouse.MapGen.Runtime
         [SerializeField] private MapPrefabRegistrySO prefabRegistry; // 프리팹 레지스트리(P5 라이트)
         [SerializeField] private MapGenParamsSO genParamsAsset; // 생성 파라미터 단일 출처(9절) — 에디터 프리뷰도 같은 에셋을 읽는다. Seed 0 = 랜덤(서버가 확정, X8)
         [SerializeField] private EmptyHouse.Environment.LightingProfileSO lightingProfile; // 조명 프로파일 — 조립기가 맵 루트의 조명 컬러에 넘긴다
+        [SerializeField] private MapFloorStackSO floorStack; // 층 스택(M9-8) — 미배선 또는 층 1개면 단층 v1 경로. 클라 전원이 같은 에셋을 가져야 한다(AC-02)
 
         [Header("Event Channels")]
         [SerializeField] private VoidEventChannelSO onMapAssembledServer; // 서버 전용 발화 — 전 클라 조립 완료(X7). NavMesh 베이커가 구독
@@ -33,6 +34,57 @@ namespace EmptyHouse.MapGen.Runtime
 
         public MapBlueprint LocalBlueprint { get; private set; } // 로컬 재생성 블루프린트 — 스포너·베이커·툴이 소비
         public GameObject LocalMapRoot { get; private set; } // 로컬 조립 맵 루트
+        public System.Collections.Generic.IReadOnlyList<RoomTemplateDef> LocalTemplates { get; private set; } // 이번 생성에 쓴 평탄화 템플릿(M9-8) — 다층은 접미사 ID 라 레지스트리 재추출로 대체 불가
+
+        /// <summary>층 서수의 바닥면 Y 오프셋(m) — 스포너 마커·좀비 좌표의 층 가산에 쓴다. 단층·스택 부재는 0.</summary>
+        /// <param name="floorIndex">층 서수.</param>
+        /// <returns>Y 오프셋(m).</returns>
+        public float FloorPlaneY(int floorIndex)
+        {
+            return floorStack != null && floorStack.Floors != null && floorStack.Floors.Length > 1
+                ? FloorGeometry.FloorPlaneY(floorStack, floorIndex)
+                : 0f;
+        }
+
+        /// <summary>층별 바닥면 Y 오프셋 목록(베이커 슬래브 판정용) — 단층은 {0}.</summary>
+        /// <returns>층 평면 Y 배열.</returns>
+        public float[] FloorPlaneYs()
+        {
+            if (LocalBlueprint == null || floorStack == null || floorStack.Floors == null || floorStack.Floors.Length <= 1)
+            {
+                return new[] { 0f };
+            }
+
+            var planes = new float[LocalBlueprint.Floors.Count];
+            for (int f = 0; f < LocalBlueprint.Floors.Count; f++)
+            {
+                planes[f] = FloorGeometry.FloorPlaneY(floorStack, LocalBlueprint.Floors[f].FloorIndex);
+            }
+
+            return planes;
+        }
+
+        /// <summary>계획을 조립한다 — 층 스택이 다층이면 층 플랜(린트 통과 필수), 아니면 v1 단층 합성.</summary>
+        /// <param name="snapshot">시드 확정 파라미터 스냅샷.</param>
+        /// <param name="flatAssets">다층일 때 평탄화 템플릿 SO(출력) — 단층은 null.</param>
+        /// <returns>생성 계획 — 린트 실패 시 null(조립 거부, R4).</returns>
+        private MapGenPlan BuildPlan(MapGenParams snapshot, out RoomTemplateSO[] flatAssets)
+        {
+            flatAssets = null;
+            if (floorStack != null && floorStack.Floors != null && floorStack.Floors.Length > 1)
+            {
+                var lintErrors = new System.Collections.Generic.List<string>();
+                if (!MapFloorPlanAssembler.Lint(floorStack, lintErrors))
+                {
+                    Log.E($"[MapGenNetworkDriver] 층 스택 린트 실패 — 조립 거부(R4): {string.Join(" / ", lintErrors)}");
+                    return null;
+                }
+
+                return MapFloorPlanAssembler.Build(floorStack, snapshot, out flatAssets);
+            }
+
+            return MapGenPlan.FromLegacy(snapshot, prefabRegistry.CreateTemplates());
+        }
 
         /// <summary>
         /// 서버 전용 진입점 — 게임 씬 진입 시퀀스(세션 관리자)가 호출한다.
@@ -56,7 +108,13 @@ namespace EmptyHouse.MapGen.Runtime
             Log.D($"[MapGenNetworkDriver] 시드 확정 {confirmedSeed} (X8) — 재현 키");
 
             // 복제 전 서버 선검증 — 실패 시드는 뿌리지 않는다(X2: 폴백 맵 없음)
-            MapGenResult result = new MapGenerator().Generate(SnapshotParams(confirmedSeed), prefabRegistry.CreateTemplates());
+            MapGenPlan preflight = BuildPlan(SnapshotParams(confirmedSeed), out _);
+            if (preflight == null)
+            {
+                return; // 층 스택 린트 실패 — 조립 거부(R4)
+            }
+
+            MapGenResult result = new MapGenerator().Generate(preflight);
             if (!result.Success)
             {
                 Log.E($"[MapGenNetworkDriver] 생성 실패(X2) 시드={confirmedSeed} 리롤={result.RerollCount} — {string.Join(" / ", result.FailReasons)}");
@@ -103,8 +161,14 @@ namespace EmptyHouse.MapGen.Runtime
                 return; // 미확정 전이·중복 호출(스폰 즉시 처리 + OnValueChanged 이중 진입) 무시
             }
 
-            List<RoomTemplateDef> templates = prefabRegistry.CreateTemplates(); // 템플릿 단일 출처 = 레지스트리 SO(M9-3) — 전 클라 같은 에셋 = 같은 목록(AC-02)
-            MapGenResult result = new MapGenerator().Generate(SnapshotParams(current), templates);
+            // 템플릿 단일 출처 = 레지스트리/층 스택 SO(M9-3·M9-8) — 전 클라 같은 에셋 = 같은 계획(AC-02)
+            MapGenPlan plan = BuildPlan(SnapshotParams(current), out RoomTemplateSO[] flatAssets);
+            if (plan == null)
+            {
+                return; // 층 스택 린트 실패 — 조립 거부(R4)
+            }
+
+            MapGenResult result = new MapGenerator().Generate(plan);
             if (!result.Success)
             {
                 // 서버 선검증을 통과한 시드가 여기서 실패하면 빌드/카탈로그 불일치다 — AC-02 위반으로 표면화
@@ -113,7 +177,9 @@ namespace EmptyHouse.MapGen.Runtime
             }
 
             LocalBlueprint = result.Blueprint;
-            LocalMapRoot = MapRuntimeAssembler.Assemble(LocalBlueprint, templates, prefabRegistry, transform, lightingProfile);
+            LocalTemplates = plan.FlatTemplates;
+            LocalMapRoot = MapRuntimeAssembler.Assemble(LocalBlueprint, plan.FlatTemplates, prefabRegistry, transform, lightingProfile, null,
+                floorStack != null && floorStack.Floors != null && floorStack.Floors.Length > 1 ? floorStack : null, flatAssets);
             localHash = BlueprintHash.Compute(LocalBlueprint);
             Log.D($"[MapGenNetworkDriver] 로컬 조립 완료 시드={current} 해시={localHash:X8} 리롤={result.RerollCount}");
             ReportAssembledServerRpc(localHash);

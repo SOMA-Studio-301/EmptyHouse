@@ -14,6 +14,8 @@ namespace EmptyHouse.Environment
     [DisallowMultipleComponent]
     public sealed class MapLightCuller : MonoBehaviour
     {
+        private const float floorCullHalfHeight = 3f; // 층 컬링 반높이(m) — 시점과 방 중심의 Y 차가 이보다 크면 다른 층으로 보고 강제 소등(N3 — 층고 6m 의 절반)
+
         private RoomLightGroup[] groups;   // 맵 안의 방 그룹(1회 수집)
         private Vector3[] centers;         // 그룹별 거리 기준점(1회 계산)
         private LightingProfileSO profile; // 컬링 파라미터 출처 — 조립기가 Initialize 로 주입
@@ -92,11 +94,14 @@ namespace EmptyHouse.Environment
             {
                 float d2 = (centers[i] - p).sqrMagnitude;
 
+                // 층 게이트(N3 — 다층 M9-8): 다른 층 방은 수직 6m 차이뿐이라 3D 반경으로는 켜진다 —
+                // 위아래 층 라이트가 바닥 슬래브 너머로 새며 Forward+ 예산만 먹으므로 층이 다르면 강제 소등
+                bool otherFloor = Mathf.Abs(centers[i].y - p.y) > floorCullHalfHeight;
                 if (groups[i].IsCulled)
                 {
-                    if (d2 <= enableSqr) groups[i].SetCulled(false);
+                    if (!otherFloor && d2 <= enableSqr) groups[i].SetCulled(false);
                 }
-                else if (d2 > disableSqr)
+                else if (otherFloor || d2 > disableSqr)
                 {
                     groups[i].SetCulled(true);
                 }
