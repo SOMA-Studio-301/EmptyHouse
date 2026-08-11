@@ -569,7 +569,35 @@ namespace EmptyHouse.MapGen.Core
         {
             Log.D("[LayoutGenerator] CarveLoopEdges");
 
-            // 후보 전수 수집 — 방·소켓 인덱스 순(결정론)
+            // 후보 전수 수집 — 방·소켓 인덱스 순(결정론).
+            // (전역 셀, 월드 방향) → 미사용 소켓 색인을 먼저 만들어 O(R·S) 조회로 짝을 찾는다(구 O(R²·S²) 쌍대조 대체).
+            // ⚠️ 딕셔너리는 **조회 전용** — 후보 append 순서는 바깥 (a, sa) 오름차순 루프가 그대로 결정하고,
+            // 색인 값 리스트도 (방, 소켓 배열 인덱스) 오름차순으로 쌓여 원 구현의 (b, sb) 스캔 순서와 일치한다(결과 불변).
+            var socketIndex = new Dictionary<(int x, int y, SocketDirection dir), List<(int room, int socketId)>>();
+            for (int r = 0; r < blueprint.Rooms.Count; r++)
+            {
+                RoomTemplateDef template = placedTemplates[r];
+                for (int s = 0; s < template.Sockets.Length; s++)
+                {
+                    SocketDef socket = template.Sockets[s];
+                    if (usedSockets.Contains(SocketKey(r, socket.Id)))
+                    {
+                        continue;
+                    }
+
+                    CellCoord world = ToWorldCell(blueprint.Rooms[r], template, socket);
+                    SocketDirection worldDir = CellMath.RotateDirection(socket.Direction, blueprint.Rooms[r].Rotation);
+                    (int, int, SocketDirection) key = (world.X, world.Y, worldDir);
+                    if (!socketIndex.TryGetValue(key, out List<(int room, int socketId)> bucket))
+                    {
+                        bucket = new List<(int room, int socketId)>();
+                        socketIndex.Add(key, bucket);
+                    }
+
+                    bucket.Add((r, socket.Id));
+                }
+            }
+
             var candidates = new List<(int roomA, int socketA, int roomB, int socketB)>();
             for (int a = 0; a < blueprint.Rooms.Count; a++)
             {
@@ -586,24 +614,16 @@ namespace EmptyHouse.MapGen.Core
                     SocketDirection dirA = CellMath.RotateDirection(socketA.Direction, blueprint.Rooms[a].Rotation);
                     CellCoord target = Step(worldA, dirA);
                     SocketDirection neededDir = Opposite(dirA);
-
-                    for (int b = a + 1; b < blueprint.Rooms.Count; b++)
+                    if (!socketIndex.TryGetValue((target.X, target.Y, neededDir), out List<(int room, int socketId)> partners))
                     {
-                        RoomTemplateDef templateB = placedTemplates[b];
-                        for (int sb = 0; sb < templateB.Sockets.Length; sb++)
-                        {
-                            SocketDef socketB = templateB.Sockets[sb];
-                            if (usedSockets.Contains(SocketKey(b, socketB.Id)))
-                            {
-                                continue;
-                            }
+                        continue;
+                    }
 
-                            CellCoord worldB = ToWorldCell(blueprint.Rooms[b], templateB, socketB);
-                            if (worldB.X == target.X && worldB.Y == target.Y
-                                && CellMath.RotateDirection(socketB.Direction, blueprint.Rooms[b].Rotation) == neededDir)
-                            {
-                                candidates.Add((a, socketA.Id, b, socketB.Id));
-                            }
+                    for (int p = 0; p < partners.Count; p++)
+                    {
+                        if (partners[p].room > a)
+                        {
+                            candidates.Add((a, socketA.Id, partners[p].room, partners[p].socketId));
                         }
                     }
                 }

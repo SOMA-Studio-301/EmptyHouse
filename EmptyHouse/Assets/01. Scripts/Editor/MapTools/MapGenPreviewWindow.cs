@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using Border.Core;
 using EmptyHouse.MapGen.Core;
+using EmptyHouse.MapGen.Runtime;
 using UnityEditor;
 using UnityEngine;
 
@@ -370,7 +371,7 @@ namespace EmptyHouse.MapGen.Editor
             snapshot.Seed = lastConfirmedSeed;
 
             // 기본 = 프리팹 실측 세트 — 씬 빌더(MapGenSceneBuilder)와 같은 재료로 봐야 모양 조정이 유효하다
-            List<RoomTemplateDef> templates = templateSetIndex == 0 ? PrefabRoomTemplates.Create() : DevTemplateSet.Create();
+            List<RoomTemplateDef> templates = templateSetIndex == 0 ? MapTemplateCatalog.Create() : DevTemplateSet.Create();
             ApplyWanderOverrides(templates);
             lastResult = generator.Generate(snapshot, templates);
             lastTemplates = templates;

@@ -34,7 +34,7 @@ namespace EmptyHouse.EditorTools
             "Assets/02. Prefab/Player/Player_UnityChan.prefab",
         };
 
-        /// <summary>TemplateId → 기본(폴백) 방 프리팹 경로(MapGen.Editor asmdef 가 비참조라 PrefabRoomTemplates.PrefabPaths 를 복제 — 경로 변경 시 양쪽 갱신).</summary>
+        /// <summary>TemplateId → 기본(폴백) 방 프리팹 경로 — **레지스트리 에셋 생성 전용**(생성 후엔 SO_MapPrefabRegistry 가 원천). 유일하게 남은 경로표로, M9-3 템플릿 SO 이관 때 소멸 예정.</summary>
         private static readonly (string id, string path)[] roomPrefabPaths =
         {
             ("entrance_6x6", "Assets/02. Prefab/Map/DecoratedRooms/Entrance/Entrance-EmptyRoom-6x6.prefab"),

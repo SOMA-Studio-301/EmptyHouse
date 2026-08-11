@@ -1,6 +1,7 @@
 using System.Collections.Generic;
 using Border.Core;
 using EmptyHouse.MapGen.Core;
+using EmptyHouse.MapGen.Runtime;
 using UnityEditor;
 using UnityEngine;
 
@@ -15,7 +16,7 @@ namespace EmptyHouse.MapGen.Editor
     /// </summary>
     public static class MapGenSceneAuditor
     {
-        private const float cell = PrefabRoomTemplates.CellMeters; // 셀 실측(m)
+        private const float cell = MapTemplateCatalog.CellMeters; // 셀 실측(m) — 런타임 카탈로그 단일 원천
         private const float slitTolerance = 0.07f; // 이하 갭은 무시(프리팹 이음 허용 오차)
 
         /// <summary>
@@ -41,7 +42,7 @@ namespace EmptyHouse.MapGen.Editor
             }
 
             var generator = new MapGenerator();
-            List<RoomTemplateDef> templates = PrefabRoomTemplates.Create();
+            List<RoomTemplateDef> templates = MapTemplateCatalog.Create();
             int total = 0;
             for (int i = 0; i < root.transform.childCount; i++)
             {
@@ -218,7 +219,7 @@ namespace EmptyHouse.MapGen.Editor
                     return issues;
                 }
 
-                Bounds frame = MapGenSceneBuilder.FrameBounds(door.gameObject);
+                Bounds frame = MapRuntimeAssembler.FrameBounds(door.gameObject);
                 openMin = boundaryAlongX ? frame.min.x : frame.min.z;
                 openMax = boundaryAlongX ? frame.max.x : frame.max.z;
                 openTop = frame.max.y;
