@@ -30,9 +30,12 @@ namespace EmptyHouse.MapGen.Runtime
             {
                 new RoomTemplateDef
                 {
-                    // 입구 = Rooms/Entrance-EmptyRoom-6x6 전용 프리팹(벽 6m). 소켓 실측 규약(2026-08-06 확정):
+                    // 입구 = DecoratedRooms/Entrance 전용 프리팹(벽 6m). 소켓 실측 규약(2026-08-10 갱신):
                     // 북 = 4번째 칸(3,5)의 기존 개구(중심 로컬 x=+0.4, 문틀 아트) — 의무 문(항상 방 직결 + 문),
-                    // 동·서 = 로비·계단 구역을 피한 {1,4}행만, 남 = 버스 입구 벽이라 소켓 없음
+                    // 동·서 = 북쪽 4셀(y 2~5)이 계단·2층 구조라 소켓 금지 → 하단 y=1 한 곳씩,
+                    // 남 = 버스 입구 벽이라 소켓 없음(= 그 뒤는 집 밖. LayoutGenerator 확보 대역이 이 사실을 읽는다).
+                    // 동·서가 1개씩이라 소켓 열 집합이 c ↔ L−1−c 자기 대칭을 못 이룬다 — 입구는 회전하지 않아
+                    // 트리 연결에는 무해하고, 대신 입구 쪽 루프 간선 후보가 줄어드는 것을 감수한 결정이다
                     TemplateId = "entrance_6x6",
                     WidthCells = 6,
                     HeightCells = 6,
@@ -46,9 +49,7 @@ namespace EmptyHouse.MapGen.Runtime
                     {
                         new SocketDef { Id = 0, LocalCell = new CellCoord(3, 5), Direction = SocketDirection.North, MandatoryDoor = true },
                         new SocketDef { Id = 1, LocalCell = new CellCoord(0, 1), Direction = SocketDirection.West },
-                        new SocketDef { Id = 2, LocalCell = new CellCoord(0, 4), Direction = SocketDirection.West },
-                        new SocketDef { Id = 3, LocalCell = new CellCoord(5, 1), Direction = SocketDirection.East },
-                        new SocketDef { Id = 4, LocalCell = new CellCoord(5, 4), Direction = SocketDirection.East },
+                        new SocketDef { Id = 2, LocalCell = new CellCoord(5, 1), Direction = SocketDirection.East },
                     },
                     Markers = new MarkerDef[0],
                 },
