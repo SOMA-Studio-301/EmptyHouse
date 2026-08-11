@@ -310,14 +310,16 @@ namespace EmptyHouse.MapGen.Core
 
             CellCoord segTarget = targetCell;
             SocketDirection segDir = openWorldDir;
+            int lockedTemplate = -1; // 첫 세그먼트가 정한 복도 템플릿 — 연쇄 전체가 이것만 쓴다(폭이 다른 복도끼리 물리면 단부 절반이 봉인돼 통로 한가운데 벽이 선다)
             for (int i = 0; i < chainTarget; i++)
             {
-                if (!TryPlaceChainSegment(rng, templates, usedCount, blueprint, segTarget, segDir, out ChainSegment segment, out CellCoord nextTarget, out SocketDirection nextDir))
+                if (!TryPlaceChainSegment(rng, templates, usedCount, blueprint, segTarget, segDir, lockedTemplate, out ChainSegment segment, out CellCoord nextTarget, out SocketDirection nextDir))
                 {
                     break; // 더 못 늘림 — 현재 길이에서 끝방 시도
                 }
 
                 chainSegments.Add(segment);
+                lockedTemplate = segment.TemplateIndex;
                 segTarget = nextTarget;
                 segDir = nextDir;
             }
@@ -362,11 +364,12 @@ namespace EmptyHouse.MapGen.Core
         /// <param name="blueprint">대상 블루프린트.</param>
         /// <param name="segTarget">근단 소켓이 놓일 월드 셀.</param>
         /// <param name="incomingDir">진행 방향(이전 원단 소켓의 월드 방향).</param>
+        /// <param name="lockedTemplateIndex">연쇄가 이미 고정한 복도 템플릿 인덱스(-1 = 첫 세그먼트라 자유).</param>
         /// <param name="segment">배치된 세그먼트 기록.</param>
         /// <param name="nextTarget">다음 세그먼트/끝방의 근단이 놓일 월드 셀.</param>
         /// <param name="nextDir">다음 진행 방향.</param>
         /// <returns>배치 성공 여부.</returns>
-        private bool TryPlaceChainSegment(DeterministicRng rng, IReadOnlyList<RoomTemplateDef> templates, int[] usedCount, MapBlueprint blueprint, CellCoord segTarget, SocketDirection incomingDir, out ChainSegment segment, out CellCoord nextTarget, out SocketDirection nextDir)
+        private bool TryPlaceChainSegment(DeterministicRng rng, IReadOnlyList<RoomTemplateDef> templates, int[] usedCount, MapBlueprint blueprint, CellCoord segTarget, SocketDirection incomingDir, int lockedTemplateIndex, out ChainSegment segment, out CellCoord nextTarget, out SocketDirection nextDir)
         {
             SocketDirection neededDir = Opposite(incomingDir);
             corridorCandidates.Clear();
@@ -374,6 +377,12 @@ namespace EmptyHouse.MapGen.Core
             {
                 RoomTemplateDef template = templates[t];
                 if (!template.IsCorridor || usedCount[t] >= CorridorTreeCap(template))
+                {
+                    continue;
+                }
+
+                // 연쇄 2번째부터는 첫 세그먼트와 같은 복도만 — 폭이 다르면 넓은 쪽 단부 절반이 봉인돼 통로에 벽이 선다
+                if (lockedTemplateIndex >= 0 && t != lockedTemplateIndex)
                 {
                     continue;
                 }

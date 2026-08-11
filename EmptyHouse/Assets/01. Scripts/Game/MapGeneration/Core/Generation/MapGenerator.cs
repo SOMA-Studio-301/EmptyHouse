@@ -10,7 +10,7 @@ namespace EmptyHouse.MapGen.Core
     /// </summary>
     public sealed class MapGenerator
     {
-        public const string GeneratorVersion = "0.8.0"; // 생성기 버전 — MapBlueprintMeta에 스냅샷(1절). 0.8.0: 입구 동·서 소켓을 하단 y=1 한 곳씩으로 축소(계단·2층 구간 제외, 같은 시드 ≠ 0.7.0 결과)
+        public const string GeneratorVersion = "0.9.0"; // 생성기 버전 — MapBlueprintMeta에 스냅샷(1절). 0.9.0: 복도 연쇄를 단일 템플릿으로 고정(폭 다른 복도 접합 제거, 같은 시드 ≠ 0.8.0 결과)
 
         private readonly DeterministicRng rng = new DeterministicRng(); // 단일 난수 스트림(8절)
         private readonly LayoutGenerator layoutGenerator = new LayoutGenerator(); // 3절
