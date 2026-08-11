@@ -32,7 +32,13 @@ public class ZombieSquadSync : MonoBehaviour
             ZombieSquadSync other = squads[i];
             if (other == null || other == this || other.controller == null || other.IsFollower || other.snapshotFormed) continue;
             if (!other.controller.IsSpawned || !other.controller.IsServer) continue;
-            if ((other.controller.transform.position - controller.transform.position).sqrMagnitude > radiusSquared) continue;
+
+            // 동조는 층 미관통(레벨디자인 3-0·R5) — 3D 구면이면 층고 6m 위아래 좀비까지 삼킨다.
+            // 판정 = 수평 반경 + 층 일치(Y 차 3m 미만 — 층고 절반)
+            Vector3 delta = other.controller.transform.position - controller.transform.position;
+            if (Mathf.Abs(delta.y) >= 3f) continue;
+            delta.y = 0f;
+            if (delta.sqrMagnitude > radiusSquared) continue;
 
             if (!other.ServerAssignLeader(this)) continue;
             followers.Add(other);
