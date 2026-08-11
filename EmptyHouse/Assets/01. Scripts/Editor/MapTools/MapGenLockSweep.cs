@@ -122,7 +122,7 @@ namespace EmptyHouse.EditorTools
             roomCounts.Add(roomCount - corridors);
             corridorCounts.Add(corridors);
 
-            int[] hopDepths = DangerGradeCalculator.ComputeDepths(blueprint);
+            int[] hopDepths = DangerGradeCalculator.ComputeHopDistances(blueprint);
             int[] roomDepths = RoomHopDepths(blueprint, isCorridor);
 
             int shortcutCand = 0;
@@ -223,7 +223,7 @@ namespace EmptyHouse.EditorTools
             BlueprintEdge edge = blueprint.Edges[edgeIndex];
             EdgeState original = edge.State;
             edge.State = EdgeState.BlockedWall;
-            int[] without = isCorridor == null ? DangerGradeCalculator.ComputeDepths(blueprint) : RoomHopDepths(blueprint, isCorridor);
+            int[] without = isCorridor == null ? DangerGradeCalculator.ComputeHopDistances(blueprint) : RoomHopDepths(blueprint, isCorridor);
             edge.State = original;
 
             int best = 0;

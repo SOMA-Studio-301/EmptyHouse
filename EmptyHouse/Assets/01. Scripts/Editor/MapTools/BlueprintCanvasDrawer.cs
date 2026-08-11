@@ -154,7 +154,7 @@ namespace EmptyHouse.MapGen.Editor
             }
 
             cachedBlueprint = blueprint;
-            cachedDepths = DangerGradeCalculator.ComputeDepths(blueprint);
+            cachedDepths = DangerGradeCalculator.ComputeHopDistances(blueprint);
             cachedMaxDepth = 1;
             for (int r = 0; r < cachedDepths.Length; r++)
             {
@@ -269,7 +269,7 @@ namespace EmptyHouse.MapGen.Editor
         /// <param name="blueprint">블루프린트.</param>
         /// <param name="templates">템플릿 목록.</param>
         /// <param name="options">오버레이 옵션.</param>
-        /// <param name="depths">방별 입구 깊이(DangerGradeCalculator.ComputeDepths 결과 캐시).</param>
+        /// <param name="depths">방별 입구 깊이(DangerGradeCalculator.ComputeHopDistances 결과 캐시).</param>
         private void DrawRooms(Rect canvasRect, MapBlueprint blueprint, IReadOnlyList<RoomTemplateDef> templates, OverlayOptions options, int[] depths)
         {
             for (int r = 0; r < blueprint.Rooms.Count; r++)

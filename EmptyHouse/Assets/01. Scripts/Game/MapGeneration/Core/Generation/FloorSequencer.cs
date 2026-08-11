@@ -1,10 +1,9 @@
 using System.Collections.Generic;
-using Border.Core;
 
 namespace EmptyHouse.MapGen.Core
 {
     /// <summary>
-    /// 층 순서 확정·샤프트 승격·이격 판정(M8 SSA). <see cref="LayoutGenerator"/> 비대화를 막기 위해 분리했다.
+    /// 층 순서 확정·샤프트 승격·이격 판정(M9 SSA). <see cref="LayoutGenerator"/> 비대화를 막기 위해 분리했다.
     /// **이 클래스는 난수를 소비하지 않는다** — 층 순서가 rng 를 먹으면 층 1개 구성에서도 스트림이 어긋나
     /// v1 하위호환 골든이 깨진다. 샤프트 수·삽입 시점 롤은 <see cref="LayoutGenerator"/> 소관이다.
     /// </summary>
@@ -18,9 +17,32 @@ namespace EmptyHouse.MapGen.Core
         /// <returns>층 슬롯 인덱스의 처리 순서.</returns>
         public static int[] Order(MapGenPlan plan)
         {
-            // TODO(impl):
-            Log.D("[FloorSequencer] Order");
-            return default;
+            var rest = new List<int>();
+            for (int i = 0; i < plan.Floors.Length; i++)
+            {
+                if (i != plan.SeedFloorSlot)
+                {
+                    rest.Add(i);
+                }
+            }
+
+            // |서수| 오름차순, 동률이면 서수 큰 쪽(위층) 먼저 — 안정 삽입 정렬(입력 순서 무관 결정론)
+            rest.Sort((a, b) =>
+            {
+                int fa = plan.Floors[a].FloorIndex;
+                int fb = plan.Floors[b].FloorIndex;
+                int absCompare = System.Math.Abs(fa).CompareTo(System.Math.Abs(fb));
+                return absCompare != 0 ? absCompare : fb.CompareTo(fa);
+            });
+
+            var order = new int[plan.Floors.Length];
+            order[0] = plan.SeedFloorSlot;
+            for (int i = 0; i < rest.Count; i++)
+            {
+                order[i + 1] = rest[i];
+            }
+
+            return order;
         }
 
         /// <summary>
@@ -33,9 +55,29 @@ namespace EmptyHouse.MapGen.Core
         /// <returns>승격된 샤프트 목록.</returns>
         public static List<StairShaft> PromoteShafts(MapGenPlan plan, MapBlueprint blueprint, IReadOnlyList<int> stairRoomIndices)
         {
-            // TODO(impl):
-            Log.D("[FloorSequencer] PromoteShafts");
-            return default;
+            int bottom = int.MaxValue;
+            int top = int.MinValue;
+            for (int i = 0; i < plan.Floors.Length; i++)
+            {
+                bottom = System.Math.Min(bottom, plan.Floors[i].FloorIndex);
+                top = System.Math.Max(top, plan.Floors[i].FloorIndex);
+            }
+
+            var shafts = new List<StairShaft>(stairRoomIndices.Count);
+            for (int i = 0; i < stairRoomIndices.Count; i++)
+            {
+                BlueprintRoom room = blueprint.Rooms[stairRoomIndices[i]];
+                shafts.Add(new StairShaft
+                {
+                    ShaftId = i,
+                    Cell = room.Cell,
+                    Rotation = room.Rotation,
+                    BottomFloor = bottom,
+                    TopFloor = top,
+                });
+            }
+
+            return shafts;
         }
 
         /// <summary>
@@ -48,9 +90,17 @@ namespace EmptyHouse.MapGen.Core
         /// <returns>이격을 만족하면 true.</returns>
         public static bool IsSeparated(IReadOnlyList<StairShaft> shafts, CellCoord candidate, int minSeparationCells)
         {
-            // TODO(impl):
-            Log.D("[FloorSequencer] IsSeparated");
-            return default;
+            for (int i = 0; i < shafts.Count; i++)
+            {
+                int dx = System.Math.Abs(shafts[i].Cell.X - candidate.X);
+                int dy = System.Math.Abs(shafts[i].Cell.Y - candidate.Y);
+                if (System.Math.Max(dx, dy) < minSeparationCells)
+                {
+                    return false;
+                }
+            }
+
+            return true;
         }
     }
 }

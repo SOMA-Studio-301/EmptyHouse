@@ -14,19 +14,19 @@ namespace EmptyHouse.MapGen.Core
     public sealed class LayoutGenerator
     {
         private readonly List<RoomTemplateDef> placedTemplates = new List<RoomTemplateDef>(); // 방 인덱스 → 사용 템플릿(Rooms 와 정렬)
-        private readonly HashSet<long> occupiedCells = new HashSet<long>(); // 점유 셀 집합(충돌 검사 전용 — 열거 금지)
+        private readonly Dictionary<int, HashSet<long>> occupiedByFloor = new Dictionary<int, HashSet<long>>(); // 층 서수 → 점유 셀 집합(M9-4 — 층별 격자 분리)
+        private HashSet<long> occupiedCells = new HashSet<long>(); // **현재 층** 점유 셀(층 시작 시 occupiedByFloor 의 해당 집합으로 교체 — FitsAt/PlaceRoom 은 무수정, 충돌 검사 전용·열거 금지)
         private readonly HashSet<long> usedSockets = new HashSet<long>(); // 간선에 쓰인 소켓 집합(방<<32|소켓Id)
-        private int countableRooms; // 예산 집계 방 수 — 복도·입구 앵커 제외(RoomsTotalMin/Max 판정 기준)
+        private int countableRooms; // **현재 층** 예산 집계 방 수 — 복도·입구 앵커 제외(층 시작마다 리셋)
+        private int currentFloorIndex; // 지금 생성 중인 층 서수(배치 방의 FloorIndex 원천)
+        private int currentFlatBase; // 현재 층 템플릿의 평탄화 테이블 시작 인덱스(TemplateIndex 계산용)
         private readonly List<(int template, int socket)> directCandidates = new List<(int template, int socket)>(); // 직결 후보 재사용 버퍼(호출 빈도 높음 — GC 절감)
         private readonly List<(int template, int socket)> corridorCandidates = new List<(int template, int socket)>(); // 복도 후보 재사용 버퍼
         private readonly List<int> farSockets = new List<int>(); // 복도 원단 소켓 재사용 버퍼
         private readonly List<ChainSegment> chainSegments = new List<ChainSegment>(); // 복도 연쇄 세그먼트 재사용 버퍼(커밋·롤백 기록)
         private readonly List<KeepOutStrip> entranceKeepOut = new List<KeepOutStrip>(); // 입구 바깥 확보 대역(소켓 없는 변 너머 — 어떤 풋프린트도 금지)
 
-        /// <summary>
-        /// 방 배치와 간선(트리 + 루프)을 생성해 blueprint 의 Rooms/Edges 를 채운다.
-        /// 조립 후보 소진·최소 등장 횟수 미달 시 false — 호출자(MapGenerator)가 리롤한다(X3).
-        /// </summary>
+        /// <summary>v1 호환 진입점 — 층 1개 Plan 을 합성해 위임한다(결과는 v1 과 동일 — 골든 게이트).</summary>
         /// <param name="rng">단일 난수 스트림.</param>
         /// <param name="genParams">생성 파라미터.</param>
         /// <param name="templates">템플릿 집합.</param>
@@ -34,53 +34,124 @@ namespace EmptyHouse.MapGen.Core
         /// <returns>레이아웃 완성 여부.</returns>
         public bool TryGenerate(DeterministicRng rng, MapGenParams genParams, IReadOnlyList<RoomTemplateDef> templates, MapBlueprint blueprint)
         {
-            Log.D("[LayoutGenerator] TryGenerate");
+            return TryGenerate(rng, MapGenPlan.FromLegacy(genParams, templates), blueprint);
+        }
+
+        /// <summary>
+        /// 층 순서대로 방 배치와 간선(트리 + 루프)을 생성해 blueprint 의 Rooms/Edges/Floors 를 채운다(M9-4).
+        /// 조립 후보 소진·최소 등장 횟수 미달 시 false — 호출자(MapGenerator)가 리롤한다(X3).
+        /// 층별 점유 격자·예산·사이클 목표는 분리되고, 층 하나가 끝날 때마다 그 층의 잔여 소켓을 봉인한다 —
+        /// 다음 층 처리 시 이전 층에 미사용 소켓이 없어 후보 수집이 자연히 현재 층으로 한정된다.
+        /// </summary>
+        /// <param name="rng">단일 난수 스트림.</param>
+        /// <param name="plan">생성 계획.</param>
+        /// <param name="blueprint">Rooms/Edges/Floors 를 채울 대상 블루프린트.</param>
+        /// <returns>레이아웃 완성 여부.</returns>
+        public bool TryGenerate(DeterministicRng rng, MapGenPlan plan, MapBlueprint blueprint)
+        {
             placedTemplates.Clear();
-            occupiedCells.Clear();
+            occupiedByFloor.Clear();
             usedSockets.Clear();
             entranceKeepOut.Clear();
-            countableRooms = 0;
 
-            if (!TryPlaceEntranceAnchor(templates, blueprint))
+            int[] order = FloorSequencer.Order(plan); // rng 미소비 — 층 1개 구성에서도 스트림 불변(절대 규칙 3)
+            for (int i = 0; i < order.Length; i++)
             {
-                return false;
-            }
-
-            var usedCount = new int[templates.Count];
-            for (int i = 0; i < templates.Count; i++)
-            {
-                if (templates[i].IsEntranceAnchor)
+                if (!TryGenerateFloor(rng, plan, order[i], blueprint))
                 {
-                    usedCount[i] = 1;
+                    return false;
                 }
             }
 
-            if (!TryAttachRooms(rng, genParams, templates, usedCount, blueprint))
+            // 전역 사이클 달성률 — v1 과 같은 의미(층 1개면 층 값과 동일). 층별 값은 BlueprintFloor 소관
+            blueprint.Meta.CycleRoomPercentAchieved = CycleMetrics.ComputeCycleRoomPercent(blueprint, plan.FlatTemplates);
+            return true;
+        }
+
+        /// <summary>
+        /// 층 하나를 생성한다 — 시드 층은 입구 앵커 + 트리 성장, 비시드 층은 계단 샤프트 복사에서 자란다(M9-5).
+        /// 성장 → 루프 채택 → 잔여 소켓 봉인 → 층 구간 메타 기록 순서.
+        /// </summary>
+        /// <param name="rng">단일 난수 스트림.</param>
+        /// <param name="plan">생성 계획.</param>
+        /// <param name="slot">층 슬롯 인덱스.</param>
+        /// <param name="blueprint">대상 블루프린트.</param>
+        /// <returns>층 생성 성공 여부.</returns>
+        private bool TryGenerateFloor(DeterministicRng rng, MapGenPlan plan, int slot, MapBlueprint blueprint)
+        {
+            FloorGenParams floorParams = plan.FloorParams[slot];
+            RoomTemplateDef[] floorTemplates = plan.Floors[slot].Templates;
+            currentFloorIndex = plan.Floors[slot].FloorIndex;
+            currentFlatBase = plan.TemplateStart(slot);
+            countableRooms = 0;
+            if (!occupiedByFloor.TryGetValue(currentFloorIndex, out HashSet<long> floorCells))
             {
+                floorCells = new HashSet<long>();
+                occupiedByFloor[currentFloorIndex] = floorCells;
+            }
+
+            occupiedCells = floorCells; // FitsAt/PlaceRoom/RemoveLastRoom 은 현재 층 집합만 본다
+            int roomStart = blueprint.Rooms.Count;
+            int edgeStart = blueprint.Edges.Count;
+
+            var usedCount = new int[floorTemplates.Length];
+            if (slot == plan.SeedFloorSlot)
+            {
+                if (!TryPlaceEntranceAnchor(floorTemplates, blueprint))
+                {
+                    return false;
+                }
+
+                for (int i = 0; i < floorTemplates.Length; i++)
+                {
+                    if (floorTemplates[i].IsEntranceAnchor)
+                    {
+                        usedCount[i] = 1;
+                    }
+                }
+
+                if (!TryAttachRooms(rng, floorParams, floorTemplates, usedCount, blueprint))
+                {
+                    return false;
+                }
+            }
+            else
+            {
+                // 비시드 층 — 계단 샤프트 좌표 복사 + 다중 시딩 성장은 M9-5 소관. 그 전까지 다층 Plan 은 명시적 실패
                 return false;
             }
 
-            // 루프는 사이클 소속 방 비율 목표(CycleRoomPercent)로 채택 — 후보 소진 시 베스트에포트(리롤 없음, X6 경고는 검증기 소관)
-            CarveLoopEdges(rng, genParams, templates, usedCount, blueprint);
-            blueprint.Meta.CycleRoomPercentAchieved = CycleMetrics.ComputeCycleRoomPercent(blueprint, templates);
+            // 루프는 사이클 소속 방 비율 목표(CycleRoomPercent)로 채택 — 후보 소진 시 베스트에포트(리롤 없음, X6 경고는 검증기 소관).
+            // 달성률 계산은 전 층 누적 그래프 기준 — 이전 층은 봉인 완료라 후보가 없지만, 층별 정밀 달성률 분리는 M9-5 에서 층 스코프 지표로 처리한다
+            CarveLoopEdges(rng, floorParams, floorTemplates, plan.FlatTemplates, usedCount, blueprint);
+            SealRemainingSockets(blueprint, roomStart);
 
-            SealRemainingSockets(blueprint);
+            blueprint.Floors.Add(new BlueprintFloor
+            {
+                FloorIndex = currentFloorIndex,
+                ThemeId = plan.Floors[slot].ThemeId,
+                RoomStart = roomStart,
+                RoomCount = blueprint.Rooms.Count - roomStart,
+                EdgeStart = edgeStart,
+                EdgeCount = blueprint.Edges.Count - edgeStart,
+                CycleRoomPercentAchieved = CycleMetrics.ComputeCycleRoomPercent(blueprint, plan.FlatTemplates), // 층 1개 = 전역과 동일. 다층 층 스코프 분리는 M9-5
+                ShaftCountAchieved = 0, // 샤프트는 M9-5
+            });
             return true;
         }
 
         /// <summary>버스 입구 고정 모듈을 그리드 고정 앵커(방 0)로 배치한다(3절 1).</summary>
-        /// <param name="templates">템플릿 집합(IsEntranceAnchor 템플릿 필수).</param>
+        /// <param name="templates">현재 층 템플릿 집합(IsEntranceAnchor 템플릿 필수).</param>
         /// <param name="blueprint">대상 블루프린트.</param>
         /// <returns>앵커 배치 성공 여부.</returns>
         private bool TryPlaceEntranceAnchor(IReadOnlyList<RoomTemplateDef> templates, MapBlueprint blueprint)
         {
-            Log.D("[LayoutGenerator] TryPlaceEntranceAnchor");
             for (int i = 0; i < templates.Count; i++)
             {
                 if (templates[i].IsEntranceAnchor)
                 {
                     var origin = new CellCoord(0, 0);
-                    PlaceRoom(templates[i], origin, Rotation4.Deg0, blueprint);
+                    PlaceRoom(templates[i], origin, Rotation4.Deg0, blueprint, currentFlatBase + i);
                     BuildEntranceKeepOut(templates[i], origin);
                     return true;
                 }
@@ -95,15 +166,14 @@ namespace EmptyHouse.MapGen.Core
         /// MinCount 미달 방 템플릿이 있으면 남은 예산이 미달 합계 이하일 때 그 템플릿만 직결 후보로 강제한다.
         /// </summary>
         /// <param name="rng">단일 난수 스트림.</param>
-        /// <param name="genParams">생성 파라미터(총 방 수 예산·복도 경유 확률).</param>
-        /// <param name="templates">템플릿 집합.</param>
+        /// <param name="floorParams">현재 층 파라미터(방 수 예산·복도 경유 확률).</param>
+        /// <param name="templates">현재 층 템플릿 집합.</param>
         /// <param name="usedCount">템플릿별 사용 횟수(입구 1 로 초기화된 상태 — 루프 단계와 공유).</param>
         /// <param name="blueprint">대상 블루프린트.</param>
         /// <returns>트리 조립 성공 여부.</returns>
-        private bool TryAttachRooms(DeterministicRng rng, MapGenParams genParams, IReadOnlyList<RoomTemplateDef> templates, int[] usedCount, MapBlueprint blueprint)
+        private bool TryAttachRooms(DeterministicRng rng, FloorGenParams floorParams, IReadOnlyList<RoomTemplateDef> templates, int[] usedCount, MapBlueprint blueprint)
         {
-            Log.D("[LayoutGenerator] TryAttachRooms");
-            int targetRooms = rng.Next(genParams.RoomsTotalMin, genParams.RoomsTotalMax + 1);
+            int targetRooms = rng.Next(floorParams.RoomsTotalMin, floorParams.RoomsTotalMax + 1);
 
             // 의무 문 소켓(입구 기존 개구)은 어떤 확장보다 먼저 연결한다 — 실패 시 리롤(X3)
             var frontier = new List<(int room, int socket)>();
@@ -149,10 +219,10 @@ namespace EmptyHouse.MapGen.Core
 
                 // 연결 방식 결정 — 복도 소켓에서의 확장·MinCount 강제 구간은 직결만(복도→복도 체인 금지)
                 bool fromCorridor = placedTemplates[openRoom].IsCorridor;
-                bool viaCorridor = !fromCorridor && !unmetOnly && rng.Next(100) < genParams.CorridorLinkPercent;
+                bool viaCorridor = !fromCorridor && !unmetOnly && rng.Next(100) < floorParams.CorridorLinkPercent;
 
                 bool attached = viaCorridor
-                    && TryAttachCorridorLink(rng, genParams, templates, usedCount, blueprint, frontier, openRoom, openSocket, targetCell, openWorldDir);
+                    && TryAttachCorridorLink(rng, floorParams, templates, usedCount, blueprint, frontier, openRoom, openSocket, targetCell, openWorldDir);
                 if (!attached)
                 {
                     TryAttachDirectRoom(rng, templates, usedCount, unmetOnly, false, blueprint, frontier, openRoom, openSocket, targetCell, neededDir);
@@ -162,7 +232,7 @@ namespace EmptyHouse.MapGen.Core
                 frontier.RemoveAt(frontierIndex);
             }
 
-            if (countableRooms < genParams.RoomsTotalMin)
+            if (countableRooms < floorParams.RoomsTotalMin)
             {
                 return false;
             }
@@ -268,7 +338,7 @@ namespace EmptyHouse.MapGen.Core
                     continue;
                 }
 
-                int newRoom = PlaceRoom(template, origin, rotation, blueprint);
+                int newRoom = PlaceRoom(template, origin, rotation, blueprint, currentFlatBase + templateIndex);
                 usedCount[templateIndex]++;
                 AddEdge(rng, blueprint, openRoom, openSocket.Id, newRoom, newSocket.Id, forceDoor);
 
@@ -293,8 +363,8 @@ namespace EmptyHouse.MapGen.Core
         /// 간선은 체인 전체 성공 후에만 추가되므로 막다른 복도(봉인된 끝)가 구조적으로 남지 않는다.
         /// </summary>
         /// <param name="rng">단일 난수 스트림.</param>
-        /// <param name="genParams">생성 파라미터(복도 연쇄 최대 길이).</param>
-        /// <param name="templates">템플릿 집합.</param>
+        /// <param name="floorParams">현재 층 파라미터(복도 연쇄 최대 길이).</param>
+        /// <param name="templates">현재 층 템플릿 집합.</param>
         /// <param name="usedCount">템플릿별 사용 횟수(세그먼트 배치 시 증가·롤백 시 원복).</param>
         /// <param name="blueprint">대상 블루프린트.</param>
         /// <param name="frontier">복도·끝방의 잔여 소켓을 추가할 프런티어.</param>
@@ -303,9 +373,9 @@ namespace EmptyHouse.MapGen.Core
         /// <param name="targetCell">첫 세그먼트 근단 소켓이 놓일 월드 셀.</param>
         /// <param name="openWorldDir">열린 소켓의 월드 방향(연결 진행 방향).</param>
         /// <returns>체인+끝방 배치 성공 여부.</returns>
-        private bool TryAttachCorridorLink(DeterministicRng rng, MapGenParams genParams, IReadOnlyList<RoomTemplateDef> templates, int[] usedCount, MapBlueprint blueprint, List<(int room, int socket)> frontier, int openRoom, SocketDef openSocket, CellCoord targetCell, SocketDirection openWorldDir)
+        private bool TryAttachCorridorLink(DeterministicRng rng, FloorGenParams floorParams, IReadOnlyList<RoomTemplateDef> templates, int[] usedCount, MapBlueprint blueprint, List<(int room, int socket)> frontier, int openRoom, SocketDef openSocket, CellCoord targetCell, SocketDirection openWorldDir)
         {
-            int chainTarget = rng.Next(1, genParams.CorridorChainMax + 1);
+            int chainTarget = rng.Next(1, floorParams.CorridorChainMax + 1);
             chainSegments.Clear();
 
             CellCoord segTarget = targetCell;
@@ -425,7 +495,7 @@ namespace EmptyHouse.MapGen.Core
                     continue; // 원단 없는 세그먼트 = 막다른 복도 — 배치 금지
                 }
 
-                int room = PlaceRoom(corridor, origin, rotation, blueprint);
+                int room = PlaceRoom(corridor, origin, rotation, blueprint, currentFlatBase + templateIndex);
                 usedCount[templateIndex]++;
 
                 Shuffle(rng, farSockets);
@@ -561,14 +631,13 @@ namespace EmptyHouse.MapGen.Core
         /// 채택은 ShortcutLockCountMax(3)가 상한 — 지름길이 부족하면 이 파라미터가 병목이지 여기가 아니다.
         /// </summary>
         /// <param name="rng">단일 난수 스트림.</param>
-        /// <param name="genParams">생성 파라미터(사이클 소속 방 목표 비율).</param>
-        /// <param name="templates">템플릿 집합(브리지용 직선 복도 탐색).</param>
+        /// <param name="floorParams">현재 층 파라미터(사이클 소속 방 목표 비율).</param>
+        /// <param name="templates">현재 층 템플릿 집합(브리지용 직선 복도 탐색 — usedCount 인덱스와 계약).</param>
+        /// <param name="metricTemplates">달성률 계산용 전 층 평탄화 템플릿(방→템플릿 역참조가 전 층 방을 커버해야 한다).</param>
         /// <param name="usedCount">템플릿별 사용 횟수(브리지 복도 MaxCount 준수).</param>
         /// <param name="blueprint">대상 블루프린트.</param>
-        private void CarveLoopEdges(DeterministicRng rng, MapGenParams genParams, IReadOnlyList<RoomTemplateDef> templates, int[] usedCount, MapBlueprint blueprint)
+        private void CarveLoopEdges(DeterministicRng rng, FloorGenParams floorParams, IReadOnlyList<RoomTemplateDef> templates, IReadOnlyList<RoomTemplateDef> metricTemplates, int[] usedCount, MapBlueprint blueprint)
         {
-            Log.D("[LayoutGenerator] CarveLoopEdges");
-
             // 후보 전수 수집 — 방·소켓 인덱스 순(결정론).
             // (전역 셀, 월드 방향) → 미사용 소켓 색인을 먼저 만들어 O(R·S) 조회로 짝을 찾는다(구 O(R²·S²) 쌍대조 대체).
             // ⚠️ 딕셔너리는 **조회 전용** — 후보 append 순서는 바깥 (a, sa) 오름차순 루프가 그대로 결정하고,
@@ -677,8 +746,8 @@ namespace EmptyHouse.MapGen.Core
 
             Shuffle(rng, pool);
 
-            float achieved = CycleMetrics.ComputeCycleRoomPercent(blueprint, templates);
-            for (int p = 0; p < pool.Count && achieved < genParams.CycleRoomPercent; p++)
+            float achieved = CycleMetrics.ComputeCycleRoomPercent(blueprint, metricTemplates);
+            for (int p = 0; p < pool.Count && achieved < floorParams.CycleRoomPercent; p++)
             {
                 bool adopted;
                 if (pool[p] >= 0)
@@ -697,7 +766,7 @@ namespace EmptyHouse.MapGen.Core
 
                 if (adopted)
                 {
-                    achieved = CycleMetrics.ComputeCycleRoomPercent(blueprint, templates);
+                    achieved = CycleMetrics.ComputeCycleRoomPercent(blueprint, metricTemplates);
                 }
             }
         }
@@ -849,7 +918,7 @@ namespace EmptyHouse.MapGen.Core
                 return false;
             }
 
-            int corridorRoom = PlaceRoom(corridor, bridge.Origin, bridge.Rotation, blueprint);
+            int corridorRoom = PlaceRoom(corridor, bridge.Origin, bridge.Rotation, blueprint, currentFlatBase + bridge.CorridorTemplate);
             usedCount[bridge.CorridorTemplate]++;
             AddEdge(rng, blueprint, bridge.RoomA, bridge.SocketA, corridorRoom, bridge.NearSocketId);
             AddEdge(rng, blueprint, corridorRoom, bridge.FarSocketId, bridge.RoomB, bridge.SocketB);
@@ -886,12 +955,12 @@ namespace EmptyHouse.MapGen.Core
             }
         }
 
-        /// <summary>남은 열린 소켓 전부를 막힌 벽으로 봉인한다(3절 3 — 빈 소켓 0, AC-05).</summary>
+        /// <summary>현재 층(roomStart 이후 방)의 남은 열린 소켓 전부를 막힌 벽으로 봉인한다(3절 3 — 빈 소켓 0, AC-05).</summary>
         /// <param name="blueprint">대상 블루프린트.</param>
-        private void SealRemainingSockets(MapBlueprint blueprint)
+        /// <param name="roomStart">현재 층 방 구간 시작 인덱스.</param>
+        private void SealRemainingSockets(MapBlueprint blueprint, int roomStart)
         {
-            Log.D("[LayoutGenerator] SealRemainingSockets");
-            for (int r = 0; r < blueprint.Rooms.Count; r++)
+            for (int r = roomStart; r < blueprint.Rooms.Count; r++)
             {
                 RoomTemplateDef template = placedTemplates[r];
                 for (int s = 0; s < template.Sockets.Length; s++)
@@ -916,13 +985,14 @@ namespace EmptyHouse.MapGen.Core
             }
         }
 
-        /// <summary>방을 블루프린트에 추가하고 풋프린트 셀을 점유 처리한다.</summary>
+        /// <summary>방을 블루프린트에 추가하고 현재 층 풋프린트 셀을 점유 처리한다 — 층 서수·평탄화 템플릿 인덱스를 함께 기록한다(M9-4).</summary>
         /// <param name="template">배치할 템플릿.</param>
         /// <param name="origin">회전 적용 후 풋프린트 원점(셀).</param>
         /// <param name="rotation">회전.</param>
         /// <param name="blueprint">대상 블루프린트.</param>
+        /// <param name="flatTemplateIndex">평탄화 테이블 기준 템플릿 인덱스.</param>
         /// <returns>새 방 인덱스.</returns>
-        private int PlaceRoom(RoomTemplateDef template, CellCoord origin, Rotation4 rotation, MapBlueprint blueprint)
+        private int PlaceRoom(RoomTemplateDef template, CellCoord origin, Rotation4 rotation, MapBlueprint blueprint, int flatTemplateIndex)
         {
             (int width, int height) = CellMath.RotatedSize(template.WidthCells, template.HeightCells, rotation);
             for (int x = 0; x < width; x++)
@@ -933,7 +1003,7 @@ namespace EmptyHouse.MapGen.Core
                 }
             }
 
-            blueprint.Rooms.Add(new BlueprintRoom { TemplateId = template.TemplateId, Cell = origin, Rotation = rotation });
+            blueprint.Rooms.Add(new BlueprintRoom { TemplateId = template.TemplateId, Cell = origin, Rotation = rotation, FloorIndex = currentFloorIndex, TemplateIndex = flatTemplateIndex });
             placedTemplates.Add(template);
             if (!template.IsCorridor && !template.IsEntranceAnchor)
             {

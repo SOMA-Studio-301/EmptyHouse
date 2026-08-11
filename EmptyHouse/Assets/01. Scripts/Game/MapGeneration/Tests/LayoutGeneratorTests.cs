@@ -92,7 +92,7 @@ namespace EmptyHouse.MapGen.Core.Tests
         {
             ForEachSeed((seed, blueprint, templates, genParams) =>
             {
-                int[] depths = DangerGradeCalculator.ComputeDepths(blueprint);
+                int[] depths = DangerGradeCalculator.ComputeHopDistances(blueprint);
                 for (int r = 0; r < depths.Length; r++)
                 {
                     Assert.That(depths[r], Is.GreaterThanOrEqualTo(0),
