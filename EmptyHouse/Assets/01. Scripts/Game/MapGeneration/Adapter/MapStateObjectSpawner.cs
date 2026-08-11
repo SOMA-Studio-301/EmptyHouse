@@ -34,6 +34,7 @@ namespace EmptyHouse.MapGen.Runtime
         private readonly HashSet<SpawnKind> missingPrefabWarned = new HashSet<SpawnKind>(); // 미등록 종류 경고 1회 가드
         private readonly Dictionary<int, List<MapItemAnchor>> anchorsByRoom = new Dictionary<int, List<MapItemAnchor>>(); // 방 인덱스 → 아이템 앵커(맵 조립본에서 수집)
         private readonly HashSet<int> anchorMissWarned = new HashSet<int>(); // 앵커 부족 경고 1회 가드(방 단위)
+        private readonly List<NetworkObject> variantBuffer = new List<NetworkObject>(); // 변종 후보 재사용 버퍼(스폰마다 호출 — GC 절감)
 
         /// <summary>onMapNavMeshReadyServer 구독.</summary>
         private void OnEnable()
@@ -308,7 +309,7 @@ namespace EmptyHouse.MapGen.Runtime
                     continue; // 좀비는 4단계(SpawnZombies), HerdArea 는 구역 표지라 오브젝트가 아니다
                 }
 
-                NetworkObject prefab = FindSpawnPrefab(spawn.Kind);
+                NetworkObject prefab = FindSpawnPrefab(spawn.Kind, s);
                 if (prefab == null)
                 {
                     continue;
@@ -316,7 +317,7 @@ namespace EmptyHouse.MapGen.Runtime
 
                 if (spawn.Kind == SpawnKind.Key)
                 {
-                    NetworkObject variant = KeyVariantPrefab(spawn.KeyNumber);
+                    NetworkObject variant = PairPrefab(spawn.KeyNumber, true);
                     if (variant != null)
                     {
                         prefab = variant; // 번호별 비주얼 변종 우선 — 없으면 공용 Key 프리팹
@@ -326,11 +327,13 @@ namespace EmptyHouse.MapGen.Runtime
                 // 배치 지점은 방 프리팹의 아이템 앵커가 결정한다 — 앵커가 없거나 전부 점유면 마커 셀 바닥 폴백(+경고)
                 Vector3 position;
                 Quaternion rotation;
+                bool bottomAlign;
                 MapItemAnchor anchor = TakeAnchor(spawn, s);
                 if (anchor != null)
                 {
                     position = anchor.transform.position;
                     rotation = anchor.transform.rotation;
+                    bottomAlign = anchor.BottomAlign;
                 }
                 else if (spawn.MarkerId < 0)
                 {
@@ -340,9 +343,15 @@ namespace EmptyHouse.MapGen.Runtime
                 {
                     position = MarkerWorldPosition(blueprint, templates, spawn) + Vector3.up * itemGroundClearance;
                     rotation = Quaternion.identity;
+                    bottomAlign = true;
                 }
 
                 NetworkObject instance = Object.Instantiate(prefab, position, rotation);
+                if (bottomAlign)
+                {
+                    AlignBottomTo(instance.transform, position.y);
+                }
+
                 instance.Spawn();
                 if (spawn.Kind == SpawnKind.Key)
                 {
@@ -385,7 +394,7 @@ namespace EmptyHouse.MapGen.Runtime
                     continue;
                 }
 
-                NetworkObject prefab = FindSpawnPrefab(spawn.Kind);
+                NetworkObject prefab = FindSpawnPrefab(spawn.Kind, s);
                 if (prefab == null)
                 {
                     continue;
@@ -412,10 +421,10 @@ namespace EmptyHouse.MapGen.Runtime
         /// <param name="lockNumber">자물쇠 번호(1부터).</param>
         private void SpawnLock(DoorInteractable door, int lockNumber)
         {
-            NetworkObject prefab = VariantPrefab(prefabRegistry.LockPrefabs, lockNumber);
+            NetworkObject prefab = PairPrefab(lockNumber, false);
             if (prefab == null)
             {
-                Log.W($"[MapStateObjectSpawner] 자물쇠_{lockNumber} 변종 미등재 — 잠긴 문에 자물쇠 미부착(해정 불가). 레지스트리 LockPrefabs 등재 필요");
+                Log.W($"[MapStateObjectSpawner] 자물쇠_{lockNumber} 변종 미등재 — 잠긴 문에 자물쇠 미부착(해정 불가). 레지스트리 페어 목록 등재 필요");
                 return;
             }
 
@@ -426,27 +435,108 @@ namespace EmptyHouse.MapGen.Runtime
             door.ServerAttachLock(lockObject);
         }
 
-        /// <summary>번호별 열쇠 변종 프리팹을 찾는다(인덱스 + 1 = 페어 번호) — 범위 밖·미등재면 null(공용 폴백).</summary>
-        /// <param name="keyNumber">열쇠 번호(1부터).</param>
-        /// <returns>변종 프리팹 — 없으면 null.</returns>
-        private NetworkObject KeyVariantPrefab(int keyNumber)
+        /// <summary>
+        /// 항목의 변종 풀에서 하나를 고른다 — 풀이 비었거나 전부 미할당이면 기본 프리팹.
+        /// 선택 키는 앵커 선택과 같은 (시드, 스폰 인덱스, 종류) 해시라 같은 시드면 같은 외형이 나온다.
+        /// </summary>
+        /// <param name="entry">스폰 종류 항목.</param>
+        /// <param name="kind">스폰 종류(해시 키).</param>
+        /// <param name="spawnIndex">스폰 목록 인덱스(해시 키).</param>
+        /// <returns>선택된 프리팹 — 기본·변종 모두 없으면 null.</returns>
+        private NetworkObject PickVariant(SpawnPrefabEntry entry, SpawnKind kind, int spawnIndex)
         {
-            return VariantPrefab(prefabRegistry.KeyPrefabs, keyNumber);
+            variantBuffer.Clear();
+            for (int i = 0; entry.Variants != null && i < entry.Variants.Length; i++)
+            {
+                if (entry.Variants[i] != null)
+                {
+                    variantBuffer.Add(entry.Variants[i]);
+                }
+            }
+
+            if (variantBuffer.Count == 0)
+            {
+                return entry.Prefab;
+            }
+
+            uint hash = (uint)(driver.LocalBlueprint.Meta.Seed * 486187739 + spawnIndex * 31 + (int)kind);
+            return variantBuffer[(int)(hash % (uint)variantBuffer.Count)];
         }
 
-        /// <summary>번호별 변종 배열 조회(인덱스 + 1 = 페어 번호) — 범위 밖·미등재면 null.</summary>
-        /// <param name="variants">변종 배열.</param>
+        /// <summary>페어 번호의 열쇠·자물쇠 프리팹을 찾는다(인덱스 + 1 = 페어 번호) — 범위 밖·미등재면 null.</summary>
         /// <param name="pairNumber">페어 번호(1부터).</param>
-        /// <returns>변종 프리팹 — 없으면 null.</returns>
-        private static NetworkObject VariantPrefab(NetworkObject[] variants, int pairNumber)
+        /// <param name="wantKey">true = 열쇠, false = 자물쇠.</param>
+        /// <returns>페어 프리팹 — 없으면 null.</returns>
+        private NetworkObject PairPrefab(int pairNumber, bool wantKey)
         {
             int index = pairNumber - 1;
-            if (variants == null || index < 0 || index >= variants.Length)
+            if (prefabRegistry.PairPrefabs == null || index < 0 || index >= prefabRegistry.PairPrefabs.Length)
             {
                 return null;
             }
 
-            return variants[index];
+            PairPrefabEntry entry = prefabRegistry.PairPrefabs[index];
+            return wantKey ? entry.Key : entry.Lock;
+        }
+
+        /// <summary>
+        /// 오브젝트 밑면을 기준 높이에 맞춘다 — 렌더러(없으면 콜라이더) 합성 바운즈 하단이 기준선에 닿게 올린다.
+        /// 피벗이 중심인 프리팹을 앵커 지점에 그대로 놓으면 절반이 바닥·선반에 묻히는 것을 막는다.
+        /// 회전 적용 후의 월드 바운즈를 쓰므로 눕힌 오브젝트도 정확하다. 바운즈가 없으면 원위치 유지.
+        /// </summary>
+        /// <param name="instance">배치된 인스턴스 루트.</param>
+        /// <param name="baseY">밑면이 닿아야 할 월드 Y.</param>
+        private static void AlignBottomTo(Transform instance, float baseY)
+        {
+            var renderers = instance.GetComponentsInChildren<Renderer>(true);
+            Bounds bounds = default;
+            bool found = false;
+            for (int i = 0; i < renderers.Length; i++)
+            {
+                if (renderers[i] is ParticleSystemRenderer)
+                {
+                    continue; // 파티클은 외형 경계가 아니다 — 바운즈를 엉뚱하게 늘린다
+                }
+
+                if (!found)
+                {
+                    bounds = renderers[i].bounds;
+                    found = true;
+                }
+                else
+                {
+                    bounds.Encapsulate(renderers[i].bounds);
+                }
+            }
+
+            if (!found)
+            {
+                var colliders = instance.GetComponentsInChildren<Collider>(true);
+                for (int i = 0; i < colliders.Length; i++)
+                {
+                    if (colliders[i].isTrigger)
+                    {
+                        continue; // 상호작용 트리거는 실제 외형보다 크다
+                    }
+
+                    if (!found)
+                    {
+                        bounds = colliders[i].bounds;
+                        found = true;
+                    }
+                    else
+                    {
+                        bounds.Encapsulate(colliders[i].bounds);
+                    }
+                }
+            }
+
+            if (!found)
+            {
+                return;
+            }
+
+            instance.position += Vector3.up * (baseY - bounds.min.y);
         }
 
         /// <summary>스폰 종류가 좀비인지 판정한다.</summary>
@@ -457,16 +547,28 @@ namespace EmptyHouse.MapGen.Runtime
             return kind == SpawnKind.ZombieWalker || kind == SpawnKind.ZombieListener || kind == SpawnKind.ZombieWatcher;
         }
 
-        /// <summary>레지스트리에서 종류별 스폰 프리팹을 찾는다 — 미등록이면 종류당 1회 경고 후 null.</summary>
+        /// <summary>
+        /// 레지스트리에서 종류별 스폰 프리팹을 찾는다 — 변종 풀이 있으면 시드 결정론으로 하나 고르고,
+        /// 비어 있으면 기본 프리팹을 쓴다. 미등록이면 종류당 1회 경고 후 null.
+        /// 선택은 서버에서만 하고 결과가 스폰으로 복제되므로 클라 정합 문제는 없다.
+        /// </summary>
         /// <param name="kind">스폰 종류.</param>
+        /// <param name="spawnIndex">스폰 목록 인덱스(선택 해시 키 — 같은 방의 여러 개가 같은 외형으로 몰리지 않게).</param>
         /// <returns>스폰 프리팹 — 미등록이면 null.</returns>
-        private NetworkObject FindSpawnPrefab(SpawnKind kind)
+        private NetworkObject FindSpawnPrefab(SpawnKind kind, int spawnIndex)
         {
             for (int i = 0; i < prefabRegistry.SpawnPrefabs.Length; i++)
             {
-                if (prefabRegistry.SpawnPrefabs[i].Kind == kind && prefabRegistry.SpawnPrefabs[i].Prefab != null)
+                SpawnPrefabEntry entry = prefabRegistry.SpawnPrefabs[i];
+                if (entry.Kind != kind)
                 {
-                    return prefabRegistry.SpawnPrefabs[i].Prefab;
+                    continue;
+                }
+
+                NetworkObject picked = PickVariant(entry, kind, spawnIndex);
+                if (picked != null)
+                {
+                    return picked;
                 }
             }
 

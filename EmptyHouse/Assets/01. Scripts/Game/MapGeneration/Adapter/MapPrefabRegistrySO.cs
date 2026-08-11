@@ -19,7 +19,16 @@ namespace EmptyHouse.MapGen.Runtime
     public sealed class SpawnPrefabEntry
     {
         public SpawnKind Kind; // 스폰 종류
-        public NetworkObject Prefab; // 서버 스폰 프리팹 — NetworkManager NetworkPrefabs 등록 필수
+        public NetworkObject Prefab; // 기본(폴백) 서버 스폰 프리팹 — Variants 가 비었을 때 사용. NetworkManager NetworkPrefabs 등록 필수
+        public NetworkObject[] Variants; // 변종 풀(스크랩·투척물 등 같은 역할의 여러 외형) — 비어 있지 않으면 시드 결정론 선택으로 Prefab 대신 스폰. 전 항목 NetworkPrefabs 등록 필수
+    }
+
+    /// <summary>열쇠·자물쇠 페어 프리팹 — 배열 인덱스 + 1 = 페어 번호(열쇠_XX ↔ 자물쇠_XX).</summary>
+    [Serializable]
+    public sealed class PairPrefabEntry
+    {
+        public NetworkObject Key; // 그 번호의 열쇠 외형 — 미등재면 SpawnPrefabs 의 Key 공용 프리팹 폴백
+        public NetworkObject Lock; // 그 번호의 자물쇠 외형(DoorLockFace 루트) — 미등재면 자물쇠 없이 잠김(해정 불가) 경고
     }
 
     /// <summary>
@@ -36,8 +45,7 @@ namespace EmptyHouse.MapGen.Runtime
         public NetworkObject DoorPrefab; // 문 상태 오브젝트(DoorInteractable 루트) — 서버 스폰(1절)
         public NetworkObject ReturnExitPrefab; // 탈출문(Door-Return, ReturnInteractable 루트) — 잎 방 바깥 벽 자리에 서버 스폰(세션루프 귀환)
         public SpawnPrefabEntry[] SpawnPrefabs; // 스폰 종류 → 상태 오브젝트 프리팹(좀비·아이템·설비)
-        public NetworkObject[] KeyPrefabs; // 열쇠 변종(인덱스 + 1 = 페어 번호) — 비주얼 구분용. 번호 범위 밖이면 SpawnPrefabs 의 Key 공용 프리팹 폴백
-        public NetworkObject[] LockPrefabs; // 자물쇠 변종(인덱스 + 1 = 페어 번호, DoorLockFace 루트) — 잠긴 문의 LockPos 에 서버 스폰. 미등재 번호는 자물쇠 없이 잠김(해정 불가) 경고
+        public PairPrefabEntry[] PairPrefabs; // 열쇠·자물쇠 페어(인덱스 + 1 = 페어 번호) — 한 줄에 묶어 두 배열이 어긋나 열쇠_3 ↔ 자물쇠_4 가 되는 사고를 구조적으로 막는다
         public float CellMeters = 4f; // 셀 실측(m) — MapTemplateCatalog.CellMeters 와 일치해야 한다(G1)
     }
 }

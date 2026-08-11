@@ -178,9 +178,21 @@ namespace EmptyHouse.EditorTools
 
             int lockTotal = IntOf(root, "ShortcutLockCountMax") + IntOf(root, "ItemDoorLockCount");
             var registry = AssetDatabase.LoadAssetAtPath<MapPrefabRegistrySO>("Assets/03. ScriptableObjects/MapGen/SO_MapPrefabRegistry.asset");
-            if (registry != null && registry.LockPrefabs != null && lockTotal > registry.LockPrefabs.Length)
+            if (registry != null && registry.PairPrefabs != null)
             {
-                EditorGUILayout.HelpBox($"자물쇠 최대 {lockTotal}개인데 등재된 자물쇠 변종은 {registry.LockPrefabs.Length}종 — 초과분은 자물쇠 없이 잠긴 문(해정 불가)이 된다.", MessageType.Warning);
+                int usable = 0;
+                for (int i = 0; i < registry.PairPrefabs.Length; i++)
+                {
+                    if (registry.PairPrefabs[i].Key != null && registry.PairPrefabs[i].Lock != null)
+                    {
+                        usable++;
+                    }
+                }
+
+                if (lockTotal > usable)
+                {
+                    EditorGUILayout.HelpBox($"자물쇠 최대 {lockTotal}개인데 열쇠·자물쇠가 모두 등재된 페어는 {usable}쌍 — 초과분은 자물쇠 없이 잠긴 문(해정 불가)이 된다.", MessageType.Warning);
+                }
             }
         }
 

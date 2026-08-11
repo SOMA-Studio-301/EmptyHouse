@@ -29,6 +29,8 @@ namespace EmptyHouse.EditorTools
 
         private const int maxLockPairs = 5; // 자물쇠 최대 쌍 수 — ItemDoorLockCount(2) + ShortcutLockCountMax(3)
 
+        private static readonly HashSet<SpawnKind> spawnVariantFoldout = new HashSet<SpawnKind>(); // 변종 풀을 펼친 종류(도메인 리로드까지 유지)
+
         /// <summary>카탈로그 템플릿 목록을 반환한다(최초 1회 생성 후 캐시).</summary>
         /// <returns>런타임 템플릿 목록.</returns>
         private static List<RoomTemplateDef> Catalog()
@@ -240,8 +242,7 @@ namespace EmptyHouse.EditorTools
                 }
             }
 
-            registry.KeyPrefabs = DrawVariantSection(registry, "열쇠 변종 (인덱스 + 1 = 페어 번호)", "열쇠", registry.KeyPrefabs);
-            registry.LockPrefabs = DrawVariantSection(registry, "자물쇠 변종 (인덱스 + 1 = 페어 번호, DoorLockFace 루트)", "자물쇠", registry.LockPrefabs);
+            DrawPairSection(registry);
             DrawDuplicateSpawnEntries(registry);
 
             int unassigned = CountUnassignedSpawnKinds(registry);
@@ -251,59 +252,235 @@ namespace EmptyHouse.EditorTools
             }
         }
 
-        /// <summary>SpawnKind 한 종의 프리팹 슬롯 행을 그린다 — 할당 시 항목 추가, 해제 시 항목 제거.</summary>
+        /// <summary>
+        /// SpawnKind 한 종의 행을 그린다 — 기본 슬롯 + 변종 풀 접이식.
+        /// 기본 슬롯 할당 시 항목 추가, 해제 시 항목 제거. 변종이 1개 이상이면 기본 대신 변종에서 뽑히므로
+        /// 행 우측에 그 사실을 배지로 알린다(비어 있으면 기본 프리팹 사용).
+        /// </summary>
         /// <param name="registry">대상 레지스트리.</param>
         /// <param name="kind">스폰 종류.</param>
         private static void DrawSpawnRow(MapPrefabRegistrySO registry, SpawnKind kind)
         {
             int index = FindSpawnIndex(registry, kind);
             NetworkObject current = index >= 0 ? registry.SpawnPrefabs[index].Prefab : null;
+            int variantCount = CountVariants(registry, index);
+
+            EditorGUILayout.BeginHorizontal();
             EditorGUI.BeginChangeCheck();
             var next = (NetworkObject)EditorGUILayout.ObjectField(kind.ToString(), current, typeof(NetworkObject), false);
             if (EditorGUI.EndChangeCheck())
             {
                 SetSpawnPrefab(registry, kind, next);
+                index = FindSpawnIndex(registry, kind);
             }
+
+            bool expanded = spawnVariantFoldout.Contains(kind);
+            string badge = variantCount > 0 ? $"변종 {variantCount}종 ▾" : "변종 + ▾";
+            Color previous = GUI.color;
+            GUI.color = variantCount > 0 ? new Color(0.7f, 0.9f, 1f) : previous;
+            if (GUILayout.Button(badge, EditorStyles.miniButton, GUILayout.Width(74f)))
+            {
+                if (expanded)
+                {
+                    spawnVariantFoldout.Remove(kind);
+                }
+                else
+                {
+                    spawnVariantFoldout.Add(kind);
+                }
+            }
+
+            GUI.color = previous;
+            EditorGUILayout.EndHorizontal();
+
+            if (!expanded)
+            {
+                return;
+            }
+
+            if (index < 0)
+            {
+                EditorGUILayout.HelpBox("기본 프리팹을 먼저 할당해야 변종을 등록할 수 있다", MessageType.Info);
+                return;
+            }
+
+            DrawVariantList(registry, registry.SpawnPrefabs[index]);
         }
 
         /// <summary>
-        /// 페어 번호별 변종 섹션(열쇠·자물쇠 공용) — 인덱스 + 1 = 페어 번호. 최대 쌍 수(5)만큼 행을 노출하고,
-        /// 슬롯 할당 시에만 SetDirty 로 저장을 확정한다(표시용 배열 확장은 무해).
+        /// 한 스폰 종류의 변종 풀을 그린다 — 슬롯 목록 + 추가/제거. 비어 있으면 기본 프리팹이 그대로 쓰인다.
         /// </summary>
-        /// <param name="registry">대상 레지스트리.</param>
-        /// <param name="title">섹션 제목.</param>
-        /// <param name="rowPrefix">행 이름 접두사(열쇠/자물쇠).</param>
-        /// <param name="variants">현재 변종 배열.</param>
-        /// <returns>갱신된 변종 배열(호출자가 필드에 대입).</returns>
-        private static NetworkObject[] DrawVariantSection(MapPrefabRegistrySO registry, string title, string rowPrefix, NetworkObject[] variants)
+        /// <param name="registry">대상 레지스트리(Undo·Dirty 대상).</param>
+        /// <param name="entry">대상 스폰 항목.</param>
+        private static void DrawVariantList(MapPrefabRegistrySO registry, SpawnPrefabEntry entry)
         {
-            EditorGUILayout.Space(2f);
-            EditorGUILayout.LabelField(title, EditorStyles.miniBoldLabel);
-
-            if (variants == null || variants.Length < maxLockPairs)
+            EditorGUI.indentLevel++;
+            var variants = new List<NetworkObject>(entry.Variants ?? new NetworkObject[0]);
+            for (int i = 0; i < variants.Count; i++)
             {
-                var resized = new NetworkObject[maxLockPairs];
-                for (int i = 0; variants != null && i < variants.Length; i++)
-                {
-                    resized[i] = variants[i];
-                }
-
-                variants = resized;
-            }
-
-            for (int i = 0; i < variants.Length; i++)
-            {
+                EditorGUILayout.BeginHorizontal();
                 EditorGUI.BeginChangeCheck();
-                var next = (NetworkObject)EditorGUILayout.ObjectField($"{rowPrefix}_{i + 1:00}", variants[i], typeof(NetworkObject), false);
+                var next = (NetworkObject)EditorGUILayout.ObjectField($"변종 {i}", variants[i], typeof(NetworkObject), false);
                 if (EditorGUI.EndChangeCheck())
                 {
-                    Undo.RecordObject(registry, $"{rowPrefix} 변종 변경");
+                    Undo.RecordObject(registry, "변종 변경");
                     variants[i] = next;
+                    entry.Variants = variants.ToArray();
                     EditorUtility.SetDirty(registry);
+                }
+
+                if (GUILayout.Button("−", EditorStyles.miniButton, GUILayout.Width(22f)))
+                {
+                    Undo.RecordObject(registry, "변종 제거");
+                    variants.RemoveAt(i);
+                    entry.Variants = variants.ToArray();
+                    EditorUtility.SetDirty(registry);
+                    EditorGUILayout.EndHorizontal();
+                    break;
+                }
+
+                EditorGUILayout.EndHorizontal();
+            }
+
+            EditorGUILayout.BeginHorizontal();
+            GUILayout.Space(EditorGUI.indentLevel * 15f);
+            if (GUILayout.Button("+ 변종 추가", EditorStyles.miniButton, GUILayout.Width(96f)))
+            {
+                Undo.RecordObject(registry, "변종 추가");
+                variants.Add(null);
+                entry.Variants = variants.ToArray();
+                EditorUtility.SetDirty(registry);
+            }
+
+            if (variants.Count > 0)
+            {
+                GUILayout.Label("변종이 1개 이상이면 기본 대신 변종 풀에서 뽑는다", EditorStyles.miniLabel);
+            }
+
+            EditorGUILayout.EndHorizontal();
+            EditorGUI.indentLevel--;
+        }
+
+        /// <summary>스폰 항목의 유효(비 null) 변종 수를 센다.</summary>
+        /// <param name="registry">대상 레지스트리.</param>
+        /// <param name="index">스폰 항목 인덱스(-1 = 미등재).</param>
+        /// <returns>유효 변종 수.</returns>
+        private static int CountVariants(MapPrefabRegistrySO registry, int index)
+        {
+            if (index < 0 || registry.SpawnPrefabs[index].Variants == null)
+            {
+                return 0;
+            }
+
+            int count = 0;
+            NetworkObject[] variants = registry.SpawnPrefabs[index].Variants;
+            for (int i = 0; i < variants.Length; i++)
+            {
+                if (variants[i] != null)
+                {
+                    count++;
                 }
             }
 
-            return variants;
+            return count;
+        }
+
+        /// <summary>
+        /// 열쇠·자물쇠 페어 섹션 — 한 줄에 같은 번호의 열쇠와 자물쇠를 나란히 놓는다(인덱스 + 1 = 페어 번호).
+        /// 두 배열이 따로면 한쪽 삽입·삭제로 열쇠_3 ↔ 자물쇠_4 가 되는데, 한 항목으로 묶으면 그 사고가 불가능하다.
+        /// 최대 쌍 수(5)까지는 항상 행을 채워 보여주고, 한쪽만 비면 그 줄에서 바로 경고한다.
+        /// </summary>
+        /// <param name="registry">대상 레지스트리.</param>
+        private static void DrawPairSection(MapPrefabRegistrySO registry)
+        {
+            EditorGUILayout.Space(4f);
+            EditorGUILayout.LabelField("열쇠·자물쇠 페어 (인덱스 + 1 = 페어 번호)", EditorStyles.miniBoldLabel);
+
+            var pairs = new List<PairPrefabEntry>(registry.PairPrefabs ?? new PairPrefabEntry[0]);
+            bool changed = false;
+            while (pairs.Count < maxLockPairs)
+            {
+                pairs.Add(new PairPrefabEntry());
+                changed = true;
+            }
+
+            EditorGUILayout.BeginHorizontal();
+            GUILayout.Label("번호", EditorStyles.miniLabel, GUILayout.Width(34f));
+            GUILayout.Label("열쇠", EditorStyles.miniLabel);
+            GUILayout.Label("자물쇠 (DoorLockFace 루트)", EditorStyles.miniLabel);
+            GUILayout.Space(26f);
+            EditorGUILayout.EndHorizontal();
+
+            int removeAt = -1;
+            for (int i = 0; i < pairs.Count; i++)
+            {
+                PairPrefabEntry pair = pairs[i];
+                bool halfEmpty = (pair.Key == null) != (pair.Lock == null);
+                EditorGUILayout.BeginHorizontal();
+                Color previous = GUI.color;
+                if (halfEmpty)
+                {
+                    GUI.color = missingTint;
+                }
+
+                GUILayout.Label($"{i + 1:00}", EditorStyles.miniBoldLabel, GUILayout.Width(34f));
+                EditorGUI.BeginChangeCheck();
+                var key = (NetworkObject)EditorGUILayout.ObjectField(pair.Key, typeof(NetworkObject), false);
+                var lockObject = (NetworkObject)EditorGUILayout.ObjectField(pair.Lock, typeof(NetworkObject), false);
+                if (EditorGUI.EndChangeCheck())
+                {
+                    Undo.RecordObject(registry, "열쇠·자물쇠 페어 변경");
+                    pair.Key = key;
+                    pair.Lock = lockObject;
+                    changed = true;
+                }
+
+                GUI.color = previous;
+                if (i >= maxLockPairs)
+                {
+                    if (GUILayout.Button("−", EditorStyles.miniButton, GUILayout.Width(22f)))
+                    {
+                        removeAt = i;
+                    }
+                }
+                else
+                {
+                    GUILayout.Space(26f);
+                }
+
+                EditorGUILayout.EndHorizontal();
+
+                if (halfEmpty)
+                {
+                    EditorGUILayout.HelpBox(
+                        $"페어 {i + 1:00} 한쪽만 등재 — {(pair.Key == null ? "열쇠가 없어 그 자물쇠를 열 수단이 없다" : "자물쇠가 없어 잠긴 문이 해정 불가가 된다")}",
+                        MessageType.Warning);
+                }
+            }
+
+            EditorGUILayout.BeginHorizontal();
+            if (GUILayout.Button("+ 페어 추가", EditorStyles.miniButton, GUILayout.Width(96f)))
+            {
+                Undo.RecordObject(registry, "페어 추가");
+                pairs.Add(new PairPrefabEntry());
+                changed = true;
+            }
+
+            GUILayout.Label($"자물쇠는 최대 {maxLockPairs}개까지 생성된다", EditorStyles.miniLabel);
+            EditorGUILayout.EndHorizontal();
+
+            if (removeAt >= 0)
+            {
+                Undo.RecordObject(registry, "페어 제거");
+                pairs.RemoveAt(removeAt);
+                changed = true;
+            }
+
+            if (changed)
+            {
+                registry.PairPrefabs = pairs.ToArray();
+                EditorUtility.SetDirty(registry);
+            }
         }
 
         /// <summary>같은 SpawnKind 의 중복 항목(첫 항목 이후)을 나열하고 개별 제거 버튼을 제공한다.</summary>

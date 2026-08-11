@@ -31,8 +31,10 @@ namespace EmptyHouse.MapGen.Runtime
     public sealed class MapItemAnchor : MonoBehaviour
     {
         [SerializeField] private SpawnAnchorMask allowed = SpawnAnchorMask.All; // 이 앵커가 받는 스폰 종류 — 바닥 앵커만 Fuel/설비 허용 권장
+        [SerializeField] private bool bottomAlign = true; // 스폰 오브젝트의 밑면을 이 앵커 지점에 맞출지 — 피벗이 중심인 프리팹이 바닥·선반에 묻히는 것을 막는다. 벽걸이·천장 앵커는 꺼서 피벗 그대로 쓴다
 
         public bool IsOccupied { get; private set; } // 이번 맵에서 이미 배치에 쓰였는지(스포너 런타임 표시)
+        public bool BottomAlign => bottomAlign; // 밑면 정렬 여부(스포너가 읽는다)
 
         /// <summary>이 앵커가 해당 스폰을 받을 수 있는지 — 미점유 + 마스크 허용.</summary>
         /// <param name="kind">스폰 종류.</param>
