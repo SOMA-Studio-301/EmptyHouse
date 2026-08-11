@@ -132,6 +132,7 @@ MonoBehaviour:
   flicker: {fileID: 7730382569681702962}
   onMaterial: {fileID: 2100000, guid: 5e9e8d9c3ddaabb4794c7596020a7e0d, type: 2}
   offMaterial: {fileID: 2100000, guid: 0757b4a2a98238e4f888e158327250e0, type: 2}
+  overrideChances: 0
   offChance: 0.25
   flickerChance: 0.25
 --- !u!1 &3885738646232110719
@@ -219,7 +220,7 @@ Light:
     serializedVersion: 2
     m_Bits: 4294967295
   m_RenderingLayerMask: 1
-  m_Lightmapping: 2
+  m_Lightmapping: 4
   m_LightShadowCasterMode: 0
   m_AreaSize: {x: 1, y: 1}
   m_BounceIntensity: 1
