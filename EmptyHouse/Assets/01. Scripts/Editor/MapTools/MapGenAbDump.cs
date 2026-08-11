@@ -67,6 +67,7 @@ namespace EmptyHouse.EditorTools
                   .Append('|').Append(room.TemplateId)
                   .Append('|').Append(room.Cell.X).Append(',').Append(room.Cell.Y)
                   .Append('|').Append(room.Rotation)
+                  .Append("|f").Append(room.FloorIndex) // 층 서수 — Tests/BlueprintDump 와 포맷 동기(M9-2)
                   .Append('\n');
             }
 

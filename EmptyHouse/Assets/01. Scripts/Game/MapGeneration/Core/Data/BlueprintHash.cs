@@ -31,6 +31,8 @@ namespace EmptyHouse.MapGen.Core
                 hash = FoldInt(hash, room.Cell.X);
                 hash = FoldInt(hash, room.Cell.Y);
                 hash = FoldInt(hash, (int)room.Rotation);
+                hash = FoldInt(hash, room.FloorIndex); // 층 미폴딩이면 다른 층의 동일 XY 배치가 같은 해시 — AC-02 무력화(M9-2)
+                hash = FoldInt(hash, room.TemplateIndex);
             }
 
             hash = FoldInt(hash, blueprint.Edges.Count);
@@ -55,6 +57,31 @@ namespace EmptyHouse.MapGen.Core
                 hash = FoldInt(hash, (int)spawn.Kind);
                 hash = FoldInt(hash, System.BitConverter.SingleToInt32Bits(spawn.WanderRadiusCells)); // 비트 표현 접기 — 부동소수 문자열화 없이 결정론 유지
                 hash = FoldInt(hash, spawn.KeyNumber);
+            }
+
+            // 다층(M9) — 층 구간·테마·샤프트. ThemeId 미폴딩이면 클라마다 다른 테마로 조립돼도 검증을 통과한다
+            hash = FoldInt(hash, blueprint.Floors.Count);
+            for (int f = 0; f < blueprint.Floors.Count; f++)
+            {
+                BlueprintFloor floor = blueprint.Floors[f];
+                hash = FoldInt(hash, floor.FloorIndex);
+                hash = FoldString(hash, floor.ThemeId);
+                hash = FoldInt(hash, floor.RoomStart);
+                hash = FoldInt(hash, floor.RoomCount);
+                hash = FoldInt(hash, floor.EdgeStart);
+                hash = FoldInt(hash, floor.EdgeCount);
+            }
+
+            hash = FoldInt(hash, blueprint.Shafts.Count);
+            for (int s = 0; s < blueprint.Shafts.Count; s++)
+            {
+                StairShaft shaft = blueprint.Shafts[s];
+                hash = FoldInt(hash, shaft.ShaftId);
+                hash = FoldInt(hash, shaft.Cell.X);
+                hash = FoldInt(hash, shaft.Cell.Y);
+                hash = FoldInt(hash, (int)shaft.Rotation);
+                hash = FoldInt(hash, shaft.BottomFloor);
+                hash = FoldInt(hash, shaft.TopFloor);
             }
 
             return hash;

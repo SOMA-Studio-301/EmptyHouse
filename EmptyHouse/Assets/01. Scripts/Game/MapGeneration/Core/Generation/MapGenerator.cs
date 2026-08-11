@@ -10,7 +10,7 @@ namespace EmptyHouse.MapGen.Core
     /// </summary>
     public sealed class MapGenerator
     {
-        public const string GeneratorVersion = "0.10.0"; // 생성기 버전 — MapBlueprintMeta에 스냅샷(1절). 0.10.0: 광폭 복도(hallway_x2) 카탈로그 제외 — 복도 봉인 소켓·통로 가벽 0(같은 시드 ≠ 0.9.0 결과)
+        public const string GeneratorVersion = "0.11.0"; // 생성기 버전 — MapBlueprintMeta에 스냅샷(1절). 0.11.0: 다층 필드 해시 폴딩(FloorIndex·TemplateIndex·Floors·Shafts) + 골든 회귀 게이트(M9-2). 블루프린트 결과는 0.10.0 과 동일, 해시 값만 다르다
 
         private readonly DeterministicRng rng = new DeterministicRng(); // 단일 난수 스트림(8절)
         private readonly LayoutGenerator layoutGenerator = new LayoutGenerator(); // 3절

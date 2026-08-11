@@ -29,6 +29,7 @@ namespace EmptyHouse.MapGen.Core.Tests
                   .Append('|').Append(room.TemplateId)
                   .Append('|').Append(room.Cell.X).Append(',').Append(room.Cell.Y)
                   .Append('|').Append(room.Rotation)
+                  .Append("|f").Append(room.FloorIndex) // 층 서수(M9-2) — 층 1개 구성은 전부 0이라 골든 안정
                   .Append('\n');
             }
 
