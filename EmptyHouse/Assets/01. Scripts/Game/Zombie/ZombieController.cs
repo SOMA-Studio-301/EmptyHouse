@@ -126,6 +126,10 @@ public class ZombieController : NetworkBehaviour
             return;
         }
 
+        // 이동을 애니메이션이 만들게 한다. 자식 Animator 의 델타는 ZombieRootMotion 이 이 루트로 옮긴다.
+        // 클라이언트는 꺼진 채로 두어 NetworkTransform 이 밀어 준 복제 좌표와 싸우지 않게 한다.
+        animator.applyRootMotion = true;
+
         stateMachine.ServerInitialize();
     }
 

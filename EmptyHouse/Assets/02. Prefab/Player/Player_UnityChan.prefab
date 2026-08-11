@@ -441,6 +441,51 @@ MonoBehaviour:
   controller: {fileID: 8915136794142559673}
   speedDampTime: 0.1
   aimDampTime: 0.05
+  moveDirectionDeadZone: 0.15
+  turnBlendCurve:
+    serializedVersion: 2
+    m_Curve:
+    - serializedVersion: 3
+      time: 0
+      value: 0
+      inSlope: 0
+      outSlope: 0
+      tangentMode: 0
+      weightedMode: 0
+      inWeight: 0
+      outWeight: 0
+    - serializedVersion: 3
+      time: 10
+      value: 0
+      inSlope: 0
+      outSlope: 0
+      tangentMode: 0
+      weightedMode: 0
+      inWeight: 0
+      outWeight: 0
+    - serializedVersion: 3
+      time: 25
+      value: 1
+      inSlope: 0
+      outSlope: 0
+      tangentMode: 0
+      weightedMode: 0
+      inWeight: 0
+      outWeight: 0
+    - serializedVersion: 3
+      time: 360
+      value: 1
+      inSlope: 0
+      outSlope: 0
+      tangentMode: 0
+      weightedMode: 0
+      inWeight: 0
+      outWeight: 0
+    m_PreInfinity: 2
+    m_PostInfinity: 2
+    m_RotationOrder: 4
+  turnClipDegreesPerSecond: 90
+  turnSmoothingSeconds: 0.08
 --- !u!114 &119432426559719344
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -2833,6 +2878,22 @@ MonoBehaviour:
       ParameterType: 1
     - name: AimYawOffset
       NameHash: -611791515
+      Synchronize: 1
+      ParameterType: 1
+    - name: MoveX
+      NameHash: 675470966
+      Synchronize: 1
+      ParameterType: 1
+    - name: MoveY
+      NameHash: 1598418656
+      Synchronize: 1
+      ParameterType: 1
+    - name: TurnBlend
+      NameHash: -932143815
+      Synchronize: 1
+      ParameterType: 1
+    - name: TurnMul
+      NameHash: 670827364
       Synchronize: 1
       ParameterType: 1
   AnimatorParametersExpanded: 0

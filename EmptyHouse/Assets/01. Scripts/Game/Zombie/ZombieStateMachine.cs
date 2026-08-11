@@ -15,6 +15,10 @@ public class ZombieStateMachine : NetworkBehaviour
     private Vector3 patrolPoint;
     private bool hasPatrolPoint;
 
+    private Vector3 facingTarget;              // 회전 오버라이드가 바라볼 월드 지점
+    private float facingDegreesPerSecond;      // 그 지점까지 도는 속도(도/초). 주어진 시간에 딱 맞게 역산된 값이다
+    private bool hasFacingOverride;            // 오버라이드 사용 여부. 꺼져 있으면 기존 규칙(이동 방향/관심 지점)을 따른다
+
     public ZombieController Controller => controller;
     public ZombieStateKind CurrentStateKind => currentState != null ? currentState.Kind : controller.CurrentState;
     public Vector3 PatrolPoint => patrolPoint;
@@ -24,6 +28,8 @@ public class ZombieStateMachine : NetworkBehaviour
     {
         if (!IsServer) return;
         agent.updateRotation = false;
+        // 위치는 루트모션이 만든다(ZombieRootMotion). 에이전트가 직접 밀면 애니와 이중으로 이동한다.
+        agent.updatePosition = false;
         SwitchState(ZombieStateKind.Wander, true);
     }
 
@@ -144,6 +150,35 @@ public class ZombieStateMachine : NetworkBehaviour
     public void MoveToHome() => SetDestination(controller.HomePosition);
     public void MoveToInvestigationPoint() => SetDestination(controller.LastKnownPosition);
 
+    /// <summary>
+    /// 주어진 시간에 딱 맞게 목표 지점을 바라보도록 회전을 넘겨받는다.
+    /// 선회 속도를 <c>남은 각도 ÷ 시간</c> 으로 역산하므로, 90도를 돌든 180도를 돌든 같은 순간에 끝난다.
+    /// 기본 선회 속도(TurnSpeedDegreesPerSecond)는 추격·조사용이라 배회 대기에 쓰면 한참 남기고 멈춰 선다.
+    /// </summary>
+    /// <param name="worldPoint">바라볼 월드 지점.</param>
+    /// <param name="seconds">이 시간 안에 회전을 끝낸다.</param>
+    public void BeginTimedFacing(Vector3 worldPoint, float seconds)
+    {
+        facingTarget = worldPoint;
+        hasFacingOverride = true;
+
+        Vector3 direction = worldPoint - transform.position;
+        direction.y = 0f;
+
+        // 목표가 발밑이거나 시간이 없으면 역산이 성립하지 않는다. 기본 선회 속도로 되돌린다.
+        if (direction.sqrMagnitude < 0.01f || seconds <= 0f)
+        {
+            facingDegreesPerSecond = controller.Data.TurnSpeedDegreesPerSecond;
+            return;
+        }
+
+        Quaternion targetRotation = Quaternion.LookRotation(direction.normalized, Vector3.up);
+        facingDegreesPerSecond = Quaternion.Angle(transform.rotation, targetRotation) / seconds;
+    }
+
+    /// <summary>회전 오버라이드를 해제하고 기본 규칙(이동 방향 / 관심 지점)으로 되돌린다.</summary>
+    public void EndTimedFacing() => hasFacingOverride = false;
+
     public bool TryCreateRandomPatrolPoint(out Vector3 point)
     {
         point = controller.HomePosition;
@@ -205,7 +240,15 @@ public class ZombieStateMachine : NetworkBehaviour
         if (agent == null || !agent.enabled || !agent.isOnNavMesh) return;
 
         Vector3 direction;
-        if (!agent.isStopped)
+        float degreesPerSecond = controller.Data.TurnSpeedDegreesPerSecond;
+
+        if (hasFacingOverride)
+        {
+            // 배회 대기처럼 "정해진 시간에 걸쳐 이쪽을 보게 하라"는 요구는 기본 선회 속도로는 표현할 수 없다.
+            direction = facingTarget - transform.position;
+            degreesPerSecond = facingDegreesPerSecond;
+        }
+        else if (!agent.isStopped)
         {
             direction = agent.desiredVelocity;
         }
@@ -229,7 +272,7 @@ public class ZombieStateMachine : NetworkBehaviour
         transform.rotation = Quaternion.RotateTowards(
             transform.rotation,
             targetRotation,
-            controller.Data.TurnSpeedDegreesPerSecond * deltaTime);
+            degreesPerSecond * deltaTime);
     }
 
     public float GetInvestigationSpeed()

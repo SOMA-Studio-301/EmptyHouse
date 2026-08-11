@@ -33,6 +33,8 @@ public class ZombieDataSO : ScriptableObject
     public float WanderSpeed = 1.2f;
     [Min(0f)] public float PatrolRadius = 5f;
     [Min(1)] public int PatrolSampleAttempts = 12;
+    [Min(0f)] public float PatrolPauseMinSeconds = 8f;  // 배회 중 순찰점·홈에 도착해 서 있는 시간의 하한(초). 기획서 미규정 튜닝값
+    [Min(0f)] public float PatrolPauseMaxSeconds = 10f; // 상한(초). 매 도착마다 이 범위에서 뽑아 무리가 한 박자로 움직이지 않게 한다. 다음 목적지로 도는 회전도 이 시간에 맞춰진다
     public float AlertSpeed = 0f;
     public float InvestigateBaseSpeed = 1.6f;
     public float InvestigateCapSpeed = 3.5f;
