@@ -9,16 +9,16 @@ namespace EmptyHouse.MapGen.Core
     /// </summary>
     public sealed class SpawnDistributor
     {
-        private MapGenParams paramsCache; // 진행 중 파라미터 — 프라이빗 단계 시그니처 유지용
+        private MapGenParams paramsCache; // 진행 중 전역 파라미터 — 프라이빗 단계 시그니처 유지용
+        private MapGenPlan planCache; // 진행 중 계획(M9-6) — 층별 좀비 밴드·층 배정 조회
         private bool failed; // A등급 보장 실패 플래그(void 단계 → TryDistribute 반환값)
         private readonly List<RoomTemplateDef> roomTemplates = new List<RoomTemplateDef>(); // 방 인덱스 → 템플릿
         private readonly List<int> herdRooms = new List<int>(); // HerdArea 마커 보유 방(위장 무대)
         private List<int>[] adjacency; // 방 인접 리스트(연결 간선, 간선 인덱스 순 구축)
         private int[] treeParent; // 입구 기준 BFS 트리 부모(백신 가지 판정)
+        private MapBlueprint blueprintCache; // 진행 중 블루프린트 — 층 판정 헬퍼용
 
-        /// <summary>
-        /// 좀비·아이템·설비 스폰을 분배해 blueprint 의 Spawns 를 채운다(열쇠는 LockKeyPlacer 소관).
-        /// </summary>
+        /// <summary>v1 호환 진입점 — 층 1개 Plan 을 합성해 위임한다(결과 동일 — 골든 게이트).</summary>
         /// <param name="rng">단일 난수 스트림.</param>
         /// <param name="genParams">생성 파라미터.</param>
         /// <param name="blueprint">레이아웃·열쇠 배치가 끝난 블루프린트.</param>
@@ -27,15 +27,33 @@ namespace EmptyHouse.MapGen.Core
         /// <returns>분배 성공 여부 — 실패 시 호출자가 리롤.</returns>
         public bool TryDistribute(DeterministicRng rng, MapGenParams genParams, MapBlueprint blueprint, int[] dangerDepths, IReadOnlyList<RoomTemplateDef> templates)
         {
+            return TryDistribute(rng, MapGenPlan.FromLegacy(genParams, templates), blueprint, dangerDepths);
+        }
+
+        /// <summary>
+        /// 좀비·아이템·설비 스폰을 분배해 blueprint 의 Spawns 를 채운다(열쇠는 LockKeyPlacer 소관).
+        /// 좀비 밴드·활성 타입은 층별 파라미터, 파훼 쌍(Listener↔투척물·HerdArea↔충전소)은 같은 층 한정(M9-6·S5),
+        /// 백신은 VaccineFloorPlan 층 배정을 따른다(비면 층 무관).
+        /// </summary>
+        /// <param name="rng">단일 난수 스트림.</param>
+        /// <param name="plan">생성 계획.</param>
+        /// <param name="blueprint">레이아웃·열쇠 배치가 끝난 블루프린트.</param>
+        /// <param name="dangerDepths">방별 위험 등급.</param>
+        /// <returns>분배 성공 여부 — 실패 시 호출자가 리롤.</returns>
+        public bool TryDistribute(DeterministicRng rng, MapGenPlan plan, MapBlueprint blueprint, int[] dangerDepths)
+        {
             Log.D("[SpawnDistributor] TryDistribute");
-            paramsCache = genParams;
+            paramsCache = plan.Params;
+            planCache = plan;
+            blueprintCache = blueprint;
             failed = false;
+            IReadOnlyList<RoomTemplateDef> templates = plan.FlatTemplates;
             BuildCaches(blueprint, templates);
 
             DistributeZombies(rng, blueprint, dangerDepths, templates);
             if (!failed)
             {
-                DistributeItems(rng, genParams, blueprint, dangerDepths, templates);
+                DistributeItems(rng, paramsCache, blueprint, dangerDepths, templates);
             }
 
             if (!failed)
@@ -45,10 +63,36 @@ namespace EmptyHouse.MapGen.Core
 
             if (!failed)
             {
-                DistributeWardrobes(rng, genParams, blueprint);
+                DistributeWardrobes(rng, paramsCache, blueprint);
             }
 
             return !failed;
+        }
+
+        /// <summary>방이 속한 층의 파라미터 — 미등재 층이면 전역 파라미터의 스칼라 폴백으로 합성한 값 대신 첫 층 파라미터를 쓰지 않고 NRE 로 표면화한다.</summary>
+        /// <param name="room">방 인덱스.</param>
+        /// <returns>층 파라미터.</returns>
+        private FloorGenParams FloorParamsOf(int room)
+        {
+            int floorIndex = blueprintCache.Rooms[room].FloorIndex;
+            for (int i = 0; i < planCache.FloorParams.Length; i++)
+            {
+                if (planCache.FloorParams[i].FloorIndex == floorIndex)
+                {
+                    return planCache.FloorParams[i];
+                }
+            }
+
+            return null;
+        }
+
+        /// <summary>두 방이 같은 층인지 — 파훼 쌍 층 한정 판정(M9-6·S5).</summary>
+        /// <param name="a">방 A.</param>
+        /// <param name="b">방 B.</param>
+        /// <returns>같은 층 여부.</returns>
+        private bool SameFloor(int a, int b)
+        {
+            return blueprintCache.Rooms[a].FloorIndex == blueprintCache.Rooms[b].FloorIndex;
         }
 
         /// <summary>
@@ -157,12 +201,13 @@ namespace EmptyHouse.MapGen.Core
                     herdRooms.Add(r);
                     blueprint.Spawns.Add(new BlueprintSpawn { RoomIndex = r, MarkerId = markers[m].Id, Kind = SpawnKind.HerdArea, WanderRadiusCells = 0f });
 
-                    if ((paramsCache.EnabledZombieTypes & ZombieTypeMask.Walker) == 0)
+                    FloorGenParams herdFloor = FloorParamsOf(r); // 무리 수·활성 타입은 층별 노브(M9-6)
+                    if ((herdFloor.EnabledZombieTypes & ZombieTypeMask.Walker) == 0)
                     {
                         continue;
                     }
 
-                    int herdCount = rng.Next(paramsCache.HerdZombieCountMin, paramsCache.HerdZombieCountMax + 1);
+                    int herdCount = rng.Next(herdFloor.HerdZombieCountMin, herdFloor.HerdZombieCountMax + 1);
                     for (int k = 0; k < herdCount; k++)
                     {
                         int markerId = PickMarker(rng, r, MarkerKind.ZombieSpawn, out float wander, zombieMask: ZombieTypeMask.Walker);
@@ -193,39 +238,40 @@ namespace EmptyHouse.MapGen.Core
                     continue;
                 }
 
+                FloorGenParams floorParams = FloorParamsOf(r); // 밀도 밴드·비율·활성 타입 = 층별 노브(M9-6)
                 int min, max;
                 if (dangerDepths[r] * 3 <= maxDepth)
                 {
-                    min = paramsCache.ZombieDensitySafeMin;
-                    max = paramsCache.ZombieDensitySafeMax;
+                    min = floorParams.ZombieDensitySafeMin;
+                    max = floorParams.ZombieDensitySafeMax;
                 }
                 else if (dangerDepths[r] * 3 <= maxDepth * 2)
                 {
-                    min = paramsCache.ZombieDensityMidMin;
-                    max = paramsCache.ZombieDensityMidMax;
+                    min = floorParams.ZombieDensityMidMin;
+                    max = floorParams.ZombieDensityMidMax;
                 }
                 else
                 {
-                    min = paramsCache.ZombieDensityDangerMin;
-                    max = paramsCache.ZombieDensityDangerMax;
+                    min = floorParams.ZombieDensityDangerMin;
+                    max = floorParams.ZombieDensityDangerMax;
                 }
 
                 int count = rng.Next(min, max + 1);
                 for (int k = 0; k < count; k++)
                 {
-                    int markerId = PickMarker(rng, r, MarkerKind.ZombieSpawn, out float wander, zombieMask: paramsCache.EnabledZombieTypes);
+                    int markerId = PickMarker(rng, r, MarkerKind.ZombieSpawn, out float wander, zombieMask: floorParams.EnabledZombieTypes);
                     if (markerId < 0)
                     {
                         break;
                     }
 
-                    ZombieTypeMask allowed = FindMarker(r, markerId).ZombieMask & paramsCache.EnabledZombieTypes;
+                    ZombieTypeMask allowed = FindMarker(r, markerId).ZombieMask & floorParams.EnabledZombieTypes;
                     SpawnKind kind;
                     if (roomTemplates[r].Tags.HasFlag(RoomTagMask.Dark) && (allowed & ZombieTypeMask.Watcher) != 0)
                     {
                         kind = SpawnKind.ZombieWatcher;
                     }
-                    else if ((allowed & ZombieTypeMask.Listener) != 0 && rng.Next(100) < paramsCache.ListenerRatioPercent)
+                    else if ((allowed & ZombieTypeMask.Listener) != 0 && rng.Next(100) < floorParams.ListenerRatioPercent)
                     {
                         kind = SpawnKind.ZombieListener;
                     }
@@ -343,10 +389,12 @@ namespace EmptyHouse.MapGen.Core
             // 보고 걸리므로, 여기서 실제 배치를 강제하지 않으면 자물쇠 뒤가 텅 빈다(2026-08-07 실측: 채택 199건 중 127건이 빈 상태)
             var vaccineKinds = new[] { SpawnKind.VaccineAntigen, SpawnKind.VaccineSerum, SpawnKind.VaccineStabilizer };
             List<HashSet<int>> itemDoorRegions = CollectItemDoorRegions(blueprint);
+            int[] vaccineFloorPlan = paramsCache.VaccineFloorPlan; // 층 배정(레벨디자인 — 2F 1 + B1 2). 비면 층 무관 분산
             var chosenVaccineRooms = new List<int>();
             var pool = new List<(int room, int weight)>();
             for (int v = 0; v < vaccineKinds.Length; v++)
             {
+                bool floorAssigned = vaccineFloorPlan != null && v < vaccineFloorPlan.Length;
                 pool.Clear();
                 for (int r = 1; r < blueprint.Rooms.Count; r++)
                 {
@@ -355,10 +403,18 @@ namespace EmptyHouse.MapGen.Core
                         continue;
                     }
 
+                    if (floorAssigned && blueprint.Rooms[r].FloorIndex != vaccineFloorPlan[v])
+                    {
+                        continue; // 층 배정 위반 — X4 ⑦이 마커 존재를 보장하므로 후보 0 은 기하 사정(리롤)
+                    }
+
+                    // 서브트리 분산(상호 트리 조상 금지)은 같은 층 안에서만 적용(S5) —
+                    // 계단이 있으면 위층 방이 아래층 방의 BFS 조상이 될 수 있어 층 배정과 동시 충족이 불가능하다
                     bool nested = false;
                     for (int c = 0; c < chosenVaccineRooms.Count && !nested; c++)
                     {
-                        nested = IsOnEntrancePath(r, chosenVaccineRooms[c]) || IsOnEntrancePath(chosenVaccineRooms[c], r);
+                        nested = SameFloor(r, chosenVaccineRooms[c])
+                            && (IsOnEntrancePath(r, chosenVaccineRooms[c]) || IsOnEntrancePath(chosenVaccineRooms[c], r));
                     }
 
                     if (!nested)
@@ -399,7 +455,8 @@ namespace EmptyHouse.MapGen.Core
                 bool satisfied = false;
                 for (int t = 0; t < throwableRooms.Count && !satisfied; t++)
                 {
-                    satisfied = front.Contains(throwableRooms[t]) && dist[throwableRooms[t]] >= 0 && dist[throwableRooms[t]] <= genParams.ListenerCounterDist;
+                    satisfied = SameFloor(throwableRooms[t], listenerRooms[l]) // 파훼 쌍은 같은 층 한정(M9-6) — 층 넘는 투척물은 수단으로 안 친다
+                        && front.Contains(throwableRooms[t]) && dist[throwableRooms[t]] >= 0 && dist[throwableRooms[t]] <= genParams.ListenerCounterDist;
                 }
 
                 if (satisfied)
@@ -410,7 +467,7 @@ namespace EmptyHouse.MapGen.Core
                 var candidates = new List<int>();
                 for (int r = 0; r < blueprint.Rooms.Count; r++)
                 {
-                    if (front.Contains(r) && dist[r] >= 0 && dist[r] <= genParams.ListenerCounterDist && HasItemMarker(r, ItemCategoryMask.Throwable))
+                    if (SameFloor(r, listenerRooms[l]) && front.Contains(r) && dist[r] >= 0 && dist[r] <= genParams.ListenerCounterDist && HasItemMarker(r, ItemCategoryMask.Throwable))
                     {
                         candidates.Add(r);
                     }
@@ -484,7 +541,7 @@ namespace EmptyHouse.MapGen.Core
                 bool satisfied = false;
                 for (int t = 0; t < stationRooms.Count && !satisfied; t++)
                 {
-                    satisfied = front.Contains(stationRooms[t]);
+                    satisfied = SameFloor(stationRooms[t], herdRooms[h]) && front.Contains(stationRooms[t]); // 파훼 쌍 같은 층 한정(M9-6)
                 }
 
                 if (satisfied)
@@ -495,7 +552,7 @@ namespace EmptyHouse.MapGen.Core
                 var candidates = new List<int>();
                 for (int r = 0; r < blueprint.Rooms.Count; r++)
                 {
-                    if (r != herdRooms[h] && front.Contains(r) && HasMarker(r, MarkerKind.CorpseStationSlot))
+                    if (r != herdRooms[h] && SameFloor(r, herdRooms[h]) && front.Contains(r) && HasMarker(r, MarkerKind.CorpseStationSlot))
                     {
                         candidates.Add(r);
                     }
@@ -511,6 +568,46 @@ namespace EmptyHouse.MapGen.Core
                 int markerId = PickMarker(rng, room, MarkerKind.CorpseStationSlot, out _);
                 blueprint.Spawns.Add(new BlueprintSpawn { RoomIndex = room, MarkerId = markerId, Kind = SpawnKind.CorpseStation, WanderRadiusCells = 0f });
                 stationRooms.Add(room);
+            }
+
+            // 충전소 층 배분(CorpseStationFloorPlan — M9-6) — 지목 층에 충전소가 없으면 베스트에포트로 1개 보충.
+            // A등급(위장 무대 쌍)은 위에서 이미 보장됐다 — 이 배분은 층별 접근성 보강이라 실패해도 경고만
+            if (paramsCache.CorpseStationFloorPlan != null)
+            {
+                for (int i = 0; i < paramsCache.CorpseStationFloorPlan.Length; i++)
+                {
+                    int floorIndex = paramsCache.CorpseStationFloorPlan[i];
+                    bool covered = false;
+                    for (int t = 0; t < stationRooms.Count && !covered; t++)
+                    {
+                        covered = blueprint.Rooms[stationRooms[t]].FloorIndex == floorIndex;
+                    }
+
+                    if (covered)
+                    {
+                        continue;
+                    }
+
+                    var floorCandidates = new List<int>();
+                    for (int r = 1; r < blueprint.Rooms.Count; r++)
+                    {
+                        if (blueprint.Rooms[r].FloorIndex == floorIndex && HasMarker(r, MarkerKind.CorpseStationSlot))
+                        {
+                            floorCandidates.Add(r);
+                        }
+                    }
+
+                    if (floorCandidates.Count == 0)
+                    {
+                        Log.W($"[SpawnDistributor] 충전소 층 배분 실패 — 층 {floorIndex} 에 CorpseStationSlot 방 없음(베스트에포트)");
+                        continue;
+                    }
+
+                    int extra = floorCandidates[rng.Next(floorCandidates.Count)];
+                    int extraMarker = PickMarker(rng, extra, MarkerKind.CorpseStationSlot, out _);
+                    blueprint.Spawns.Add(new BlueprintSpawn { RoomIndex = extra, MarkerId = extraMarker, Kind = SpawnKind.CorpseStation, WanderRadiusCells = 0f });
+                    stationRooms.Add(extra);
+                }
             }
 
             // 발전기 — Watcher 방 자신 → 인접 방 순으로 GeneratorSlot 탐색(B등급)
@@ -569,9 +666,9 @@ namespace EmptyHouse.MapGen.Core
             HashSet<int> front = ReachableExcludingRoom(blueprint, herdRoom);
             for (int r = 0; r < blueprint.Rooms.Count; r++)
             {
-                if (r != herdRoom && front.Contains(r) && HasMarker(r, MarkerKind.CorpseStationSlot))
+                if (r != herdRoom && SameFloor(r, herdRoom) && front.Contains(r) && HasMarker(r, MarkerKind.CorpseStationSlot))
                 {
-                    return true;
+                    return true; // 파훼 쌍 같은 층 한정(M9-6) — 층 넘는 충전소는 수단으로 안 친다
                 }
             }
 
@@ -587,7 +684,7 @@ namespace EmptyHouse.MapGen.Core
         /// <returns>강등 성공 여부.</returns>
         private bool TryDowngradeListeners(MapBlueprint blueprint, int room)
         {
-            if ((paramsCache.EnabledZombieTypes & ZombieTypeMask.Walker) == 0)
+            if ((FloorParamsOf(room).EnabledZombieTypes & ZombieTypeMask.Walker) == 0)
             {
                 return false;
             }

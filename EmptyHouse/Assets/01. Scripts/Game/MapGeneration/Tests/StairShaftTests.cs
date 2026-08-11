@@ -10,91 +10,6 @@ namespace EmptyHouse.MapGen.Core.Tests
     /// </summary>
     public sealed class StairShaftTests
     {
-        /// <summary>3층 테스트 Plan — 시드 층(1F) = 실측 카탈로그 + 계단실, B1·2F = ID 접미사 사본 + 각 층 계단실.</summary>
-        /// <param name="seed">확정 시드.</param>
-        /// <returns>3층 Plan.</returns>
-        private static MapGenPlan ThreeFloorPlan(int seed)
-        {
-            List<RoomTemplateDef> catalog = MapTemplateCatalog.Create();
-            var genParams = new MapGenParams { Seed = seed };
-
-            var seedTemplates = new List<RoomTemplateDef>(catalog) { StairTemplate("stair_f0") };
-            var floors = new[]
-            {
-                new FloorTemplateSet { FloorIndex = 0, ThemeId = "hall", Templates = seedTemplates.ToArray() },
-                new FloorTemplateSet { FloorIndex = 1, ThemeId = "hall", Templates = CloneForFloor(catalog, "_f1", "stair_f1") },
-                new FloorTemplateSet { FloorIndex = -1, ThemeId = "hall", Templates = CloneForFloor(catalog, "_b1", "stair_b1") },
-            };
-
-            var floorParams = new[]
-            {
-                new FloorGenParams { FloorIndex = 0, ThemeId = "hall", RoomsTotalMin = 9, RoomsTotalMax = 11, CycleRoomPercent = 60, CorridorLinkPercent = 100, CorridorChainMax = 3 },
-                new FloorGenParams { FloorIndex = 1, ThemeId = "hall", RoomsTotalMin = 6, RoomsTotalMax = 8, CycleRoomPercent = 60, CorridorLinkPercent = 100, CorridorChainMax = 3 },
-                new FloorGenParams { FloorIndex = -1, ThemeId = "hall", RoomsTotalMin = 6, RoomsTotalMax = 8, CycleRoomPercent = 60, CorridorLinkPercent = 100, CorridorChainMax = 3 },
-            };
-
-            return MapGenPlan.Compose(genParams, floorParams, floors);
-        }
-
-        /// <summary>계단실 템플릿 — 3×3, room_3x3 소켓 위상 재사용(D1 — 소켓 정렬 불변식 자동 충족).</summary>
-        /// <param name="id">템플릿 ID.</param>
-        /// <returns>계단실 서술자.</returns>
-        private static RoomTemplateDef StairTemplate(string id)
-        {
-            return new RoomTemplateDef
-            {
-                TemplateId = id,
-                WidthCells = 3,
-                HeightCells = 3,
-                AllowedFloors = FloorMask.F1,
-                MinCount = 0,
-                MaxCount = 3, // ShaftCountMax 상한 — 층당 최대 3개
-                IsStairAnchor = true,
-                Sockets = new[]
-                {
-                    new SocketDef { Id = 0, LocalCell = new CellCoord(1, 0), Direction = SocketDirection.South },
-                    new SocketDef { Id = 1, LocalCell = new CellCoord(1, 2), Direction = SocketDirection.North },
-                    new SocketDef { Id = 2, LocalCell = new CellCoord(0, 1), Direction = SocketDirection.West },
-                    new SocketDef { Id = 3, LocalCell = new CellCoord(2, 1), Direction = SocketDirection.East },
-                },
-                Markers = new MarkerDef[0],
-            };
-        }
-
-        /// <summary>비시드 층 템플릿 세트 — 입구 제외 카탈로그 사본(ID 접미사·MinCount 0) + 그 층 계단실.</summary>
-        /// <param name="catalog">원천 카탈로그.</param>
-        /// <param name="suffix">TemplateId 접미사(전 층 유일 제약).</param>
-        /// <param name="stairId">계단실 ID.</param>
-        /// <returns>층 템플릿 배열.</returns>
-        private static RoomTemplateDef[] CloneForFloor(List<RoomTemplateDef> catalog, string suffix, string stairId)
-        {
-            var result = new List<RoomTemplateDef>();
-            for (int t = 0; t < catalog.Count; t++)
-            {
-                if (catalog[t].IsEntranceAnchor)
-                {
-                    continue; // 입구는 시드 층 전용(X4 ②)
-                }
-
-                result.Add(new RoomTemplateDef
-                {
-                    TemplateId = catalog[t].TemplateId + suffix,
-                    WidthCells = catalog[t].WidthCells,
-                    HeightCells = catalog[t].HeightCells,
-                    AllowedFloors = catalog[t].AllowedFloors,
-                    Tags = catalog[t].Tags,
-                    MinCount = 0,
-                    MaxCount = catalog[t].MaxCount,
-                    IsCorridor = catalog[t].IsCorridor,
-                    Sockets = catalog[t].Sockets,
-                    Markers = catalog[t].Markers,
-                });
-            }
-
-            result.Add(StairTemplate(stairId));
-            return result.ToArray();
-        }
-
         /// <summary>3층 블루프린트 생성이 성공한다(M9-5 수용 기준) — 층 3개·전 층 방 보유·샤프트 ≥1.</summary>
         [Test]
         public void Generate_3층_블루프린트가_성공한다()
@@ -102,7 +17,7 @@ namespace EmptyHouse.MapGen.Core.Tests
             int success = 0;
             for (int seed = 1; seed <= 10; seed++)
             {
-                MapGenResult result = new MapGenerator().Generate(ThreeFloorPlan(seed));
+                MapGenResult result = new MapGenerator().Generate(MultiFloorFixtures.ThreeFloorPlan(seed));
                 if (!result.Success)
                 {
                     continue;
@@ -207,7 +122,7 @@ namespace EmptyHouse.MapGen.Core.Tests
         {
             for (seed = 1; seed <= 10; seed++)
             {
-                MapGenResult result = new MapGenerator().Generate(ThreeFloorPlan(seed));
+                MapGenResult result = new MapGenerator().Generate(MultiFloorFixtures.ThreeFloorPlan(seed));
                 if (result.Success)
                 {
                     return result;
@@ -225,7 +140,7 @@ namespace EmptyHouse.MapGen.Core.Tests
         private static RoomTemplateDef FlatTemplate(MapBlueprint blueprint, int room)
         {
             // ThreeFloorPlan 과 같은 순서로 재구성 — TemplateIndex 는 평탄화 테이블 기준이라 Plan 재조립로 역참조한다
-            MapGenPlan plan = ThreeFloorPlan(blueprint.Meta.Seed);
+            MapGenPlan plan = MultiFloorFixtures.ThreeFloorPlan(blueprint.Meta.Seed);
             return plan.FlatTemplates[blueprint.Rooms[room].TemplateIndex];
         }
     }

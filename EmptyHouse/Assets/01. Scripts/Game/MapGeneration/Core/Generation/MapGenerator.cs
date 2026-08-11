@@ -75,7 +75,7 @@ namespace EmptyHouse.MapGen.Core
                     continue;
                 }
 
-                if (!spawnDistributor.TryDistribute(rng, genParams, blueprint, grades, plan.FlatTemplates))
+                if (!spawnDistributor.TryDistribute(rng, plan, blueprint, grades))
                 {
                     result.FailReasons.Add($"시도 {attempt + 1}: 스폰 분배 실패");
                     continue;

@@ -90,6 +90,17 @@ namespace EmptyHouse.MapGen.Core
                 }
             }
 
+            // 수직 간선 규약 어서션(M9-6) — 잠긴 수직 간선은 v2.0 계약 위반(Q4: 수직 상시 개방)
+            for (int e = 0; e < blueprint.Edges.Count; e++)
+            {
+                BlueprintEdge edge = blueprint.Edges[e];
+                if (blueprint.IsVerticalEdge(edge) && edge.State != EdgeState.OpenPassage)
+                {
+                    report.FailReasons.Add($"패스5: 수직 간선 e{e} 상태({edge.State}) — 수직은 상시 개방이어야 한다(Q4)");
+                    passed = false;
+                }
+            }
+
             for (int f = 0; f < blueprint.Floors.Count; f++)
             {
                 BlueprintFloor floor = blueprint.Floors[f];
@@ -246,7 +257,8 @@ namespace EmptyHouse.MapGen.Core
                 bool satisfied = false;
                 for (int t = 0; t < throwableRooms.Count && !satisfied; t++)
                 {
-                    satisfied = front.Contains(throwableRooms[t]) && dist[throwableRooms[t]] >= 0
+                    satisfied = blueprint.Rooms[throwableRooms[t]].FloorIndex == blueprint.Rooms[listenerRooms[l]].FloorIndex // 같은 층 한정(M9-6) — 분배기와 동일 잣대
+                        && front.Contains(throwableRooms[t]) && dist[throwableRooms[t]] >= 0
                         && dist[throwableRooms[t]] <= genParams.ListenerCounterDist;
                 }
 
@@ -263,7 +275,8 @@ namespace EmptyHouse.MapGen.Core
                 bool satisfied = false;
                 for (int t = 0; t < stationRooms.Count && !satisfied; t++)
                 {
-                    satisfied = front.Contains(stationRooms[t]);
+                    satisfied = blueprint.Rooms[stationRooms[t]].FloorIndex == blueprint.Rooms[herdRooms[h]].FloorIndex // 같은 층 한정(M9-6)
+                        && front.Contains(stationRooms[t]);
                 }
 
                 if (!satisfied)
