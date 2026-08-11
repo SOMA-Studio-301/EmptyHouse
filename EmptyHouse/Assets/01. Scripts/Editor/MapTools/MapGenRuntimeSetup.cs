@@ -273,7 +273,11 @@ namespace EmptyHouse.EditorTools
             return null;
         }
 
-        /// <summary>소켓 문 슬롯 게이트(3.9m 폭 × 5.8m 높이)와 교차하는 프롭(벽·바닥 제외)을 경고한다 — 문 자리를 가구가 막는 사고 예방.</summary>
+        /// <summary>
+        /// 소켓 문 슬롯 게이트(3.9m 폭 × 5.8m 높이)와 교차하는 프롭(벽·바닥 제외)을 경고한다 — 문 자리를 가구가 막는 사고 예방.
+        /// 벽 오브젝트(이름에 "Wall")의 자식 프롭은 제외 — 조립기가 개구를 뚫을 때 벽을 통째로 비활성화하므로 함께 사라진다.
+        /// **벽에 붙는 소품은 그 벽의 자식으로 넣는 것이 규약이다**(액자·선반·스위치). 방 루트에 두면 벽이 뚫린 뒤 공중에 뜨거나 문을 막는다.
+        /// </summary>
         /// <param name="prefab">검사할 프리팹.</param>
         /// <param name="template">매칭 템플릿.</param>
         /// <param name="floor">바닥 실측 바운드.</param>
@@ -298,7 +302,7 @@ namespace EmptyHouse.EditorTools
                 var gate = new Bounds(gateCenter + Vector3.up * 2.9f, alongX ? new Vector3(3.9f, 5.8f, 1.6f) : new Vector3(1.6f, 5.8f, 3.9f));
                 foreach (Renderer renderer in prefab.GetComponentsInChildren<Renderer>(true))
                 {
-                    if (renderer.name.Contains("Wall") || MapRuntimeAssembler.IsFloorRenderer(renderer.name))
+                    if (renderer.name.Contains("Wall") || MapRuntimeAssembler.IsFloorRenderer(renderer.name) || IsUnderWall(renderer.transform, prefab.transform))
                     {
                         continue;
                     }
@@ -310,6 +314,23 @@ namespace EmptyHouse.EditorTools
                     }
                 }
             }
+        }
+
+        /// <summary>이 트랜스폼이 벽 오브젝트의 자식인지 — 벽이 개구로 잘리면 함께 사라지므로 소켓 막힘 검사에서 제외한다.</summary>
+        /// <param name="target">검사할 트랜스폼.</param>
+        /// <param name="root">프리팹 루트(여기까지만 거슬러 올라간다).</param>
+        /// <returns>조상 중 이름에 "Wall" 이 있으면 true.</returns>
+        private static bool IsUnderWall(Transform target, Transform root)
+        {
+            for (Transform parent = target.parent; parent != null && parent != root; parent = parent.parent)
+            {
+                if (parent.name.Contains("Wall"))
+                {
+                    return true;
+                }
+            }
+
+            return false;
         }
 
         /// <summary>MANAGERS 프리팹에 MapGenManager 자식을 확보하고 컴포넌트·참조를 배선한다.</summary>
