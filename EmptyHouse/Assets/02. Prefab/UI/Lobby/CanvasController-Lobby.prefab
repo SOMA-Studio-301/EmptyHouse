@@ -624,10 +624,6 @@ PrefabInstance:
       propertyPath: m_Name
       value: Canvas-Menu
       objectReference: {fileID: 0}
-    - target: {fileID: 7108050836403564705, guid: 4791d62aa831b06429d3a05be37adf84, type: 3}
-      propertyPath: settingsPanel
-      value: 
-      objectReference: {fileID: 4827535488967008270}
     - target: {fileID: 7277511216076811312, guid: 4791d62aa831b06429d3a05be37adf84, type: 3}
       propertyPath: m_AnchorMax.y
       value: 0
@@ -1224,17 +1220,6 @@ PrefabInstance:
     m_AddedGameObjects: []
     m_AddedComponents: []
   m_SourcePrefab: {fileID: 100100000, guid: d2b00b7438aa78644a15cc17f9265525, type: 3}
---- !u!114 &4827535488967008270 stripped
-MonoBehaviour:
-  m_CorrespondingSourceObject: {fileID: 8737261491021145778, guid: d2b00b7438aa78644a15cc17f9265525, type: 3}
-  m_PrefabInstance: {fileID: 4304918956725733052}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 0}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 40ed5c9c5a1345f4885325dbe7f4b8e9, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::UISettings
 --- !u!224 &7146420183352522368 stripped
 RectTransform:
   m_CorrespondingSourceObject: {fileID: 6382457949839896636, guid: d2b00b7438aa78644a15cc17f9265525, type: 3}
