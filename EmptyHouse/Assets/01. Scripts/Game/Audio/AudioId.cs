@@ -35,9 +35,11 @@ public enum AudioId
     Amb_1F_Wind = 500,
     Amb_2F_Beep = 501,
     Amb_B1_Drone = 502,
+    Amb_Encounter = 503, // 좀비에게 발각된 순간의 단발 스팅. 다른 Amb 와 달리 루프가 아니다
 
     // BGM (1000~)
     Bgm_Alert_Sting = 1000,
     Bgm_Lobby_0 = 1001,
     Bgm_Lobby_1 = 1002,
+    Bgm_Chased_By_Zombie = 1003,
 }

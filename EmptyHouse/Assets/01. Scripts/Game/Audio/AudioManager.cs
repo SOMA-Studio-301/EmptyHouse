@@ -36,6 +36,8 @@ public class AudioManager : MonoBehaviour
     [Header("Listening on - Cue")]
     [SerializeField] private BorderAudio.AudioCueEventChannelSO musicEventChannel;
     [SerializeField] private SFXEventChannelSO sfxEventChannel; // AudioId 를 받는 우리 채널
+    [Tooltip("float 페이로드는 페이드 길이(초)다. 0 이면 즉시 정지와 같다.")]
+    [SerializeField] private FloatEventChannelSO fadeOutMusicEvent; // BGM 을 서서히 줄여 끄는 요청
 
     [Header("Listening on - Volume")]
     [SerializeField] private FloatEventChannelSO changeMasterVolumeEvent;
@@ -71,6 +73,7 @@ public class AudioManager : MonoBehaviour
 
         sfxEventChannel.OnSfxPlayRequested += PlaySfx;
         sfxEventChannel.OnSfxStopRequested += StopAudioCue;
+        fadeOutMusicEvent.OnEventRaised += FadeOutMusic;
 
         changeMasterVolumeEvent.OnEventRaised += ChangeMasterVolume;
         changeMusicVolumeEvent.OnEventRaised += ChangeMusicVolume;
@@ -86,6 +89,7 @@ public class AudioManager : MonoBehaviour
 
         sfxEventChannel.OnSfxPlayRequested -= PlaySfx;
         sfxEventChannel.OnSfxStopRequested -= StopAudioCue;
+        fadeOutMusicEvent.OnEventRaised -= FadeOutMusic;
 
         changeMasterVolumeEvent.OnEventRaised -= ChangeMasterVolume;
         changeMusicVolumeEvent.OnEventRaised -= ChangeMusicVolume;
@@ -282,6 +286,10 @@ public class AudioManager : MonoBehaviour
                                         && musicSoundEmitter.CurrentClip == clip;
             if (sameTrackAlreadyLooping)
             {
+                // 재생 요청은 "이 곡이 지금 들려야 한다"는 뜻이다. 페이드아웃이 걸린 채라면
+                // 그대로 두면 요청을 받고도 계속 작아져 무음이 되므로, 페이드를 취소하고 음량을 되돌린다.
+                // 길이 0 의 페이드가 진행 중인 코루틴을 끊고 즉시 원래 음량으로 되돌리는 역할을 한다.
+                musicSoundEmitter.FadeVolume(1f, 0f);
                 return BorderAudio.AudioCueKey.Invalid;
             }
 
@@ -314,6 +322,22 @@ public class AudioManager : MonoBehaviour
         musicSoundEmitter.Stop();
         StopMusicEmitter(musicSoundEmitter);
         return true;
+    }
+
+    /// <summary>
+    /// 재생 중인 BGM 을 서서히 줄여 끈다. 페이드가 끝나면 이미터가 스스로 종료를 알리고,
+    /// 그 신호를 받은 <see cref="StopMusicEmitter"/> 가 풀에 반납한다 —
+    /// 루프 큐는 재생 완료 콜백이 없으므로 이 경로가 유일한 반납 통로다.
+    /// </summary>
+    /// <param name="fadeSeconds">페이드 길이(초). 0 이하면 즉시 정지와 같다.</param>
+    private void FadeOutMusic(float fadeSeconds)
+    {
+        if (musicSoundEmitter == null || !musicSoundEmitter.IsPlaying())
+        {
+            return;
+        }
+
+        musicSoundEmitter.FadeVolume(0f, Mathf.Max(0f, fadeSeconds), stopAfterFade: true, invokeFinishAfterStop: true);
     }
 
     /// <summary>BGM 이미터를 정리하고 풀에 반납한다.</summary>

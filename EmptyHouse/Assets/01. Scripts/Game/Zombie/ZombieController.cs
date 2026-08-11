@@ -11,6 +11,7 @@ public class ZombieController : NetworkBehaviour
 {
     [Header("Data")]
     [SerializeField] private ZombieDataSO zombieData;
+    [SerializeField] private ZombieRuntimeRegistrySO runtimeRegistry;
 
     [Header("Composition")]
     [SerializeField] private NavMeshAgent agent;
@@ -97,6 +98,16 @@ public class ZombieController : NetworkBehaviour
             enabled = false;
         }
     }
+
+    /// <summary>
+    /// 좀비 런타임 집합에 자신을 올린다. AI 와 달리 서버로 가르지 않는다 —
+    /// 이 집합을 읽는 쪽이 클라이언트 연출(<see cref="ZombieThreatAudioDirector"/>)이라
+    /// 비서버 인스턴스도 목록에 있어야 복제된 의심도를 훑을 수 있다.
+    /// 형제 부품(ZombieSquadSync·ZombieSoundOccluder)과 같은 등록 시점이다.
+    /// </summary>
+    private void OnEnable() => runtimeRegistry?.RegisterZombie(this);
+
+    private void OnDisable() => runtimeRegistry?.UnregisterZombie(this);
 
     public override void OnNetworkSpawn()
     {

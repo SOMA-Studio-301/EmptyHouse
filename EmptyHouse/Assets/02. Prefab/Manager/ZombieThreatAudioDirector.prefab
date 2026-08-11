@@ -1,6 +1,6 @@
 %YAML 1.1
 %TAG !u! tag:unity3d.com,2011:
---- !u!1 &7366837297665753737
+--- !u!1 &4812037665199420318
 GameObject:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
@@ -8,22 +8,22 @@ GameObject:
   m_PrefabAsset: {fileID: 0}
   serializedVersion: 6
   m_Component:
-  - component: {fileID: 5094772888867205827}
-  - component: {fileID: 8690787925135689474}
+  - component: {fileID: 1963548820774113052}
+  - component: {fileID: 7420916533081647294}
   m_Layer: 0
-  m_Name: AudioManager
+  m_Name: ZombieThreatAudioDirector
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
   m_IsActive: 1
---- !u!4 &5094772888867205827
+--- !u!4 &1963548820774113052
 Transform:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 7366837297665753737}
+  m_GameObject: {fileID: 4812037665199420318}
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
   m_LocalPosition: {x: 0, y: 0, z: 0}
@@ -32,27 +32,24 @@ Transform:
   m_Children: []
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
---- !u!114 &8690787925135689474
+--- !u!114 &7420916533081647294
 MonoBehaviour:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 7366837297665753737}
+  m_GameObject: {fileID: 4812037665199420318}
   m_Enabled: 1
   m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 4cf4d0e3c32884d4ca69827cbc7a966f, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::AudioManager
-  pools:
-  - {fileID: 11400000, guid: 65dcce55882cf4d4ab73512c72e58679, type: 2}
-  initialSize: 10
-  audioMixer: {fileID: 24100000, guid: fc53595f885eb664d9c42fc8817121f5, type: 2}
+  m_Script: {fileID: 11500000, guid: c9e04b71a83d4f26b15e7c308df9264a, type: 3}
+  m_Name:
+  m_EditorClassIdentifier: Assembly-CSharp::ZombieThreatAudioDirector
+  zombieRegistry: {fileID: 11400000, guid: a1f48fbd7d4b4d33a5a1c7e6b7f00003, type: 2}
   audioRegistry: {fileID: 11400000, guid: f5fa9ca25b7bd3545aab90c70371d877, type: 2}
   musicEventChannel: {fileID: 11400000, guid: 6709446594f7e6c43a1020cbbf709251, type: 2}
-  sfxEventChannel: {fileID: 11400000, guid: 0338426556d75b241bee37e3eca8f958, type: 2}
   fadeOutMusicEvent: {fileID: 11400000, guid: b2d84a63cf1e47f5a90d3b6e8c25147f, type: 2}
-  changeMasterVolumeEvent: {fileID: 11400000, guid: 18da7539e03d50c47acd5809c908a798, type: 2}
-  changeMusicVolumeEvent: {fileID: 11400000, guid: 73cccc140046bb444b304bc12223036f, type: 2}
-  changeSfxVolumeEvent: {fileID: 11400000, guid: 05de50ca67cb0b549bd01b16436613ca, type: 2}
-  changeAmbientVolumeEvent: {fileID: 11400000, guid: 8f35dd60c39dc5547acd6de9f81a155e, type: 2}
+  sfxEventChannel: {fileID: 11400000, guid: 0338426556d75b241bee37e3eca8f958, type: 2}
+  chaseTrackAudioId: 1003
+  encounterAudioId: 503
+  safeHoldSeconds: 3
+  fadeOutSeconds: 3
