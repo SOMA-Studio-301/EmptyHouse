@@ -10,14 +10,12 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 4421bab4f7940f548a97a9532cf396bb, type: 3}
-  m_Name: SO_Item_Oil
+  m_Name: SO_Item_Scrap
   m_EditorClassIdentifier: Assembly-CSharp::ItemDataSO
-  NameKey: ITEM_NAME_FUEL
+  NameKey: ITEM_NAME_BOTTLE
   Icon: {fileID: 0}
-  Kind: 4
-  PickupVerbKey: INT_PROMPT_LOAD
-  PickupNoiseDb: 80
-  HandUsage: 1
-  HeldPrefab: {fileID: 0}
-  WorldPrefab: {fileID: 1829482273108571828, guid: 45863a1a5d45d01498d17401fb6375a2, type: 3}
-  ProjectilePrefab: {fileID: 0}
+  Kind: 1
+  PickupVerbKey: INT_PROMPT_PICKUP
+  PickupNoiseDb: 8
+  WorldPrefab: {fileID: 3812004556710293841, guid: cf60718293a4b5c6d7e8f9a0b1c2d3e4, type: 3}
+  ProjectilePrefab: {fileID: 5920117338462015772, guid: d0718293a4b5c6d7e8f9a0b1c2d3e4f5, type: 3}
