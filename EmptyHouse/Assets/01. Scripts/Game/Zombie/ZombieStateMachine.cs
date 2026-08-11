@@ -24,6 +24,8 @@ public class ZombieStateMachine : NetworkBehaviour
     {
         if (!IsServer) return;
         agent.updateRotation = false;
+        // 위치는 루트모션이 만든다(ZombieRootMotion). 에이전트가 직접 밀면 애니와 이중으로 이동한다.
+        agent.updatePosition = false;
         SwitchState(ZombieStateKind.Wander, true);
     }
 
