@@ -61,7 +61,7 @@ public class PlayerAnimator : NetworkBehaviour
         controller.JumpPerformed -= HandleJump;
     }
 
-    /// <summary>소유자에서 매 프레임 이동/접지/웅크림/조준 상태를 Animator 파라미터로 반영한다. 조준값은 OwnerNetworkAnimator 가 원격에 복제해 상체 표현(PlayerFlashlightArmIK)이 전 클라이언트에서 같은 값을 읽는다.</summary>
+    /// <summary>소유자에서 매 프레임 이동/접지/웅크림/조준 상태를 Animator 파라미터로 반영한다. 조준값은 OwnerNetworkAnimator 가 원격에 복제해 상체 표현(PlayerHandArmIK)이 전 클라이언트에서 같은 값을 읽는다.</summary>
     private void Update()
     {
         if (!IsOwner) return;
