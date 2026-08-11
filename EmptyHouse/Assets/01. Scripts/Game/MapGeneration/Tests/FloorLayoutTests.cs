@@ -97,13 +97,11 @@ namespace EmptyHouse.MapGen.Core.Tests
             Assert.That(plan.Floors[order[2]].FloorIndex, Is.EqualTo(-1));
         }
 
-        /// <summary>다층 Plan 은 계단(M9-5) 전까지 명시적으로 실패한다 — 조용한 단층 폴백 금지.</summary>
+        /// <summary>계단실 없는 다층 Plan 은 X4 사전 검증에서 명시적으로 거부된다(③ — 조용한 단층 폴백 금지).</summary>
         [Test]
-        public void Generate_다층_Plan_은_계단_구현_전까지_명시_실패한다()
+        public void ValidateInputs_계단실_없는_다층은_X4_로_거부된다()
         {
             List<RoomTemplateDef> catalog = MapTemplateCatalog.Create();
-            var upper = new FloorGenParams { FloorIndex = 1, RoomsTotalMin = 2, RoomsTotalMax = 4 };
-            var ground = new FloorGenParams { FloorIndex = 0 };
             var upperTemplates = new List<RoomTemplateDef>();
             for (int t = 0; t < catalog.Count; t++)
             {
@@ -126,14 +124,20 @@ namespace EmptyHouse.MapGen.Core.Tests
                 }
             }
 
-            var plan = MapGenPlan.Compose(new MapGenParams { Seed = 5 }, new[] { ground, upper }, new[]
+            var plan = MapGenPlan.Compose(new MapGenParams { Seed = 5 }, new[]
+            {
+                new FloorGenParams { FloorIndex = 0 },
+                new FloorGenParams { FloorIndex = 1, RoomsTotalMin = 2, RoomsTotalMax = 4 },
+            }, new[]
             {
                 new FloorTemplateSet { FloorIndex = 0, Templates = new List<RoomTemplateDef>(catalog).ToArray() },
                 new FloorTemplateSet { FloorIndex = 1, Templates = upperTemplates.ToArray() },
             });
 
-            MapGenResult result = new MapGenerator().Generate(plan);
-            Assert.That(result.Success, Is.False, "계단 샤프트(M9-5) 전의 다층 Plan 은 실패해야 한다(조용한 단층 폴백 금지)");
+            var errors = new List<string>();
+            bool valid = new MapGenerator().ValidateInputs(plan, errors);
+            Assert.That(valid, Is.False, "계단실 없는 다층 Plan 은 X4 에서 거부돼야 한다");
+            Assert.That(errors.Exists(e => e.Contains("계단실")), Is.True, $"계단실 사유가 없다: {string.Join(" / ", errors)}");
         }
     }
 }

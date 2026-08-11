@@ -11,7 +11,7 @@ namespace EmptyHouse.MapGen.Core
     /// </summary>
     public sealed class MapGenerator
     {
-        public const string GeneratorVersion = "0.12.0"; // 생성기 버전 — MapBlueprintMeta에 스냅샷(1절). 0.12.0: 코어 층 구조(MapGenPlan·층 스코프 레이아웃·Floors 메타, M9-4). 층 1개 블루프린트 결과는 0.11.0 과 동일(골든 증명), Floors 메타·해시만 변경
+        public const string GeneratorVersion = "0.13.0"; // 생성기 버전 — MapBlueprintMeta에 스냅샷(1절). 0.13.0: 계단 샤프트(SSA — 시드 층 강제 삽입·전 층 좌표 복사·수직 간선, M9-5). 층 1개 블루프린트 결과는 0.11.0 과 동일(골든 증명)
 
         private readonly DeterministicRng rng = new DeterministicRng(); // 단일 난수 스트림(8절)
         private readonly LayoutGenerator layoutGenerator = new LayoutGenerator(); // 3절
@@ -279,6 +279,56 @@ namespace EmptyHouse.MapGen.Core
                 }
             }
 
+            // 다층 전용 검사(M9-5) — 층 ≥2 면 전 층에 계단실 정확히 1종 + 풋프린트·소켓 배열 전 층 동일(X4 ③④)
+            if (plan.Floors.Length > 1)
+            {
+                RoomTemplateDef referenceStair = null;
+                for (int f = 0; f < plan.Floors.Length; f++)
+                {
+                    RoomTemplateDef stair = null;
+                    int stairCount = 0;
+                    for (int t = 0; t < plan.Floors[f].Templates.Length; t++)
+                    {
+                        if (plan.Floors[f].Templates[t].IsStairAnchor)
+                        {
+                            stair = plan.Floors[f].Templates[t];
+                            stairCount++;
+                        }
+                    }
+
+                    if (stairCount != 1)
+                    {
+                        errors.Add($"X4: 층 {plan.Floors[f].FloorIndex} 계단실 템플릿 {stairCount}종 — 다층은 층마다 정확히 1종이어야 한다(Q5: 테마별 1개)");
+                        continue;
+                    }
+
+                    if (referenceStair == null)
+                    {
+                        referenceStair = stair;
+                        continue;
+                    }
+
+                    bool sameShape = stair.WidthCells == referenceStair.WidthCells && stair.HeightCells == referenceStair.HeightCells
+                        && stair.Sockets.Length == referenceStair.Sockets.Length;
+                    for (int s = 0; sameShape && s < stair.Sockets.Length; s++)
+                    {
+                        sameShape = stair.Sockets[s].Id == referenceStair.Sockets[s].Id
+                            && stair.Sockets[s].LocalCell.X == referenceStair.Sockets[s].LocalCell.X
+                            && stair.Sockets[s].LocalCell.Y == referenceStair.Sockets[s].LocalCell.Y
+                            && stair.Sockets[s].Direction == referenceStair.Sockets[s].Direction;
+                    }
+
+                    if (!sameShape)
+                    {
+                        errors.Add($"X4: 층 {plan.Floors[f].FloorIndex} 계단실 {stair.TemplateId} 의 풋프린트·소켓 배열이 기준({referenceStair.TemplateId})과 다르다 — 샤프트 좌표 복사가 성립하지 않는다(SSA)");
+                    }
+                }
+            }
+
+            // 층 배정 마커 존재(X4 ⑦) — 배정 층이 실재하고 그 층 세트에 해당 마커가 있어야 한다
+            ValidateFloorPlanMarkers(plan, genParams.VaccineFloorPlan, "백신", MarkerKind.ItemSpawn, ItemCategoryMask.Vaccine, errors);
+            ValidateFloorPlanMarkers(plan, genParams.CorpseStationFloorPlan, "사체 충전소", MarkerKind.CorpseStationSlot, ItemCategoryMask.None, errors);
+
             if (!hasVaccineMarker)
             {
                 errors.Add("X4: Vaccine 허용 ItemSpawn 마커 부재 — 백신 배치 불가");
@@ -295,6 +345,50 @@ namespace EmptyHouse.MapGen.Core
             }
 
             return errors.Count == 0;
+        }
+
+        /// <summary>
+        /// 층 배정 목록(X4 ⑦) 검사 — 지목한 층 서수가 실재하고, 그 층 템플릿 세트에 요구 마커가 있어야 한다.
+        /// 배정이 비어 있으면(널·길이 0) 층 무관 분산이라 검사하지 않는다.
+        /// </summary>
+        /// <param name="plan">검사할 계획.</param>
+        /// <param name="floorPlan">배정 층 서수 목록.</param>
+        /// <param name="label">오류 문구용 이름.</param>
+        /// <param name="markerKind">요구 마커 종류.</param>
+        /// <param name="itemMask">ItemSpawn 이면 요구 카테고리(그 외 None).</param>
+        /// <param name="errors">모순 사유 수집 목록.</param>
+        private static void ValidateFloorPlanMarkers(MapGenPlan plan, int[] floorPlan, string label, MarkerKind markerKind, ItemCategoryMask itemMask, List<string> errors)
+        {
+            if (floorPlan == null || floorPlan.Length == 0)
+            {
+                return;
+            }
+
+            for (int i = 0; i < floorPlan.Length; i++)
+            {
+                int slot = plan.SlotOfFloor(floorPlan[i]);
+                if (slot < 0)
+                {
+                    errors.Add($"X4: {label} 배정 층 {floorPlan[i]} 이 계획에 없다");
+                    continue;
+                }
+
+                bool hasMarker = false;
+                RoomTemplateDef[] templates = plan.Floors[slot].Templates;
+                for (int t = 0; t < templates.Length && !hasMarker; t++)
+                {
+                    for (int m = 0; m < templates[t].Markers.Length && !hasMarker; m++)
+                    {
+                        MarkerDef marker = templates[t].Markers[m];
+                        hasMarker = marker.Kind == markerKind && (itemMask == ItemCategoryMask.None || (marker.ItemMask & itemMask) != 0);
+                    }
+                }
+
+                if (!hasMarker)
+                {
+                    errors.Add($"X4: {label} 배정 층 {floorPlan[i]} 의 템플릿 세트에 요구 마커({markerKind})가 없다 — 배정 충족 불가");
+                }
+            }
         }
     }
 }

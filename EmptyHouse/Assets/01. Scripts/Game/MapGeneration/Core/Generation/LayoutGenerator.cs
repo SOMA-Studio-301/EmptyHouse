@@ -20,6 +20,8 @@ namespace EmptyHouse.MapGen.Core
         private int countableRooms; // **현재 층** 예산 집계 방 수 — 복도·입구 앵커 제외(층 시작마다 리셋)
         private int currentFloorIndex; // 지금 생성 중인 층 서수(배치 방의 FloorIndex 원천)
         private int currentFlatBase; // 현재 층 템플릿의 평탄화 테이블 시작 인덱스(TemplateIndex 계산용)
+        private readonly Dictionary<(int floor, int shaft), int> shaftRoomByFloor = new Dictionary<(int floor, int shaft), int>(); // (층 서수, 샤프트 번호) → 계단실 방 인덱스(수직 간선 배선용 — 조회 전용)
+        private int shaftSeparationCells; // 샤프트 최소 이격(체비셰프, 셀) — TryGenerate 진입 시 전역 파라미터에서 캐시
         private readonly List<(int template, int socket)> directCandidates = new List<(int template, int socket)>(); // 직결 후보 재사용 버퍼(호출 빈도 높음 — GC 절감)
         private readonly List<(int template, int socket)> corridorCandidates = new List<(int template, int socket)>(); // 복도 후보 재사용 버퍼
         private readonly List<int> farSockets = new List<int>(); // 복도 원단 소켓 재사용 버퍼
@@ -53,6 +55,8 @@ namespace EmptyHouse.MapGen.Core
             occupiedByFloor.Clear();
             usedSockets.Clear();
             entranceKeepOut.Clear();
+            shaftRoomByFloor.Clear();
+            shaftSeparationCells = plan.Params.ShaftMinSeparationCells;
 
             int[] order = FloorSequencer.Order(plan); // rng 미소비 — 층 1개 구성에서도 스트림 불변(절대 규칙 3)
             for (int i = 0; i < order.Length; i++)
@@ -95,6 +99,7 @@ namespace EmptyHouse.MapGen.Core
             int edgeStart = blueprint.Edges.Count;
 
             var usedCount = new int[floorTemplates.Length];
+            int floorShafts;
             if (slot == plan.SeedFloorSlot)
             {
                 if (!TryPlaceEntranceAnchor(floorTemplates, blueprint))
@@ -110,20 +115,115 @@ namespace EmptyHouse.MapGen.Core
                     }
                 }
 
-                if (!TryAttachRooms(rng, floorParams, floorTemplates, usedCount, blueprint))
+                // 샤프트 수 롤 — 절대 규칙 1: 층 1개 구성에서는 어떤 신규 난수도 소비하지 않는다(골든 게이트)
+                bool multiFloor = plan.Floors.Length > 1;
+                int shaftTarget = 0;
+                if (multiFloor)
+                {
+                    shaftTarget = rng.Next(plan.Params.ShaftCountMin, plan.Params.ShaftCountMax + 1);
+                }
+
+                var stairRooms = new List<int>();
+                if (!TryAttachRooms(rng, plan.Params, floorParams, floorTemplates, usedCount, blueprint, shaftTarget, stairRooms))
                 {
                     return false;
+                }
+
+                floorShafts = stairRooms.Count;
+                if (multiFloor)
+                {
+                    if (stairRooms.Count == 0)
+                    {
+                        return false; // 계단실 0 = 비시드 층 진입 불가 — 리롤(베스트에포트 하한 1)
+                    }
+
+                    // 샤프트 승격 — 좌표·회전을 전 층 공유 레코드로 굳힌다(SSA). 층별 방 매핑도 기록
+                    List<StairShaft> shafts = FloorSequencer.PromoteShafts(plan, blueprint, stairRooms);
+                    blueprint.Shafts.AddRange(shafts);
+                    for (int k = 0; k < stairRooms.Count; k++)
+                    {
+                        shaftRoomByFloor[(currentFloorIndex, k)] = stairRooms[k];
+                    }
                 }
             }
             else
             {
-                // 비시드 층 — 계단 샤프트 좌표 복사 + 다중 시딩 성장은 M9-5 소관. 그 전까지 다층 Plan 은 명시적 실패
-                return false;
+                // 비시드 층(SSA) — 시드 층이 굳힌 샤프트 좌표에 이 층 테마의 계단실을 복사 배치하고(탐색 아닌 복사 —
+                // 빈 격자라 실패 경로 없음), 인접 층과 수직 간선으로 잇고, 계단실 소켓 전부를 프런티어로 다중 시딩해 성장한다
+                if (blueprint.Shafts.Count == 0)
+                {
+                    return false;
+                }
+
+                int stairTemplateIndex = -1;
+                for (int t = 0; t < floorTemplates.Length && stairTemplateIndex < 0; t++)
+                {
+                    if (floorTemplates[t].IsStairAnchor)
+                    {
+                        stairTemplateIndex = t;
+                    }
+                }
+
+                if (stairTemplateIndex < 0)
+                {
+                    return false; // X4 ③이 사전 차단 — 방어적 실패
+                }
+
+                RoomTemplateDef stair = floorTemplates[stairTemplateIndex];
+                int seedFloorIndex = plan.Floors[plan.SeedFloorSlot].FloorIndex;
+                int neighborFloor = currentFloorIndex > seedFloorIndex ? currentFloorIndex - 1 : currentFloorIndex + 1;
+                var frontier = new List<(int room, int socket)>();
+                for (int k = 0; k < blueprint.Shafts.Count; k++)
+                {
+                    StairShaft shaft = blueprint.Shafts[k];
+                    if (!FitsAt(stair, shaft.Cell, shaft.Rotation))
+                    {
+                        return false; // 이격 ≥ 풋프린트 전제가 깨졌다 — 데이터 결함 표면화
+                    }
+
+                    int room = PlaceRoom(stair, shaft.Cell, shaft.Rotation, blueprint, currentFlatBase + stairTemplateIndex);
+                    usedCount[stairTemplateIndex]++;
+                    shaftRoomByFloor[(currentFloorIndex, shaft.ShaftId)] = room;
+
+                    // 수직 간선 — 소켓 없는 간선(SocketA/B = -2)·항상 개방(Q4: v2.0 전 수직 상시 개방).
+                    // RoomA = 아래층 방. 간선은 나중에 생성된 층의 구간에 기록된다(구간 연속성 유지 —
+                    // 인접 층 방이 그 층 처리 시점에야 존재하므로 "아래 층 구간 귀속"은 물리적으로 불가)
+                    int neighborRoom = shaftRoomByFloor[(neighborFloor, shaft.ShaftId)];
+                    int lowerRoom = currentFloorIndex < neighborFloor ? room : neighborRoom;
+                    int upperRoom = lowerRoom == room ? neighborRoom : room;
+                    blueprint.Edges.Add(new BlueprintEdge
+                    {
+                        RoomA = lowerRoom,
+                        SocketA = -2,
+                        RoomB = upperRoom,
+                        SocketB = -2,
+                        State = EdgeState.OpenPassage,
+                        LockNumber = 0,
+                    });
+
+                    // 다중 시딩 — 계단실의 모든 소켓이 이 층 성장의 뿌리가 된다
+                    for (int s = 0; s < stair.Sockets.Length; s++)
+                    {
+                        frontier.Add((room, s));
+                    }
+                }
+
+                floorShafts = blueprint.Shafts.Count;
+                int targetRooms = rng.Next(floorParams.RoomsTotalMin, floorParams.RoomsTotalMax + 1);
+                if (!GrowFromFrontier(rng, plan.Params, floorParams, floorTemplates, usedCount, blueprint, frontier, targetRooms, 0, null))
+                {
+                    return false;
+                }
+
+                if (!CheckFloorMinimums(floorParams, floorTemplates, usedCount))
+                {
+                    return false;
+                }
             }
 
             // 루프는 사이클 소속 방 비율 목표(CycleRoomPercent)로 채택 — 후보 소진 시 베스트에포트(리롤 없음, X6 경고는 검증기 소관).
-            // 달성률 계산은 전 층 누적 그래프 기준 — 이전 층은 봉인 완료라 후보가 없지만, 층별 정밀 달성률 분리는 M9-5 에서 층 스코프 지표로 처리한다
-            CarveLoopEdges(rng, floorParams, floorTemplates, plan.FlatTemplates, usedCount, blueprint);
+            // 이전 층은 봉인 완료라 후보 수집이 자연히 현재 층으로 한정되고, 달성률은 층 스코프(roomStart 이후)로 잰다
+            CarveLoopEdges(rng, floorParams, floorTemplates, plan.FlatTemplates, usedCount, blueprint, roomStart);
             SealRemainingSockets(blueprint, roomStart);
 
             blueprint.Floors.Add(new BlueprintFloor
@@ -134,8 +234,8 @@ namespace EmptyHouse.MapGen.Core
                 RoomCount = blueprint.Rooms.Count - roomStart,
                 EdgeStart = edgeStart,
                 EdgeCount = blueprint.Edges.Count - edgeStart,
-                CycleRoomPercentAchieved = CycleMetrics.ComputeCycleRoomPercent(blueprint, plan.FlatTemplates), // 층 1개 = 전역과 동일. 다층 층 스코프 분리는 M9-5
-                ShaftCountAchieved = 0, // 샤프트는 M9-5
+                CycleRoomPercentAchieved = CycleMetrics.ComputeCycleRoomPercent(blueprint, plan.FlatTemplates, roomStart),
+                ShaftCountAchieved = floorShafts,
             });
             return true;
         }
@@ -161,17 +261,21 @@ namespace EmptyHouse.MapGen.Core
         }
 
         /// <summary>
-        /// 열린 소켓에 방을 직결 또는 복도 경유로 총 방 수 예산(방 전용 집계)만큼 붙여 트리를 만든다(3절 2).
+        /// 열린 소켓에 방을 직결 또는 복도 경유로 총 방 수 예산(방 전용 집계)만큼 붙여 트리를 만든다(3절 2 — 시드 층 전용).
         /// 확장마다 CorridorLinkPercent 확률로 복도 경유(복도+끝방 원자 배치)를 시도하고, 실패 시 직결로 폴백한다.
         /// MinCount 미달 방 템플릿이 있으면 남은 예산이 미달 합계 이하일 때 그 템플릿만 직결 후보로 강제한다.
+        /// 다층(M9-5)이면 예산의 ShaftDepthPercent 대역에서 계단실(IsStairAnchor)을 강제 삽입한다.
         /// </summary>
         /// <param name="rng">단일 난수 스트림.</param>
+        /// <param name="globalParams">전역 파라미터(샤프트 삽입 대역·이격).</param>
         /// <param name="floorParams">현재 층 파라미터(방 수 예산·복도 경유 확률).</param>
         /// <param name="templates">현재 층 템플릿 집합.</param>
         /// <param name="usedCount">템플릿별 사용 횟수(입구 1 로 초기화된 상태 — 루프 단계와 공유).</param>
         /// <param name="blueprint">대상 블루프린트.</param>
+        /// <param name="shaftTarget">삽입할 계단실 수(0 = 단층 — 계단 없음).</param>
+        /// <param name="stairRooms">삽입된 계단실 방 인덱스 수집 목록.</param>
         /// <returns>트리 조립 성공 여부.</returns>
-        private bool TryAttachRooms(DeterministicRng rng, FloorGenParams floorParams, IReadOnlyList<RoomTemplateDef> templates, int[] usedCount, MapBlueprint blueprint)
+        private bool TryAttachRooms(DeterministicRng rng, MapGenParams globalParams, FloorGenParams floorParams, IReadOnlyList<RoomTemplateDef> templates, int[] usedCount, MapBlueprint blueprint, int shaftTarget, List<int> stairRooms)
         {
             int targetRooms = rng.Next(floorParams.RoomsTotalMin, floorParams.RoomsTotalMax + 1);
 
@@ -191,6 +295,48 @@ namespace EmptyHouse.MapGen.Core
                 }
             }
 
+            if (!GrowFromFrontier(rng, globalParams, floorParams, templates, usedCount, blueprint, frontier, targetRooms, shaftTarget, stairRooms))
+            {
+                return false;
+            }
+
+            return CheckFloorMinimums(floorParams, templates, usedCount);
+        }
+
+        /// <summary>
+        /// 프런티어에서 방 수 예산까지 성장시키는 공용 루프 — 시드 층(입구 프런티어)과 비시드 층(계단실 다중 시딩)이 공유한다.
+        /// shaftTarget &gt; 0 이면 예산의 ShaftDepthPercent 대역에서 트리거를 롤해 계단실을 강제 삽입한다(M9-5 SSA).
+        /// 삽입 실패는 트리거를 소비하지 않고 다음 반복에서 재시도한다(FloorRetryMax 0 유지 — 되감기 없음).
+        /// </summary>
+        /// <param name="rng">단일 난수 스트림.</param>
+        /// <param name="globalParams">전역 파라미터(샤프트 삽입 대역).</param>
+        /// <param name="floorParams">현재 층 파라미터.</param>
+        /// <param name="templates">현재 층 템플릿 집합.</param>
+        /// <param name="usedCount">템플릿별 사용 횟수.</param>
+        /// <param name="blueprint">대상 블루프린트.</param>
+        /// <param name="frontier">성장 시작 프런티어(소비된다).</param>
+        /// <param name="targetRooms">이 층 방 수 목표.</param>
+        /// <param name="shaftTarget">삽입할 계단실 수(0 = 삽입 없음 — 트리거 롤도 없다, 절대 규칙 1).</param>
+        /// <param name="stairRooms">삽입된 계단실 방 인덱스 수집 목록(shaftTarget 0 이면 null 허용).</param>
+        /// <returns>예산 하한 충족 여부.</returns>
+        private bool GrowFromFrontier(DeterministicRng rng, MapGenParams globalParams, FloorGenParams floorParams, IReadOnlyList<RoomTemplateDef> templates, int[] usedCount, MapBlueprint blueprint, List<(int room, int socket)> frontier, int targetRooms, int shaftTarget, List<int> stairRooms)
+        {
+            int[] stairTriggers = null;
+            int placedShafts = 0;
+            if (shaftTarget > 0)
+            {
+                // 삽입 시점 = 층 예산의 ShaftDepthPercent 대역에서 롤 — "중앙 계단실"을 입구 기준 깊이 대역으로 근사(S1)
+                stairTriggers = new int[shaftTarget];
+                int lo = System.Math.Max(1, targetRooms * globalParams.ShaftDepthPercentMin / 100);
+                int hi = System.Math.Max(lo, targetRooms * globalParams.ShaftDepthPercentMax / 100);
+                for (int k = 0; k < shaftTarget; k++)
+                {
+                    stairTriggers[k] = rng.Next(lo, hi + 1);
+                }
+
+                System.Array.Sort(stairTriggers); // 이른 트리거부터 순서대로 발화(결정론 정렬)
+            }
+
             while (countableRooms < targetRooms && frontier.Count > 0)
             {
                 int frontierIndex = rng.Next(frontier.Count);
@@ -201,6 +347,15 @@ namespace EmptyHouse.MapGen.Core
                 SocketDirection openWorldDir = CellMath.RotateDirection(openSocket.Direction, openRoomData.Rotation);
                 CellCoord targetCell = Step(openWorldCell, openWorldDir);
                 SocketDirection neededDir = Opposite(openWorldDir);
+
+                // 계단실 강제 삽입 — 트리거 도달 시 이 소켓에서 먼저 시도. 실패해도 트리거를 소비하지 않는다(다음 반복 재시도)
+                if (stairTriggers != null && placedShafts < shaftTarget && countableRooms >= stairTriggers[placedShafts]
+                    && TryInsertStairRoom(rng, templates, usedCount, blueprint, frontier, openRoom, openSocket, targetCell, neededDir, stairRooms))
+                {
+                    placedShafts++;
+                    frontier.RemoveAt(frontierIndex);
+                    continue;
+                }
 
                 // MinCount 미달분(방 전용)은 남은 예산이 미달 합계 이하로 줄었을 때만 강제한다.
                 // 초장부터 강제하면 MinCount 템플릿이 항상 입구 옆 관문 자리를 차지해
@@ -232,11 +387,16 @@ namespace EmptyHouse.MapGen.Core
                 frontier.RemoveAt(frontierIndex);
             }
 
-            if (countableRooms < floorParams.RoomsTotalMin)
-            {
-                return false;
-            }
+            return countableRooms >= floorParams.RoomsTotalMin;
+        }
 
+        /// <summary>층 마감 공통 검사 — 템플릿별 MinCount 충족(미달 = 리롤).</summary>
+        /// <param name="floorParams">현재 층 파라미터.</param>
+        /// <param name="templates">현재 층 템플릿 집합.</param>
+        /// <param name="usedCount">템플릿별 사용 횟수.</param>
+        /// <returns>전 템플릿 MinCount 충족 여부.</returns>
+        private static bool CheckFloorMinimums(FloorGenParams floorParams, IReadOnlyList<RoomTemplateDef> templates, int[] usedCount)
+        {
             for (int t = 0; t < templates.Count; t++)
             {
                 if (usedCount[t] < templates[t].MinCount)
@@ -246,6 +406,92 @@ namespace EmptyHouse.MapGen.Core
             }
 
             return true;
+        }
+
+        /// <summary>
+        /// 계단실(IsStairAnchor) 강제 삽입 — 직결과 같은 소켓 접합이되 후보를 계단 템플릿으로 한정하고,
+        /// 기삽입 계단실과의 최소 이격(체비셰프)을 추가로 검사한다(몰리면 층간 루프가 생기지 않는다).
+        /// </summary>
+        /// <param name="rng">단일 난수 스트림.</param>
+        /// <param name="templates">현재 층 템플릿 집합.</param>
+        /// <param name="usedCount">템플릿별 사용 횟수.</param>
+        /// <param name="blueprint">대상 블루프린트.</param>
+        /// <param name="frontier">새 계단실의 잔여 소켓을 추가할 프런티어.</param>
+        /// <param name="openRoom">열린 소켓의 방 인덱스.</param>
+        /// <param name="openSocket">열린 소켓.</param>
+        /// <param name="targetCell">계단실 소켓이 놓일 월드 셀.</param>
+        /// <param name="neededDir">계단실 소켓이 향해야 할 월드 방향.</param>
+        /// <param name="stairRooms">기삽입 계단실 방 인덱스 목록(이격 기준·성공 시 추가).</param>
+        /// <returns>삽입 성공 여부.</returns>
+        private bool TryInsertStairRoom(DeterministicRng rng, IReadOnlyList<RoomTemplateDef> templates, int[] usedCount, MapBlueprint blueprint, List<(int room, int socket)> frontier, int openRoom, SocketDef openSocket, CellCoord targetCell, SocketDirection neededDir, List<int> stairRooms)
+        {
+            directCandidates.Clear();
+            for (int t = 0; t < templates.Count; t++)
+            {
+                RoomTemplateDef template = templates[t];
+                if (!template.IsStairAnchor || usedCount[t] >= template.MaxCount)
+                {
+                    continue;
+                }
+
+                for (int s = 0; s < template.Sockets.Length; s++)
+                {
+                    directCandidates.Add((t, s));
+                }
+            }
+
+            if (directCandidates.Count == 0)
+            {
+                return false;
+            }
+
+            Shuffle(rng, directCandidates);
+
+            for (int c = 0; c < directCandidates.Count; c++)
+            {
+                (int templateIndex, int socketIndex) = directCandidates[c];
+                RoomTemplateDef template = templates[templateIndex];
+                SocketDef newSocket = template.Sockets[socketIndex];
+                var rotation = (Rotation4)(((int)neededDir - (int)newSocket.Direction + 4) % 4);
+                CellCoord rotatedLocal = CellMath.RotateLocalCell(newSocket.LocalCell, template.WidthCells, template.HeightCells, rotation);
+                var origin = new CellCoord(targetCell.X - rotatedLocal.X, targetCell.Y - rotatedLocal.Y);
+
+                if (!FitsAt(template, origin, rotation))
+                {
+                    continue;
+                }
+
+                // 이격(체비셰프) — 샤프트 풋프린트 원점 기준(FloorSequencer.IsSeparated 와 같은 잣대)
+                bool separated = true;
+                for (int i = 0; i < stairRooms.Count && separated; i++)
+                {
+                    CellCoord placed = blueprint.Rooms[stairRooms[i]].Cell;
+                    int dx = System.Math.Abs(placed.X - origin.X);
+                    int dy = System.Math.Abs(placed.Y - origin.Y);
+                    separated = System.Math.Max(dx, dy) >= shaftSeparationCells;
+                }
+
+                if (!separated)
+                {
+                    continue;
+                }
+
+                int newRoom = PlaceRoom(template, origin, rotation, blueprint, currentFlatBase + templateIndex);
+                usedCount[templateIndex]++;
+                AddEdge(rng, blueprint, openRoom, openSocket.Id, newRoom, newSocket.Id);
+                for (int s = 0; s < template.Sockets.Length; s++)
+                {
+                    if (s != socketIndex)
+                    {
+                        frontier.Add((newRoom, s));
+                    }
+                }
+
+                stairRooms.Add(newRoom);
+                return true;
+            }
+
+            return false;
         }
 
         /// <summary>
@@ -304,9 +550,9 @@ namespace EmptyHouse.MapGen.Core
             for (int t = 0; t < templates.Count; t++)
             {
                 RoomTemplateDef template = templates[t];
-                if (template.IsEntranceAnchor || template.IsCorridor || usedCount[t] >= template.MaxCount)
+                if (template.IsEntranceAnchor || template.IsCorridor || template.IsStairAnchor || usedCount[t] >= template.MaxCount)
                 {
-                    continue;
+                    continue; // 계단실은 일반 성장 후보가 아니다 — 강제 삽입(TryInsertStairRoom) 전용(M9-5)
                 }
 
                 if (unmetOnly && usedCount[t] >= template.MinCount)
@@ -636,7 +882,8 @@ namespace EmptyHouse.MapGen.Core
         /// <param name="metricTemplates">달성률 계산용 전 층 평탄화 템플릿(방→템플릿 역참조가 전 층 방을 커버해야 한다).</param>
         /// <param name="usedCount">템플릿별 사용 횟수(브리지 복도 MaxCount 준수).</param>
         /// <param name="blueprint">대상 블루프린트.</param>
-        private void CarveLoopEdges(DeterministicRng rng, FloorGenParams floorParams, IReadOnlyList<RoomTemplateDef> templates, IReadOnlyList<RoomTemplateDef> metricTemplates, int[] usedCount, MapBlueprint blueprint)
+        /// <param name="roomStart">현재 층 방 구간 시작 인덱스(층 스코프 달성률 집계 기준 — M9-5).</param>
+        private void CarveLoopEdges(DeterministicRng rng, FloorGenParams floorParams, IReadOnlyList<RoomTemplateDef> templates, IReadOnlyList<RoomTemplateDef> metricTemplates, int[] usedCount, MapBlueprint blueprint, int roomStart)
         {
             // 후보 전수 수집 — 방·소켓 인덱스 순(결정론).
             // (전역 셀, 월드 방향) → 미사용 소켓 색인을 먼저 만들어 O(R·S) 조회로 짝을 찾는다(구 O(R²·S²) 쌍대조 대체).
@@ -746,7 +993,7 @@ namespace EmptyHouse.MapGen.Core
 
             Shuffle(rng, pool);
 
-            float achieved = CycleMetrics.ComputeCycleRoomPercent(blueprint, metricTemplates);
+            float achieved = CycleMetrics.ComputeCycleRoomPercent(blueprint, metricTemplates, roomStart);
             for (int p = 0; p < pool.Count && achieved < floorParams.CycleRoomPercent; p++)
             {
                 bool adopted;
@@ -766,7 +1013,7 @@ namespace EmptyHouse.MapGen.Core
 
                 if (adopted)
                 {
-                    achieved = CycleMetrics.ComputeCycleRoomPercent(blueprint, metricTemplates);
+                    achieved = CycleMetrics.ComputeCycleRoomPercent(blueprint, metricTemplates, roomStart);
                 }
             }
         }

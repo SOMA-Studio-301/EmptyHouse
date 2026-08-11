@@ -61,6 +61,12 @@ namespace EmptyHouse.MapGen.Core
                     continue;
                 }
 
+                // 수직 간선(계단)은 자물쇠 배제 — v2.0 전 수직 상시 개방(Q4). 소켓 없는 간선(-2)이라 문틀도 없다
+                if (blueprint.IsVerticalEdge(edge))
+                {
+                    continue;
+                }
+
                 HashSet<int> front = ReachabilityAnalyzer.ComputeReachableWithEdgeBlocked(blueprint, e);
                 if (front.Count == roomCount)
                 {

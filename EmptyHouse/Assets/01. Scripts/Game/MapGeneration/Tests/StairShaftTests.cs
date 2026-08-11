@@ -1,0 +1,232 @@
+using System.Collections.Generic;
+using EmptyHouse.MapGen.Runtime;
+using NUnit.Framework;
+
+namespace EmptyHouse.MapGen.Core.Tests
+{
+    /// <summary>
+    /// 계단 샤프트(M9-5 SSA) — 3층(B1·1F·2F) 블루프린트 생성이 성공하고,
+    /// 샤프트 좌표가 전 층 일치하며, 이격 제약과 수직 간선 규약이 지켜지는지 검증한다.
+    /// </summary>
+    public sealed class StairShaftTests
+    {
+        /// <summary>3층 테스트 Plan — 시드 층(1F) = 실측 카탈로그 + 계단실, B1·2F = ID 접미사 사본 + 각 층 계단실.</summary>
+        /// <param name="seed">확정 시드.</param>
+        /// <returns>3층 Plan.</returns>
+        private static MapGenPlan ThreeFloorPlan(int seed)
+        {
+            List<RoomTemplateDef> catalog = MapTemplateCatalog.Create();
+            var genParams = new MapGenParams { Seed = seed };
+
+            var seedTemplates = new List<RoomTemplateDef>(catalog) { StairTemplate("stair_f0") };
+            var floors = new[]
+            {
+                new FloorTemplateSet { FloorIndex = 0, ThemeId = "hall", Templates = seedTemplates.ToArray() },
+                new FloorTemplateSet { FloorIndex = 1, ThemeId = "hall", Templates = CloneForFloor(catalog, "_f1", "stair_f1") },
+                new FloorTemplateSet { FloorIndex = -1, ThemeId = "hall", Templates = CloneForFloor(catalog, "_b1", "stair_b1") },
+            };
+
+            var floorParams = new[]
+            {
+                new FloorGenParams { FloorIndex = 0, ThemeId = "hall", RoomsTotalMin = 9, RoomsTotalMax = 11, CycleRoomPercent = 60, CorridorLinkPercent = 100, CorridorChainMax = 3 },
+                new FloorGenParams { FloorIndex = 1, ThemeId = "hall", RoomsTotalMin = 6, RoomsTotalMax = 8, CycleRoomPercent = 60, CorridorLinkPercent = 100, CorridorChainMax = 3 },
+                new FloorGenParams { FloorIndex = -1, ThemeId = "hall", RoomsTotalMin = 6, RoomsTotalMax = 8, CycleRoomPercent = 60, CorridorLinkPercent = 100, CorridorChainMax = 3 },
+            };
+
+            return MapGenPlan.Compose(genParams, floorParams, floors);
+        }
+
+        /// <summary>계단실 템플릿 — 3×3, room_3x3 소켓 위상 재사용(D1 — 소켓 정렬 불변식 자동 충족).</summary>
+        /// <param name="id">템플릿 ID.</param>
+        /// <returns>계단실 서술자.</returns>
+        private static RoomTemplateDef StairTemplate(string id)
+        {
+            return new RoomTemplateDef
+            {
+                TemplateId = id,
+                WidthCells = 3,
+                HeightCells = 3,
+                AllowedFloors = FloorMask.F1,
+                MinCount = 0,
+                MaxCount = 3, // ShaftCountMax 상한 — 층당 최대 3개
+                IsStairAnchor = true,
+                Sockets = new[]
+                {
+                    new SocketDef { Id = 0, LocalCell = new CellCoord(1, 0), Direction = SocketDirection.South },
+                    new SocketDef { Id = 1, LocalCell = new CellCoord(1, 2), Direction = SocketDirection.North },
+                    new SocketDef { Id = 2, LocalCell = new CellCoord(0, 1), Direction = SocketDirection.West },
+                    new SocketDef { Id = 3, LocalCell = new CellCoord(2, 1), Direction = SocketDirection.East },
+                },
+                Markers = new MarkerDef[0],
+            };
+        }
+
+        /// <summary>비시드 층 템플릿 세트 — 입구 제외 카탈로그 사본(ID 접미사·MinCount 0) + 그 층 계단실.</summary>
+        /// <param name="catalog">원천 카탈로그.</param>
+        /// <param name="suffix">TemplateId 접미사(전 층 유일 제약).</param>
+        /// <param name="stairId">계단실 ID.</param>
+        /// <returns>층 템플릿 배열.</returns>
+        private static RoomTemplateDef[] CloneForFloor(List<RoomTemplateDef> catalog, string suffix, string stairId)
+        {
+            var result = new List<RoomTemplateDef>();
+            for (int t = 0; t < catalog.Count; t++)
+            {
+                if (catalog[t].IsEntranceAnchor)
+                {
+                    continue; // 입구는 시드 층 전용(X4 ②)
+                }
+
+                result.Add(new RoomTemplateDef
+                {
+                    TemplateId = catalog[t].TemplateId + suffix,
+                    WidthCells = catalog[t].WidthCells,
+                    HeightCells = catalog[t].HeightCells,
+                    AllowedFloors = catalog[t].AllowedFloors,
+                    Tags = catalog[t].Tags,
+                    MinCount = 0,
+                    MaxCount = catalog[t].MaxCount,
+                    IsCorridor = catalog[t].IsCorridor,
+                    Sockets = catalog[t].Sockets,
+                    Markers = catalog[t].Markers,
+                });
+            }
+
+            result.Add(StairTemplate(stairId));
+            return result.ToArray();
+        }
+
+        /// <summary>3층 블루프린트 생성이 성공한다(M9-5 수용 기준) — 층 3개·전 층 방 보유·샤프트 ≥1.</summary>
+        [Test]
+        public void Generate_3층_블루프린트가_성공한다()
+        {
+            int success = 0;
+            for (int seed = 1; seed <= 10; seed++)
+            {
+                MapGenResult result = new MapGenerator().Generate(ThreeFloorPlan(seed));
+                if (!result.Success)
+                {
+                    continue;
+                }
+
+                success++;
+                MapBlueprint blueprint = result.Blueprint;
+                Assert.That(blueprint.Floors.Count, Is.EqualTo(3), $"시드 {seed}: 층 3개가 아니다");
+                Assert.That(blueprint.Shafts.Count, Is.GreaterThanOrEqualTo(1), $"시드 {seed}: 샤프트 0개");
+                for (int f = 0; f < blueprint.Floors.Count; f++)
+                {
+                    Assert.That(blueprint.Floors[f].RoomCount, Is.GreaterThan(0), $"시드 {seed}: 층 {blueprint.Floors[f].FloorIndex} 방 0개");
+                }
+            }
+
+            Assert.That(success, Is.GreaterThanOrEqualTo(8), $"3층 생성 성공률 미달 — {success}/10 (리롤 상한 내 성립이 안정적이어야 한다)");
+        }
+
+        /// <summary>같은 샤프트는 전 층에서 같은 좌표·회전의 계단실 방을 가진다(SSA — 복사 정합).</summary>
+        [Test]
+        public void Generate_샤프트_좌표가_전_층_일치한다()
+        {
+            MapGenResult result = FirstSuccess(out int seed);
+            MapBlueprint blueprint = result.Blueprint;
+            foreach (StairShaft shaft in blueprint.Shafts)
+            {
+                var matches = new List<BlueprintRoom>();
+                for (int r = 0; r < blueprint.Rooms.Count; r++)
+                {
+                    BlueprintRoom room = blueprint.Rooms[r];
+                    if (room.Cell.X == shaft.Cell.X && room.Cell.Y == shaft.Cell.Y && room.Rotation == shaft.Rotation
+                        && FlatTemplate(blueprint, r).IsStairAnchor)
+                    {
+                        matches.Add(room);
+                    }
+                }
+
+                Assert.That(matches.Count, Is.EqualTo(blueprint.Floors.Count),
+                    $"시드 {seed}: 샤프트 {shaft.ShaftId} 좌표({shaft.Cell.X},{shaft.Cell.Y})의 계단실이 층 수({blueprint.Floors.Count})만큼 없다({matches.Count})");
+                var seenFloors = new HashSet<int>();
+                foreach (BlueprintRoom room in matches)
+                {
+                    Assert.That(seenFloors.Add(room.FloorIndex), Is.True, $"시드 {seed}: 같은 층에 같은 좌표 계단실 중복");
+                }
+            }
+        }
+
+        /// <summary>샤프트끼리 최소 이격(체비셰프)을 지킨다.</summary>
+        [Test]
+        public void Generate_샤프트_이격이_지켜진다()
+        {
+            MapGenResult result = FirstSuccess(out int seed);
+            MapBlueprint blueprint = result.Blueprint;
+            int minSep = new MapGenParams().ShaftMinSeparationCells;
+            for (int a = 0; a < blueprint.Shafts.Count; a++)
+            {
+                for (int b = a + 1; b < blueprint.Shafts.Count; b++)
+                {
+                    int dx = System.Math.Abs(blueprint.Shafts[a].Cell.X - blueprint.Shafts[b].Cell.X);
+                    int dy = System.Math.Abs(blueprint.Shafts[a].Cell.Y - blueprint.Shafts[b].Cell.Y);
+                    Assert.That(System.Math.Max(dx, dy), Is.GreaterThanOrEqualTo(minSep),
+                        $"시드 {seed}: 샤프트 {a}·{b} 이격 위반");
+                }
+            }
+        }
+
+        /// <summary>수직 간선 규약 — 소켓 -2·항상 개방·자물쇠 없음·RoomA 가 아래층. 층별 수직 연결 존재(패스5와 동일 기준).</summary>
+        [Test]
+        public void Generate_수직_간선_규약이_지켜진다()
+        {
+            MapGenResult result = FirstSuccess(out int seed);
+            MapBlueprint blueprint = result.Blueprint;
+            int verticalCount = 0;
+            for (int e = 0; e < blueprint.Edges.Count; e++)
+            {
+                BlueprintEdge edge = blueprint.Edges[e];
+                if (!blueprint.IsVerticalEdge(edge))
+                {
+                    continue;
+                }
+
+                verticalCount++;
+                Assert.That(edge.SocketA, Is.EqualTo(-2), $"시드 {seed}: 수직 간선 e{e} SocketA != -2");
+                Assert.That(edge.SocketB, Is.EqualTo(-2), $"시드 {seed}: 수직 간선 e{e} SocketB != -2");
+                Assert.That(edge.State, Is.EqualTo(EdgeState.OpenPassage), $"시드 {seed}: 수직 간선 e{e} 가 개방이 아니다(Q4)");
+                Assert.That(edge.LockNumber, Is.EqualTo(0), $"시드 {seed}: 수직 간선 e{e} 에 자물쇠");
+                Assert.That(blueprint.Rooms[edge.RoomA].FloorIndex, Is.LessThan(blueprint.Rooms[edge.RoomB].FloorIndex),
+                    $"시드 {seed}: 수직 간선 e{e} RoomA 가 아래층이 아니다");
+                Assert.That(System.Math.Abs(blueprint.Rooms[edge.RoomA].FloorIndex - blueprint.Rooms[edge.RoomB].FloorIndex), Is.EqualTo(1),
+                    $"시드 {seed}: 수직 간선 e{e} 가 인접 층을 건너뛴다");
+            }
+
+            // 샤프트 × (층 수 - 1) 개의 수직 간선 — 전 층 관통 규약(v2)
+            Assert.That(verticalCount, Is.EqualTo(blueprint.Shafts.Count * (blueprint.Floors.Count - 1)),
+                $"시드 {seed}: 수직 간선 수({verticalCount})가 샤프트({blueprint.Shafts.Count}) × 층간({blueprint.Floors.Count - 1})과 다르다");
+        }
+
+        /// <summary>시드 1부터 첫 성공 결과를 가져온다(테스트 픽스처 공용).</summary>
+        /// <param name="seed">성공한 시드(출력).</param>
+        /// <returns>성공 결과.</returns>
+        private static MapGenResult FirstSuccess(out int seed)
+        {
+            for (seed = 1; seed <= 10; seed++)
+            {
+                MapGenResult result = new MapGenerator().Generate(ThreeFloorPlan(seed));
+                if (result.Success)
+                {
+                    return result;
+                }
+            }
+
+            Assert.Fail("시드 1~10 전부 생성 실패");
+            return null;
+        }
+
+        /// <summary>방의 평탄화 템플릿을 TemplateIndex 로 역참조한다.</summary>
+        /// <param name="blueprint">대상 블루프린트.</param>
+        /// <param name="room">방 인덱스.</param>
+        /// <returns>템플릿 서술자.</returns>
+        private static RoomTemplateDef FlatTemplate(MapBlueprint blueprint, int room)
+        {
+            // ThreeFloorPlan 과 같은 순서로 재구성 — TemplateIndex 는 평탄화 테이블 기준이라 Plan 재조립로 역참조한다
+            MapGenPlan plan = ThreeFloorPlan(blueprint.Meta.Seed);
+            return plan.FlatTemplates[blueprint.Rooms[room].TemplateIndex];
+        }
+    }
+}
