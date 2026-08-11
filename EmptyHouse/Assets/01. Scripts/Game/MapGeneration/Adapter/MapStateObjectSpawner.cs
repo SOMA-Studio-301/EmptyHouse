@@ -60,7 +60,7 @@ namespace EmptyHouse.MapGen.Runtime
             }
 
             MapBlueprint blueprint = driver.LocalBlueprint;
-            List<RoomTemplateDef> templates = MapTemplateCatalog.Create();
+            List<RoomTemplateDef> templates = prefabRegistry.CreateTemplates(); // 템플릿 단일 출처 = 레지스트리 SO(M9-3) — 드라이버 재생성과 같은 목록
             CollectItemAnchors(blueprint);
             SpawnDoors(blueprint, templates);
             SpawnReturnExits(blueprint);

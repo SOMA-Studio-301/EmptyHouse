@@ -18,6 +18,7 @@ namespace EmptyHouse.EditorTools
     public static class MapGenAbDump
     {
         private const string paramsAssetPath = "Assets/03. ScriptableObjects/MapGen/SO_MapGenParams.asset"; // 파라미터 단일 출처
+        private const string registryAssetPath = "Assets/03. ScriptableObjects/MapGen/SO_MapPrefabRegistry.asset"; // 템플릿 단일 출처(M9-3)
 
         /// <summary>
         /// 시드 1~seedCount 의 덤프를 outDir 에 seed_{n:0000}.txt 로 기록한다.
@@ -30,13 +31,14 @@ namespace EmptyHouse.EditorTools
             Directory.CreateDirectory(outDir);
             var generator = new MapGenerator();
             var paramsAsset = AssetDatabase.LoadAssetAtPath<MapGenParamsSO>(paramsAssetPath);
+            var registry = AssetDatabase.LoadAssetAtPath<MapPrefabRegistrySO>(registryAssetPath);
             int ok = 0;
             int fail = 0;
             for (int seed = 1; seed <= seedCount; seed++)
             {
                 MapGenParams genParams = JsonUtility.FromJson<MapGenParams>(JsonUtility.ToJson(paramsAsset.Params));
                 genParams.Seed = seed;
-                MapGenResult result = generator.Generate(genParams, MapTemplateCatalog.Create());
+                MapGenResult result = generator.Generate(genParams, registry.CreateTemplates());
                 string path = Path.Combine(outDir, $"seed_{seed:0000}.txt");
                 if (!result.Success)
                 {

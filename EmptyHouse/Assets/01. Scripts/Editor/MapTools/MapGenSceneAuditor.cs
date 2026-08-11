@@ -42,7 +42,8 @@ namespace EmptyHouse.MapGen.Editor
             }
 
             var generator = new MapGenerator();
-            List<RoomTemplateDef> templates = MapTemplateCatalog.Create();
+            var registry = AssetDatabase.LoadAssetAtPath<MapPrefabRegistrySO>("Assets/03. ScriptableObjects/MapGen/SO_MapPrefabRegistry.asset");
+            List<RoomTemplateDef> templates = registry.CreateTemplates(); // 빌더와 같은 원천(M9-3) — 재생성 대조가 성립하려면 같은 목록이어야 한다
             int total = 0;
             for (int i = 0; i < root.transform.childCount; i++)
             {

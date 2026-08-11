@@ -22,6 +22,7 @@ namespace EmptyHouse.EditorTools
         private const string assembledChannelPath = eventFolder + "/SO_Event_MapAssembledServer.asset"; // 조립 완료(X7) 채널
         private const string navReadyChannelPath = eventFolder + "/SO_Event_MapNavMeshReadyServer.asset"; // 베이크 완료 채널
         private const string registryPath = mapGenFolder + "/SO_MapPrefabRegistry.asset"; // 프리팹 레지스트리
+        private const string templatesFolder = mapGenFolder + "/Templates"; // 방 템플릿 SO 위치(M9-3)
         private const string genParamsPath = mapGenFolder + "/SO_MapGenParams.asset"; // 생성 파라미터 단일 출처(런타임·에디터 프리뷰 공유)
         private const string managersPrefabPath = "Assets/02. Prefab/GameScene/=====MANAGERS=====.prefab"; // 상주 매니저 프리팹
         private const string managerChildName = "MapGenManager"; // MANAGERS 하위 자식 이름
@@ -34,7 +35,7 @@ namespace EmptyHouse.EditorTools
             "Assets/02. Prefab/Player/Player_UnityChan.prefab",
         };
 
-        /// <summary>TemplateId → 기본(폴백) 방 프리팹 경로 — **레지스트리 에셋 생성 전용**(생성 후엔 SO_MapPrefabRegistry 가 원천). 유일하게 남은 경로표로, M9-3 템플릿 SO 이관 때 소멸 예정.</summary>
+        /// <summary>TemplateId → 기본(폴백) 방 프리팹 경로 — **템플릿 SO 최초 생성 시드 전용**(생성 후엔 RoomTemplateSO.Prefab 이 원천이라 재실행해도 덮지 않는다).</summary>
         private static readonly (string id, string path)[] roomPrefabPaths =
         {
             ("entrance_6x6", "Assets/02. Prefab/Map/DecoratedRooms/Entrance/Entrance-EmptyRoom-6x6.prefab"),
@@ -109,7 +110,7 @@ namespace EmptyHouse.EditorTools
             return asset;
         }
 
-        /// <summary>프리팹 레지스트리를 확보하고 방·봉인 벽·기둥을 채운다 — 문·스폰 프리팹 기존 값은 보존한다.</summary>
+        /// <summary>프리팹 레지스트리를 확보하고 템플릿 SO·봉인 벽·기둥을 채운다 — 문·스폰 프리팹 기존 값은 보존한다.</summary>
         /// <returns>레지스트리 에셋.</returns>
         private static MapPrefabRegistrySO EnsureRegistry()
         {
@@ -122,20 +123,7 @@ namespace EmptyHouse.EditorTools
                 Log.D($"[MapGenRuntimeSetup] 레지스트리 생성 {registryPath}");
             }
 
-            var rooms = new RoomPrefabEntry[roomPrefabPaths.Length];
-            for (int i = 0; i < roomPrefabPaths.Length; i++)
-            {
-                var prefab = AssetDatabase.LoadAssetAtPath<GameObject>(roomPrefabPaths[i].path);
-                if (prefab == null)
-                {
-                    Log.E($"[MapGenRuntimeSetup] 방 프리팹 없음: {roomPrefabPaths[i].path}");
-                }
-
-                rooms[i] = new RoomPrefabEntry { TemplateId = roomPrefabPaths[i].id, Prefab = prefab };
-            }
-
-            FillVariantPools(rooms);
-            registry.RoomPrefabs = rooms;
+            registry.Templates = EnsureTemplates();
             registry.SealWallPrefab = AssetDatabase.LoadAssetAtPath<GameObject>(sealWallPath);
             registry.CornerColumnPrefab = AssetDatabase.LoadAssetAtPath<GameObject>(cornerColumnPath);
             registry.CellMeters = MapTemplateCatalog.CellMeters;
@@ -154,13 +142,65 @@ namespace EmptyHouse.EditorTools
         }
 
         /// <summary>
-        /// DecoratedRooms 사이즈 폴더를 스캔해 변형 풀(Variants)을 채운다 — 경로 오름차순 정렬이 선택 순서라
-        /// 결정론의 일부다(전 클라 같은 빌드 = 같은 풀). 부적합 프리팹은 린트로 걸러 풀에서 제외한다.
+        /// 방 템플릿 SO 를 확보한다(M9-3) — 카탈로그 픽스처 순서대로 SO_Template_{id}.asset 을 만들고(최초 1회 시드),
+        /// 기존 에셋의 **코어 데이터·기본 프리팹은 보존**한다(SO 가 진실 — 재실행이 튜닝을 덮지 않는다).
+        /// 변형 풀(Variants)만 매 실행 스캔 산출물로 갱신하고, 카탈로그와의 코어 데이터 드리프트는 경고로 보고한다
+        /// (골든 픽스처와 실생성이 갈렸다는 신호 — 의도된 변경이면 카탈로그 픽스처·골든도 갱신할 것).
         /// </summary>
-        /// <param name="rooms">채울 방 엔트리 배열.</param>
-        private static void FillVariantPools(RoomPrefabEntry[] rooms)
+        /// <returns>카탈로그 순서의 템플릿 SO 배열(= 코어 후보 순서).</returns>
+        private static RoomTemplateSO[] EnsureTemplates()
         {
-            List<RoomTemplateDef> templates = MapTemplateCatalog.Create();
+            EnsureFolder(templatesFolder);
+            List<RoomTemplateDef> defs = MapTemplateCatalog.Create();
+            var result = new RoomTemplateSO[defs.Count];
+            for (int i = 0; i < defs.Count; i++)
+            {
+                string path = $"{templatesFolder}/SO_Template_{defs[i].TemplateId}.asset";
+                var so = AssetDatabase.LoadAssetAtPath<RoomTemplateSO>(path);
+                if (so == null)
+                {
+                    so = ScriptableObject.CreateInstance<RoomTemplateSO>();
+                    so.CopyFrom(defs[i]);
+                    AssetDatabase.CreateAsset(so, path);
+                    Log.D($"[MapGenRuntimeSetup] 템플릿 SO 생성 {path}");
+                }
+                else if (!RoomTemplateSO.DefEquals(so.ToDef(), defs[i]))
+                {
+                    Log.W($"[MapGenRuntimeSetup] 템플릿 드리프트 — {defs[i].TemplateId} 의 SO 코어 데이터가 카탈로그 픽스처와 다르다. " +
+                          "SO 가 실생성 진실이고 골든은 픽스처 기준이라 회귀 게이트가 실생성을 못 지킨다 — 의도된 변경이면 카탈로그·골든 갱신 필요");
+                }
+
+                if (so.Prefab == null)
+                {
+                    foreach ((string id, string prefabPath) in roomPrefabPaths)
+                    {
+                        if (id == defs[i].TemplateId)
+                        {
+                            so.Prefab = AssetDatabase.LoadAssetAtPath<GameObject>(prefabPath);
+                        }
+                    }
+
+                    if (so.Prefab == null)
+                    {
+                        Log.E($"[MapGenRuntimeSetup] 기본 프리팹 시드 실패: {defs[i].TemplateId}");
+                    }
+                }
+
+                result[i] = so;
+            }
+
+            FillVariantPools(result, defs);
+            return result;
+        }
+
+        /// <summary>
+        /// DecoratedRooms 사이즈 폴더를 스캔해 템플릿 SO 의 변형 풀(Variants)을 채운다 — 경로 오름차순 정렬이
+        /// 선택 순서라 결정론의 일부다(전 클라 같은 에셋 = 같은 풀). 부적합 프리팹은 린트로 걸러 풀에서 제외한다.
+        /// </summary>
+        /// <param name="templateAssets">채울 템플릿 SO 배열.</param>
+        /// <param name="templates">코어 템플릿 목록(린트 실측 대조용).</param>
+        private static void FillVariantPools(RoomTemplateSO[] templateAssets, List<RoomTemplateDef> templates)
+        {
             var pools = new Dictionary<string, List<GameObject>>();
             foreach ((string folder, string[] templateIds) in variantFolders)
             {
@@ -196,11 +236,43 @@ namespace EmptyHouse.EditorTools
                 }
             }
 
-            for (int i = 0; i < rooms.Length; i++)
+            for (int i = 0; i < templateAssets.Length; i++)
             {
-                rooms[i].Variants = pools.TryGetValue(rooms[i].TemplateId, out List<GameObject> matched) ? matched.ToArray() : new GameObject[0];
-                Log.D($"[MapGenRuntimeSetup] 변형 풀 {rooms[i].TemplateId}: {rooms[i].Variants.Length}종{(rooms[i].Variants.Length == 0 ? " — 기본 프리팹 폴백" : string.Empty)}");
+                templateAssets[i].Variants = pools.TryGetValue(templateAssets[i].TemplateId, out List<GameObject> matched) ? matched.ToArray() : new GameObject[0];
+                EditorUtility.SetDirty(templateAssets[i]);
+                Log.D($"[MapGenRuntimeSetup] 변형 풀 {templateAssets[i].TemplateId}: {templateAssets[i].Variants.Length}종{(templateAssets[i].Variants.Length == 0 ? " — 기본 프리팹 폴백" : string.Empty)}");
             }
+        }
+
+        /// <summary>
+        /// 템플릿 SO 추출본과 카탈로그 픽스처의 동기 상태를 검사한다 — 골든(픽스처 기준)이 실생성(SO 기준)을
+        /// 지키려면 둘이 같아야 한다. unity-cli exec 로도 호출 가능한 진단 진입점.
+        /// </summary>
+        /// <returns>검사 결과 요약 문자열.</returns>
+        public static string ValidateTemplateSync()
+        {
+            var registry = AssetDatabase.LoadAssetAtPath<MapPrefabRegistrySO>(registryPath);
+            if (registry == null || registry.Templates == null)
+            {
+                return "[MapGenRuntimeSetup] 레지스트리/템플릿 미생성 — 셋업을 먼저 실행";
+            }
+
+            List<RoomTemplateDef> fromSo = registry.CreateTemplates();
+            List<RoomTemplateDef> fixture = MapTemplateCatalog.Create();
+            if (fromSo.Count != fixture.Count)
+            {
+                return $"[MapGenRuntimeSetup] 동기 실패 — 템플릿 수 SO {fromSo.Count} vs 픽스처 {fixture.Count}";
+            }
+
+            for (int i = 0; i < fixture.Count; i++)
+            {
+                if (!RoomTemplateSO.DefEquals(fromSo[i], fixture[i]))
+                {
+                    return $"[MapGenRuntimeSetup] 동기 실패 — 인덱스 {i}({fixture[i].TemplateId}) 코어 데이터 불일치";
+                }
+            }
+
+            return $"[MapGenRuntimeSetup] 동기 확인 — 템플릿 {fixture.Count}종 SO == 카탈로그 픽스처(순서 포함)";
         }
 
         /// <summary>

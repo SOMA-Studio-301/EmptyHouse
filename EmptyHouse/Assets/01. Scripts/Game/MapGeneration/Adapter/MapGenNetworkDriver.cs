@@ -56,7 +56,7 @@ namespace EmptyHouse.MapGen.Runtime
             Log.D($"[MapGenNetworkDriver] 시드 확정 {confirmedSeed} (X8) — 재현 키");
 
             // 복제 전 서버 선검증 — 실패 시드는 뿌리지 않는다(X2: 폴백 맵 없음)
-            MapGenResult result = new MapGenerator().Generate(SnapshotParams(confirmedSeed), MapTemplateCatalog.Create());
+            MapGenResult result = new MapGenerator().Generate(SnapshotParams(confirmedSeed), prefabRegistry.CreateTemplates());
             if (!result.Success)
             {
                 Log.E($"[MapGenNetworkDriver] 생성 실패(X2) 시드={confirmedSeed} 리롤={result.RerollCount} — {string.Join(" / ", result.FailReasons)}");
@@ -103,7 +103,7 @@ namespace EmptyHouse.MapGen.Runtime
                 return; // 미확정 전이·중복 호출(스폰 즉시 처리 + OnValueChanged 이중 진입) 무시
             }
 
-            List<RoomTemplateDef> templates = MapTemplateCatalog.Create();
+            List<RoomTemplateDef> templates = prefabRegistry.CreateTemplates(); // 템플릿 단일 출처 = 레지스트리 SO(M9-3) — 전 클라 같은 에셋 = 같은 목록(AC-02)
             MapGenResult result = new MapGenerator().Generate(SnapshotParams(current), templates);
             if (!result.Success)
             {

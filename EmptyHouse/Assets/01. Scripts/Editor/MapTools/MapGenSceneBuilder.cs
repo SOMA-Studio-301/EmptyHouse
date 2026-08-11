@@ -57,8 +57,8 @@ namespace EmptyHouse.MapGen.Editor
 
             var root = new GameObject(rootName);
             var generator = new MapGenerator();
-            List<RoomTemplateDef> templates = MapTemplateCatalog.Create();
             var registry = AssetDatabase.LoadAssetAtPath<MapPrefabRegistrySO>(registryPath);
+            List<RoomTemplateDef> templates = registry.CreateTemplates(); // 템플릿 단일 출처 = 레지스트리 SO(M9-3) — 런타임과 같은 목록
 
             int built = 0;
             int seed = baseSeed;

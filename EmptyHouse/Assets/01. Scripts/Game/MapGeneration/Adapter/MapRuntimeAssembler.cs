@@ -810,33 +810,17 @@ namespace EmptyHouse.MapGen.Runtime
         }
 
         /// <summary>
-        /// 레지스트리에서 템플릿 ID 의 배치 프리팹을 고른다 — 변형 풀(Variants)이 있으면 시드 결정론 선택,
-        /// 비었으면 기본(Prefab) 폴백(미등록 = 데이터 결함 — NRE 표면화).
+        /// 레지스트리의 템플릿 SO 에서 배치 프리팹을 고른다(M9-3) — 변형 풀이 있으면 시드 결정론 선택,
+        /// 비었으면 기본(Prefab) 폴백(미등재 템플릿 = 데이터 결함 — NRE 표면화).
         /// </summary>
         /// <param name="registry">프리팹 레지스트리.</param>
         /// <param name="templateId">템플릿 ID.</param>
         /// <param name="seed">확정 시드.</param>
         /// <param name="roomIndex">블루프린트 방 인덱스.</param>
-        /// <returns>배치할 프리팹 — 미등록이면 null.</returns>
+        /// <returns>배치할 프리팹.</returns>
         private static GameObject SelectRoomPrefab(MapPrefabRegistrySO registry, string templateId, int seed, int roomIndex)
         {
-            for (int i = 0; i < registry.RoomPrefabs.Length; i++)
-            {
-                if (registry.RoomPrefabs[i].TemplateId != templateId)
-                {
-                    continue;
-                }
-
-                GameObject[] variants = registry.RoomPrefabs[i].Variants;
-                if (variants != null && variants.Length > 0)
-                {
-                    return variants[VariantSelector.RoomVariantIndex(seed, roomIndex, variants.Length)];
-                }
-
-                return registry.RoomPrefabs[i].Prefab;
-            }
-
-            return null;
+            return registry.FindTemplate(templateId).SelectPrefab(seed, roomIndex);
         }
 
         /// <summary>인스턴스의 바닥 타일(테마 바닥 토큰 매칭) 합산 월드 바운드 — 없으면 전체 렌더러 바운드 폴백.</summary>

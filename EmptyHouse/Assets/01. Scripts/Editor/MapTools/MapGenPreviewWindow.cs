@@ -370,8 +370,10 @@ namespace EmptyHouse.MapGen.Editor
             MapGenParams snapshot = JsonUtility.FromJson<MapGenParams>(JsonUtility.ToJson(workingParams));
             snapshot.Seed = lastConfirmedSeed;
 
-            // 기본 = 프리팹 실측 세트 — 씬 빌더(MapGenSceneBuilder)와 같은 재료로 봐야 모양 조정이 유효하다
-            List<RoomTemplateDef> templates = templateSetIndex == 0 ? MapTemplateCatalog.Create() : DevTemplateSet.Create();
+            // 기본 = 실측 세트(레지스트리 템플릿 SO — M9-3) — 씬 빌더·런타임과 같은 재료로 봐야 모양 조정이 유효하다
+            List<RoomTemplateDef> templates = templateSetIndex == 0
+                ? AssetDatabase.LoadAssetAtPath<MapPrefabRegistrySO>("Assets/03. ScriptableObjects/MapGen/SO_MapPrefabRegistry.asset").CreateTemplates()
+                : DevTemplateSet.Create();
             ApplyWanderOverrides(templates);
             lastResult = generator.Generate(snapshot, templates);
             lastTemplates = templates;
