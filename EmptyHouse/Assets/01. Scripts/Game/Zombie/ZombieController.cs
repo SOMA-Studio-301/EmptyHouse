@@ -50,7 +50,10 @@ public class ZombieController : NetworkBehaviour
     private Vector3 homePosition;
     private IZombiePerceptionSource currentTargetSource;
     private Transform currentTarget;
-    private ulong currentTargetNetworkObjectId;
+
+    // 타겟의 NetworkObjectId 는 복제한다 — ZombieThreatAudioDirector 가 "발각된 게 로컬 플레이어인가"를
+    // 클라이언트에서 판정해야 하기 때문이다(EH-34). 0 은 "타겟 없음"이다.
+    private readonly NetworkVariable<ulong> currentTargetNetworkObjectId = new NetworkVariable<ulong>(0UL, NetworkVariableReadPermission.Everyone, NetworkVariableWritePermission.Server);
     private bool hasTrackingStimulus;
     private bool hasTargetStimulus;
     private bool hadStimulusThisFrame;
@@ -64,7 +67,7 @@ public class ZombieController : NetworkBehaviour
     public Vector3 LastKnownPosition => lastKnownPosition;
     public Transform CurrentTarget => currentTarget;
     public IZombiePerceptionSource CurrentTargetSource => currentTargetSource;
-    public ulong CurrentTargetNetworkObjectId => currentTargetNetworkObjectId;
+    public ulong CurrentTargetNetworkObjectId => currentTargetNetworkObjectId.Value;
     public float SuspicionValue => suspicion.Value;
     public bool IsLatched => suspicionLatched.Value;
     public ZombieStateKind CurrentState => stateKind.Value;
@@ -290,7 +293,7 @@ public class ZombieController : NetworkBehaviour
 
         currentTargetSource = target;
         currentTarget = target.Root;
-        currentTargetNetworkObjectId = target.NetworkObjectId;
+        currentTargetNetworkObjectId.Value = target.NetworkObjectId;
     }
 
     /// <summary>
@@ -322,7 +325,7 @@ public class ZombieController : NetworkBehaviour
 
         currentTargetSource = null;
         currentTarget = null;
-        currentTargetNetworkObjectId = 0UL;
+        currentTargetNetworkObjectId.Value = 0UL;
         hasTargetStimulus = false;
         suspicionLatched.Value = false;
     }
@@ -392,7 +395,7 @@ public class ZombieController : NetworkBehaviour
         stateKind.Value = leaderIsAttacking ? ZombieStateKind.Chase : leader.CurrentState;
         currentTargetSource = leader.CurrentTargetSource;
         currentTarget = leader.CurrentTarget;
-        currentTargetNetworkObjectId = leader.CurrentTargetNetworkObjectId;
+        currentTargetNetworkObjectId.Value = leader.CurrentTargetNetworkObjectId;
         lastKnownPosition = leader.LastKnownPosition;
         investigationStimulusDb = leader.InvestigationStimulusDb;
 

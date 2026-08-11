@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using Unity.Netcode;
 using UnityEngine;
 using Border.Core;
 using Border.Events;
@@ -7,13 +8,14 @@ using BorderAudio = Border.Audio;
 /// <summary>
 /// 좀비의 위협 수준을 읽어 추격 BGM 과 조우 스팅을 지휘한다. 씬에 하나만 둔다.
 ///
-/// 판단 근거는 좀비의 의심도·발각 여부다. 둘 다 NetworkVariable(ReadPermission.Everyone)이라
+/// 판단 근거는 좀비의 의심도·발각 여부·타겟이다. 모두 NetworkVariable(ReadPermission.Everyone)이라
 /// 각 클라이언트가 자기 화면의 연출을 스스로 굴린다 — 서버가 재생을 지시하지 않는다.
 /// 그래서 이 컴포넌트에는 서버 게이트가 없고, ZombieRuntimeRegistrySO 의 좀비 집합도
 /// 비서버 인스턴스까지 포함해야 한다(ZombieController.OnEnable).
 ///
-/// 의심도는 좀비별 스칼라일 뿐 "누구를 향한 의심인지"는 복제되지 않는다(currentTargetNetworkObjectId 는
-/// 서버 전용 필드다). 따라서 맵 전체 좀비를 훑는다 — 팀원이 쫓기는 중이어도 내 화면에 추격 BGM 이 깔린다.
+/// 연출은 "나를 노리는 좀비"에게만 반응한다(EH-34) — 좀비의 CurrentTargetNetworkObjectId 가
+/// 로컬 플레이어와 일치할 때만 위협으로 센다. 타겟 없는 의심(문턱 미만 소음 조사)은 아무에게도
+/// BGM 을 깔지 않는다. 아직 아무도 발각되지 않았고, 그 소음이 누구 것인지는 복제되지 않기 때문이다.
 /// </summary>
 public class ZombieThreatAudioDirector : MonoBehaviour
 {
@@ -97,19 +99,25 @@ public class ZombieThreatAudioDirector : MonoBehaviour
         ReleaseThreatAudio();
     }
 
-    /// <summary>살아 있는 좀비를 훑어 의심 중인 개체와 발각에 성공한 개체가 있는지 본다.</summary>
-    /// <param name="anySuspicion">의심도가 0 을 넘긴 좀비가 하나라도 있는가.</param>
-    /// <param name="anyDiscovery">플레이어를 발각(latch)한 좀비가 하나라도 있는가.</param>
+    /// <summary>살아 있는 좀비를 훑어 로컬 플레이어를 의심 중인 개체와 발각에 성공한 개체가 있는지 본다.</summary>
+    /// <param name="anySuspicion">로컬 플레이어를 타겟으로 의심도가 0 을 넘긴 좀비가 하나라도 있는가.</param>
+    /// <param name="anyDiscovery">로컬 플레이어를 발각(latch)한 좀비가 하나라도 있는가.</param>
     private void ScanThreat(out bool anySuspicion, out bool anyDiscovery)
     {
         anySuspicion = false;
         anyDiscovery = false;
+
+        // 로컬 플레이어가 아직 스폰 전이면(접속 직후·씬 전환) 위협을 판정할 기준이 없다.
+        if (!TryGetLocalPlayerObjectId(out ulong localPlayerId)) return;
 
         IReadOnlyList<ZombieController> zombies = zombieRegistry.Zombies;
         for (int i = 0; i < zombies.Count; i++)
         {
             ZombieController zombie = zombies[i];
             if (zombie == null || !zombie.IsSpawned) continue;
+
+            // 나를 노리는 좀비만 위협이다(EH-34). 팀원을 쫓는 좀비의 의심도·latch 는 내 연출과 무관하다.
+            if (zombie.CurrentTargetNetworkObjectId != localPlayerId) continue;
 
             if (zombie.SuspicionValue > SuspicionEpsilon) anySuspicion = true;
 
@@ -122,6 +130,26 @@ public class ZombieThreatAudioDirector : MonoBehaviour
                 return; // 둘 다 잡혔으니 나머지는 볼 것이 없다
             }
         }
+    }
+
+    /// <summary>
+    /// 로컬 플레이어 NetworkObject 의 id 를 얻는다. 좀비의 타겟 id(IZombiePerceptionSource.NetworkObjectId)와
+    /// 같은 좌표계라 그대로 비교할 수 있다.
+    /// </summary>
+    /// <param name="localPlayerId">로컬 플레이어의 NetworkObjectId. 실패 시 0.</param>
+    /// <returns>로컬 플레이어가 스폰되어 있으면 true.</returns>
+    private static bool TryGetLocalPlayerObjectId(out ulong localPlayerId)
+    {
+        localPlayerId = 0UL;
+
+        NetworkManager network = NetworkManager.Singleton;
+        NetworkObject player = network != null && network.LocalClient != null
+            ? network.LocalClient.PlayerObject
+            : null;
+        if (player == null || !player.IsSpawned) return false;
+
+        localPlayerId = player.NetworkObjectId;
+        return true;
     }
 
     /// <summary>
