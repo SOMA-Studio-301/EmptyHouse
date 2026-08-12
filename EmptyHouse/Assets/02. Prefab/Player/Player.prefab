@@ -27,6 +27,7 @@ GameObject:
   - component: {fileID: 5351568001240086071}
   - component: {fileID: 5582944470091195495}
   - component: {fileID: 910000000000000001}
+  - component: {fileID: 4389195631435188445}
   m_Layer: 0
   m_Name: Player
   m_TagString: Untagged
@@ -409,7 +410,6 @@ MonoBehaviour:
   emissionIntervalSeconds: 0.6
   movingSpeedThreshold: 0.05
   walkingDb: 20
-  crouchingDb: 8
   meterSampleChannel: {fileID: 11400000, guid: ade8c10254835274582e217562187b55, type: 2}
   meterLevelChanged: {fileID: 11400000, guid: 921d962283ca85149a5299193c133801, type: 2}
   settings: {fileID: 11400000, guid: f98030f04d614a5aadd0118115f3237c, type: 2}
@@ -483,6 +483,19 @@ MonoBehaviour:
   disguiseGaugeChanged: {fileID: 11400000, guid: 85ccf9fc593c69d4f8582f3357839640, type: 2}
   maxGauge: 100
   drainPerSecond: 10
+--- !u!114 &4389195631435188445
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2490874660187570032}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: c915f3f32eb7d004d9508c78b99d3bb9, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::PlayerBodyVisibility
+  ShowTopMostFoldoutHeaderGroup: 1
 --- !u!1 &2490874660187570100
 GameObject:
   m_ObjectHideFlags: 0
