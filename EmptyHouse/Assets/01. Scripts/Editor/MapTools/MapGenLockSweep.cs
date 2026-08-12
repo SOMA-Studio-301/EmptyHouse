@@ -20,7 +20,6 @@ namespace EmptyHouse.EditorTools
         private const int baseSeed = 101; // 시작 시드(프리뷰와 동일 기준)
 
         /// <summary>시드 스윕을 돌려 자물쇠·지름길 지표를 콘솔에 요약한다.</summary>
-        [MenuItem("Tools/Map/LockSweepReport")]
         public static void Run()
         {
             Log.D(BuildReport());

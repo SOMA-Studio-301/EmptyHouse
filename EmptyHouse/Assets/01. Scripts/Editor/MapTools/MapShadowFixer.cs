@@ -35,7 +35,6 @@ namespace EmptyHouse.EditorTools
         /// <summary>
         /// 그림자 거리 상향 + 구조물 프리팹 TwoSided 일괄 적용 후, 씬에 남은 단면 구조물을 감사한다.
         /// </summary>
-        [MenuItem("Tools/Map/그림자 누광 수정 (TwoSided+거리)")]
         public static void Fix()
         {
             // ① Shadow Distance

@@ -29,7 +29,6 @@ namespace EmptyHouse.EditorTools
         private const float openSeconds = 1.0f; // 개방 소요 시간
 
         /// <summary>문 프리팹 컴포넌트·애니메이션·등재를 일괄 셋업한다(재실행 안전).</summary>
-        [MenuItem("Tools/Map/문 프리팹 셋업")]
         public static void Setup()
         {
             Log.D("[DoorPrefabSetup] Setup");

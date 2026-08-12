@@ -22,7 +22,6 @@ namespace EmptyHouse.MapGen.Editor
         /// <summary>
         /// 현재 씬의 GeneratedMaps 전체를 감사한다 — 맵 이름의 시드로 블루프린트를 결정론 재생성해 대조.
         /// </summary>
-        [MenuItem("Tools/Map/절차 맵 감사(현재 씬)")]
         public static void AuditActiveScene()
         {
             Log.D("[MapGenSceneAuditor] AuditActiveScene");

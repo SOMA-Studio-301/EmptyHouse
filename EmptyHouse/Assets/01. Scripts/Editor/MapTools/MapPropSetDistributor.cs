@@ -41,7 +41,6 @@ namespace EmptyHouse.EditorTools
         /// PropSets 씬의 사용자 제작 프랍셋을 Map의 같은 프리팹 방 인스턴스들에 분배 배치하고 저장한다.
         /// 기존 GeneratedProps는 먼저 제거한다(멱등).
         /// </summary>
-        [MenuItem("Tools/Map/프랍셋 분배 (PropSets → Map)")]
         public static void Distribute()
         {
             Scene map = EnsureMapScene();
@@ -73,7 +72,6 @@ namespace EmptyHouse.EditorTools
         /// <summary>
         /// GeneratedProps를 통째로 삭제해 원복하고 저장한다.
         /// </summary>
-        [MenuItem("Tools/Map/프랍셋 원복 (GeneratedProps 삭제)")]
         public static void Revert()
         {
             Scene map = EnsureMapScene();

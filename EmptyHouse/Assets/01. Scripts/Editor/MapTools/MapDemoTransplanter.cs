@@ -131,7 +131,6 @@ namespace EmptyHouse.EditorTools
         /// Room 전체를 테마별로 자동 배치한다(v3). Hallway는 비워 둔다.
         /// 구조물 필터/벽 스냅/천장 부착/통로 확보/고립 정리를 적용하고 씬을 저장한다.
         /// </summary>
-        [MenuItem("Tools/Map/자동 배치 (Room 전체, 통로 확보)")]
         public static void DecorateAllRooms()
         {
             Scene map = EnsureMapScene();

@@ -59,7 +59,6 @@ namespace EmptyHouse.EditorTools
         /// <summary>
         /// 문 조립체 무시/옵스터클 처리(프리팹+씬) 후 바닥 전용 베이크를 수행한다.
         /// </summary>
-        [MenuItem("Tools/Map/NavMesh 문 옵스터클 설치 + 리베이크")]
         public static void InstallDoorObstacles()
         {
             int prefabDone = 0;
@@ -147,7 +146,6 @@ namespace EmptyHouse.EditorTools
         /// 종이류·동적 루트 무영향 처리 → 바닥 태깅 → 씬 루트 "NavMesh" 서피스(전체 수집,
         /// 기본 Not Walkable)로 베이크한다.
         /// </summary>
-        [MenuItem("Tools/Map/NavMesh 바닥 전용 베이크")]
         public static void Bake()
         {
             var scene = UnityEditor.SceneManagement.EditorSceneManager.GetActiveScene();

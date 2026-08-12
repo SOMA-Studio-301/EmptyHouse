@@ -60,7 +60,6 @@ namespace EmptyHouse.EditorTools
         private const string cornerColumnPath = "Assets/04. Arts/Environment/HorrorPack/!Prefabs/Architectural/Hall_Props/Hall_Clumn_Large_6M.prefab"; // 이음 기둥
 
         /// <summary>채널·레지스트리·MANAGERS·플레이어 프리팹을 순서대로 셋업한다(재실행 안전).</summary>
-        [MenuItem("Tools/Map/런타임 어댑터 셋업")]
         public static void Setup()
         {
             Log.D("[MapGenRuntimeSetup] Setup");

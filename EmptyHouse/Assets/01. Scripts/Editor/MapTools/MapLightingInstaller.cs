@@ -57,7 +57,6 @@ namespace EmptyHouse.EditorTools
         // ── 진입점 ─────────────────────────────────────────────────
 
         /// <summary>모든 대상 프리팹에 조명을 설치한다(기존 Lighting_Auto는 교체).</summary>
-        [MenuItem("Tools/Map/조명 설치 (프리팹)")]
         public static void Install()
         {
             GameObject bulb = AssetDatabase.LoadAssetAtPath<GameObject>(bulbPrefabPath);
@@ -71,7 +70,6 @@ namespace EmptyHouse.EditorTools
         }
 
         /// <summary>모든 대상 프리팹의 Lighting_Auto를 제거해 원복한다.</summary>
-        [MenuItem("Tools/Map/조명 제거 (프리팹)")]
         public static void Uninstall()
         {
             int ok = 0;
