@@ -326,6 +326,18 @@ namespace EmptyHouse.MapGen.Editor
             {
                 BlueprintEdge edge = blueprint.Edges[e];
                 RoomTemplateDef templateA = cachedRoomTemplates[edge.RoomA];
+
+                if (edge.SocketA < 0)
+                {
+                    // 수직 간선(계단, SocketA/B = -2)은 실소켓이 없다 — FindSocket 은 null(NRE). 방 중심끼리 잇는다(M9).
+                    // 층 펼침(FloorSpread) 표시에서 층 섬 사이를 가로지르는 하늘색 선이 이것
+                    Rect stairA = RoomCanvasRect(blueprint.Rooms[edge.RoomA], templateA, canvasRect);
+                    Rect stairB = RoomCanvasRect(blueprint.Rooms[edge.RoomB], cachedRoomTemplates[edge.RoomB], canvasRect);
+                    Handles.color = new Color(0.3f, 0.85f, 0.95f);
+                    Handles.DrawAAPolyLine(3f, stairA.center, stairB.center);
+                    continue;
+                }
+
                 SocketDef socketA = FindSocket(templateA, edge.SocketA);
                 CellCoord worldA = CellMath.WorldCell(blueprint.Rooms[edge.RoomA], templateA, socketA.LocalCell);
                 Vector2 centerA = CellCenter(worldA, canvasRect);
