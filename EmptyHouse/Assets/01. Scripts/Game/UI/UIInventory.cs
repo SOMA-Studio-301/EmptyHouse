@@ -65,8 +65,6 @@ public class UIInventory : MonoBehaviour
     /// <param name="heldIndex">손이 가리키는 칸 인덱스. <see cref="PlayerInventory.BareHandIndex"/>(-1)면 전부 끈다.</param>
     public void SetHeldIndex(int heldIndex)
     {
-        Log.D($"[UIInventory] SetHeldIndex {heldIndex}");
-
         for (int i = 0; i < slotViews.Length; i++)
         {
             slotViews[i].SetHighlight(i == heldIndex);
