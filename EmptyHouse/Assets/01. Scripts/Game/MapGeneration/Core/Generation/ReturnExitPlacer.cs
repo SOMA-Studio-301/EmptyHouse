@@ -24,9 +24,17 @@ namespace EmptyHouse.MapGen.Core
         {
             Log.D("[ReturnExitPlacer] Place");
 
+            // 탈출문은 입구 층 한정(M9-6) — 위·아래 층의 바깥은 공중/지하라 탈출 동선이 성립하지 않는다.
+            // 점유 집합도 입구 층 방만 모은다(층별 격자 분리 — 타 층 풋프린트가 이 층의 빈 공간 판정을 오염시키면 안 된다)
+            int entranceFloor = blueprint.Rooms[0].FloorIndex;
             var occupied = new HashSet<long>();
             for (int r = 0; r < blueprint.Rooms.Count; r++)
             {
+                if (blueprint.Rooms[r].FloorIndex != entranceFloor)
+                {
+                    continue;
+                }
+
                 RoomTemplateDef template = FindTemplate(templates, blueprint.Rooms[r].TemplateId);
                 (int width, int height) = CellMath.RotatedSize(template.WidthCells, template.HeightCells, blueprint.Rooms[r].Rotation);
                 for (int x = 0; x < width; x++)
@@ -52,10 +60,15 @@ namespace EmptyHouse.MapGen.Core
                 degrees[edge.RoomB]++;
             }
 
-            // 잎 방 후보 — 깊이 내림차순, 동률은 방 인덱스 오름차순(결정론)
+            // 잎 방 후보 — 입구 층 한정(M9-6)·깊이 내림차순, 동률은 방 인덱스 오름차순(결정론)
             var leaves = new List<int>();
             for (int r = 1; r < blueprint.Rooms.Count; r++)
             {
+                if (blueprint.Rooms[r].FloorIndex != entranceFloor)
+                {
+                    continue;
+                }
+
                 RoomTemplateDef template = FindTemplate(templates, blueprint.Rooms[r].TemplateId);
                 if (!template.IsCorridor && !template.IsEntranceAnchor && degrees[r] == 1 && depths[r] >= 0)
                 {

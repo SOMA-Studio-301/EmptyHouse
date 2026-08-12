@@ -92,7 +92,7 @@ namespace EmptyHouse.MapGen.Core.Tests
             for (int seed = 1; seed <= 100; seed++)
             {
                 MapBlueprint blueprint = Generate(seed, out _, out _);
-                int[] depths = DangerGradeCalculator.ComputeDepths(blueprint);
+                int[] depths = DangerGradeCalculator.ComputeHopDistances(blueprint);
                 List<int> keyRooms = CollectKeyRooms(blueprint);
                 for (int i = 1; i <= keyRooms.Count; i++)
                 {
@@ -147,7 +147,7 @@ namespace EmptyHouse.MapGen.Core.Tests
                     continue;
                 }
 
-                int[] depths = DangerGradeCalculator.ComputeDepths(blueprint);
+                int[] depths = DangerGradeCalculator.ComputeHopDistances(blueprint);
                 if (lockKeyPlacer.TryPlace(rng, genParams, blueprint, depths, templates))
                 {
                     return blueprint;

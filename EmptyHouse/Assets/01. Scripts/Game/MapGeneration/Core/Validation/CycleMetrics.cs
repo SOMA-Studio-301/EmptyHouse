@@ -108,6 +108,19 @@ namespace EmptyHouse.MapGen.Core
         /// <returns>0~100 비율.</returns>
         public static float ComputeCycleRoomPercent(MapBlueprint blueprint, IReadOnlyList<RoomTemplateDef> templates)
         {
+            return ComputeCycleRoomPercent(blueprint, templates, 0);
+        }
+
+        /// <summary>
+        /// roomStart 이후 방만 집계하는 층 스코프 비율(M9-5) — 브리지 판별은 전 그래프 기준(층간 루프도 사이클로 인정),
+        /// 분모·분자만 현재 층 방으로 한정한다. roomStart 0 = 전역과 동일(v1 하위호환).
+        /// </summary>
+        /// <param name="blueprint">대상 블루프린트.</param>
+        /// <param name="templates">템플릿 목록(복도 판정용).</param>
+        /// <param name="roomStart">집계 시작 방 인덱스.</param>
+        /// <returns>0~100 비율.</returns>
+        public static float ComputeCycleRoomPercent(MapBlueprint blueprint, IReadOnlyList<RoomTemplateDef> templates, int roomStart)
+        {
             var corridorIds = new HashSet<string>();
             for (int t = 0; t < templates.Count; t++)
             {
@@ -134,7 +147,7 @@ namespace EmptyHouse.MapGen.Core
 
             int rooms = 0;
             int cycleRooms = 0;
-            for (int r = 0; r < n; r++)
+            for (int r = roomStart; r < n; r++)
             {
                 if (corridorIds.Contains(blueprint.Rooms[r].TemplateId))
                 {

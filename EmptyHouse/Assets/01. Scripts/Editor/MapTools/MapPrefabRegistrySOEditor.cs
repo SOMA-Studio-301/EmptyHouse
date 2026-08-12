@@ -65,8 +65,8 @@ namespace EmptyHouse.EditorTools
             int missingRooms = 0;
             foreach (RoomTemplateDef def in Catalog())
             {
-                int index = FindRoomIndex(registry, def.TemplateId);
-                if (index < 0 || registry.RoomPrefabs[index].Prefab == null)
+                RoomTemplateSO so = FindTemplateAsset(registry, def.TemplateId);
+                if (so == null || so.Prefab == null)
                 {
                     missingRooms++;
                 }
@@ -75,7 +75,7 @@ namespace EmptyHouse.EditorTools
             var problems = new List<string>();
             if (missingRooms > 0)
             {
-                problems.Add($"방 프리팹 누락 {missingRooms}종");
+                problems.Add($"방 템플릿/프리팹 누락 {missingRooms}종");
             }
 
             if (registry.SealWallPrefab == null)
@@ -108,63 +108,58 @@ namespace EmptyHouse.EditorTools
             }
         }
 
-        /// <summary>방/복도 프리팹 섹션 — 카탈로그 TemplateId 고정 행 + 잔존/중복 항목 정리 UI.</summary>
+        /// <summary>
+        /// 방/복도 템플릿 섹션(M9-3) — 레지스트리 Templates 배열의 상태를 카탈로그 기준으로 요약한다.
+        /// 템플릿 데이터·프리팹·변형 편집은 각 RoomTemplateSO 인스펙터 소관, 배열 채움은 셋업(Tools/Map/런타임 어댑터 셋업) 소관.
+        /// </summary>
         /// <param name="registry">대상 레지스트리.</param>
         private static void DrawRoomSection(MapPrefabRegistrySO registry)
         {
-            EditorGUILayout.LabelField("방/복도 프리팹 — 카탈로그 기준", EditorStyles.boldLabel);
+            EditorGUILayout.LabelField("방/복도 템플릿 SO — 배열 순서 = 코어 후보 순서(결정론)", EditorStyles.boldLabel);
             foreach (RoomTemplateDef def in Catalog())
             {
-                int index = FindRoomIndex(registry, def.TemplateId);
-                GameObject current = index >= 0 ? registry.RoomPrefabs[index].Prefab : null;
+                RoomTemplateSO so = FindTemplateAsset(registry, def.TemplateId);
                 string suffix = def.IsCorridor ? " · 복도" : def.IsEntranceAnchor ? " · 입구" : "";
                 var label = new GUIContent($"{def.TemplateId} ({def.WidthCells}×{def.HeightCells}{suffix})");
 
                 Color prev = GUI.color;
-                if (current == null)
+                if (so == null || so.Prefab == null)
                 {
                     GUI.color = missingTint;
                 }
 
-                EditorGUI.BeginChangeCheck();
-                var next = (GameObject)EditorGUILayout.ObjectField(label, current, typeof(GameObject), false);
-                GUI.color = prev;
-                if (EditorGUI.EndChangeCheck())
-                {
-                    SetRoomPrefab(registry, def.TemplateId, next);
-                }
-            }
-
-            DrawOrphanRoomEntries(registry);
-        }
-
-        /// <summary>카탈로그에 없는 ID·중복 ID 방 항목을 나열하고 개별 제거 버튼을 제공한다.</summary>
-        /// <param name="registry">대상 레지스트리.</param>
-        private static void DrawOrphanRoomEntries(MapPrefabRegistrySO registry)
-        {
-            List<int> orphans = OrphanRoomIndices(registry);
-            if (orphans.Count == 0)
-            {
-                return;
-            }
-
-            EditorGUILayout.HelpBox($"카탈로그에 없는/중복 항목 {orphans.Count}건 — 런타임 조회에 쓰이지 않는다", MessageType.Warning);
-            foreach (int i in orphans)
-            {
                 EditorGUILayout.BeginHorizontal();
                 EditorGUI.BeginDisabledGroup(true);
-                EditorGUILayout.TextField(string.IsNullOrEmpty(registry.RoomPrefabs[i].TemplateId) ? "(빈 ID)" : registry.RoomPrefabs[i].TemplateId);
-                EditorGUILayout.ObjectField(registry.RoomPrefabs[i].Prefab, typeof(GameObject), false);
+                EditorGUILayout.ObjectField(label, so, typeof(RoomTemplateSO), false);
                 EditorGUI.EndDisabledGroup();
-                if (GUILayout.Button("제거", GUILayout.Width(48)))
-                {
-                    RemoveRoomEntry(registry, i);
-                    EditorGUILayout.EndHorizontal();
-                    return; // 배열이 변형됐다 — 다음 리페인트에서 재계산
-                }
-
+                GUILayout.Label(so == null ? "미등재" : so.Variants != null && so.Variants.Length > 0 ? $"변형 {so.Variants.Length}종" : "기본 프리팹", EditorStyles.miniLabel, GUILayout.Width(78f));
                 EditorGUILayout.EndHorizontal();
+                GUI.color = prev;
             }
+
+            EditorGUILayout.HelpBox("템플릿 배열은 '런타임 어댑터 셋업'이 채운다 — 누락이 보이면 셋업 재실행", MessageType.None);
+        }
+
+        /// <summary>레지스트리 Templates 에서 TemplateId 로 템플릿 SO 를 찾는다.</summary>
+        /// <param name="registry">대상 레지스트리.</param>
+        /// <param name="templateId">템플릿 ID.</param>
+        /// <returns>일치 SO — 없으면 null.</returns>
+        private static RoomTemplateSO FindTemplateAsset(MapPrefabRegistrySO registry, string templateId)
+        {
+            if (registry.Templates == null)
+            {
+                return null;
+            }
+
+            for (int i = 0; i < registry.Templates.Length; i++)
+            {
+                if (registry.Templates[i] != null && registry.Templates[i].TemplateId == templateId)
+                {
+                    return registry.Templates[i];
+                }
+            }
+
+            return null;
         }
 
         /// <summary>봉인 벽·기둥 등 정적 지오메트리 섹션을 그린다.</summary>
@@ -538,28 +533,6 @@ namespace EmptyHouse.EditorTools
             }
         }
 
-        /// <summary>TemplateId 로 방 항목 인덱스를 찾는다.</summary>
-        /// <param name="registry">대상 레지스트리.</param>
-        /// <param name="templateId">템플릿 ID.</param>
-        /// <returns>첫 일치 인덱스, 없으면 -1.</returns>
-        private static int FindRoomIndex(MapPrefabRegistrySO registry, string templateId)
-        {
-            if (registry.RoomPrefabs == null)
-            {
-                return -1;
-            }
-
-            for (int i = 0; i < registry.RoomPrefabs.Length; i++)
-            {
-                if (registry.RoomPrefabs[i].TemplateId == templateId)
-                {
-                    return i;
-                }
-            }
-
-            return -1;
-        }
-
         /// <summary>SpawnKind 로 스폰 항목 인덱스를 찾는다.</summary>
         /// <param name="registry">대상 레지스트리.</param>
         /// <param name="kind">스폰 종류.</param>
@@ -580,30 +553,6 @@ namespace EmptyHouse.EditorTools
             }
 
             return -1;
-        }
-
-        /// <summary>방 프리팹을 설정한다 — 항목이 없으면 추가.</summary>
-        /// <param name="registry">대상 레지스트리.</param>
-        /// <param name="templateId">템플릿 ID.</param>
-        /// <param name="prefab">할당 프리팹(null 허용 — 항목 유지, 요약에 누락 표시).</param>
-        private static void SetRoomPrefab(MapPrefabRegistrySO registry, string templateId, GameObject prefab)
-        {
-            Undo.RecordObject(registry, "방 프리팹 변경");
-            int index = FindRoomIndex(registry, templateId);
-            if (index >= 0)
-            {
-                registry.RoomPrefabs[index].Prefab = prefab;
-            }
-            else
-            {
-                var list = new List<RoomPrefabEntry>(registry.RoomPrefabs ?? new RoomPrefabEntry[0])
-                {
-                    new RoomPrefabEntry { TemplateId = templateId, Prefab = prefab },
-                };
-                registry.RoomPrefabs = list.ToArray();
-            }
-
-            EditorUtility.SetDirty(registry);
         }
 
         /// <summary>스폰 프리팹을 설정한다 — 할당 시 항목 추가/갱신, null 해제 시 항목 제거.</summary>
@@ -640,18 +589,6 @@ namespace EmptyHouse.EditorTools
             EditorUtility.SetDirty(registry);
         }
 
-        /// <summary>방 항목을 인덱스로 제거한다.</summary>
-        /// <param name="registry">대상 레지스트리.</param>
-        /// <param name="index">제거 인덱스.</param>
-        private static void RemoveRoomEntry(MapPrefabRegistrySO registry, int index)
-        {
-            Undo.RecordObject(registry, "방 항목 제거");
-            var list = new List<RoomPrefabEntry>(registry.RoomPrefabs);
-            list.RemoveAt(index);
-            registry.RoomPrefabs = list.ToArray();
-            EditorUtility.SetDirty(registry);
-        }
-
         /// <summary>스폰 항목을 인덱스로 제거한다.</summary>
         /// <param name="registry">대상 레지스트리.</param>
         /// <param name="index">제거 인덱스.</param>
@@ -662,36 +599,6 @@ namespace EmptyHouse.EditorTools
             list.RemoveAt(index);
             registry.SpawnPrefabs = list.ToArray();
             EditorUtility.SetDirty(registry);
-        }
-
-        /// <summary>카탈로그에 없는 ID·빈 ID·중복 ID 방 항목의 인덱스 목록을 만든다.</summary>
-        /// <param name="registry">대상 레지스트리.</param>
-        /// <returns>잔존/중복 항목 인덱스 목록.</returns>
-        private static List<int> OrphanRoomIndices(MapPrefabRegistrySO registry)
-        {
-            var result = new List<int>();
-            if (registry.RoomPrefabs == null)
-            {
-                return result;
-            }
-
-            var catalogIds = new HashSet<string>();
-            foreach (RoomTemplateDef def in Catalog())
-            {
-                catalogIds.Add(def.TemplateId);
-            }
-
-            var seen = new HashSet<string>();
-            for (int i = 0; i < registry.RoomPrefabs.Length; i++)
-            {
-                string id = registry.RoomPrefabs[i].TemplateId;
-                if (string.IsNullOrEmpty(id) || !catalogIds.Contains(id) || !seen.Add(id))
-                {
-                    result.Add(i);
-                }
-            }
-
-            return result;
         }
 
         /// <summary>같은 SpawnKind 가 중복된 항목(첫 항목 이후)의 인덱스 목록을 만든다.</summary>

@@ -1,0 +1,38 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 4b0619b1f6df3c04d87719bd1170ecb3, type: 3}
+  m_Name: SO_Template_stair_3x3
+  m_EditorClassIdentifier: Assembly-CSharp::EmptyHouse.MapGen.Runtime.RoomTemplateSO
+  TemplateId: stair_3x3
+  WidthCells: 3
+  HeightCells: 3
+  AllowedFloors: 2
+  Tags: 0
+  MinCount: 0
+  MaxCount: 3
+  IsCorridor: 0
+  IsEntranceAnchor: 0
+  IsStairAnchor: 1
+  Sockets:
+  - Id: 0
+    CellX: 1
+    CellY: 0
+    Direction: 2
+    MandatoryDoor: 0
+  - Id: 1
+    CellX: 0
+    CellY: 1
+    Direction: 3
+    MandatoryDoor: 0
+  Markers: []
+  Prefab: {fileID: 866704163703373405, guid: 84838fa4d95095c478318992c2b56a55, type: 3}
+  Variants: []

@@ -1,0 +1,43 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 4b0619b1f6df3c04d87719bd1170ecb3, type: 3}
+  m_Name: SO_Template_entrance_6x6
+  m_EditorClassIdentifier: Assembly-CSharp::EmptyHouse.MapGen.Runtime.RoomTemplateSO
+  TemplateId: entrance_6x6
+  WidthCells: 6
+  HeightCells: 6
+  AllowedFloors: 2
+  Tags: 0
+  MinCount: 1
+  MaxCount: 1
+  IsCorridor: 0
+  IsEntranceAnchor: 1
+  IsStairAnchor: 0
+  Sockets:
+  - Id: 0
+    CellX: 3
+    CellY: 5
+    Direction: 0
+    MandatoryDoor: 1
+  - Id: 1
+    CellX: 0
+    CellY: 1
+    Direction: 3
+    MandatoryDoor: 0
+  - Id: 2
+    CellX: 5
+    CellY: 1
+    Direction: 1
+    MandatoryDoor: 0
+  Markers: []
+  Prefab: {fileID: 6892435844222741874, guid: 650ab07e89d6d414c924f42b730ab055, type: 3}
+  Variants: []

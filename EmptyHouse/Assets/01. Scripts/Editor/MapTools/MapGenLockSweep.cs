@@ -20,7 +20,6 @@ namespace EmptyHouse.EditorTools
         private const int baseSeed = 101; // 시작 시드(프리뷰와 동일 기준)
 
         /// <summary>시드 스윕을 돌려 자물쇠·지름길 지표를 콘솔에 요약한다.</summary>
-        [MenuItem("Tools/Map/LockSweepReport")]
         public static void Run()
         {
             Log.D(BuildReport());
@@ -31,7 +30,8 @@ namespace EmptyHouse.EditorTools
         public static string BuildReport()
         {
             var paramsAsset = AssetDatabase.LoadAssetAtPath<MapGenParamsSO>(genParamsPath);
-            List<RoomTemplateDef> templates = MapTemplateCatalog.Create();
+            var registry = AssetDatabase.LoadAssetAtPath<MapPrefabRegistrySO>("Assets/03. ScriptableObjects/MapGen/SO_MapPrefabRegistry.asset");
+            List<RoomTemplateDef> templates = registry.CreateTemplates(); // 템플릿 단일 출처 = 레지스트리 SO(M9-3)
             var generator = new MapGenerator();
 
             int ok = 0;
@@ -121,7 +121,7 @@ namespace EmptyHouse.EditorTools
             roomCounts.Add(roomCount - corridors);
             corridorCounts.Add(corridors);
 
-            int[] hopDepths = DangerGradeCalculator.ComputeDepths(blueprint);
+            int[] hopDepths = DangerGradeCalculator.ComputeHopDistances(blueprint);
             int[] roomDepths = RoomHopDepths(blueprint, isCorridor);
 
             int shortcutCand = 0;
@@ -222,7 +222,7 @@ namespace EmptyHouse.EditorTools
             BlueprintEdge edge = blueprint.Edges[edgeIndex];
             EdgeState original = edge.State;
             edge.State = EdgeState.BlockedWall;
-            int[] without = isCorridor == null ? DangerGradeCalculator.ComputeDepths(blueprint) : RoomHopDepths(blueprint, isCorridor);
+            int[] without = isCorridor == null ? DangerGradeCalculator.ComputeHopDistances(blueprint) : RoomHopDepths(blueprint, isCorridor);
             edge.State = original;
 
             int best = 0;

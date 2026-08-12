@@ -51,11 +51,9 @@ namespace EmptyHouse.EditorTools
         // ── 진입점 ─────────────────────────────────────────────────
 
         /// <summary>교체 없이 슬롯별 배정 계획과 문 막힘 판정만 로그로 보고한다.</summary>
-        [MenuItem("Tools/Map/방 교체 미리보기 (매칭 리포트)")]
         public static void Preview() { Run(true); }
 
         /// <summary>모든 슬롯을 적합한 변형으로 교체하고 저장한다. 실행 전 Map을 백업한다.</summary>
-        [MenuItem("Tools/Map/방 교체 실행 (DecoratedRooms → Map)")]
         public static void Swap() { Run(false); }
 
         /// <summary>

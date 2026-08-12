@@ -21,5 +21,18 @@ namespace EmptyHouse.MapGen.Core
         public List<BlueprintRoom> Rooms = new List<BlueprintRoom>(); // 방 목록 — 인덱스 = 방 번호, 0 = 버스 입구 앵커
         public List<BlueprintEdge> Edges = new List<BlueprintEdge>(); // 간선 목록
         public List<BlueprintSpawn> Spawns = new List<BlueprintSpawn>(); // 스폰 목록
+        public List<BlueprintFloor> Floors = new List<BlueprintFloor>(); // 층 구간 메타(M8) — 층 1개 구성이면 원소 1개
+        public List<StairShaft> Shafts = new List<StairShaft>(); // 계단 샤프트 목록(M8) — 층 1개 구성이면 비어 있다
+
+        /// <summary>
+        /// 층을 가로지르는 수직 간선(계단)인지 판정한다(M8) — 저장 필드를 두지 않고 방의 층 서수로 파생한다.
+        /// 비정규화 필드를 두면 되감기·재배선에서 드리프트가 난다.
+        /// </summary>
+        /// <param name="edge">판정할 간선.</param>
+        /// <returns>양 끝 방의 층이 다르면 true. 봉인 간선(RoomB &lt; 0)은 false.</returns>
+        public bool IsVerticalEdge(BlueprintEdge edge)
+        {
+            return edge.RoomB >= 0 && Rooms[edge.RoomA].FloorIndex != Rooms[edge.RoomB].FloorIndex;
+        }
     }
 }

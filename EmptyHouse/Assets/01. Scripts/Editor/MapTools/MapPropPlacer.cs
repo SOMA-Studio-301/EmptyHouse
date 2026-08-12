@@ -55,7 +55,6 @@ namespace EmptyHouse.EditorTools
         /// <summary>
         /// Map 씬의 방을 탐지만 하고 배치는 하지 않는다(검증용). 방 이름/컨셉/바운즈를 로그로 출력한다.
         /// </summary>
-        [MenuItem("Tools/Map/1. 방 스캔 (배치 안함)")]
         public static void ScanRooms()
         {
             if (!EnsureMapScene(out Scene scene)) return;
@@ -85,7 +84,6 @@ namespace EmptyHouse.EditorTools
         /// Map 씬의 방을 탐지해 컨셉별 프랍셋을 절차적으로 배치한다.
         /// 재실행 시 기존 GeneratedProps를 먼저 제거하므로 멱등하다. 완료 후 씬을 저장한다.
         /// </summary>
-        [MenuItem("Tools/Map/2. 프랍 자동 배치")]
         public static void PlaceProps()
         {
             if (!EnsureMapScene(out Scene scene)) return;
@@ -114,7 +112,6 @@ namespace EmptyHouse.EditorTools
         /// <summary>
         /// GeneratedProps 루트를 통째로 삭제해 배치를 원복한다. 완료 후 씬을 저장한다.
         /// </summary>
-        [MenuItem("Tools/Map/3. GeneratedProps 삭제 (원복)")]
         public static void ClearGenerated()
         {
             if (!EnsureMapScene(out Scene scene)) return;

@@ -48,11 +48,11 @@ namespace EmptyHouse.MapGen.Core.Tests
 
         /// <summary>위험 깊이 계산이 잠긴 문도 간선으로 취급하는지 검증한다(3절·AC-06 기준).</summary>
         [Test]
-        public void ComputeDepths_잠긴_문도_간선으로_취급한다()
+        public void ComputeHopDistances_잠긴_문도_간선으로_취급한다()
         {
             MapBlueprint blueprint = BlueprintFixtures.CreateMiniBlueprint();
 
-            int[] depths = DangerGradeCalculator.ComputeDepths(blueprint);
+            int[] depths = DangerGradeCalculator.ComputeHopDistances(blueprint);
 
             // 방 3 깊이 3 = 잠긴 e2(2→3) 를 간선으로 센 값(잠금 무시 시에도 e5 경유 4가 아니라 3이 최단)
             Assert.That(depths, Is.EqualTo(new[] { 0, 1, 2, 3, 3, 4 }));
@@ -60,13 +60,13 @@ namespace EmptyHouse.MapGen.Core.Tests
 
         /// <summary>봉인 간선(RoomB = -1, 막힌 벽)이 통행으로 취급되지 않는지 검증한다.</summary>
         [Test]
-        public void ComputeDepths_봉인_간선은_통행이_아니다()
+        public void ComputeHopDistances_봉인_간선은_통행이_아니다()
         {
             MapBlueprint blueprint = BlueprintFixtures.CreateMiniBlueprint();
 
             // e6(방 5, RoomB=-1) 봉인 — 이웃으로 순회하면 예외/유령 방이 생긴다
             int[] depths = null;
-            Assert.DoesNotThrow(() => depths = DangerGradeCalculator.ComputeDepths(blueprint));
+            Assert.DoesNotThrow(() => depths = DangerGradeCalculator.ComputeHopDistances(blueprint));
             Assert.That(depths.Length, Is.EqualTo(6), "봉인 간선이 방 수를 늘리면 안 된다");
 
             HashSet<int> reachable = ReachabilityAnalyzer.ComputeReachableRooms(blueprint, 1);

@@ -28,6 +28,7 @@ namespace EmptyHouse.MapGen.Core
             report.KeyInvariantHolds = CheckKeyInvariant(blueprint, report);
             report.HardlockPairsHold = CheckHardlockPairs(blueprint, genParams, report);
             report.ShortcutValuesHold = CheckShortcutValues(blueprint, genParams, templates, report);
+            report.FloorReachabilityHolds = CheckFloorReachability(blueprint, report);
 
             // 사이클 소속 방 비율 목표 미달은 기하 후보 소진(베스트에포트) — 실패가 아니라 경고만(X6)
             if (blueprint.Meta.CycleRoomPercentAchieved + 0.5f < genParams.CycleRoomPercent)
@@ -65,8 +66,66 @@ namespace EmptyHouse.MapGen.Core
             }
 
             report.AllPassed = report.EssentialsReachable && report.KeyInvariantHolds
-                && report.HardlockPairsHold && report.ShortcutValuesHold;
+                && report.HardlockPairsHold && report.ShortcutValuesHold && report.FloorReachabilityHolds;
             return report;
+        }
+
+        /// <summary>
+        /// 패스 5(M9-5) — 층 도달성: 전 방이 입구에서 도달 가능하고(고립 0 — AC-06 기준),
+        /// 비시드 층(층 구간 메타의 첫 층 이외)마다 그 층에 닿는 수직 간선이 1개 이상이어야 한다.
+        /// </summary>
+        /// <param name="blueprint">대상 블루프린트.</param>
+        /// <param name="report">결과를 기록할 리포트.</param>
+        /// <returns>통과 여부.</returns>
+        private bool CheckFloorReachability(MapBlueprint blueprint, ValidationReport report)
+        {
+            bool passed = true;
+            int[] hops = DangerGradeCalculator.ComputeHopDistances(blueprint);
+            for (int r = 0; r < hops.Length; r++)
+            {
+                if (hops[r] < 0)
+                {
+                    report.FailReasons.Add($"패스5: 방 {r}(층 {blueprint.Rooms[r].FloorIndex}) 이 입구에서 미도달 — 고립");
+                    passed = false;
+                }
+            }
+
+            // 수직 간선 규약 어서션(M9-6) — 잠긴 수직 간선은 v2.0 계약 위반(Q4: 수직 상시 개방)
+            for (int e = 0; e < blueprint.Edges.Count; e++)
+            {
+                BlueprintEdge edge = blueprint.Edges[e];
+                if (blueprint.IsVerticalEdge(edge) && edge.State != EdgeState.OpenPassage)
+                {
+                    report.FailReasons.Add($"패스5: 수직 간선 e{e} 상태({edge.State}) — 수직은 상시 개방이어야 한다(Q4)");
+                    passed = false;
+                }
+            }
+
+            for (int f = 0; f < blueprint.Floors.Count; f++)
+            {
+                BlueprintFloor floor = blueprint.Floors[f];
+                if (floor.FloorIndex == blueprint.Rooms[0].FloorIndex)
+                {
+                    continue; // 시드 층(입구 보유)은 수직 간선 불필요
+                }
+
+                bool hasVertical = false;
+                for (int e = 0; e < blueprint.Edges.Count && !hasVertical; e++)
+                {
+                    BlueprintEdge edge = blueprint.Edges[e];
+                    hasVertical = blueprint.IsVerticalEdge(edge)
+                        && (blueprint.Rooms[edge.RoomA].FloorIndex == floor.FloorIndex
+                            || blueprint.Rooms[edge.RoomB].FloorIndex == floor.FloorIndex);
+                }
+
+                if (!hasVertical)
+                {
+                    report.FailReasons.Add($"패스5: 층 {floor.FloorIndex} 에 수직 간선이 없다 — 층 진입 불가");
+                    passed = false;
+                }
+            }
+
+            return passed;
         }
 
         /// <summary>패스 1 — 필수 아이템(백신·기름·모든 열쇠)이 전부 도달 가능한지 검사한다(7절 1).</summary>
@@ -198,7 +257,8 @@ namespace EmptyHouse.MapGen.Core
                 bool satisfied = false;
                 for (int t = 0; t < throwableRooms.Count && !satisfied; t++)
                 {
-                    satisfied = front.Contains(throwableRooms[t]) && dist[throwableRooms[t]] >= 0
+                    satisfied = blueprint.Rooms[throwableRooms[t]].FloorIndex == blueprint.Rooms[listenerRooms[l]].FloorIndex // 같은 층 한정(M9-6) — 분배기와 동일 잣대
+                        && front.Contains(throwableRooms[t]) && dist[throwableRooms[t]] >= 0
                         && dist[throwableRooms[t]] <= genParams.ListenerCounterDist;
                 }
 
@@ -215,7 +275,8 @@ namespace EmptyHouse.MapGen.Core
                 bool satisfied = false;
                 for (int t = 0; t < stationRooms.Count && !satisfied; t++)
                 {
-                    satisfied = front.Contains(stationRooms[t]);
+                    satisfied = blueprint.Rooms[stationRooms[t]].FloorIndex == blueprint.Rooms[herdRooms[h]].FloorIndex // 같은 층 한정(M9-6)
+                        && front.Contains(stationRooms[t]);
                 }
 
                 if (!satisfied)

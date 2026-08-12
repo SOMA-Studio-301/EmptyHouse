@@ -60,7 +60,7 @@ namespace EmptyHouse.MapGen.Runtime
             }
 
             MapBlueprint blueprint = driver.LocalBlueprint;
-            List<RoomTemplateDef> templates = MapTemplateCatalog.Create();
+            IReadOnlyList<RoomTemplateDef> templates = driver.LocalTemplates; // 드라이버 생성과 같은 평탄화 목록(M9-8) — 다층은 접미사 ID 라 레지스트리 재추출로 대체 불가
             CollectItemAnchors(blueprint);
             SpawnDoors(blueprint, templates);
             SpawnReturnExits(blueprint);
@@ -593,7 +593,8 @@ namespace EmptyHouse.MapGen.Runtime
 
             float cell = prefabRegistry.CellMeters;
             Vector3 mapOrigin = driver.LocalMapRoot.transform.position;
-            return mapOrigin + new Vector3((worldCell.X - minX + 0.5f) * cell, 0f, (worldCell.Y - minY + 0.5f) * cell);
+            float floorY = driver.FloorPlaneY(blueprint.Rooms[spawn.RoomIndex].FloorIndex); // 층 바닥면 가산(M9-8)
+            return mapOrigin + new Vector3((worldCell.X - minX + 0.5f) * cell, floorY, (worldCell.Y - minY + 0.5f) * cell);
         }
 
         /// <summary>템플릿에서 마커 Id 로 마커를 찾는다.</summary>

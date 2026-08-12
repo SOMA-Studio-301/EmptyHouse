@@ -158,7 +158,7 @@ namespace EmptyHouse.MapGen.Core.Tests
                     continue;
                 }
 
-                int[] depths = DangerGradeCalculator.ComputeDepths(blueprint);
+                int[] depths = DangerGradeCalculator.ComputeHopDistances(blueprint);
                 if (!lockKeyPlacer.TryPlace(rng, genParams, blueprint, depths, templates))
                 {
                     continue;
