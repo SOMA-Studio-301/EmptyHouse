@@ -36,7 +36,11 @@ namespace EmptyHouse.MapGen.Core.Tests
             return MapGenPlan.Compose(genParams, floorParams, floors);
         }
 
-        /// <summary>계단실 템플릿 — 3×3, room_3x3 소켓 위상 재사용(D1 — 소켓 정렬 불변식 자동 충족).</summary>
+        /// <summary>
+        /// 계단실 템플릿 — 6×6(런타임 StairRoom-6x6 규격과 동일 풋프린트·소켓, 2026-08-13).
+        /// 서변 소켓 없음 — 계단 스트립이 서쪽 열 (0,1)~(0,3)에 붙고 위층 도착 개구가 (0,3)이라
+        /// 서쪽 문은 계단·개구와 충돌한다. 나머지 변은 {1,4} 자기 대칭(c ↔ L−1−c).
+        /// </summary>
         /// <param name="id">템플릿 ID.</param>
         /// <returns>계단실 서술자.</returns>
         public static RoomTemplateDef StairTemplate(string id)
@@ -44,8 +48,8 @@ namespace EmptyHouse.MapGen.Core.Tests
             return new RoomTemplateDef
             {
                 TemplateId = id,
-                WidthCells = 3,
-                HeightCells = 3,
+                WidthCells = 6,
+                HeightCells = 6,
                 AllowedFloors = FloorMask.F1,
                 MinCount = 0,
                 MaxCount = 3, // ShaftCountMax 상한 — 층당 최대 3개
@@ -53,9 +57,11 @@ namespace EmptyHouse.MapGen.Core.Tests
                 Sockets = new[]
                 {
                     new SocketDef { Id = 0, LocalCell = new CellCoord(1, 0), Direction = SocketDirection.South },
-                    new SocketDef { Id = 1, LocalCell = new CellCoord(1, 2), Direction = SocketDirection.North },
-                    new SocketDef { Id = 2, LocalCell = new CellCoord(0, 1), Direction = SocketDirection.West },
-                    new SocketDef { Id = 3, LocalCell = new CellCoord(2, 1), Direction = SocketDirection.East },
+                    new SocketDef { Id = 1, LocalCell = new CellCoord(4, 0), Direction = SocketDirection.South },
+                    new SocketDef { Id = 2, LocalCell = new CellCoord(1, 5), Direction = SocketDirection.North },
+                    new SocketDef { Id = 3, LocalCell = new CellCoord(4, 5), Direction = SocketDirection.North },
+                    new SocketDef { Id = 4, LocalCell = new CellCoord(5, 1), Direction = SocketDirection.East },
+                    new SocketDef { Id = 5, LocalCell = new CellCoord(5, 4), Direction = SocketDirection.East },
                 },
                 Markers = new MarkerDef[0],
             };

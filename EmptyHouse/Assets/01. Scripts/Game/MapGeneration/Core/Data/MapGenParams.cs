@@ -46,7 +46,7 @@ namespace EmptyHouse.MapGen.Core
         public int ShaftCountMax = 3; // 계단 샤프트 최대 수
         public int ShaftDepthPercentMin = 25; // 시드 층 방 예산 대비 계단 삽입 시점 하한 % — "중앙"을 깊이 대역으로 근사
         public int ShaftDepthPercentMax = 60; // 계단 삽입 시점 상한 %
-        public int ShaftMinSeparationCells = 6; // 샤프트 간 최소 이격(체비셰프, 셀) — 몰리면 층간 루프가 생기지 않는다
+        public int ShaftMinSeparationCells = 8; // 샤프트 간 최소 이격(체비셰프, 셀) — 몰리면 층간 루프가 생기지 않는다. 계단실 풋프린트(6×6)와 동률이면 벽이 맞닿아 8로 상향(2026-08-13)
         public int FloorRetryMax; // 층 국소 재시도 상한. 기본 0 = 되감기 없이 전체 리롤(되감기는 usedSockets 오염 위험 — M8-7에서 검토)
         public int[] VaccineFloorPlan; // 백신 3종의 배정 층 서수(레벨디자인 6절: 2F 1 + B1 2 → { +1, -1, -1 }). 비면 층 무관 분산
         public int[] CorpseStationFloorPlan; // 사체 충전소 층 배분 서수 목록. 비면 층 무관 배치

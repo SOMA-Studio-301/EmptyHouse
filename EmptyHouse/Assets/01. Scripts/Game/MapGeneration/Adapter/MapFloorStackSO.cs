@@ -19,8 +19,9 @@ namespace EmptyHouse.MapGen.Runtime
         public FloorGenParams GenParams = new FloorGenParams(); // 이 층 코어 파라미터(예산·난이도·좀비 밴드 — M9-8 플랜 조립 재료)
         public RoomTemplateSO StairTemplate; // 이 층 테마의 계단실 템플릿(IsStairAnchor + 계단실 프리팹) — 전 층 풋프린트·소켓 동일(X4)
         public float CellMeters = 4f; // 이 층의 셀 실측(m) — 계단 연결 층 쌍은 동일해야 한다(X4 린트). 레지스트리의 동명 필드보다 이쪽이 우선
-        public float FloorHeight = 6f; // 이 층 바닥면 → 위층 바닥면 거리(m). 2026-08-11 실측 확정값 6m(벽 Hall_Wall_6M_1Side 통일)
-        public GameObject StairFlightPrefab; // 계단 플라이트(기성 Hall_Stairs = 라이즈 3m) — 층고 6m 는 2단 스위치백(계단실 프리팹 저작 재료)
+        public float FloorHeight = 9f; // 이 층 바닥면 → 위층 바닥면 거리(m). 2026-08-13 확정 9m — 계단 유닛(4×4×3) 3개 = 라이즈 9. 방 천장고(6m)와 별개(6~9m 는 천장 위 구조 대역)
+        public GameObject StairPrefab; // 완성 계단(4×12×9 — 유닛 3개 직선, +Z 상승·진입 z 민 코너) — 위층이 있는 층의 계단실에 조립기가 삽입한다. 천장·바닥 절개는 조립기 소관(프리팹은 닫힌 방)
+        public GameObject StairFlightPrefab; // 계단 플라이트(기성 Hall_Stairs = 라이즈 3m) — 구 그레이박스 저작 재료(레거시, StairPrefab 도입 후 미사용)
         public GameObject StairVoidSlabPrefab; // 계단 보이드 슬래브(기성 Hall_Floor_2nd_Floor_Stair_Half/_Full) — 중간·최상 층에 필요
         public GameObject StairRailingPrefab; // 보이드 난간(기성 Hall_Railings_Stair) — 없으면 추락·아이템 낙하 사고(N6)
     }

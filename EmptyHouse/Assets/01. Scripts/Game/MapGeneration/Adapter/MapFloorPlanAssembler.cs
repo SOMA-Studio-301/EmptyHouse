@@ -125,6 +125,12 @@ namespace EmptyHouse.MapGen.Runtime
                     errors.Add($"층 {entry.FloorIndex}: StairTemplate 미배선 — 다층은 층마다 계단실이 필요하다(X4 ③)");
                 }
 
+                // 위층이 있는 층은 완성 계단 프리팹이 필수 — 없으면 그 층에서 위층으로 걸어 올라갈 수 없다
+                if (stack.Find(entry.FloorIndex + 1) != null && entry.StairPrefab == null)
+                {
+                    errors.Add($"층 {entry.FloorIndex}: StairPrefab 미배선 — 위층(서수 {entry.FloorIndex + 1})이 있어 계단 삽입이 필요하다");
+                }
+
                 if (entry.GenParams != null && entry.GenParams.ThemeId != null && entry.GenParams.ThemeId != entry.ThemeId)
                 {
                     errors.Add($"층 {entry.FloorIndex}: ThemeId 드리프트 — 스택({entry.ThemeId}) vs 코어 파라미터({entry.GenParams.ThemeId})");

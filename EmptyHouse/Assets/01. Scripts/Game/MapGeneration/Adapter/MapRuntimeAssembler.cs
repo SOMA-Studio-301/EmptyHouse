@@ -107,6 +107,14 @@ namespace EmptyHouse.MapGen.Runtime
                 PlaceCornerColumns(blueprint, templates, registry, columnsRoot.transform, floorOrigin, minX, minY, instantiate, floor.RoomStart, floor.RoomCount);
             }
 
+            // 계단 조립(M9-10) — 위층이 있는 계단실마다 완성 계단 삽입 + 천장·위층 바닥 절개
+            if (floorStack != null && blueprint.Floors.Count > 1)
+            {
+                var stairsRoot = new GameObject("Stairs");
+                stairsRoot.transform.SetParent(mapRoot.transform, false);
+                PlaceStairs(blueprint, templates, floorStack, stairsRoot.transform, roomInstances, floorPlanes, mapRoot.transform.position, minX, minY, registry.CellMeters, instantiate);
+            }
+
             // 입구 고정 — 최소 셀 정규화는 시드마다 입구 위치를 흔든다. 입구 앵커 방(코어가 셀 (0,0)·Deg0 고정)의
             // 실측 transform 이 앵커 위치에 오도록 루트를 통째로 이동한다. 자식 전체가 강체 이동이라
             // "방 = 루트 위치 + (셀−최소셀)×셀m" 불변식이 유지돼 스포너·베이커·감사는 무수정으로 따라온다.
@@ -119,6 +127,254 @@ namespace EmptyHouse.MapGen.Runtime
             mapRoot.AddComponent<EmptyHouse.Environment.MapLightCuller>().Initialize(lightingProfile);
 
             return mapRoot;
+        }
+
+        /// <summary>
+        /// 계단 조립(M9-10) — 위층이 있는 계단실마다 완성 계단 프리팹(4×12×9)을 삽입하고 그 층 천장을,
+        /// 아래층이 있는 계단실은 자기 바닥(도착 개구)을 절개한다. 계단실 프리팹은 닫힌 방 — 층 위치
+        /// (최하·중간·최상)마다 필요한 구멍이 달라 프리팹에 구울 수 없어 전부 여기서 뚫는다.
+        /// 로컬 규약(Deg0): 계단 스트립 = 서쪽 열 (0,1)~(0,3)·북(+Z) 상승·진입 어프론 (0,0),
+        /// 천장 절개 = (0,2)·(0,3)(헤드룸 y≥4 구간), 바닥 절개 = (0,3)(y≥7 구간 + 도착). 방 회전을 그대로 따른다.
+        /// 램프 플레이트·상단 브리지는 NavMesh 접속용(M9-9 실측 — 계단 메시 복셀화 단절 대책).
+        /// </summary>
+        /// <param name="blueprint">대상 블루프린트.</param>
+        /// <param name="templates">템플릿 목록(IsStairAnchor 판별).</param>
+        /// <param name="floorStack">층 스택(StairPrefab 원천).</param>
+        /// <param name="stairsRoot">계단 인스턴스 부모.</param>
+        /// <param name="roomInstances">방 인스턴스 배열(절개 대상).</param>
+        /// <param name="floorPlanes">층 서수 → 바닥면 Y.</param>
+        /// <param name="mapOrigin">맵 루트 월드 위치.</param>
+        /// <param name="minX">맵 최소 셀 X.</param>
+        /// <param name="minY">맵 최소 셀 Y.</param>
+        /// <param name="cellMeters">셀 실측(m).</param>
+        /// <param name="instantiate">프리팹 인스턴스화기.</param>
+        private static void PlaceStairs(MapBlueprint blueprint, IReadOnlyList<RoomTemplateDef> templates, MapFloorStackSO floorStack, Transform stairsRoot, GameObject[] roomInstances, Dictionary<int, float> floorPlanes, Vector3 mapOrigin, int minX, int minY, float cellMeters, System.Func<GameObject, Transform, GameObject> instantiate)
+        {
+            var presentFloors = new HashSet<int>();
+            for (int f = 0; f < blueprint.Floors.Count; f++)
+            {
+                presentFloors.Add(blueprint.Floors[f].FloorIndex);
+            }
+
+            int stairs = 0;
+            for (int r = 0; r < blueprint.Rooms.Count; r++)
+            {
+                RoomTemplateDef template = FindTemplate(templates, blueprint.Rooms[r].TemplateId);
+                if (!template.IsStairAnchor)
+                {
+                    continue;
+                }
+
+                BlueprintRoom room = blueprint.Rooms[r];
+                Vector3 floorOrigin = mapOrigin + Vector3.up * floorPlanes[room.FloorIndex];
+                GameObject ownStair = null;
+
+                if (presentFloors.Contains(room.FloorIndex + 1))
+                {
+                    FloorPrefabSet entry = floorStack.Find(room.FloorIndex);
+                    if (entry == null || entry.StairPrefab == null)
+                    {
+                        Log.W($"[MapRuntimeAssembler] 층 {room.FloorIndex} StairPrefab 미배선 — 계단실 방 {r} 계단 생략(위층 보행 접근 불가)");
+                    }
+                    else
+                    {
+                        // 계단 삽입 — 스트립 셀 (0,1)~(0,3) 회전 후 월드 AABB 민 코너에 바운즈 정렬
+                        GameObject stair = instantiate(entry.StairPrefab, stairsRoot);
+                        ownStair = stair;
+                        stair.name = $"Stair_r{r}_f{room.FloorIndex}";
+                        stair.transform.rotation = Quaternion.Euler(0f, 90f * (int)room.Rotation, 0f);
+                        Bounds strip = CellSpanBounds(room, template, 0, 1, 0, 3, floorOrigin, minX, minY, cellMeters);
+                        Bounds current = CombinedRendererBounds(stair);
+                        stair.transform.position += new Vector3(strip.min.x - current.min.x, floorOrigin.y - current.min.y, strip.min.z - current.min.z);
+
+                        AddStairRamps(stair, stairsRoot);
+                        AddTopBridge(stair, stairsRoot, room.Rotation, floorOrigin.y + StairRise(floorStack, room.FloorIndex));
+
+                        // 천장 절개 — 헤드룸 구간 (0,2)·(0,3), 천장고 6m 기준 밴드(벽은 min.y 가 바닥이라 안 걸린다)
+                        Bounds ceilingArea = CellSpanBounds(room, template, 0, 2, 0, 3, floorOrigin, minX, minY, cellMeters);
+                        ceilingArea.Expand(new Vector3(-0.2f, 0f, -0.2f));
+                        ceilingArea.center = new Vector3(ceilingArea.center.x, floorOrigin.y + 6f, ceilingArea.center.z);
+                        ceilingArea.size = new Vector3(ceilingArea.size.x, 1.6f, ceilingArea.size.z);
+                        int ceilingCut = CutRenderersIntersecting(roomInstances[r], ceilingArea, floorOrigin.y + 5f);
+                        Log.D($"[MapRuntimeAssembler] 계단실 방 {r}: 천장 절개 {ceilingCut}조각");
+                        stairs++;
+                    }
+                }
+
+                if (presentFloors.Contains(room.FloorIndex - 1))
+                {
+                    // 아래층 계단의 도착 개구 — 자기 바닥 (0,3) 절개(바닥 토큰만, 얇은 y 밴드)
+                    Bounds voidArea = CellSpanBounds(room, template, 0, 3, 0, 3, floorOrigin, minX, minY, cellMeters);
+                    voidArea.Expand(new Vector3(-0.2f, 0f, -0.2f));
+                    voidArea.center = new Vector3(voidArea.center.x, floorOrigin.y, voidArea.center.z);
+                    voidArea.size = new Vector3(voidArea.size.x, 0.8f, voidArea.size.z);
+                    int floorCut = 0;
+                    foreach (Renderer renderer in roomInstances[r].GetComponentsInChildren<Renderer>(false))
+                    {
+                        if (IsFloorRenderer(renderer.name) && renderer.bounds.Intersects(voidArea))
+                        {
+                            renderer.gameObject.SetActive(false);
+                            floorCut++;
+                        }
+                    }
+
+                    // 도착 클리어런스(중간층 전용) — 자기 계단이 같은 자리에 수직 반복(SSA)이라, 계단 하부
+                    // 스커트·마감판이 도착 셀을 y 0~2.95 벽처럼 감싼다(M9-10 실측: PathPartial 의 원인).
+                    // 이 방 자기 계단 조각 중 클리어런스 볼륨(도착 셀 XZ × y 0~2.2)과 겹치는 것을 걷어낸다.
+                    // 아래층 계단의 램프·플라이트는 별개 인스턴스라 건드리지 않는다
+                    int clearanceCut = 0;
+                    if (ownStair != null)
+                    {
+                        // 볼륨은 셀 원본 크기 + 바깥 0.2 확장 — 스커트·마감판이 셀 경계면 위(두께 0)에 놓여
+                        // 안쪽으로 줄인 박스로는 비껴간다(M9-10 실측). 절개 대상이 자기 계단 조각뿐이라 과확장 부작용 없음
+                        Bounds clearance = CellSpanBounds(room, template, 0, 3, 0, 3, floorOrigin, minX, minY, cellMeters);
+                        clearance.center = new Vector3(clearance.center.x, floorOrigin.y + 1.15f, clearance.center.z);
+                        clearance.size = new Vector3(clearance.size.x + 0.4f, 2.2f, clearance.size.z + 0.4f);
+                        foreach (Renderer renderer in ownStair.GetComponentsInChildren<Renderer>(false))
+                        {
+                            if (renderer.bounds.min.y < floorOrigin.y + 2.2f && renderer.bounds.Intersects(clearance))
+                            {
+                                renderer.gameObject.SetActive(false);
+                                clearanceCut++;
+                            }
+                        }
+                    }
+
+                    Log.D($"[MapRuntimeAssembler] 계단실 방 {r}: 도착 개구 바닥 절개 {floorCut}·클리어런스 절개 {clearanceCut}조각");
+                }
+            }
+
+            Log.D($"[MapRuntimeAssembler] 계단 삽입 {stairs}건");
+        }
+
+        /// <summary>층 f 계단 총 라이즈 = 그 층 층고(아래 층 보유 규약) — FloorGeometry 위임.</summary>
+        /// <param name="floorStack">층 스택.</param>
+        /// <param name="floorIndex">층 서수.</param>
+        /// <returns>라이즈(m).</returns>
+        private static float StairRise(MapFloorStackSO floorStack, int floorIndex)
+        {
+            return FloorGeometry.StairRise(floorStack, floorIndex);
+        }
+
+        /// <summary>방 로컬 셀 구간(사각 범위)을 회전 적용해 월드 XZ AABB(바닥면 y)로 만든다.</summary>
+        /// <param name="room">배치된 방.</param>
+        /// <param name="template">방 템플릿.</param>
+        /// <param name="lx0">로컬 셀 X 시작.</param>
+        /// <param name="ly0">로컬 셀 Y 시작.</param>
+        /// <param name="lx1">로컬 셀 X 끝(포함).</param>
+        /// <param name="ly1">로컬 셀 Y 끝(포함).</param>
+        /// <param name="floorOrigin">층 평면 원점(맵 루트 + 층 Y).</param>
+        /// <param name="minX">맵 최소 셀 X.</param>
+        /// <param name="minY">맵 최소 셀 Y.</param>
+        /// <param name="cellMeters">셀 실측(m).</param>
+        /// <returns>월드 AABB(높이 0).</returns>
+        private static Bounds CellSpanBounds(BlueprintRoom room, RoomTemplateDef template, int lx0, int ly0, int lx1, int ly1, Vector3 floorOrigin, int minX, int minY, float cellMeters)
+        {
+            Bounds bounds = default;
+            bool first = true;
+            for (int lx = lx0; lx <= lx1; lx++)
+            {
+                for (int ly = ly0; ly <= ly1; ly++)
+                {
+                    CellCoord world = CellMath.WorldCell(room, template, new CellCoord(lx, ly));
+                    Vector3 center = floorOrigin + new Vector3((world.X - minX + 0.5f) * cellMeters, 0f, (world.Y - minY + 0.5f) * cellMeters);
+                    var cell = new Bounds(center, new Vector3(cellMeters, 0f, cellMeters));
+                    if (first)
+                    {
+                        bounds = cell;
+                        first = false;
+                    }
+                    else
+                    {
+                        bounds.Encapsulate(cell);
+                    }
+                }
+            }
+
+            return bounds;
+        }
+
+        /// <summary>영역과 교차하는 렌더러를 끈다 — 바닥 기준 높이 이상에서 시작하는 것만(천장 절개 전용, 벽 보호).</summary>
+        /// <param name="roomInstance">방 인스턴스.</param>
+        /// <param name="area">절개 영역(월드).</param>
+        /// <param name="minStartY">렌더러 bounds.min.y 하한 — 이보다 낮게 시작하는 렌더러(벽·바닥)는 건드리지 않는다.</param>
+        /// <returns>끈 렌더러 수.</returns>
+        private static int CutRenderersIntersecting(GameObject roomInstance, Bounds area, float minStartY)
+        {
+            int cut = 0;
+            foreach (Renderer renderer in roomInstance.GetComponentsInChildren<Renderer>(false))
+            {
+                if (renderer.bounds.min.y >= minStartY && renderer.bounds.Intersects(area))
+                {
+                    renderer.gameObject.SetActive(false);
+                    cut++;
+                }
+            }
+
+            return cut;
+        }
+
+        /// <summary>
+        /// 계단 인스턴스의 플라이트마다 램프 플레이트를 깐다 — 계단 메시는 복셀화 시 내비가 조각나(M9-9 실측)
+        /// 트레드 라인 위 얇은 경사판이 내비의 실체 면이 된다("Stair" 토큰 → 베이커 Walkable 태깅).
+        /// </summary>
+        /// <param name="stair">계단 인스턴스(자식 Hall_Stairs 플라이트 탐색).</param>
+        /// <param name="stairsRoot">플레이트 부모.</param>
+        private static void AddStairRamps(GameObject stair, Transform stairsRoot)
+        {
+            foreach (Transform flight in stair.transform)
+            {
+                if (!flight.name.StartsWith("Hall_Stairs"))
+                {
+                    continue;
+                }
+
+                Bounds bounds = CombinedRendererBounds(flight.gameObject);
+                Vector3 forward = -flight.forward; // 메시가 로컬 -Z 상승이라 진행 방향 = -forward
+                float run = Mathf.Abs(Vector3.Dot(bounds.size, forward));
+                Vector3 baseFoot = bounds.center - forward * (run * 0.5f);
+                baseFoot.y = bounds.min.y;
+                Vector3 top = bounds.center + forward * (run * 0.5f);
+                top.y = bounds.max.y;
+
+                Vector3 slope = top - baseFoot;
+                var plate = GameObject.CreatePrimitive(PrimitiveType.Cube);
+                plate.name = $"StairRamp_{stair.name}_{flight.GetSiblingIndex()}";
+                // 렌더러는 켜 둔다 — 베이커가 RenderMeshes 수집이라 꺼진 렌더러는 베이크에서 빠진다.
+                // 계단 재질을 입혀 트레드 위 얇은 덮개(스트링거)처럼 보이게 한다
+                Renderer plateRenderer = plate.GetComponent<Renderer>();
+                Renderer flightRenderer = flight.GetComponentInChildren<Renderer>();
+                plateRenderer.sharedMaterial = flightRenderer.sharedMaterial;
+                plateRenderer.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+                plate.transform.SetParent(stairsRoot, false);
+                plate.transform.localScale = new Vector3(3.8f, 0.02f, slope.magnitude + 0.4f); // 양끝 0.2m 연장 — 바닥·다음 플라이트와 내비 접속
+                plate.transform.rotation = Quaternion.LookRotation(slope.normalized);
+                plate.transform.position = (baseFoot + top) * 0.5f + Vector3.up * 0.03f;
+            }
+        }
+
+        /// <summary>계단 꼭대기와 위층 바닥 사이 브리지 플레이트 — 도착 개구 경계의 내비 접속 보장.</summary>
+        /// <param name="stair">계단 인스턴스.</param>
+        /// <param name="stairsRoot">플레이트 부모.</param>
+        /// <param name="rotation">방 회전(상승 방향 산출).</param>
+        /// <param name="topY">계단 꼭대기 월드 Y(= 위층 바닥면).</param>
+        private static void AddTopBridge(GameObject stair, Transform stairsRoot, Rotation4 rotation, float topY)
+        {
+            Bounds bounds = CombinedRendererBounds(stair);
+            Vector3 ascend = Quaternion.Euler(0f, 90f * (int)rotation, 0f) * Vector3.forward;
+            float runExtent = Mathf.Abs(Vector3.Dot(bounds.extents, ascend));
+            Vector3 topFace = bounds.center + ascend * runExtent;
+
+            var bridge = GameObject.CreatePrimitive(PrimitiveType.Cube);
+            bridge.name = $"StairTopBridge_{stair.name}";
+            Renderer bridgeRenderer = bridge.GetComponent<Renderer>();
+            Renderer stairRenderer = stair.GetComponentInChildren<Renderer>();
+            bridgeRenderer.sharedMaterial = stairRenderer.sharedMaterial; // 렌더러 유지 — RenderMeshes 베이크 수집 대상이어야 한다
+            bridgeRenderer.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+            bridge.transform.SetParent(stairsRoot, false);
+            bridge.transform.rotation = Quaternion.LookRotation(ascend);
+            bridge.transform.localScale = new Vector3(3.8f, 0.1f, 0.8f); // 경계 양쪽 0.4m 걸침
+            bridge.transform.position = new Vector3(topFace.x, topY - 0.05f, topFace.z);
         }
 
         /// <summary>
