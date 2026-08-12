@@ -103,6 +103,7 @@ GameObject:
   - component: {fileID: 5060746342418038198}
   - component: {fileID: 3814831168945640586}
   - component: {fileID: 1110419948588627161}
+  - component: {fileID: 5258635641953041261}
   m_Layer: 0
   m_Name: Player_UnityChan
   m_TagString: Untagged
@@ -790,6 +791,19 @@ MonoBehaviour:
   inventory: {fileID: 7556772348847717246}
   itemRegistry: {fileID: 11400000, guid: 7f3c1a9b2e4d50618a9b3c4d5e6f7a03, type: 2}
   itemSocket: {fileID: 4886157422136966613}
+--- !u!114 &5258635641953041261
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2490874660187570032}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: c915f3f32eb7d004d9508c78b99d3bb9, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::PlayerBodyVisibility
+  ShowTopMostFoldoutHeaderGroup: 1
 --- !u!1 &2490874660187570100
 GameObject:
   m_ObjectHideFlags: 0
