@@ -38,10 +38,15 @@ public static class AnimationSetupTool
     private const string paramMoveY = "MoveY";
     private const string paramTurnBlend = "TurnBlend";
     private const string paramTurnMul = "TurnMul";
+    private const string paramIsCrouching = "IsCrouching";
 
     // 플레이어 1D 속도 트리 문턱값(m/s). PlayerController.moveSpeed 3 / 웅크림 1.5 실측 기준
     private const float walkSpeed = 1.5f;
     private const float runSpeed = 3f;
+
+    // 웅크림 이동속도(m/s) = PlayerController.moveSpeed(3) × crouchSpeedMultiplier(0.5). Run 계단이 없다 —
+    // Mixamo 원본에 크라우치 런 클립이 없고, 게임 로직도 웅크린 채로는 뛸 수 없다.
+    private const float crouchWalkSpeed = 1.5f;
 
     // Locomotion ↔ Turn 전이 히스테리시스. TurnBlend 는 정규화된 부호 있는 회전량(-1~1)이다
     private const float turnEnterBlend = 0.15f;
@@ -80,6 +85,14 @@ public static class AnimationSetupTool
         new ClipSource(invectorFolder + "/Basic_StrafeMoveset.fbx", "RunForwardRight", "Strafe_RunForwardRight"),
         new ClipSource(invectorFolder + "/Basic_StrafeMoveset.fbx", "RunBackRight", "Strafe_RunBackRight"),
         new ClipSource(invectorFolder + "/Basic_StrafeMoveset.fbx", "RunRight", "Strafe_RunRight"),
+    };
+
+    // Mixamo(mixamo.com) 에서 "FBX for Unity, Without Skin" 으로 받은 크라우치 클립 2종.
+    // 서브에셋 클립 이름이 둘 다 "mixamo.com" 으로 동일하다(Mixamo 기본 테이크 이름).
+    private static readonly ClipSource[] crouchClipSources =
+    {
+        new ClipSource(destFolder + "/Crouching Idle.fbx", "mixamo.com", "Crouch_Idle"),
+        new ClipSource(destFolder + "/Crouch Walk.fbx", "mixamo.com", "Crouch_Walk"),
     };
 
     /// <summary>FBX 서브에셋 클립을 공용 폴더로 독립 .anim 복제한다. 이미 있으면 GUID 를 지키며 내용만 덮는다.</summary>
@@ -225,6 +238,104 @@ public static class AnimationSetupTool
         EditorUtility.SetDirty(controller);
         AssetDatabase.SaveAssets();
         Log.D("[AnimationSetup] 플레이어 컨트롤러 구성 완료");
+    }
+
+    /// <summary>
+    /// Mixamo 크라우치 클립 2종(Idle/Walking)을 공용 폴더로 추출한다.
+    /// Rig 를 Humanoid 로 재설정한 뒤(Animation Type → Humanoid, Create Avatar From This Model)
+    /// 그 서브에셋을 뽑는다 — ExtractClips() 와 완전히 같은 경로(FindClipInFbx)라 휴머노이드 근육 커브가 그대로 복제된다.
+    /// loopBlend 를 강제로 켠다 — Mixamo 클립은 시작·끝 포즈가 정확히 안 맞아 껴 있으면 루프마다 포즈가 튄다.
+    /// </summary>
+    [MenuItem("Tools/Animation/5. 크라우치 클립 추출")]
+    public static void ExtractCrouchClips()
+    {
+        Log.D("[AnimationSetup] 크라우치 클립 추출 시작");
+        EnsureFolder(destFolder);
+
+        int done = 0;
+        foreach (ClipSource source in crouchClipSources)
+        {
+            AnimationClip src = FindClipInFbx(source.FbxPath, source.ClipName);
+            if (src == null)
+            {
+                Debug.LogError($"[AnimationSetup] 크라우치 클립을 찾지 못함: {source.FbxPath} :: {source.ClipName}");
+                continue;
+            }
+
+            string destPath = $"{destFolder}/{source.DestName}.anim";
+            AnimationClipSettings settings = AnimationUtility.GetAnimationClipSettings(src);
+            settings.loopBlend = true;
+            AnimationClip existing = AssetDatabase.LoadAssetAtPath<AnimationClip>(destPath);
+
+            if (existing != null)
+            {
+                EditorUtility.CopySerialized(src, existing);
+                existing.name = source.DestName;
+                AnimationUtility.SetAnimationClipSettings(existing, settings);
+                EditorUtility.SetDirty(existing);
+            }
+            else
+            {
+                AnimationClip copy = UnityEngine.Object.Instantiate(src);
+                copy.name = source.DestName;
+                AnimationUtility.SetAnimationClipSettings(copy, settings);
+                AssetDatabase.CreateAsset(copy, destPath);
+            }
+
+            done++;
+        }
+
+        AssetDatabase.SaveAssets();
+        AssetDatabase.Refresh();
+        Log.D($"[AnimationSetup] 크라우치 클립 추출 완료: {done}/{crouchClipSources.Length}");
+    }
+
+    /// <summary>
+    /// 플레이어 컨트롤러에 크라우치 전용 로코모션 상태를 붙인다.
+    /// IsCrouching 을 기존 Speed 트리에 얹지 않고 별도 상태로 완전히 분리한 이유: 웅크림 속도(1.5)가
+    /// 서 있는 Walk 블렌드 지점과 겹쳐서, 분리하지 않으면 웅크린 채로 서 있는 Walk 클립이 재생된다.
+    /// </summary>
+    [MenuItem("Tools/Animation/6. 플레이어 크라우치 구성")]
+    public static void SetupPlayerCrouchController()
+    {
+        Log.D("[AnimationSetup] 플레이어 크라우치 구성 시작");
+
+        AnimatorController controller = AssetDatabase.LoadAssetAtPath<AnimatorController>(playerControllerPath);
+        AnimatorStateMachine root = controller.layers[0].stateMachine;
+
+        AnimatorState locomotion = FindState(root, "Locomotion");
+
+        EnsureBoolParameter(controller, paramIsCrouching);
+
+        AnimatorState crouch = FindState(root, "CrouchLocomotion");
+        if (crouch == null)
+        {
+            crouch = root.AddState("CrouchLocomotion", new Vector3(230f, 320f, 0f));
+        }
+        else
+        {
+            DestroyBlendTrees(controller, crouch.motion);
+            crouch.transitions = Array.Empty<AnimatorStateTransition>();
+        }
+        RemoveTransitionsTo(locomotion, crouch);
+
+        BlendTree crouchTree = NewTree(controller, "CrouchLocomotion", BlendTreeType.Simple1D, paramSpeed, paramSpeed);
+        crouchTree.useAutomaticThresholds = false;
+        crouchTree.AddChild(LoadClip("Crouch_Idle"), 0f);
+        crouchTree.AddChild(LoadClip("Crouch_Walk"), crouchWalkSpeed);
+        crouch.motion = crouchTree;
+
+        AnimatorStateTransition enterCrouch = locomotion.AddTransition(crouch);
+        ConfigureTransition(enterCrouch);
+        enterCrouch.AddCondition(AnimatorConditionMode.If, 0f, paramIsCrouching);
+
+        AnimatorStateTransition exitCrouch = crouch.AddTransition(locomotion);
+        ConfigureTransition(exitCrouch);
+        exitCrouch.AddCondition(AnimatorConditionMode.IfNot, 0f, paramIsCrouching);
+
+        EditorUtility.SetDirty(controller);
+        AssetDatabase.SaveAssets();
+        Log.D("[AnimationSetup] 플레이어 크라우치 구성 완료");
     }
 
     /// <summary>좀비 컨트롤러에 다리 전용 Turn 레이어를 붙인다. 가중치는 ZombieAnimator 가 회전량으로 직접 준다.</summary>
@@ -414,6 +525,18 @@ public static class AnimationSetupTool
             if (parameter.name == name) return;
         }
         controller.AddParameter(name, AnimatorControllerParameterType.Float);
+    }
+
+    /// <summary>같은 이름의 bool 파라미터가 없으면 추가한다.</summary>
+    /// <param name="controller">대상 컨트롤러.</param>
+    /// <param name="name">파라미터 이름.</param>
+    private static void EnsureBoolParameter(AnimatorController controller, string name)
+    {
+        foreach (AnimatorControllerParameter parameter in controller.parameters)
+        {
+            if (parameter.name == name) return;
+        }
+        controller.AddParameter(name, AnimatorControllerParameterType.Bool);
     }
 
     /// <summary>특정 상태로 향하는 전이를 모두 제거한다. 재실행 시 전이가 중복 쌓이는 것을 막는다.</summary>
