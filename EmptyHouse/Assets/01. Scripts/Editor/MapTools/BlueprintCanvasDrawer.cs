@@ -26,6 +26,8 @@ namespace EmptyHouse.MapGen.Editor
             public int SpawnKindFilterMask; // SpawnKind 비트 필터(~0 = 전체)
             public float AssumedCellMeters; // 셀 실측 m 가정치(G1 미확정 — 근사 전용)
             public float HearingRefDb; // 기준 소음 dB(10절 예시 = 투척물 50)
+            public int FloorFilter; // 층 필터 — int.MinValue = 전체, 그 외 = 해당 층 서수만 표시(M9 다층)
+            public bool ShowFloorLabels; // 층 섬 라벨(1F/2F/B1) 표시 — 다층 펼침 전용
         }
 
         private const float minZoom = 3f; // 줌 하한(px/셀)
@@ -86,10 +88,15 @@ namespace EmptyHouse.MapGen.Editor
 
                 DrawGrid(localRect);
                 DrawRooms(localRect, blueprint, templates, options, cachedDepths);
-                DrawEdges(localRect, blueprint, templates);
+                DrawEdges(localRect, blueprint, templates, options);
+                if (options.ShowFloorLabels)
+                {
+                    DrawFloorLabels(localRect, blueprint, options);
+                }
+
                 if (options.ShowWanderRadii)
                 {
-                    DrawWanderCircles(localRect, blueprint, templates);
+                    DrawWanderCircles(localRect, blueprint, templates, options);
                 }
 
                 if (options.ShowHearingRadii)
@@ -274,6 +281,11 @@ namespace EmptyHouse.MapGen.Editor
         {
             for (int r = 0; r < blueprint.Rooms.Count; r++)
             {
+                if (!RoomVisible(blueprint, r, options.FloorFilter))
+                {
+                    continue;
+                }
+
                 RoomTemplateDef template = cachedRoomTemplates[r];
                 Rect rect = RoomCanvasRect(blueprint.Rooms[r], template, canvasRect);
                 if (!rect.Overlaps(canvasRect))
@@ -316,11 +328,22 @@ namespace EmptyHouse.MapGen.Editor
             }
         }
 
+        /// <summary>방이 층 필터를 통과하는지 판정한다 — int.MinValue = 전체 표시(M9 다층).</summary>
+        /// <param name="blueprint">블루프린트.</param>
+        /// <param name="roomIndex">방 인덱스.</param>
+        /// <param name="floorFilter">층 필터 값.</param>
+        /// <returns>표시 대상이면 true.</returns>
+        private static bool RoomVisible(MapBlueprint blueprint, int roomIndex, int floorFilter)
+        {
+            return floorFilter == int.MinValue || blueprint.Rooms[roomIndex].FloorIndex == floorFilter;
+        }
+
         /// <summary>간선을 그린다 — 통로/열린 문/잠긴 문(🔒 번호)/막힌 벽 구분, LockKind 로 지름길·중요 물품 문 구분 표시(10절).</summary>
         /// <param name="canvasRect">캔버스 영역.</param>
         /// <param name="blueprint">블루프린트.</param>
         /// <param name="templates">템플릿 목록 — 소켓 위치는 CellMath.WorldCell 로 조회.</param>
-        private void DrawEdges(Rect canvasRect, MapBlueprint blueprint, IReadOnlyList<RoomTemplateDef> templates)
+        /// <param name="options">오버레이 옵션(층 필터 적용).</param>
+        private void DrawEdges(Rect canvasRect, MapBlueprint blueprint, IReadOnlyList<RoomTemplateDef> templates, OverlayOptions options)
         {
             for (int e = 0; e < blueprint.Edges.Count; e++)
             {
@@ -330,12 +353,23 @@ namespace EmptyHouse.MapGen.Editor
                 if (edge.SocketA < 0)
                 {
                     // 수직 간선(계단, SocketA/B = -2)은 실소켓이 없다 — FindSocket 은 null(NRE). 방 중심끼리 잇는다(M9).
-                    // 층 펼침(FloorSpread) 표시에서 층 섬 사이를 가로지르는 하늘색 선이 이것
+                    // 층 펼침(FloorSpread) 표시에서 층 섬 사이를 가로지르는 하늘색 선이 이것.
+                    // 층 필터 시 어느 한쪽이라도 보이면 그린다 — 그 층의 계단 연결 방향을 남기기 위해
+                    if (!RoomVisible(blueprint, edge.RoomA, options.FloorFilter) && !RoomVisible(blueprint, edge.RoomB, options.FloorFilter))
+                    {
+                        continue;
+                    }
+
                     Rect stairA = RoomCanvasRect(blueprint.Rooms[edge.RoomA], templateA, canvasRect);
                     Rect stairB = RoomCanvasRect(blueprint.Rooms[edge.RoomB], cachedRoomTemplates[edge.RoomB], canvasRect);
                     Handles.color = new Color(0.3f, 0.85f, 0.95f);
                     Handles.DrawAAPolyLine(3f, stairA.center, stairB.center);
                     continue;
+                }
+
+                if (!RoomVisible(blueprint, edge.RoomA, options.FloorFilter))
+                {
+                    continue; // 수평 간선·봉인은 양끝이 같은 층 — RoomA 만 보면 된다
                 }
 
                 SocketDef socketA = FindSocket(templateA, edge.SocketA);
@@ -387,6 +421,47 @@ namespace EmptyHouse.MapGen.Editor
             }
         }
 
+        /// <summary>층 섬 라벨을 그린다 — 각 층 방 무리의 좌상단 위에 층 이름(1F/2F/B1) 배지(M9 다층 펼침).</summary>
+        /// <param name="canvasRect">캔버스 영역.</param>
+        /// <param name="blueprint">블루프린트.</param>
+        /// <param name="options">오버레이 옵션 — 층 필터 시 그 층 라벨만.</param>
+        private void DrawFloorLabels(Rect canvasRect, MapBlueprint blueprint, OverlayOptions options)
+        {
+            // 층별 방 무리 좌상단 실측(펼침 사본 좌표 기준)
+            var topLeft = new Dictionary<int, (int minX, int maxY)>();
+            for (int r = 0; r < blueprint.Rooms.Count; r++)
+            {
+                BlueprintRoom room = blueprint.Rooms[r];
+                if (!RoomVisible(blueprint, r, options.FloorFilter))
+                {
+                    continue;
+                }
+
+                if (!topLeft.TryGetValue(room.FloorIndex, out (int minX, int maxY) bounds))
+                {
+                    bounds = (int.MaxValue, int.MinValue);
+                }
+
+                topLeft[room.FloorIndex] = (Mathf.Min(bounds.minX, room.Cell.X), Mathf.Max(bounds.maxY, room.Cell.Y + cachedRoomTemplates[r].HeightCells));
+            }
+
+            foreach (KeyValuePair<int, (int minX, int maxY)> entry in topLeft)
+            {
+                Vector2 corner = CellToCanvas(new CellCoord(entry.Value.minX, entry.Value.maxY + 1), canvasRect);
+                var badge = new Rect(corner.x, corner.y - 22f, 44f, 18f);
+                EditorGUI.DrawRect(badge, new Color(0.15f, 0.35f, 0.6f, 0.9f));
+                GUI.Label(badge, FloorName(entry.Key), badgeStyle);
+            }
+        }
+
+        /// <summary>층 서수를 표시명으로 바꾼다 — 0 = 1F, 양수 = {n+1}F, 음수 = B{n}. 윈도우 층 필터 툴바도 공유.</summary>
+        /// <param name="floorIndex">층 서수.</param>
+        /// <returns>층 표시명.</returns>
+        public static string FloorName(int floorIndex)
+        {
+            return floorIndex >= 0 ? $"{floorIndex + 1}F" : $"B{-floorIndex}";
+        }
+
         /// <summary>봉인 소켓의 막힌 벽 눈금을 그린다 — 소켓 셀의 봉인 방향 경계선.</summary>
         /// <param name="cell">소켓 전역 셀.</param>
         /// <param name="direction">봉인 방향(회전 적용).</param>
@@ -419,7 +494,7 @@ namespace EmptyHouse.MapGen.Editor
             for (int s = 0; s < blueprint.Spawns.Count; s++)
             {
                 BlueprintSpawn spawn = blueprint.Spawns[s];
-                if ((options.SpawnKindFilterMask & (1 << (int)spawn.Kind)) == 0)
+                if ((options.SpawnKindFilterMask & (1 << (int)spawn.Kind)) == 0 || !RoomVisible(blueprint, spawn.RoomIndex, options.FloorFilter))
                 {
                     continue;
                 }
@@ -517,13 +592,14 @@ namespace EmptyHouse.MapGen.Editor
         /// <param name="canvasRect">캔버스 영역.</param>
         /// <param name="blueprint">블루프린트.</param>
         /// <param name="templates">템플릿 목록.</param>
-        private void DrawWanderCircles(Rect canvasRect, MapBlueprint blueprint, IReadOnlyList<RoomTemplateDef> templates)
+        /// <param name="options">오버레이 옵션(층 필터 적용).</param>
+        private void DrawWanderCircles(Rect canvasRect, MapBlueprint blueprint, IReadOnlyList<RoomTemplateDef> templates, OverlayOptions options)
         {
             Handles.color = new Color(1f, 0.8f, 0.3f, 0.35f);
             for (int s = 0; s < blueprint.Spawns.Count; s++)
             {
                 BlueprintSpawn spawn = blueprint.Spawns[s];
-                if (spawn.WanderRadiusCells <= 0f || !IsZombie(spawn.Kind))
+                if (spawn.WanderRadiusCells <= 0f || !IsZombie(spawn.Kind) || !RoomVisible(blueprint, spawn.RoomIndex, options.FloorFilter))
                 {
                     continue;
                 }
@@ -558,7 +634,7 @@ namespace EmptyHouse.MapGen.Editor
             for (int s = 0; s < blueprint.Spawns.Count; s++)
             {
                 BlueprintSpawn spawn = blueprint.Spawns[s];
-                if (!IsZombie(spawn.Kind))
+                if (!IsZombie(spawn.Kind) || !RoomVisible(blueprint, spawn.RoomIndex, options.FloorFilter))
                 {
                     continue;
                 }

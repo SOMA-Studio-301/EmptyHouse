@@ -18,7 +18,8 @@ namespace EmptyHouse.MapGen.Editor
     {
         [SerializeField] private int seedInput; // 입력 시드 — 0 = 랜덤(생성 시 실제 값 확정·표기, X8)
         [SerializeField] private int lastConfirmedSeed; // 마지막 생성에 실제 사용한 확정 시드(AC-17·AC-22 재현 표기)
-        [SerializeField] private int templateSetIndex; // 템플릿 세트(0=프리팹 실측, 1=Dev 그레이박스) — 시드 재현은 같은 세트에서만 성립
+        [SerializeField] private int templateSetIndex; // 템플릿 세트(0=프리팹 실측 단층, 1=층 스택 다층) — 시드 재현은 같은 세트에서만 성립
+        [SerializeField] private int floorFilterIndex; // 층 필터(0=전체, 1..N=Blueprint.Floors 순번) — 다층 결과 전용
         [SerializeField] private MapGenParams workingParams = new MapGenParams(); // 파라미터 오버라이드 작업본(9절)
         [SerializeField] private bool showDangerOverlay = true; // 위험 등급 그라데이션 표시(10절)
         [SerializeField] private bool showSpawnOverlay = true; // 스폰 오버레이 표시(10절)
@@ -33,7 +34,8 @@ namespace EmptyHouse.MapGen.Editor
         [SerializeField] private Vector2 inputScroll; // 입력 패널 스크롤 위치
         [SerializeField] private Vector2 validationScroll; // 검증 패널 스크롤 위치
 
-        private static readonly string[] templateSetNames = { "프리팹 실측", "Dev 그레이박스", "3층 스윕 구성(M9)" }; // 템플릿 세트 선택지 — 인덱스는 templateSetIndex 와 계약
+        private static readonly string[] templateSetNames = { "프리팹 실측(단층)", "층 스택(다층)" }; // 템플릿 세트 선택지 — 인덱스는 templateSetIndex 와 계약. Dev 그레이박스는 제거(테스트 전용 세트)
+        private const string floorStackPath = "Assets/03. ScriptableObjects/MapGen/SO_MapFloorStack.asset"; // 다층 재료 — 런타임 드라이버와 같은 스택 SO
 
         private readonly MapGenerator generator = new MapGenerator(); // 게임과 동일 생성 라이브러리(AC-21)
         private MapGenResult lastResult; // 마지막 생성 결과 — 도메인 리로드 시 소실, 재생성으로 복원
@@ -81,6 +83,17 @@ namespace EmptyHouse.MapGen.Editor
                     AssumedCellMeters = assumedCellMeters,
                     HearingRefDb = hearingRefDb,
                 };
+                // 층 필터·라벨(M9 다층) — 다층 결과에서만 활성. FloorFilter 기본은 반드시 int.MinValue(전체) — 0 이면 1F 필터가 된다
+                options.FloorFilter = int.MinValue;
+                if (lastResult != null && lastResult.Success && lastResult.Blueprint.Floors.Count > 1)
+                {
+                    options.ShowFloorLabels = true;
+                    if (floorFilterIndex > 0 && floorFilterIndex <= lastResult.Blueprint.Floors.Count)
+                    {
+                        options.FloorFilter = lastResult.Blueprint.Floors[floorFilterIndex - 1].FloorIndex;
+                    }
+                }
+
                 MapBlueprint blueprint = lastResult != null && lastResult.Success ? (displayBlueprint ?? lastResult.Blueprint) : null;
                 canvasDrawer.Draw(canvasRect, blueprint, lastTemplates, options);
 
@@ -102,7 +115,7 @@ namespace EmptyHouse.MapGen.Editor
             inputScroll = EditorGUILayout.BeginScrollView(inputScroll);
             EditorGUILayout.LabelField("생성", EditorStyles.boldLabel);
             seedInput = EditorGUILayout.IntField(new GUIContent("시드 (0 = 랜덤)"), seedInput);
-            templateSetIndex = EditorGUILayout.Popup("템플릿 세트", templateSetIndex, templateSetNames);
+            templateSetIndex = EditorGUILayout.Popup("템플릿 세트", Mathf.Clamp(templateSetIndex, 0, templateSetNames.Length - 1), templateSetNames); // 구 세션 저장 인덱스(3종 시절) 흡수
             if (lastConfirmedSeed != 0)
             {
                 EditorGUILayout.LabelField($"마지막 확정 시드: {lastConfirmedSeed}", EditorStyles.miniLabel);
@@ -149,6 +162,20 @@ namespace EmptyHouse.MapGen.Editor
                 p.HerdZombieCountMin = EditorGUILayout.IntField("무리 좀비 Min", p.HerdZombieCountMin);
                 p.HerdZombieCountMax = EditorGUILayout.IntField("무리 좀비 Max", p.HerdZombieCountMax);
                 p.EnabledZombieTypes = (ZombieTypeMask)EditorGUILayout.EnumFlagsField("활성 좀비 타입", p.EnabledZombieTypes);
+            }
+
+            if (lastResult != null && lastResult.Success && lastResult.Blueprint.Floors.Count > 1)
+            {
+                EditorGUILayout.Space(6f);
+                EditorGUILayout.LabelField("층 필터", EditorStyles.boldLabel);
+                var floorNames = new string[lastResult.Blueprint.Floors.Count + 1];
+                floorNames[0] = "전체";
+                for (int f = 0; f < lastResult.Blueprint.Floors.Count; f++)
+                {
+                    floorNames[f + 1] = BlueprintCanvasDrawer.FloorName(lastResult.Blueprint.Floors[f].FloorIndex);
+                }
+
+                floorFilterIndex = GUILayout.Toolbar(Mathf.Clamp(floorFilterIndex, 0, floorNames.Length - 1), floorNames);
             }
 
             EditorGUILayout.Space(6f);
@@ -368,10 +395,25 @@ namespace EmptyHouse.MapGen.Editor
             lastConfirmedSeed = ResolveSeed();
             displayBlueprint = null;
 
-            if (templateSetIndex == 2)
+            // 작업본 오염 방지 — 스냅샷은 JSON 복제본으로 넘긴다([Serializable])
+            MapGenParams snapshot = JsonUtility.FromJson<MapGenParams>(JsonUtility.ToJson(workingParams));
+            snapshot.Seed = lastConfirmedSeed;
+
+            if (templateSetIndex >= 1)
             {
-                // 3층 스윕 구성(M9) — 파라미터 오버라이드·배회 오버라이드는 미적용(플랜 팩토리가 층 구성을 소유)
-                MapGenPlan plan = EmptyHouse.EditorTools.MapGenFloorSweep.ThreeFloorPlan(lastConfirmedSeed);
+                // 층 스택(다층) — 런타임 드라이버와 같은 재료(SO_MapFloorStack → MapFloorPlanAssembler.Build).
+                // 배회 오버라이드는 미적용(층별 템플릿은 스택 소유), 파라미터 스냅샷은 공통 노브로 반영된다
+                var stack = AssetDatabase.LoadAssetAtPath<MapFloorStackSO>(floorStackPath);
+                var lintErrors = new List<string>();
+                if (!MapFloorPlanAssembler.Lint(stack, lintErrors))
+                {
+                    Log.E($"[MapGenPreviewWindow] 층 스택 린트 실패: {string.Join(" / ", lintErrors)}");
+                    lastResult = null;
+                    Repaint();
+                    return;
+                }
+
+                MapGenPlan plan = MapFloorPlanAssembler.Build(stack, snapshot, out _);
                 lastResult = generator.Generate(plan);
                 lastTemplates = new List<RoomTemplateDef>(plan.FlatTemplates);
                 if (lastResult.Success)
@@ -379,19 +421,14 @@ namespace EmptyHouse.MapGen.Editor
                     displayBlueprint = FloorSpread(lastResult.Blueprint, plan);
                 }
 
+                floorFilterIndex = 0;
                 canvasDrawer.RequestFit();
                 Repaint();
                 return;
             }
 
-            // 작업본 오염 방지 — 스냅샷은 JSON 복제본으로 넘긴다([Serializable])
-            MapGenParams snapshot = JsonUtility.FromJson<MapGenParams>(JsonUtility.ToJson(workingParams));
-            snapshot.Seed = lastConfirmedSeed;
-
-            // 기본 = 실측 세트(레지스트리 템플릿 SO — M9-3) — 씬 빌더·런타임과 같은 재료로 봐야 모양 조정이 유효하다
-            List<RoomTemplateDef> templates = templateSetIndex == 0
-                ? AssetDatabase.LoadAssetAtPath<MapPrefabRegistrySO>("Assets/03. ScriptableObjects/MapGen/SO_MapPrefabRegistry.asset").CreateTemplates()
-                : DevTemplateSet.Create();
+            // 프리팹 실측(단층) — 레지스트리 템플릿 SO(M9-3), 씬 빌더·런타임과 같은 재료로 봐야 모양 조정이 유효하다
+            List<RoomTemplateDef> templates = AssetDatabase.LoadAssetAtPath<MapPrefabRegistrySO>("Assets/03. ScriptableObjects/MapGen/SO_MapPrefabRegistry.asset").CreateTemplates();
             ApplyWanderOverrides(templates);
             lastResult = generator.Generate(snapshot, templates);
             lastTemplates = templates;
