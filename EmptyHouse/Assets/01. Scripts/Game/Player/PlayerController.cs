@@ -279,6 +279,7 @@ public class PlayerController : NetworkBehaviour
         itemUser.enabled = false;
         aimIndicator.enabled = false; // OnDisable 에서 궤적선을 스스로 지운다 — 관전 화면에 남지 않는다
         body.linearVelocity = Vector3.zero;
+        body.useGravity = false; // PlayerBodyVisibility 가 콜라이더를 끈 뒤에도 중력이 남으면 계속 낙하해 위치가 흘러간다
     }
 
     /// <summary>
