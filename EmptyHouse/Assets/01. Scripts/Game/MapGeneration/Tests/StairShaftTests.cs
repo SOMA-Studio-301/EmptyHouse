@@ -115,6 +115,63 @@ namespace EmptyHouse.MapGen.Core.Tests
                 $"시드 {seed}: 수직 간선 수({verticalCount})가 샤프트({blueprint.Shafts.Count}) × 층간({blueprint.Floors.Count - 1})과 다르다");
         }
 
+        /// <summary>
+        /// 각 층의 방들은 수평 간선만으로 하나의 컴포넌트다 — 시드 층처럼 비시드 층도 층 안에서 전부 이어져야 한다.
+        /// 샤프트마다 섬을 따로 키우던 시절엔 층이 2~3조각으로 갈라져(실측 시드 300개 중 287개) 계단실 사이를
+        /// 다른 층으로 우회해야 했다. 수직 간선은 세지 않는다 — 층 내 보행 연결만 본다.
+        /// </summary>
+        [Test]
+        public void Generate_각_층은_수평_간선만으로_하나로_연결된다()
+        {
+            for (int seed = 1; seed <= 30; seed++)
+            {
+                MapGenResult result = new MapGenerator().Generate(MultiFloorFixtures.ThreeFloorPlan(seed));
+                Assert.That(result.Success, Is.True, $"시드 {seed}: 생성 실패 — {string.Join(" / ", result.FailReasons)}");
+                MapBlueprint blueprint = result.Blueprint;
+
+                var parent = new int[blueprint.Rooms.Count];
+                for (int i = 0; i < parent.Length; i++)
+                {
+                    parent[i] = i;
+                }
+
+                int Find(int x)
+                {
+                    while (parent[x] != x)
+                    {
+                        parent[x] = parent[parent[x]];
+                        x = parent[x];
+                    }
+
+                    return x;
+                }
+
+                for (int e = 0; e < blueprint.Edges.Count; e++)
+                {
+                    BlueprintEdge edge = blueprint.Edges[e];
+                    if (edge.RoomB < 0 || edge.SocketA < 0 || edge.State == EdgeState.BlockedWall)
+                    {
+                        continue; // 봉인·수직 간선 제외 — 층 내 수평 연결만 본다
+                    }
+
+                    parent[Find(edge.RoomA)] = Find(edge.RoomB);
+                }
+
+                for (int f = 0; f < blueprint.Floors.Count; f++)
+                {
+                    BlueprintFloor floor = blueprint.Floors[f];
+                    var roots = new HashSet<int>();
+                    for (int r = floor.RoomStart; r < floor.RoomStart + floor.RoomCount; r++)
+                    {
+                        roots.Add(Find(r));
+                    }
+
+                    Assert.That(roots.Count, Is.EqualTo(1),
+                        $"시드 {seed}: 층 {floor.FloorIndex} 이 수평 간선 기준 {roots.Count}개 컴포넌트로 갈라졌다 — 층 안에서 계단실로 걸어갈 수 없는 구역이 있다");
+                }
+            }
+        }
+
         /// <summary>시드 1부터 첫 성공 결과를 가져온다(테스트 픽스처 공용).</summary>
         /// <param name="seed">성공한 시드(출력).</param>
         /// <returns>성공 결과.</returns>

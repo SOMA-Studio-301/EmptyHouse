@@ -25,8 +25,7 @@ namespace EmptyHouse.MapGen.Core
         private readonly List<(int template, int socket)> directCandidates = new List<(int template, int socket)>(); // 직결 후보 재사용 버퍼(호출 빈도 높음 — GC 절감)
         private readonly List<(int template, int socket)> corridorCandidates = new List<(int template, int socket)>(); // 복도 후보 재사용 버퍼
         private readonly List<int> farSockets = new List<int>(); // 복도 원단 소켓 재사용 버퍼
-        private readonly List<int> shaftSeedRooms = new List<int>(); // 비시드 층 계단실 방 인덱스 재사용 버퍼(연결 보장용)
-        private readonly List<int> shaftSocketOrder = new List<int>(); // 계단실 소켓 시도 순서 재사용 버퍼
+        private readonly List<int> pendingShaftRooms = new List<int>(); // 비시드 층 미연결 계단실 방 재사용 버퍼 — 성장 중 흡수 대상 목록
         private readonly List<ChainSegment> chainSegments = new List<ChainSegment>(); // 복도 연쇄 세그먼트 재사용 버퍼(커밋·롤백 기록)
         private readonly List<KeepOutStrip> entranceKeepOut = new List<KeepOutStrip>(); // 입구 바깥 확보 대역(소켓 없는 변 너머 — 어떤 풋프린트도 금지)
 
@@ -175,6 +174,7 @@ namespace EmptyHouse.MapGen.Core
                 int seedFloorIndex = plan.Floors[plan.SeedFloorSlot].FloorIndex;
                 int neighborFloor = currentFloorIndex > seedFloorIndex ? currentFloorIndex - 1 : currentFloorIndex + 1;
                 var frontier = new List<(int room, int socket)>();
+                pendingShaftRooms.Clear();
                 for (int k = 0; k < blueprint.Shafts.Count; k++)
                 {
                     StairShaft shaft = blueprint.Shafts[k];
@@ -203,25 +203,35 @@ namespace EmptyHouse.MapGen.Core
                         LockNumber = 0,
                     });
 
-                    // 다중 시딩 — 계단실의 모든 소켓이 이 층 성장의 뿌리가 된다
-                    for (int s = 0; s < stair.Sockets.Length; s++)
+                    // 첫 샤프트만 성장의 뿌리 — 샤프트마다 프런티어를 시딩하면 섬이 따로 자라 층이 조각난다
+                    // (실측 시드 300개 중 287개에서 층 컴포넌트 2~3개). 나머지 계단실은 흡수 대상 목록에 둔다
+                    if (k == 0)
                     {
-                        frontier.Add((room, s));
+                        for (int s = 0; s < stair.Sockets.Length; s++)
+                        {
+                            frontier.Add((room, s));
+                        }
+                    }
+                    else
+                    {
+                        pendingShaftRooms.Add(room);
                     }
                 }
 
                 floorShafts = blueprint.Shafts.Count;
                 int targetRooms = rng.Next(floorParams.RoomsTotalMin, floorParams.RoomsTotalMax + 1);
 
-                // 성장 루프는 프런티어를 무작위로 소비하다 예산이 차면 멈춘다 — 그대로 두면 어떤 샤프트의 소켓은
-                // 한 번도 안 뽑혀 그 계단실이 수평 간선 0개로 고립된다(수직선만 붙은 외딴 방).
-                // 계단실은 층 예산에 안 잡히는 앵커라 "예산은 다 썼는데 아직 안 붙은 계단실"이 성립한다.
-                // 그래서 성장 전에 샤프트마다 이웃 방 1개를 먼저 확정한다(실패 = 층 리롤).
-                if (!TryConnectShafts(rng, floorTemplates, usedCount, blueprint, frontier))
+                // 1단계 — 미연결 계단실을 향해 뻗어가 전부 한 컴포넌트로 흡수한다(층 내 연결 보장, 실패 = 층 리롤)
+                if (!GrowConnectingShafts(rng, floorParams, floorTemplates, usedCount, blueprint, frontier, roomStart))
                 {
                     return false;
                 }
 
+                // 연결이 예산 상한을 넘길 수 있다 — 층 내 연결은 절대 요구, 상한은 튜닝값이라 초과를 허용한다.
+                // 하드 실패로 두면 샤프트 배치 기하상 연결 비용 > 상한인 시드가 리롤을 전부 소진하고 생성 자체가 죽는다
+                // (실측: 시드 86이 21회 전부 실패). 성장 자체는 템플릿 MaxCount 합으로 유한하다.
+
+                // 2단계 — 남은 예산 자유 성장(전 계단실이 이미 이어져 있어 어디서 멈춰도 층은 하나다)
                 if (!GrowFromFrontier(rng, plan.Params, floorParams, floorTemplates, usedCount, blueprint, frontier, targetRooms, 0, null))
                 {
                     return false;
@@ -422,79 +432,216 @@ namespace EmptyHouse.MapGen.Core
 
         /// <summary>
         /// <summary>
-        /// 비시드 층에 복사 배치된 계단실마다 이웃 방 1개를 직결로 확정한다(M9 — 층간 접근 보장).
-        /// 프런티어에 소켓만 넣고 성장에 맡기면 무작위 소비·예산 소진으로 그 계단실이 통째로 고립된다
-        /// (수직 간선만 붙고 그 층에서 걸어 들어갈 수 없다 — 실측 시드 300개 중 219개에서 발생).
-        /// 소켓은 셔플해 하나씩 시도하고, 성공한 소켓은 프런티어에서 뺀다(중복 소비 방지).
-        /// 한 계단실이라도 사방이 막혀 실패하면 그 층은 성립하지 않는다 — false 로 층 리롤에 맡긴다.
+        /// 비시드 층 1단계 성장 — 첫 샤프트 컴포넌트를 미연결 계단실 쪽으로 뻗어가며 전부 흡수한다(M9 — 층 내 연결 보장).
+        /// 매 반복: ① 컴포넌트와 소켓이 마주 본 미연결 계단실이 있으면 간선으로 흡수,
+        /// ② 없으면 "목표 계단실에 가장 가까워지는" 프런티어 소켓을 골라 방·복도를 붙인다(그리디 유도 성장).
+        /// 프런티어가 마르도록 흡수하지 못한 계단실이 남으면 false — 층 리롤.
+        /// 소켓 선택이 거리 순 + 인덱스 순이라 rng 소비 순서가 시드에 결정적이다.
         /// </summary>
         /// <param name="rng">단일 난수 스트림.</param>
+        /// <param name="floorParams">현재 층 파라미터(복도 경유 확률).</param>
         /// <param name="templates">현재 층 템플릿 집합.</param>
         /// <param name="usedCount">템플릿별 사용 횟수.</param>
         /// <param name="blueprint">대상 블루프린트.</param>
-        /// <param name="frontier">계단실 소켓이 들어 있는 프런티어(성공분은 제거되고 새 방 소켓이 추가된다).</param>
-        /// <returns>전 계단실 연결 성공 여부.</returns>
-        private bool TryConnectShafts(DeterministicRng rng, IReadOnlyList<RoomTemplateDef> templates, int[] usedCount, MapBlueprint blueprint, List<(int room, int socket)> frontier)
+        /// <param name="frontier">첫 샤프트에서 시작한 프런티어(소비·확장된다).</param>
+        /// <param name="roomStart">이 층 방 구간 시작 인덱스.</param>
+        /// <returns>전 계단실 흡수 성공 여부.</returns>
+        private bool GrowConnectingShafts(DeterministicRng rng, FloorGenParams floorParams, IReadOnlyList<RoomTemplateDef> templates, int[] usedCount, MapBlueprint blueprint, List<(int room, int socket)> frontier, int roomStart)
         {
-            Log.D("[LayoutGenerator] TryConnectShafts");
-            shaftSeedRooms.Clear();
-            for (int i = 0; i < frontier.Count; i++)
+            Log.D("[LayoutGenerator] GrowConnectingShafts");
+            while (pendingShaftRooms.Count > 0)
             {
-                if (!shaftSeedRooms.Contains(frontier[i].room))
+                if (TryAbsorbAdjacentStair(rng, blueprint, frontier, roomStart))
                 {
-                    shaftSeedRooms.Add(frontier[i].room);
-                }
-            }
-
-            for (int i = 0; i < shaftSeedRooms.Count; i++)
-            {
-                int stairRoom = shaftSeedRooms[i];
-                RoomTemplateDef stair = placedTemplates[stairRoom];
-
-                // 소켓 순서 셔플 — 같은 시드면 같은 순서(결정론). 방 인덱스는 오름차순 고정이라 순회 자체는 결정적이다
-                shaftSocketOrder.Clear();
-                for (int s = 0; s < stair.Sockets.Length; s++)
-                {
-                    shaftSocketOrder.Add(s);
+                    continue; // 흡수는 방 소비가 없다 — 남은 계단실을 계속 검사
                 }
 
-                Shuffle(rng, shaftSocketOrder);
-
-                bool connected = false;
-                for (int k = 0; k < shaftSocketOrder.Count && !connected; k++)
+                if (frontier.Count == 0)
                 {
-                    int socketIndex = shaftSocketOrder[k];
-                    SocketDef socket = stair.Sockets[socketIndex];
-                    if (usedSockets.Contains(SocketKey(stairRoom, socket.Id)))
-                    {
-                        continue; // 앞선 계단실 연결이 이미 쓴 소켓
-                    }
-
-                    CellCoord worldCell = ToWorldCell(blueprint.Rooms[stairRoom], stair, socket);
-                    SocketDirection worldDir = CellMath.RotateDirection(socket.Direction, blueprint.Rooms[stairRoom].Rotation);
-                    CellCoord targetCell = Step(worldCell, worldDir);
-                    connected = TryAttachDirectRoom(rng, templates, usedCount, false, false, blueprint, frontier, stairRoom, socket, targetCell, Opposite(worldDir));
-                    if (connected)
-                    {
-                        // 소비된 소켓은 프런티어에서 제거 — 성장 루프가 다시 뽑아 헛돌지 않게
-                        for (int f = frontier.Count - 1; f >= 0; f--)
-                        {
-                            if (frontier[f].room == stairRoom && stair.Sockets[frontier[f].socket].Id == socket.Id)
-                            {
-                                frontier.RemoveAt(f);
-                            }
-                        }
-                    }
-                }
-
-                if (!connected)
-                {
-                    Log.D($"[LayoutGenerator] 계단실 방 {stairRoom} 이웃 방 확정 실패 — 층 리롤");
+                    Log.D($"[LayoutGenerator] 계단실 {pendingShaftRooms.Count}개 흡수 전에 프런티어 고갈 — 층 리롤");
                     return false;
                 }
+
+                // 목표에 가장 가까워지는 소켓 선택 — 거리 동률은 낮은 인덱스(결정론, rng 무소비)
+                int bestIndex = -1;
+                int bestDistance = int.MaxValue;
+                for (int i = 0; i < frontier.Count; i++)
+                {
+                    (int room, int socketIndex) = frontier[i];
+                    SocketDef socket = placedTemplates[room].Sockets[socketIndex];
+                    CellCoord worldCell = ToWorldCell(blueprint.Rooms[room], placedTemplates[room], socket);
+                    SocketDirection worldDir = CellMath.RotateDirection(socket.Direction, blueprint.Rooms[room].Rotation);
+                    CellCoord targetCell = Step(worldCell, worldDir);
+                    int distance = DistanceToNearestPendingStair(blueprint, targetCell);
+                    if (distance < bestDistance)
+                    {
+                        bestDistance = distance;
+                        bestIndex = i;
+                    }
+                }
+
+                (int openRoom, int openSocketIndex) = frontier[bestIndex];
+                SocketDef openSocket = placedTemplates[openRoom].Sockets[openSocketIndex];
+                BlueprintRoom openRoomData = blueprint.Rooms[openRoom];
+                CellCoord openWorldCell = ToWorldCell(openRoomData, placedTemplates[openRoom], openSocket);
+                SocketDirection openWorldDir = CellMath.RotateDirection(openSocket.Direction, openRoomData.Rotation);
+                CellCoord attachCell = Step(openWorldCell, openWorldDir);
+
+                // 본 성장 루프와 같은 연결 방식 결정 — 복도 소켓에서는 직결만(복도→복도 체인 금지).
+                // 복도 연쇄에는 목표 셀을 넘겨 유도한다(방 1개로 최대 거리 전진 — 연결의 예산 비용 최소화)
+                CellCoord aim = NearestPendingStairCenter(blueprint, attachCell);
+                bool fromCorridor = placedTemplates[openRoom].IsCorridor;
+                bool viaCorridor = !fromCorridor && rng.Next(100) < floorParams.CorridorLinkPercent;
+                bool attached = viaCorridor
+                    && TryAttachCorridorLink(rng, floorParams, templates, usedCount, blueprint, frontier, openRoom, openSocket, attachCell, openWorldDir, aim, true);
+                if (!attached)
+                {
+                    TryAttachDirectRoom(rng, templates, usedCount, false, false, blueprint, frontier, openRoom, openSocket, attachCell, Opposite(openWorldDir));
+                }
+
+                // 성공이면 소켓 소비, 실패면 죽은 소켓 — 어느 쪽이든 프런티어에서 뺀다(본 성장 루프와 동일 규약)
+                frontier.RemoveAt(bestIndex);
             }
 
             return true;
+        }
+
+        /// <summary>목표 셀에서 가장 가까운 미연결 계단실까지의 체비셰프 거리(풋프린트 중심 기준).</summary>
+        /// <param name="blueprint">대상 블루프린트.</param>
+        /// <param name="cell">기준 셀.</param>
+        /// <returns>최소 체비셰프 거리.</returns>
+        private int DistanceToNearestPendingStair(MapBlueprint blueprint, CellCoord cell)
+        {
+            int best = int.MaxValue;
+            for (int i = 0; i < pendingShaftRooms.Count; i++)
+            {
+                int distance = ChebyshevToStair(blueprint, pendingShaftRooms[i], cell, out _);
+                if (distance < best)
+                {
+                    best = distance;
+                }
+            }
+
+            return best;
+        }
+
+        /// <summary>기준 셀에서 가장 가까운 미연결 계단실의 풋프린트 중심 셀 — 유도 연쇄의 목표점.</summary>
+        /// <param name="blueprint">대상 블루프린트.</param>
+        /// <param name="cell">기준 셀.</param>
+        /// <returns>최근접 계단실 중심 셀.</returns>
+        private CellCoord NearestPendingStairCenter(MapBlueprint blueprint, CellCoord cell)
+        {
+            int best = int.MaxValue;
+            CellCoord bestCenter = cell;
+            for (int i = 0; i < pendingShaftRooms.Count; i++)
+            {
+                int distance = ChebyshevToStair(blueprint, pendingShaftRooms[i], cell, out CellCoord center);
+                if (distance < best)
+                {
+                    best = distance;
+                    bestCenter = center;
+                }
+            }
+
+            return bestCenter;
+        }
+
+        /// <summary>계단실 풋프린트 중심까지의 체비셰프 거리와 그 중심 셀을 구한다.</summary>
+        /// <param name="blueprint">대상 블루프린트.</param>
+        /// <param name="stairRoom">계단실 방 인덱스.</param>
+        /// <param name="cell">기준 셀.</param>
+        /// <param name="center">계단실 풋프린트 중심 셀.</param>
+        /// <returns>체비셰프 거리.</returns>
+        private int ChebyshevToStair(MapBlueprint blueprint, int stairRoom, CellCoord cell, out CellCoord center)
+        {
+            RoomTemplateDef stair = placedTemplates[stairRoom];
+            CellCoord origin = blueprint.Rooms[stairRoom].Cell;
+            center = new CellCoord(origin.X + stair.WidthCells / 2, origin.Y + stair.HeightCells / 2);
+            int dx = System.Math.Abs(center.X - cell.X);
+            int dy = System.Math.Abs(center.Y - cell.Y);
+            return dx > dy ? dx : dy;
+        }
+
+        /// <summary>
+        /// 컴포넌트 방과 소켓이 정면으로 마주 본 미연결 계단실을 찾아 간선으로 흡수한다 — 성공 시 그 계단실의
+        /// 잔여 소켓을 프런티어에 넣고 목록에서 뺀다. 소비된 컴포넌트 쪽 소켓은 프런티어에서도 걷어낸다(중복 소비 방지).
+        /// 순회가 전부 인덱스 오름차순이라 결정적이다.
+        /// </summary>
+        /// <param name="rng">단일 난수 스트림(간선 상태 롤).</param>
+        /// <param name="blueprint">대상 블루프린트.</param>
+        /// <param name="frontier">프런티어(흡수 시 갱신).</param>
+        /// <param name="roomStart">이 층 방 구간 시작 인덱스.</param>
+        /// <returns>흡수 발생 여부.</returns>
+        private bool TryAbsorbAdjacentStair(DeterministicRng rng, MapBlueprint blueprint, List<(int room, int socket)> frontier, int roomStart)
+        {
+            for (int p = 0; p < pendingShaftRooms.Count; p++)
+            {
+                int stairRoom = pendingShaftRooms[p];
+                RoomTemplateDef stair = placedTemplates[stairRoom];
+                for (int ss = 0; ss < stair.Sockets.Length; ss++)
+                {
+                    SocketDef stairSocket = stair.Sockets[ss];
+                    if (usedSockets.Contains(SocketKey(stairRoom, stairSocket.Id)))
+                    {
+                        continue;
+                    }
+
+                    CellCoord stairCell = ToWorldCell(blueprint.Rooms[stairRoom], stair, stairSocket);
+                    SocketDirection stairDir = CellMath.RotateDirection(stairSocket.Direction, blueprint.Rooms[stairRoom].Rotation);
+                    CellCoord facing = Step(stairCell, stairDir);
+                    SocketDirection neededDir = Opposite(stairDir);
+
+                    for (int r = roomStart; r < blueprint.Rooms.Count; r++)
+                    {
+                        if (r == stairRoom || pendingShaftRooms.Contains(r))
+                        {
+                            continue; // 미연결 계단실끼리는 흡수가 아니다 — 컴포넌트 소속 방만 상대
+                        }
+
+                        RoomTemplateDef template = placedTemplates[r];
+                        for (int rs = 0; rs < template.Sockets.Length; rs++)
+                        {
+                            SocketDef roomSocket = template.Sockets[rs];
+                            if (usedSockets.Contains(SocketKey(r, roomSocket.Id)))
+                            {
+                                continue;
+                            }
+
+                            CellCoord roomCell = ToWorldCell(blueprint.Rooms[r], template, roomSocket);
+                            if (roomCell.X != facing.X || roomCell.Y != facing.Y
+                                || CellMath.RotateDirection(roomSocket.Direction, blueprint.Rooms[r].Rotation) != neededDir)
+                            {
+                                continue;
+                            }
+
+                            AddEdge(rng, blueprint, r, roomSocket.Id, stairRoom, stairSocket.Id);
+                            pendingShaftRooms.RemoveAt(p);
+
+                            // 소비된 컴포넌트 쪽 소켓을 프런티어에서 제거(성장 루프가 다시 뽑아 이중 소비하지 않게)
+                            for (int f = frontier.Count - 1; f >= 0; f--)
+                            {
+                                if (frontier[f].room == r && template.Sockets[frontier[f].socket].Id == roomSocket.Id)
+                                {
+                                    frontier.RemoveAt(f);
+                                }
+                            }
+
+                            // 흡수된 계단실의 잔여 소켓이 이제 컴포넌트의 성장 지점이 된다
+                            for (int s = 0; s < stair.Sockets.Length; s++)
+                            {
+                                if (!usedSockets.Contains(SocketKey(stairRoom, stair.Sockets[s].Id)))
+                                {
+                                    frontier.Add((stairRoom, s));
+                                }
+                            }
+
+                            return true;
+                        }
+                    }
+                }
+            }
+
+            return false;
         }
 
         /// <summary>
@@ -707,10 +854,13 @@ namespace EmptyHouse.MapGen.Core
         /// <param name="openSocket">열린 소켓.</param>
         /// <param name="targetCell">첫 세그먼트 근단 소켓이 놓일 월드 셀.</param>
         /// <param name="openWorldDir">열린 소켓의 월드 방향(연결 진행 방향).</param>
+        /// <param name="aimCell">유도 목표 셀(계단실 흡수 성장 전용) — aimed 가 참일 때만 유효.</param>
+        /// <param name="aimed">유도 연쇄 여부 — 참이면 연쇄 길이 최대 고정 + 원단을 목표에 가까워지는 쪽으로 고른다.</param>
         /// <returns>체인+끝방 배치 성공 여부.</returns>
-        private bool TryAttachCorridorLink(DeterministicRng rng, FloorGenParams floorParams, IReadOnlyList<RoomTemplateDef> templates, int[] usedCount, MapBlueprint blueprint, List<(int room, int socket)> frontier, int openRoom, SocketDef openSocket, CellCoord targetCell, SocketDirection openWorldDir)
+        private bool TryAttachCorridorLink(DeterministicRng rng, FloorGenParams floorParams, IReadOnlyList<RoomTemplateDef> templates, int[] usedCount, MapBlueprint blueprint, List<(int room, int socket)> frontier, int openRoom, SocketDef openSocket, CellCoord targetCell, SocketDirection openWorldDir, CellCoord aimCell = default, bool aimed = false)
         {
-            int chainTarget = rng.Next(1, floorParams.CorridorChainMax + 1);
+            // 유도 연쇄는 최대 길이 고정 — 방 1개당 전진 거리를 최대로 벌어 연결 비용(층 예산)을 아낀다
+            int chainTarget = aimed ? floorParams.CorridorChainMax : rng.Next(1, floorParams.CorridorChainMax + 1);
             chainSegments.Clear();
 
             CellCoord segTarget = targetCell;
@@ -718,7 +868,7 @@ namespace EmptyHouse.MapGen.Core
             int lockedTemplate = -1; // 첫 세그먼트가 정한 복도 템플릿 — 연쇄 전체가 이것만 쓴다(폭이 다른 복도끼리 물리면 단부 절반이 봉인돼 통로 한가운데 벽이 선다)
             for (int i = 0; i < chainTarget; i++)
             {
-                if (!TryPlaceChainSegment(rng, templates, usedCount, blueprint, segTarget, segDir, lockedTemplate, out ChainSegment segment, out CellCoord nextTarget, out SocketDirection nextDir))
+                if (!TryPlaceChainSegment(rng, templates, usedCount, blueprint, segTarget, segDir, lockedTemplate, aimCell, aimed, out ChainSegment segment, out CellCoord nextTarget, out SocketDirection nextDir))
                 {
                     break; // 더 못 늘림 — 현재 길이에서 끝방 시도
                 }
@@ -732,6 +882,14 @@ namespace EmptyHouse.MapGen.Core
             // 끝방 부착 — 실패하면 마지막 세그먼트를 걷어내며 짧은 체인으로 재시도
             while (chainSegments.Count > 0)
             {
+                // 유도 연쇄가 미연결 계단실 소켓과 이미 마주 봤으면 끝방 없이 커밋 — 원단은 프런티어에 남고
+                // 다음 반복의 흡수(TryAbsorbAdjacentStair)가 그 자리에서 간선을 잇는다(끝방 자리가 없어도 연결 성립)
+                if (aimed && FarSocketFacesPendingStair(blueprint, templates, chainSegments[chainSegments.Count - 1]))
+                {
+                    CommitChainEdges(rng, templates, blueprint, frontier, openRoom, openSocket);
+                    return true;
+                }
+
                 if (TryAttachChainEndRoom(rng, templates, usedCount, blueprint, frontier, chainSegments[chainSegments.Count - 1]))
                 {
                     CommitChainEdges(rng, templates, blueprint, frontier, openRoom, openSocket);
@@ -742,6 +900,53 @@ namespace EmptyHouse.MapGen.Core
                 RemoveLastRoom(templates[last.TemplateIndex], last.Origin, last.Rotation, blueprint);
                 usedCount[last.TemplateIndex]--;
                 chainSegments.RemoveAt(chainSegments.Count - 1);
+            }
+
+            return false;
+        }
+
+        /// <summary>연쇄 마지막 세그먼트의 미사용 원단 소켓이 미연결 계단실 소켓과 정면으로 마주 보는지 검사한다.</summary>
+        /// <param name="blueprint">대상 블루프린트.</param>
+        /// <param name="templates">현재 층 템플릿 집합.</param>
+        /// <param name="last">마지막 세그먼트.</param>
+        /// <returns>마주 봄 여부.</returns>
+        private bool FarSocketFacesPendingStair(MapBlueprint blueprint, IReadOnlyList<RoomTemplateDef> templates, ChainSegment last)
+        {
+            RoomTemplateDef corridor = templates[last.TemplateIndex];
+            for (int s = 0; s < corridor.Sockets.Length; s++)
+            {
+                SocketDef farSocket = corridor.Sockets[s];
+                if (farSocket.Id == last.NearSocketId
+                    || CellMath.RotateDirection(farSocket.Direction, last.Rotation) == last.NearFacing
+                    || usedSockets.Contains(SocketKey(last.Room, farSocket.Id)))
+                {
+                    continue;
+                }
+
+                CellCoord farCell = ToWorldCell(blueprint.Rooms[last.Room], corridor, farSocket);
+                SocketDirection farDir = CellMath.RotateDirection(farSocket.Direction, last.Rotation);
+                CellCoord facing = Step(farCell, farDir);
+                SocketDirection neededDir = Opposite(farDir);
+
+                for (int p = 0; p < pendingShaftRooms.Count; p++)
+                {
+                    int stairRoom = pendingShaftRooms[p];
+                    RoomTemplateDef stair = placedTemplates[stairRoom];
+                    for (int ss = 0; ss < stair.Sockets.Length; ss++)
+                    {
+                        if (usedSockets.Contains(SocketKey(stairRoom, stair.Sockets[ss].Id)))
+                        {
+                            continue;
+                        }
+
+                        CellCoord stairCell = ToWorldCell(blueprint.Rooms[stairRoom], stair, stair.Sockets[ss]);
+                        if (stairCell.X == facing.X && stairCell.Y == facing.Y
+                            && CellMath.RotateDirection(stair.Sockets[ss].Direction, blueprint.Rooms[stairRoom].Rotation) == neededDir)
+                        {
+                            return true;
+                        }
+                    }
+                }
             }
 
             return false;
@@ -760,7 +965,8 @@ namespace EmptyHouse.MapGen.Core
         }
 
         /// <summary>
-        /// 연쇄 세그먼트 1개를 놓는다 — 근단을 진행 방향에 맞춰 배치하고 원단(셔플 첫 소켓)으로 다음 진행점을 계산한다.
+        /// 연쇄 세그먼트 1개를 놓는다 — 근단을 진행 방향에 맞춰 배치하고 원단으로 다음 진행점을 계산한다
+        /// (기본 = 셔플 첫 소켓, 유도 연쇄 = 목표에 가장 가까워지는 소켓).
         /// 원단 없는(막다른) 복도 배치는 후보에서 제외한다. 성공 시 usedCount 를 올린다(롤백 시 호출자가 원복).
         /// </summary>
         /// <param name="rng">단일 난수 스트림.</param>
@@ -770,11 +976,13 @@ namespace EmptyHouse.MapGen.Core
         /// <param name="segTarget">근단 소켓이 놓일 월드 셀.</param>
         /// <param name="incomingDir">진행 방향(이전 원단 소켓의 월드 방향).</param>
         /// <param name="lockedTemplateIndex">연쇄가 이미 고정한 복도 템플릿 인덱스(-1 = 첫 세그먼트라 자유).</param>
+        /// <param name="aimCell">유도 목표 셀 — aimed 가 참일 때만 유효.</param>
+        /// <param name="aimed">유도 연쇄 여부(원단 선택이 목표 지향·rng 무소비).</param>
         /// <param name="segment">배치된 세그먼트 기록.</param>
         /// <param name="nextTarget">다음 세그먼트/끝방의 근단이 놓일 월드 셀.</param>
         /// <param name="nextDir">다음 진행 방향.</param>
         /// <returns>배치 성공 여부.</returns>
-        private bool TryPlaceChainSegment(DeterministicRng rng, IReadOnlyList<RoomTemplateDef> templates, int[] usedCount, MapBlueprint blueprint, CellCoord segTarget, SocketDirection incomingDir, int lockedTemplateIndex, out ChainSegment segment, out CellCoord nextTarget, out SocketDirection nextDir)
+        private bool TryPlaceChainSegment(DeterministicRng rng, IReadOnlyList<RoomTemplateDef> templates, int[] usedCount, MapBlueprint blueprint, CellCoord segTarget, SocketDirection incomingDir, int lockedTemplateIndex, CellCoord aimCell, bool aimed, out ChainSegment segment, out CellCoord nextTarget, out SocketDirection nextDir)
         {
             SocketDirection neededDir = Opposite(incomingDir);
             corridorCandidates.Clear();
@@ -833,8 +1041,34 @@ namespace EmptyHouse.MapGen.Core
                 int room = PlaceRoom(corridor, origin, rotation, blueprint, currentFlatBase + templateIndex);
                 usedCount[templateIndex]++;
 
-                Shuffle(rng, farSockets);
-                SocketDef continueSocket = corridor.Sockets[farSockets[0]];
+                int pickedFar;
+                if (aimed)
+                {
+                    // 유도 연쇄(비시드 층 계단실 흡수) — 다음 진행점이 목표에 가장 가까워지는 원단 선택(동률 = 낮은 인덱스, rng 무소비)
+                    pickedFar = farSockets[0];
+                    int bestDistance = int.MaxValue;
+                    for (int f = 0; f < farSockets.Count; f++)
+                    {
+                        SocketDef candidate = corridor.Sockets[farSockets[f]];
+                        SocketDirection candidateDir = CellMath.RotateDirection(candidate.Direction, rotation);
+                        CellCoord candidateNext = Step(ToWorldCell(blueprint.Rooms[room], corridor, candidate), candidateDir);
+                        int dx = System.Math.Abs(aimCell.X - candidateNext.X);
+                        int dy = System.Math.Abs(aimCell.Y - candidateNext.Y);
+                        int distance = dx > dy ? dx : dy;
+                        if (distance < bestDistance)
+                        {
+                            bestDistance = distance;
+                            pickedFar = farSockets[f];
+                        }
+                    }
+                }
+                else
+                {
+                    Shuffle(rng, farSockets);
+                    pickedFar = farSockets[0];
+                }
+
+                SocketDef continueSocket = corridor.Sockets[pickedFar];
                 SocketDirection continueDir = CellMath.RotateDirection(continueSocket.Direction, rotation);
                 CellCoord continueWorld = ToWorldCell(blueprint.Rooms[room], corridor, continueSocket);
                 nextTarget = Step(continueWorld, continueDir);
