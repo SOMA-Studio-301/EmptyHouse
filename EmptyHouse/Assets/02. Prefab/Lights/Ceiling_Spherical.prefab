@@ -129,7 +129,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::EmptyHouse.Environment.RandomLightFixture
   targetLights:
   - {fileID: 1451900912021820871}
-  - {fileID: 0}
+  - {fileID: 3077431018539476424}
   fixtureRenderer: {fileID: 23000011914361548}
   flicker: {fileID: 0}
   onMaterial: {fileID: 2100000, guid: 5e9e8d9c3ddaabb4794c7596020a7e0d, type: 2}
@@ -337,6 +337,11 @@ PrefabInstance:
     m_AddedGameObjects: []
     m_AddedComponents: []
   m_SourcePrefab: {fileID: 100100000, guid: e0784692f37b3714eb3fbf9d3661118e, type: 3}
+--- !u!108 &3077431018539476424 stripped
+Light:
+  m_CorrespondingSourceObject: {fileID: 8046966206161486305, guid: e0784692f37b3714eb3fbf9d3661118e, type: 3}
+  m_PrefabInstance: {fileID: 4979197874048099369}
+  m_PrefabAsset: {fileID: 0}
 --- !u!4 &3077431018539476425 stripped
 Transform:
   m_CorrespondingSourceObject: {fileID: 8046966206161486304, guid: e0784692f37b3714eb3fbf9d3661118e, type: 3}
