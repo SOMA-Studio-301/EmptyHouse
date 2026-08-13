@@ -46,6 +46,18 @@ namespace EmptyHouse.MapGen.Runtime
                 errors.Add("CommonRegistry 미배선 — 테마 무관 상호작용·아이템 프리팹 원천이 필수다");
             }
 
+            // 같은 층 정의 에셋이 두 슬롯에 배선되면 에러 — 층 재사용은 "다른 빈 집 간"이 전제이지 한 빈 집 안 중복이 아니다
+            for (int slot = 0; slot < definition.Floors.Length; slot++)
+            {
+                for (int other = slot + 1; other < definition.Floors.Length; other++)
+                {
+                    if (definition.Floors[slot] != null && definition.Floors[slot] == definition.Floors[other])
+                    {
+                        errors.Add($"층 정의 중복 — 슬롯 {slot}(서수 {definition.FloorIndexOf(slot)})·슬롯 {other}(서수 {definition.FloorIndexOf(other)})가 같은 에셋({definition.Floors[slot].name}) — 층마다 별도 층 정의를 배선해야 한다");
+                    }
+                }
+            }
+
             RoomTemplateSO referenceStair = null;
             for (int slot = 0; slot < definition.Floors.Length; slot++)
             {
