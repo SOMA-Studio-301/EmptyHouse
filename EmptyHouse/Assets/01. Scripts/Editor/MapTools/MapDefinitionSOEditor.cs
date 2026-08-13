@@ -98,7 +98,8 @@ namespace EmptyHouse.EditorTools
                 open = true;
             }
 
-            open = EditorGUILayout.BeginFoldoutHeaderGroup(open, title);
+            // 배열 필드(층 배정 등)는 자체 폴드아웃 헤더를 그린다 — FoldoutHeaderGroup 은 중첩 금지라 일반 Foldout 사용
+            open = EditorGUILayout.Foldout(open, title, true);
             foldouts[title] = open;
             if (open)
             {
@@ -111,14 +112,12 @@ namespace EmptyHouse.EditorTools
                         continue; // 코드에서 제거된 필드 — 그룹 표만 남은 경우
                     }
 
-                    EditorGUILayout.PropertyField(property);
+                    EditorGUILayout.PropertyField(property, true);
                     drawn.Add(field);
                 }
 
                 EditorGUI.indentLevel--;
             }
-
-            EditorGUILayout.EndFoldoutHeaderGroup();
         }
 
         /// <summary>층 이관 완료 스칼라를 접힌 **비활성** 그룹으로 그린다 — 실수 편집 차단 + "여기 값은 안 쓰인다"를 UI 로 못박는다.</summary>
@@ -132,7 +131,7 @@ namespace EmptyHouse.EditorTools
                 open = false; // 기본 접힘 — 죽은 값이라 펼칠 일이 드물다
             }
 
-            open = EditorGUILayout.BeginFoldoutHeaderGroup(open, title);
+            open = EditorGUILayout.Foldout(open, title, true); // FoldoutHeaderGroup 중첩 금지 — DrawGroup 과 동일 규약
             foldouts[title] = open;
             if (open)
             {
@@ -144,7 +143,7 @@ namespace EmptyHouse.EditorTools
                     SerializedProperty property = root.FindPropertyRelative(field);
                     if (property != null)
                     {
-                        EditorGUILayout.PropertyField(property);
+                        EditorGUILayout.PropertyField(property, true);
                     }
                 }
 
@@ -152,7 +151,6 @@ namespace EmptyHouse.EditorTools
                 EditorGUI.indentLevel--;
             }
 
-            EditorGUILayout.EndFoldoutHeaderGroup();
             foreach (string field in legacyFields)
             {
                 drawn.Add(field); // 접혀 있어도 '기타' 안전망에 다시 나타나지 않게 그린 것으로 계산한다
