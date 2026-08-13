@@ -1,5 +1,6 @@
 using Border.Core;
 using Border.Events;
+using Unity.Cinemachine;
 using Unity.Netcode;
 using Unity.Netcode.Components;
 using UnityEngine;
@@ -25,13 +26,19 @@ public class PlayerController : NetworkBehaviour
     [SerializeField] private SaveLoadSystem saveLoadSystem; // 스폰 시 저장된 감도 배율을 읽어오는 원본
     [SerializeField] private FloatEventChannelSO changeMouseSensitivityEvent; // 설정창에서 감도를 바꾸면 방송되는 라이브 채널
 
+    [Header("Camera")]
+    [SerializeField] private CameraEventChannelSO onCameraChanged; // Vcam 전환 요청 채널
+    [SerializeField] private CinemachineCamera eyeVcam; // 1인칭 기본 Vcam. cameraPivot 자식, 로컬 identity — 기존 수동 부착을 대체
+    [SerializeField] private CinemachineCamera disguiseVcam; // 위장 중 숄더뷰로 전환할 Vcam
+
     [Header("Movement")]
     [SerializeField] private float moveSpeed = 3f; // 기본 이동 속도(m/s)
     [SerializeField] private float crouchSpeedMultiplier = 0.5f; // 웅크림 중 이동속도 배율. moveSpeed 에 곱해 적용한다
     [SerializeField] private float disguiseSpeedMultiplier = 0.6f; // 위장 중 자동 전진 속도 배율. moveSpeed 에 곱해 적용한다
 
-    [Header("Jump")]
-    [SerializeField] private float jumpSpeed = 5f; // 점프 시작 시 설정할 상승 속도. v²/2g ≈ 1.27m 상승한다
+    // [SerializeField] private float jumpSpeed = 5f; // TODO(점프 삭제 예정): 점프 시작 시 설정할 상승 속도. v²/2g ≈ 1.27m 상승한다
+
+    [Header("Ground Check")]
     [SerializeField] private LayerMask groundMask; // 접지 판정 대상 레이어. 인스펙터에서 Ground 만 선택한다
     [SerializeField] private float groundCheckRadius = 0.4f; // 접지 판정 SphereCast 의 반지름. 캡슐 반지름(0.5)보다 작아야 벽 모서리를 바닥으로 오검출하지 않는다
     [SerializeField] private float groundCheckDistance = 0.7f; // 접지 판정 SphereCast 의 거리. 중심→바닥 1.0 - 반지름 0.4 + 여유 0.1
@@ -52,12 +59,10 @@ public class PlayerController : NetworkBehaviour
 
     private bool IsInactive => deathHandler.IsDead.Value || playerReturn.HasExtracted.Value; // 비활성(사망 OR 귀환) 여부. 어느 쪽이든 조작을 차단하고 관전으로 넘긴다 — PlayerSpectatorController 진입 조건과 같다
 
-    private Transform cameraTransform; // 소유자 카메라 — OnNetworkSpawn 에서 Main Camera 를 cameraPivot 아래로 붙이고 캐시한다
-
     private Vector2 moveInput; // 이동 입력 캐시 — OnMoveInput 이 쓰고 HandleMove 가 읽는다
     private Vector2 lookInput; // 시선 입력 캐시 — OnLookInput 이 쓰고 HandleLook 이 읽고 소비 후 zero 로 리셋한다
 
-    private bool jumpRequested; // 점프 요청 — 입력 콜백이 세우고 FixedUpdate 의 HandleJump 가 소비한다
+    // private bool jumpRequested; // TODO(점프 삭제 예정): 점프 요청 — 입력 콜백이 세우고 FixedUpdate 의 HandleJump 가 소비한다
     private bool isCrouching; // 웅크림 상태(홀드) — Crouch 입력 콜백이 켜고 끄며, HandleMove 가 이동속도 배율에 반영한다
 
     // 웅크림 상태의 네트워크 사본. 입력은 소유자에게만 오므로 비소유자 인스턴스의 isCrouching 은 항상 false 인데,
@@ -87,7 +92,8 @@ public class PlayerController : NetworkBehaviour
     public bool Crouching => networkCrouching.Value; // 웅크림 상태 여부. 애니메이션 파라미터·발소리·소음 발신 공통 창구다(비소유자 인스턴스에서도 유효)
     public float AimPitchDeg => pitch; // 시선 pitch(도). 상체 조준 표현(AimPitch 파라미터)용
     public float AimYawOffsetDeg => Mathf.DeltaAngle(bodyYaw, yaw); // 시선-하체 yaw 차(도). 상체 비틀림 표현(AimYawOffset 파라미터)용
-    public event System.Action JumpPerformed; // 점프가 실제로 발동한 순간 발행된다. 애니메이션 트리거용
+    public bool IsDisguised => disguise.IsDisguised; // 위장 상태 여부. 애니메이션 IsDisguised 파라미터용
+    // public event System.Action JumpPerformed; // TODO(점프 삭제 예정): 점프가 실제로 발동한 순간 발행된다. 애니메이션 트리거용
 
     /// <summary>Rigidbody 와 형제 PlayerDeathHandler·PlayerReturn·PlayerHiding·PlayerDisguise 참조를 캐시한다.</summary>
     private void Awake()
@@ -116,23 +122,21 @@ public class PlayerController : NetworkBehaviour
 
         inputReader.MoveEvent += OnMoveInput;
         inputReader.LookEvent += OnLookInput;
-        inputReader.JumpEvent += OnJumpInput;
+        // inputReader.JumpEvent += OnJumpInput; // TODO(점프 삭제 예정)
         inputReader.CrouchEvent += OnCrouchInput;
         inputReader.CrouchCanceledEvent += OnCrouchCanceledInput;
         inputReader.AttackEvent += OnAttackInput;
         inputReader.AttackCanceledEvent += OnAttackCanceledInput;
         deathHandler.IsDead.OnValueChanged += HandleInactiveChanged;
         playerReturn.HasExtracted.OnValueChanged += HandleInactiveChanged;
+        disguise.DisguiseChanged += HandleDisguiseChanged;
 
         // 저장된 감도 배율을 스폰 시점에 읽어 1차 반영하고, 이후 변경은 채널로 받는다.
         sensitivityMultiplier = saveLoadSystem.Profile.MouseSensitivity;
         changeMouseSensitivityEvent.OnEventRaised += HandleMouseSensitivityChanged;
 
-        // 씬의 Main Camera 를 cameraPivot 아래로 붙여 pitch 회전을 따라가게 한다.
-        cameraTransform = Camera.main.transform;
-        cameraTransform.SetParent(cameraPivot, false);
-        cameraTransform.localPosition = Vector3.zero;
-        cameraTransform.localRotation = Quaternion.identity;
+        // 1인칭 기본 Vcam 을 켠다. eyeVcam 은 cameraPivot 자식(로컬 identity)이라 pitch 를 그대로 따라간다.
+        onCameraChanged.RaiseEvent(eyeVcam);
     }
 
     /// <summary>
@@ -214,18 +218,19 @@ public class PlayerController : NetworkBehaviour
 
         inputReader.MoveEvent -= OnMoveInput;
         inputReader.LookEvent -= OnLookInput;
-        inputReader.JumpEvent -= OnJumpInput;
+        // inputReader.JumpEvent -= OnJumpInput; // TODO(점프 삭제 예정)
         inputReader.CrouchEvent -= OnCrouchInput;
         inputReader.CrouchCanceledEvent -= OnCrouchCanceledInput;
         inputReader.AttackEvent -= OnAttackInput;
         inputReader.AttackCanceledEvent -= OnAttackCanceledInput;
         deathHandler.IsDead.OnValueChanged -= HandleInactiveChanged;
         playerReturn.HasExtracted.OnValueChanged -= HandleInactiveChanged;
+        disguise.DisguiseChanged -= HandleDisguiseChanged;
         changeMouseSensitivityEvent.OnEventRaised -= HandleMouseSensitivityChanged;
 
-        // 카메라를 다시 분리한다. 이걸 생략하면 플레이어 NetworkObject 파괴 시
-        // 자식으로 붙어 있는 씬의 Main Camera 가 함께 파괴된다(리스폰·로비 복귀·호스트 이주는 씬을 유지한 채 despawn 한다).
-        cameraTransform.SetParent(null);
+        // 활성 Vcam 을 끈다. eyeVcam/disguiseVcam 은 이 오브젝트의 자식이라 디스폰과 함께 파괴되므로,
+        // CameraManager 가 파괴된 참조를 들고 있지 않도록 명시적으로 null 을 발행해 비운다.
+        onCameraChanged.RaiseEvent(null);
     }
 
     /// <summary>렌더 프레임마다 시선 회전을 처리한다. 회전은 물리와 무관하므로 Update 에서 처리한다. 비활성이면 관전(PlayerSpectatorController)이 카메라를 쥐므로 처리하지 않는다.</summary>
@@ -242,24 +247,23 @@ public class PlayerController : NetworkBehaviour
     }
 
     /// <summary>
-    /// 물리 스텝마다 이동과 점프를 처리한다. Rigidbody 기반이므로 FixedUpdate 에서 처리한다.
-    /// HandleMove 가 Y 속도를 보존하므로, 점프를 그 뒤에 두어야 상승 속도가 덮어써지지 않는다.
+    /// 물리 스텝마다 이동을 처리한다. Rigidbody 기반이므로 FixedUpdate 에서 처리한다.
     /// 비활성이면 이동을 멈춘다(2-1) — 시신은 그 자리에 고정되고, 귀환자는 버스에 남는다.
     /// </summary>
     private void FixedUpdate()
     {
         if (!IsOwner || IsInactive) return;
 
-        // 은신 중에는 이동·점프를 차단하고 자리에 고정한다(2-1: WASD 무반응). 시선은 Update 쪽 콘 클램프가 맡는다.
+        // 은신 중에는 이동을 차단하고 자리에 고정한다(2-1: WASD 무반응). 시선은 Update 쪽 콘 클램프가 맡는다.
         if (hiding.IsHidden)
         {
-            jumpRequested = false;
+            // jumpRequested = false; // TODO(점프 삭제 예정)
             body.linearVelocity = new Vector3(0f, body.linearVelocity.y, 0f);
             return;
         }
 
         HandleMove();
-        HandleJump();
+        // HandleJump(); // TODO(점프 삭제 예정)
     }
 
     /// <summary>
@@ -294,7 +298,7 @@ public class PlayerController : NetworkBehaviour
 
         moveInput = Vector2.zero;
         lookInput = Vector2.zero;
-        jumpRequested = false;
+        // jumpRequested = false; // TODO(점프 삭제 예정)
         SetCrouching(false);
     }
 
@@ -316,14 +320,15 @@ public class PlayerController : NetworkBehaviour
         lookInput = value;
     }
 
-    /// <summary>
-    /// 점프 입력을 캐시한다. 실제 물리 처리는 FixedUpdate 의 HandleJump 가 맡는다.
-    /// 입력 콜백은 물리 스텝과 타이밍이 다르므로 여기서 직접 속도를 건드리지 않는다.
-    /// </summary>
-    private void OnJumpInput()
-    {
-        jumpRequested = true;
-    }
+    // TODO(점프 삭제 예정):
+    // /// <summary>
+    // /// 점프 입력을 캐시한다. 실제 물리 처리는 FixedUpdate 의 HandleJump 가 맡는다.
+    // /// 입력 콜백은 물리 스텝과 타이밍이 다르므로 여기서 직접 속도를 건드리지 않는다.
+    // /// </summary>
+    // private void OnJumpInput()
+    // {
+    //     jumpRequested = true;
+    // }
 
     /// <summary>웅크리기 버튼을 누르기 시작했을 때 호출된다. 웅크림 상태로 진입한다.</summary>
     private void OnCrouchInput()
@@ -364,6 +369,16 @@ public class PlayerController : NetworkBehaviour
     private void HandleMouseSensitivityChanged(float multiplier)
     {
         sensitivityMultiplier = multiplier;
+    }
+
+    /// <summary>
+    /// 위장 상태 변화에 맞춰 1인칭 eyeVcam 과 숄더뷰 disguiseVcam 사이를 전환한다.
+    /// 둘 다 정식 Vcam 이라 CinemachineBrain 의 기본 블렌드로 자연스럽게 전환된다 — 수동 트랜스폼 보정이 필요 없다.
+    /// </summary>
+    /// <param name="isDisguised">변경된 위장 상태.</param>
+    private void HandleDisguiseChanged(bool isDisguised)
+    {
+        onCameraChanged.RaiseEvent(isDisguised ? disguiseVcam : eyeVcam);
     }
 
     // ── 실제 행동 ───────────────────────────────────────────────
@@ -465,25 +480,24 @@ public class PlayerController : NetworkBehaviour
         body.linearVelocity = new Vector3(v.x, body.linearVelocity.y, v.z);
     }
 
-    /// <summary>
-    /// 점프 요청이 있고 접지 상태라면 Y 속도를 jumpSpeed 로 설정해 띄움
-    /// 요청은 접지 성공/실패와 무관하게 이번 스텝에 소비
-    /// 남겨 두면 공중에서 누른 입력이 착지하는 순간 발동해 의도치 않은 점프가 튀는걸 방지
-    /// </summary>
-    private void HandleJump()
-    {
-        if (!jumpRequested) return;
-        jumpRequested = false;
-
-        if (!IsGrounded()) return;
-
-        Vector3 v = body.linearVelocity;
-        body.linearVelocity = new Vector3(v.x, jumpSpeed, v.z);
-
-        JumpPerformed?.Invoke();
-
-        // TODO: 점프·착지 소음 이벤트 발행 (소음 시스템 미구현 — 기획서 '행위 기반 소음')
-    }
+    // TODO(점프 삭제 예정):
+    // /// <summary>
+    // /// 점프 요청이 있고 접지 상태라면 Y 속도를 jumpSpeed 로 설정해 띄움
+    // /// 요청은 접지 성공/실패와 무관하게 이번 스텝에 소비
+    // /// 남겨 두면 공중에서 누른 입력이 착지하는 순간 발동해 의도치 않은 점프가 튀는걸 방지
+    // /// </summary>
+    // private void HandleJump()
+    // {
+    //     if (!jumpRequested) return;
+    //     jumpRequested = false;
+    //
+    //     if (!IsGrounded()) return;
+    //
+    //     Vector3 v = body.linearVelocity;
+    //     body.linearVelocity = new Vector3(v.x, jumpSpeed, v.z);
+    //
+    //     JumpPerformed?.Invoke();
+    // }
 
     /// <summary>
     /// 캡슐 중심에서 아래로 SphereCast 해 접지 여부를 판정한다.

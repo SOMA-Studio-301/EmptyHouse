@@ -40,25 +40,26 @@ public class PlayerAnimator : NetworkBehaviour
     private static readonly int turnMulHash = Animator.StringToHash("TurnMul");
     private static readonly int groundedHash = Animator.StringToHash("IsGrounded");
     private static readonly int crouchingHash = Animator.StringToHash("IsCrouching");
-    private static readonly int jumpHash = Animator.StringToHash("Jump");
+    private static readonly int disguisedHash = Animator.StringToHash("IsDisguised");
+    // private static readonly int jumpHash = Animator.StringToHash("Jump"); // TODO(점프 삭제 예정)
     private static readonly int aimPitchHash = Animator.StringToHash("AimPitch");
     private static readonly int aimYawOffsetHash = Animator.StringToHash("AimYawOffset");
 
     private Vector2 moveDirection = Vector2.up; // 본체 로컬 기준 이동 방향 단위벡터. 정지 중에는 마지막 값을 유지한다
     private float smoothedYawRate;              // 평활된 하체 회전 각속도(도/초, 부호 있음). 블렌드 세기와 재생 배속이 같이 읽는다
 
-    /// <summary>소유자에 한해 점프 트리거를 구독한다.</summary>
+    /// <summary>소유자에 한해 점프 트리거를 구독한다. 점프 기능 비활성화(삭제 예정)로 현재 아무것도 하지 않는다.</summary>
     public override void OnNetworkSpawn()
     {
         if (!IsOwner) return;
-        controller.JumpPerformed += HandleJump;
+        // controller.JumpPerformed += HandleJump; // TODO(점프 삭제 예정)
     }
 
-    /// <summary>소유자에 한해 점프 트리거 구독을 해제한다.</summary>
+    /// <summary>소유자에 한해 점프 트리거 구독을 해제한다. 점프 기능 비활성화(삭제 예정)로 현재 아무것도 하지 않는다.</summary>
     public override void OnNetworkDespawn()
     {
         if (!IsOwner) return;
-        controller.JumpPerformed -= HandleJump;
+        // controller.JumpPerformed -= HandleJump; // TODO(점프 삭제 예정)
     }
 
     /// <summary>소유자에서 매 프레임 이동/접지/웅크림/조준 상태를 Animator 파라미터로 반영한다. 조준값은 OwnerNetworkAnimator 가 원격에 복제해 상체 표현(PlayerHandArmIK)이 전 클라이언트에서 같은 값을 읽는다.</summary>
@@ -69,6 +70,7 @@ public class PlayerAnimator : NetworkBehaviour
         animator.SetFloat(speedHash, controller.PlanarSpeed, speedDampTime, Time.deltaTime);
         animator.SetBool(groundedHash, controller.Grounded);
         animator.SetBool(crouchingHash, controller.Crouching);
+        animator.SetBool(disguisedHash, controller.IsDisguised);
         animator.SetFloat(aimPitchHash, controller.AimPitchDeg, aimDampTime, Time.deltaTime);
         animator.SetFloat(aimYawOffsetHash, controller.AimYawOffsetDeg, aimDampTime, Time.deltaTime);
 
@@ -122,9 +124,10 @@ public class PlayerAnimator : NetworkBehaviour
             turnMultiplierMax);
     }
 
-    /// <summary>점프 발동 시 Jump 트리거를 세팅한다.</summary>
-    private void HandleJump()
-    {
-        animator.SetTrigger(jumpHash);
-    }
+    // TODO(점프 삭제 예정):
+    // /// <summary>점프 발동 시 Jump 트리거를 세팅한다.</summary>
+    // private void HandleJump()
+    // {
+    //     animator.SetTrigger(jumpHash);
+    // }
 }

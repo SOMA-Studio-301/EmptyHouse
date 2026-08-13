@@ -26,6 +26,7 @@ public static class AnimationSetupTool
 
     private const string kiTurnFolder = "Assets/Kevin Iglesias/Human Animations/Animations/Male/Movement/Turn";
     private const string invectorFolder = "Assets/Invector-3rdPersonController_LITE/3D Models/Animations";
+    private const string zombieAnimFolder = "Assets/04. Arts/Animations/Zombie";
 
     private const string playerControllerPath = "Assets/04. Arts/Player/Animations/PlayerLocomotion.controller";
     private const string zombieControllerPath = "Assets/02. Prefab/Zombie/ZombieLocomotion.controller";
@@ -39,6 +40,7 @@ public static class AnimationSetupTool
     private const string paramTurnBlend = "TurnBlend";
     private const string paramTurnMul = "TurnMul";
     private const string paramIsCrouching = "IsCrouching";
+    private const string paramIsDisguised = "IsDisguised";
 
     // 플레이어 1D 속도 트리 문턱값(m/s). PlayerController.moveSpeed 3 / 웅크림 1.5 실측 기준
     private const float walkSpeed = 1.5f;
@@ -93,6 +95,13 @@ public static class AnimationSetupTool
     {
         new ClipSource(destFolder + "/Crouching Idle.fbx", "mixamo.com", "Crouch_Idle"),
         new ClipSource(destFolder + "/Crouch Walk.fbx", "mixamo.com", "Crouch_Walk"),
+    };
+
+    // 위장 걸음 — 좀비 자체 걷기 클립을 재사용한다. 회전은 이미 코드가 만들므로(HandleBodyTurn)
+    // [RM](루트 모션 제거) 변형을 쓴다 — 그러지 않으면 클립 내장 이동이 코드 이동과 겹쳐 미끄러진다.
+    private static readonly ClipSource[] disguiseClipSources =
+    {
+        new ClipSource(zombieAnimFolder + "/Zombie@Walk01.fbx", "Zombie@Walk01 [RM]", "Disguise_Walk"),
     };
 
     /// <summary>FBX 서브에셋 클립을 공용 폴더로 독립 .anim 복제한다. 이미 있으면 GUID 를 지키며 내용만 덮는다.</summary>
@@ -336,6 +345,97 @@ public static class AnimationSetupTool
         EditorUtility.SetDirty(controller);
         AssetDatabase.SaveAssets();
         Log.D("[AnimationSetup] 플레이어 크라우치 구성 완료");
+    }
+
+    /// <summary>
+    /// 좀비 걷기 클립([RM] 변형)을 공용 폴더로 추출한다.
+    /// ExtractClips() 와 완전히 같은 경로(FindClipInFbx) — 좀비 FBX 도 Humanoid 아바타라 그대로 복제된다.
+    /// </summary>
+    [MenuItem("Tools/Animation/7. 위장 클립 추출")]
+    public static void ExtractDisguiseClips()
+    {
+        Log.D("[AnimationSetup] 위장 클립 추출 시작");
+        EnsureFolder(destFolder);
+
+        int done = 0;
+        foreach (ClipSource source in disguiseClipSources)
+        {
+            AnimationClip src = FindClipInFbx(source.FbxPath, source.ClipName);
+            if (src == null)
+            {
+                Debug.LogError($"[AnimationSetup] 위장 클립을 찾지 못함: {source.FbxPath} :: {source.ClipName}");
+                continue;
+            }
+
+            string destPath = $"{destFolder}/{source.DestName}.anim";
+            AnimationClipSettings settings = AnimationUtility.GetAnimationClipSettings(src);
+            settings.loopBlend = true; // 시작·끝 포즈 불일치로 인한 루프 팝 방지(크라우치 클립과 같은 이유)
+            AnimationClip existing = AssetDatabase.LoadAssetAtPath<AnimationClip>(destPath);
+
+            if (existing != null)
+            {
+                EditorUtility.CopySerialized(src, existing);
+                existing.name = source.DestName;
+                AnimationUtility.SetAnimationClipSettings(existing, settings);
+                EditorUtility.SetDirty(existing);
+            }
+            else
+            {
+                AnimationClip copy = UnityEngine.Object.Instantiate(src);
+                copy.name = source.DestName;
+                AnimationUtility.SetAnimationClipSettings(copy, settings);
+                AssetDatabase.CreateAsset(copy, destPath);
+            }
+
+            done++;
+        }
+
+        AssetDatabase.SaveAssets();
+        AssetDatabase.Refresh();
+        Log.D($"[AnimationSetup] 위장 클립 추출 완료: {done}/{disguiseClipSources.Length}");
+    }
+
+    /// <summary>
+    /// 플레이어 컨트롤러에 위장 전용 상태를 붙인다. 위장 중엔 시선 방향 고정속도 자동전진뿐이라
+    /// (조작상호작용UI.md 2-2, disguise.csv move_speed 1.2) 블렌드 트리 없이 단일 루프 클립으로 충분하다.
+    /// </summary>
+    [MenuItem("Tools/Animation/8. 플레이어 위장 구성")]
+    public static void SetupPlayerDisguiseController()
+    {
+        Log.D("[AnimationSetup] 플레이어 위장 구성 시작");
+
+        AnimatorController controller = AssetDatabase.LoadAssetAtPath<AnimatorController>(playerControllerPath);
+        AnimatorStateMachine root = controller.layers[0].stateMachine;
+
+        AnimatorState locomotion = FindState(root, "Locomotion");
+
+        EnsureBoolParameter(controller, paramIsDisguised);
+
+        AnimatorState disguise = FindState(root, "Disguise");
+        if (disguise == null)
+        {
+            disguise = root.AddState("Disguise", new Vector3(230f, 450f, 0f));
+        }
+        else
+        {
+            DestroyBlendTrees(controller, disguise.motion);
+            disguise.transitions = Array.Empty<AnimatorStateTransition>();
+        }
+        RemoveTransitionsTo(locomotion, disguise);
+
+        disguise.motion = LoadClip("Disguise_Walk");
+
+        AnimatorStateTransition enterDisguise = locomotion.AddTransition(disguise);
+        ConfigureTransition(enterDisguise);
+        enterDisguise.AddCondition(AnimatorConditionMode.If, 0f, paramIsDisguised);
+
+        AnimatorStateTransition exitDisguise = disguise.AddTransition(locomotion);
+        ConfigureTransition(exitDisguise);
+        exitDisguise.AddCondition(AnimatorConditionMode.IfNot, 0f, paramIsDisguised);
+
+        EditorUtility.SetDirty(controller);
+        AssetDatabase.SaveAssets();
+        Log.D("[AnimationSetup] 플레이어 위장 구성 완료");
     }
 
     /// <summary>좀비 컨트롤러에 다리 전용 Turn 레이어를 붙인다. 가중치는 ZombieAnimator 가 회전량으로 직접 준다.</summary>
