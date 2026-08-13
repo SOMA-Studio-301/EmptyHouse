@@ -9,19 +9,23 @@ using UnityEngine;
 namespace EmptyHouse.EditorTools
 {
     /// <summary>
-    /// 3층(B1·1F·2F) 시드 스윕(M9-7) — 층 예산·샤프트 파라미터 확정용 실측 도구.
-    /// 플랜 원천은 런타임과 같은 빈 집 정의(SO_Map_Hall3F — M10-1)·같은 조립 경로(MapPlanBuilder)다(AC-21).
+    /// 다층 시드 스윕(M9-7) — 층 예산·샤프트 파라미터 확정용 실측 도구.
+    /// 플랜 원천은 런타임과 같은 빈 집 정의(프로젝트 첫 다층 정의 스캔)·같은 조립 경로(MapPlanBuilder)다(AC-21).
     /// </summary>
     public static class MapGenFloorSweep
     {
-        private const string mapDefinitionPath = "Assets/03. ScriptableObjects/MapGen/SO_Map_Hall3F.asset"; // 3층 빈 집 정의 단일 출처(M10-1)
-
-        /// <summary>3층 스윕 플랜을 만든다 — 빈 집 정의(SO_Map_Hall3F)에서 MapPlanBuilder 로 조립한다.</summary>
+        /// <summary>다층 스윕 플랜을 만든다 — 프로젝트 첫 다층 빈 집 정의에서 MapPlanBuilder 로 조립한다.</summary>
         /// <param name="seed">확정 시드.</param>
-        /// <returns>3층 Plan — 린트 실패 시 null.</returns>
+        /// <returns>다층 Plan — 다층 정의 부재·린트 실패 시 null.</returns>
         public static MapGenPlan ThreeFloorPlan(int seed)
         {
-            var definition = AssetDatabase.LoadAssetAtPath<MapDefinitionSO>(mapDefinitionPath);
+            string path = EmptyHouse.MapGen.Editor.MapGenSceneBuilder.FindFirstMultiFloorDefinitionPath();
+            if (path == null)
+            {
+                return null;
+            }
+
+            var definition = AssetDatabase.LoadAssetAtPath<MapDefinitionSO>(path);
             MapGenParams genParams = JsonUtility.FromJson<MapGenParams>(JsonUtility.ToJson(definition.GenParams));
             genParams.Seed = seed;
             return MapPlanBuilder.Build(definition, genParams, out _);

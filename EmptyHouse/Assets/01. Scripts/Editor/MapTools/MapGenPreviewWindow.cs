@@ -18,7 +18,7 @@ namespace EmptyHouse.MapGen.Editor
     {
         [SerializeField] private int seedInput; // 입력 시드 — 0 = 랜덤(생성 시 실제 값 확정·표기, X8)
         [SerializeField] private int lastConfirmedSeed; // 마지막 생성에 실제 사용한 확정 시드(AC-17·AC-22 재현 표기)
-        [SerializeField] private int templateSetIndex; // 템플릿 세트(0=프리팹 실측 단층, 1=층 스택 다층) — 시드 재현은 같은 세트에서만 성립
+        [SerializeField] private string selectedMapPath; // 선택된 빈 집 정의 에셋 경로 — 시드 재현은 같은 정의에서만 성립(도메인 리로드 보존)
         [SerializeField] private int floorFilterIndex; // 층 필터(0=전체, 1..N=Blueprint.Floors 순번) — 다층 결과 전용
         [SerializeField] private MapGenParams workingParams = new MapGenParams(); // 파라미터 오버라이드 작업본(9절)
         [SerializeField] private bool showDangerOverlay = true; // 위험 등급 그라데이션 표시(10절)
@@ -36,12 +36,8 @@ namespace EmptyHouse.MapGen.Editor
         [SerializeField] private Vector2 inputScroll; // 입력 패널 스크롤 위치
         [SerializeField] private Vector2 validationScroll; // 검증 패널 스크롤 위치
 
-        private static readonly string[] templateSetNames = { "빈 집 hall(단층)", "빈 집 hall_3f(3층)" }; // 맵 선택지 — 인덱스는 templateSetIndex 와 계약(M10-2 카탈로그 드롭다운으로 확장 예정)
-        private static readonly string[] mapDefinitionPaths = // templateSetIndex → 빈 집 정의 에셋(런타임 드라이버와 같은 재료·같은 조립 경로, AC-21)
-        {
-            "Assets/03. ScriptableObjects/MapGen/SO_Map_Hall.asset",
-            "Assets/03. ScriptableObjects/MapGen/SO_Map_Hall3F.asset",
-        };
+        private string[] cachedMapPaths; // 프로젝트 내 전체 MapDefinitionSO 경로 캐시(도메인 리로드 시 재스캔)
+        private string[] cachedMapNames; // 드롭다운 표시명 — "MapId (에셋명)"
 
         private readonly MapGenerator generator = new MapGenerator(); // 게임과 동일 생성 라이브러리(AC-21)
         private MapGenResult lastResult; // 마지막 생성 결과 — 도메인 리로드 시 소실, 재생성으로 복원
@@ -115,13 +111,76 @@ namespace EmptyHouse.MapGen.Editor
             }
         }
 
-        /// <summary>입력 패널 — 시드(0=랜덤)·파라미터 오버라이드(9절)·기본값 리셋·오버레이 토글·배회 반경 오버라이드 편집·생성 버튼.</summary>
+        /// <summary>
+        /// 빈 집 선택 드롭다운 — 프로젝트 내 전체 MapDefinitionSO 를 스캔해 기획자가 자유롭게 갈아끼우며 본다.
+        /// ↻ 버튼으로 재스캔(에셋 추가·삭제 반영). 시드 재현은 같은 정의에서만 성립한다.
+        /// </summary>
+        private void DrawMapSelector()
+        {
+            if (cachedMapPaths == null)
+            {
+                RefreshMapCache();
+            }
+
+            using (new EditorGUILayout.HorizontalScope())
+            {
+                if (cachedMapPaths.Length == 0)
+                {
+                    EditorGUILayout.HelpBox("MapDefinitionSO 에셋이 없다 — 런타임 어댑터 셋업 실행 또는 Create > EmptyHouse > MapGen > Map Definition", MessageType.Warning);
+                }
+                else
+                {
+                    int index = System.Array.IndexOf(cachedMapPaths, selectedMapPath);
+                    if (index < 0)
+                    {
+                        index = 0; // 삭제·미선택 — 첫 정의로 폴백
+                        selectedMapPath = cachedMapPaths[0];
+                    }
+
+                    int next = EditorGUILayout.Popup("빈 집 정의", index, cachedMapNames);
+                    if (next != index)
+                    {
+                        selectedMapPath = cachedMapPaths[next];
+                        floorParamOverrides.Clear(); // 맵이 바뀌면 층 구성도 바뀐다 — 작업본은 새 정의 값으로 재구축
+                    }
+                }
+
+                if (GUILayout.Button("↻", GUILayout.Width(26f)))
+                {
+                    RefreshMapCache();
+                }
+            }
+        }
+
+        /// <summary>프로젝트의 MapDefinitionSO 전체를 재스캔해 드롭다운 캐시를 갱신한다.</summary>
+        private void RefreshMapCache()
+        {
+            Log.D("[MapGenPreviewWindow] RefreshMapCache");
+            string[] guids = AssetDatabase.FindAssets("t:MapDefinitionSO");
+            cachedMapPaths = new string[guids.Length];
+            cachedMapNames = new string[guids.Length];
+            for (int i = 0; i < guids.Length; i++)
+            {
+                cachedMapPaths[i] = AssetDatabase.GUIDToAssetPath(guids[i]);
+                var definition = AssetDatabase.LoadAssetAtPath<MapDefinitionSO>(cachedMapPaths[i]);
+                cachedMapNames[i] = $"{(string.IsNullOrEmpty(definition.MapId) ? "(MapId 없음)" : definition.MapId)} — {definition.name}";
+            }
+        }
+
+        /// <summary>현재 선택된 빈 집 정의를 로드한다 — 없으면 null(호출부가 안내).</summary>
+        /// <returns>선택 정의 — 미선택·삭제면 null.</returns>
+        private MapDefinitionSO SelectedDefinition()
+        {
+            return string.IsNullOrEmpty(selectedMapPath) ? null : AssetDatabase.LoadAssetAtPath<MapDefinitionSO>(selectedMapPath);
+        }
+
+        /// <summary>입력 패널 — 시드(0=랜덤)·빈 집 선택·파라미터 오버라이드(9절)·오버레이 토글·배회 반경 오버라이드 편집·생성 버튼.</summary>
         private void DrawInputPanel()
         {
             inputScroll = EditorGUILayout.BeginScrollView(inputScroll);
             EditorGUILayout.LabelField("생성", EditorStyles.boldLabel);
             seedInput = EditorGUILayout.IntField(new GUIContent("시드 (0 = 랜덤)"), seedInput);
-            templateSetIndex = EditorGUILayout.Popup("템플릿 세트", Mathf.Clamp(templateSetIndex, 0, templateSetNames.Length - 1), templateSetNames); // 구 세션 저장 인덱스(3종 시절) 흡수
+            DrawMapSelector();
             if (lastConfirmedSeed != 0)
             {
                 EditorGUILayout.LabelField($"마지막 확정 시드: {lastConfirmedSeed}", EditorStyles.miniLabel);
@@ -231,7 +290,7 @@ namespace EmptyHouse.MapGen.Editor
         /// </summary>
         private void DrawFloorParamOverrides()
         {
-            var definition = AssetDatabase.LoadAssetAtPath<MapDefinitionSO>(mapDefinitionPaths[templateSetIndex]);
+            MapDefinitionSO definition = SelectedDefinition();
             if (definition == null || definition.Floors == null || definition.Floors.Length == 0)
             {
                 return;
@@ -534,7 +593,15 @@ namespace EmptyHouse.MapGen.Editor
             MapGenParams snapshot = JsonUtility.FromJson<MapGenParams>(JsonUtility.ToJson(workingParams));
             snapshot.Seed = lastConfirmedSeed;
 
-            var definition = AssetDatabase.LoadAssetAtPath<MapDefinitionSO>(mapDefinitionPaths[templateSetIndex]);
+            MapDefinitionSO definition = SelectedDefinition();
+            if (definition == null)
+            {
+                Log.E("[MapGenPreviewWindow] 선택된 빈 집 정의가 없다 — 드롭다운에서 선택(↻ 로 재스캔) 후 생성");
+                lastResult = null;
+                Repaint();
+                return;
+            }
+
             MapGenPlan plan = MapPlanBuilder.Build(definition, snapshot, out _);
             if (plan == null)
             {

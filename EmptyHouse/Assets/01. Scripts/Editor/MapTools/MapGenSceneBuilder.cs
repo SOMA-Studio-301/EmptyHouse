@@ -20,7 +20,6 @@ namespace EmptyHouse.MapGen.Editor
         private const float mapSpacing = 400f; // 맵 루트 간 X 간격(m) — 기본값(방 58~60 + 복도) 바운드와 여유
         private const string markerMaterialFolder = "Assets/02. Prefab/Map/MapGenMarkers"; // 표식 머티리얼 폴더
         private const string mapDefinitionPath = "Assets/03. ScriptableObjects/MapGen/SO_Map_Hall.asset"; // 런타임 드라이버와 공유하는 빈 집 정의(단일 출처, M10-1)
-        private const string map3FDefinitionPath = "Assets/03. ScriptableObjects/MapGen/SO_Map_Hall3F.asset"; // 3층 검증용 빈 집 정의
 
         /// <summary>활성 씬에 단층(SO_Map_Hall) 예시 맵 5개를 생성한다 — 성공 시드를 X 방향으로 나란히 배치·씬 저장.</summary>
         [MenuItem("Tools/Map/절차 예시 맵 5개 생성")]
@@ -30,12 +29,37 @@ namespace EmptyHouse.MapGen.Editor
             BuildExampleMaps(mapDefinitionPath, 5, "GeneratedMaps", -400f, true);
         }
 
-        /// <summary>활성 씬에 3층(SO_Map_Hall3F) 예시 맵 2개를 생성한다 — 층간 검증(접지·NavMesh)은 계단 셋업 검증 툴 소관이라 감사는 생략.</summary>
-        [MenuItem("Tools/Map/절차 3층 예시 맵 2개 생성")]
-        public static void BuildTwoThreeFloorExampleMaps()
+        /// <summary>활성 씬에 다층 예시 맵 2개를 생성한다 — 대상은 프로젝트 첫 다층 정의(스캔). 층간 검증(접지·NavMesh)은 계단 셋업 검증 툴 소관이라 감사는 생략.</summary>
+        [MenuItem("Tools/Map/절차 다층 예시 맵 2개 생성")]
+        public static void BuildTwoMultiFloorExampleMaps()
         {
-            Log.D("[MapGenSceneBuilder] BuildTwoThreeFloorExampleMaps");
-            BuildExampleMaps(map3FDefinitionPath, 2, "GeneratedMaps_Hall3F", -1400f, false);
+            Log.D("[MapGenSceneBuilder] BuildTwoMultiFloorExampleMaps");
+            string path = FindFirstMultiFloorDefinitionPath();
+            if (path == null)
+            {
+                Log.W("[MapGenSceneBuilder] 다층(층 2개 이상) MapDefinitionSO 가 프로젝트에 없다 — 정의를 먼저 만들어라");
+                return;
+            }
+
+            BuildExampleMaps(path, 2, "GeneratedMaps_MultiFloor", -1400f, false);
+        }
+
+        /// <summary>프로젝트를 스캔해 첫 다층(층 ≥ 2) 빈 집 정의 경로를 찾는다 — 에셋 이름 하드코딩을 피하는 공용 조회(스윕·계단 검증 툴 공유).</summary>
+        /// <returns>다층 정의 에셋 경로 — 없으면 null.</returns>
+        internal static string FindFirstMultiFloorDefinitionPath()
+        {
+            foreach (string guid in AssetDatabase.FindAssets("t:MapDefinitionSO"))
+            {
+                string path = AssetDatabase.GUIDToAssetPath(guid);
+                var definition = AssetDatabase.LoadAssetAtPath<MapDefinitionSO>(path);
+                if (definition.Floors != null && definition.Floors.Length > 1)
+                {
+                    Log.D($"[MapGenSceneBuilder] 다층 정의 채택 — {definition.MapId}({path})");
+                    return path;
+                }
+            }
+
+            return null;
         }
 
         /// <summary>

@@ -21,7 +21,7 @@ namespace EmptyHouse.EditorTools
         private const string stairsFolder = "Assets/02. Prefab/Map/DecoratedRooms/Stairs"; // 계단실 프리팹 폴더
         private const string stairPrefabPath = stairsFolder + "/StairRoom-3x3.prefab"; // 계단실 그레이박스 프리팹
         private const string stairTemplatePath = "Assets/03. ScriptableObjects/MapGen/Templates/SO_Template_stair_3x3.asset"; // 계단실 템플릿 SO
-        private const string mapDefinitionPath = "Assets/03. ScriptableObjects/MapGen/SO_Map_Hall3F.asset"; // 3층 빈 집 정의(M10-1 — 구 층 스택 승계)
+        private static string MapDefinitionPath => EmptyHouse.MapGen.Editor.MapGenSceneBuilder.FindFirstMultiFloorDefinitionPath(); // 다층 검증 대상 — 프로젝트 첫 다층 정의 스캔(에셋 이름 하드코딩 회피)
         private const float floorHeight = 6f; // 층고(실측 확정 — Hall_Wall_6M)
         private const float cellMeters = 4f; // 셀 실측
 
@@ -314,7 +314,7 @@ namespace EmptyHouse.EditorTools
         /// <returns>감사 요약.</returns>
         public static string BuildThreeFloorVerification(int seed)
         {
-            var definition = AssetDatabase.LoadAssetAtPath<MapDefinitionSO>(mapDefinitionPath);
+            var definition = AssetDatabase.LoadAssetAtPath<MapDefinitionSO>(MapDefinitionPath);
             MapGenPlan plan = MapPlanBuilder.Build(definition, new MapGenParams { Seed = seed, VaccineFloorPlan = new[] { 1, -1, -1 } }, out RoomTemplateSO[] flatAssets);
             if (plan == null)
             {
@@ -398,7 +398,7 @@ namespace EmptyHouse.EditorTools
             }
 
             GameObject mapRoot = root.transform.GetChild(0).gameObject;
-            var definition = AssetDatabase.LoadAssetAtPath<MapDefinitionSO>(mapDefinitionPath);
+            var definition = AssetDatabase.LoadAssetAtPath<MapDefinitionSO>(MapDefinitionPath);
             float rootY = mapRoot.transform.position.y;
             var planes = new List<float> { rootY, rootY + FloorGeometry.FloorPlaneY(definition, 1), rootY + FloorGeometry.FloorPlaneY(definition, -1) };
 

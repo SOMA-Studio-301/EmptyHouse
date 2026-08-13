@@ -15,7 +15,7 @@ namespace EmptyHouse.EditorTools
     [CustomEditor(typeof(MapDefinitionSO))]
     public sealed class MapDefinitionSOEditor : UnityEditor.Editor
     {
-        private static readonly string[] definitionFields = { "MapId", "Floors", "BasementCount", "CommonRegistry", "LightingProfile" }; // 정의 고유 필드(그룹 위에 기본 드로어로)
+        private static readonly string[] definitionFields = { "MapId", "CommonRegistry", "LightingProfile" }; // 정의 고유 필드(기본 드로어) — 층 목록은 DrawFloorList 전용
 
         private const string previewMenuPath = "Tools/Map/절차 예시 맵 5개 생성"; // 프리뷰 빌더 메뉴(에디터 어셈블리 경계상 메뉴로 호출)
 
@@ -60,6 +60,8 @@ namespace EmptyHouse.EditorTools
             {
                 EditorGUILayout.PropertyField(serializedObject.FindProperty(field), true);
             }
+
+            DrawFloorList();
 
             EditorGUILayout.Space();
             DrawSummary(serializedObject, root);
@@ -117,6 +119,82 @@ namespace EmptyHouse.EditorTools
                 }
 
                 EditorGUI.indentLevel--;
+            }
+        }
+
+        /// <summary>
+        /// 층 목록 섹션 — 아래→위 순서 행마다 유도 서수(B1/1F/2F)를 라벨로 붙이고 ▲▼(재정렬)·×(제거)·추가를 제공한다.
+        /// 같은 층 에셋 중복·서수 0(시드 층) 부재는 즉시 경고한다(린트와 같은 기준의 미리보기).
+        /// </summary>
+        private void DrawFloorList()
+        {
+            EditorGUILayout.Space();
+            var definition = (MapDefinitionSO)target;
+            SerializedProperty floors = serializedObject.FindProperty("Floors");
+            SerializedProperty basementCount = serializedObject.FindProperty("BasementCount");
+
+            EditorGUILayout.LabelField("층 목록(아래→위) — 서수는 위치 + 지하 층 수로 유도", EditorStyles.boldLabel);
+            EditorGUILayout.PropertyField(basementCount, new GUIContent("지하 층 수(BasementCount)"));
+
+            if (basementCount.intValue < 0 || basementCount.intValue >= Mathf.Max(1, floors.arraySize))
+            {
+                EditorGUILayout.HelpBox($"BasementCount({basementCount.intValue}) 범위 밖 — 서수 0(시드 층)이 존재하려면 0 ≤ 값 ≤ 층 수-1", MessageType.Error);
+            }
+
+            var seen = new HashSet<Object>();
+            bool duplicate = false;
+            for (int i = 0; i < floors.arraySize; i++)
+            {
+                SerializedProperty slot = floors.GetArrayElementAtIndex(i);
+                int floorIndex = i - basementCount.intValue;
+                string ordinal = floorIndex < 0 ? $"B{-floorIndex}" : $"{floorIndex + 1}F";
+                if (slot.objectReferenceValue != null && !seen.Add(slot.objectReferenceValue))
+                {
+                    duplicate = true;
+                }
+
+                using (new EditorGUILayout.HorizontalScope())
+                {
+                    EditorGUILayout.LabelField(floorIndex == 0 ? $"{ordinal}·시드" : ordinal, GUILayout.Width(56f));
+                    EditorGUILayout.PropertyField(slot, GUIContent.none);
+                    using (new EditorGUI.DisabledScope(i == 0))
+                    {
+                        if (GUILayout.Button("▼", GUILayout.Width(24f)))
+                        {
+                            floors.MoveArrayElement(i, i - 1); // 아래→위 목록이라 ▼ = 슬롯 앞으로
+                        }
+                    }
+
+                    using (new EditorGUI.DisabledScope(i == floors.arraySize - 1))
+                    {
+                        if (GUILayout.Button("▲", GUILayout.Width(24f)))
+                        {
+                            floors.MoveArrayElement(i, i + 1);
+                        }
+                    }
+
+                    if (GUILayout.Button("×", GUILayout.Width(22f)))
+                    {
+                        if (slot.objectReferenceValue != null)
+                        {
+                            slot.objectReferenceValue = null; // 참조 슬롯은 1차 삭제가 값 비우기 — 한 번에 지우면 배열이 안 줄어든다
+                        }
+
+                        floors.DeleteArrayElementAtIndex(i);
+                        break;
+                    }
+                }
+            }
+
+            if (GUILayout.Button("+ 층 추가(맨 위)"))
+            {
+                floors.InsertArrayElementAtIndex(floors.arraySize);
+                floors.GetArrayElementAtIndex(floors.arraySize - 1).objectReferenceValue = null;
+            }
+
+            if (duplicate)
+            {
+                EditorGUILayout.HelpBox("같은 층 정의 에셋이 두 슬롯에 배선됨 — 린트가 조립을 거부한다(층마다 별도 에셋)", MessageType.Error);
             }
         }
 
