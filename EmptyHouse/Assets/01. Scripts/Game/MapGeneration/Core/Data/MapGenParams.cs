@@ -37,11 +37,7 @@ namespace EmptyHouse.MapGen.Core
         public int HerdZombieCountMax = 5; // 위장 무대 Walker 무리 최대 ⚪
         public ZombieTypeMask EnabledZombieTypes = ZombieTypeMask.Walker; // 배치 활성 좀비 타입 — 현재 Walker만 게임에 구현되어 기본값 Walker. Watcher·Listener 는 구현 후 활성화
 
-        // ── 다층 v2(M8) 전역 ─────────────────────────────────────────
-        // Floors 가 비면(null 또는 길이 0) 위 스칼라 항목으로 층 1개를 합성한다 = v1 동일 경로.
-        // ⚠️ 합성 분기는 반드시 `Floors == null || Floors.Length == 0` 두 조건 모두 — JsonUtility 왕복이
-        // null 배열을 빈 배열로 되살리므로 null 만 검사하면 조용히 깨진다(MapGenNetworkDriver.SnapshotParams).
-        public FloorGenParams[] Floors; // 층별 파라미터(아래→위 순서 무관, FloorIndex 가 서수). 비면 v1 단층
+        // ── 다층 전역(M8~M10-1) — 층별 파라미터는 FloorGenParams(층 정의 SO)가 원천, 여기는 맵 전역 노브만 ──
         public int ShaftCountMin = 2; // 계단 샤프트 최소 수 — 1개면 비시드 층 뿌리가 하나뿐이라 백신 가지 분산이 구조적으로 실패
         public int ShaftCountMax = 3; // 계단 샤프트 최대 수
         public int ShaftDepthPercentMin = 25; // 시드 층 방 예산 대비 계단 삽입 시점 하한 % — "중앙"을 깊이 대역으로 근사

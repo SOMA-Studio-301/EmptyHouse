@@ -80,10 +80,8 @@ namespace EmptyHouse.MapGen.Core
         }
 
         /// <summary>
-        /// v1 호환 경로 — 층 개념이 없는 (파라미터, 템플릿) 쌍에서 **층 1개짜리** Plan 을 합성한다.
-        /// 층 1개 구성은 현행 v1 과 완전히 같은 블루프린트를 내야 한다(골든 회귀 게이트).
-        /// ⚠️ 호출부의 합성 분기 조건은 반드시 `Floors == null || Floors.Length == 0` 두 가지 모두다 —
-        /// `MapGenNetworkDriver.SnapshotParams` 가 `JsonUtility` 왕복이라 **null 배열이 빈 배열로 되살아난다.**
+        /// v1 호환 경로 — 층 개념이 없는 (파라미터, 템플릿) 쌍에서 **층 1개짜리** Plan 을 합성한다(테스트·레거시 툴 전용,
+        /// 런타임·프리뷰는 MapPlanBuilder 단일 경로 — M10-1). 층 1개 구성은 현행 v1 과 완전히 같은 블루프린트를 내야 한다(골든 회귀 게이트).
         /// </summary>
         /// <param name="genParams">전역 파라미터(층별 항목은 스칼라 폴백 값을 쓴다).</param>
         /// <param name="templates">단일 템플릿 세트.</param>

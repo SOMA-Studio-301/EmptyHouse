@@ -55,7 +55,7 @@ namespace EmptyHouse.MapGen.Editor
 
                 // 빌더와 같은 조립 경로(MapPlanBuilder)로 재생성한다 — 층 정의 GenParams 가 원천이라
                 // 레거시(FromLegacy) 경로로 재생성하면 정의·전역 값이 어긋나는 순간 감사가 오탐한다
-                MapGenPlan plan = MapPlanBuilder.Build(definition, MapGenSceneBuilder.CreateParams(seed), out _);
+                MapGenPlan plan = MapPlanBuilder.Build(definition, MapGenSceneBuilder.CreateParams(definition, seed), out _);
                 if (plan == null)
                 {
                     Log.E("[MapGenSceneAuditor] 정의 린트 실패 — 감사 중단(R4)");
