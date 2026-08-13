@@ -176,19 +176,22 @@ namespace EmptyHouse.MapGen.Runtime
                     }
                     else
                     {
-                        // 계단 삽입 — 스트립 셀 (0,1)~(0,3) 회전 후 월드 AABB 민 코너에 바운즈 정렬
+                        // 계단 삽입 — 스트립 셀 (0,1)~(0,3) 회전 후 월드 AABB 민 코너에 **몸체(보행 규격) 바운즈** 정렬.
+                        // 프리팹에 붙는 등받이 벽·스커트(Wall 토큰)는 규격(4×12×9) 밖 장식이라 정렬 기준에서 제외한다 —
+                        // 포함하면 그 두께만큼 계단이 밀려 방 벽을 관통한다(2026-08-13 실측 0.4m)
                         GameObject stair = instantiate(entry.StairPrefab, stairsRoot);
                         ownStair = stair;
                         stair.name = $"Stair_r{r}_f{room.FloorIndex}";
                         stair.transform.rotation = Quaternion.Euler(0f, 90f * (int)room.Rotation, 0f);
                         Bounds strip = CellSpanBounds(room, template, 0, 1, 0, 3, floorOrigin, minX, minY, cellMeters);
-                        Bounds current = CombinedRendererBounds(stair);
+                        Bounds current = StairBodyBounds(stair);
                         stair.transform.position += new Vector3(strip.min.x - current.min.x, floorOrigin.y - current.min.y, strip.min.z - current.min.z);
 
-                        // 램프 플레이트 비활성(2026-08-13 기획 반영) — 좀비 층간 이동이 기획상 차단이라 계단면 내비 연속성이 불필요.
-                        // 다층 좀비 이동이 열리면 아래 한 줄 복원(없으면 계단 복셀화 단절로 층간 경로 PathPartial — M9-9 실측).
+                        // 램프 플레이트·상단 브리지 비활성(2026-08-13 기획 반영) — 좀비 층간 이동이 기획상 차단이라
+                        // 계단면 내비 연속성이 불필요. 다층 좀비 이동이 열리면 아래 두 줄 복원
+                        // (없으면 계단 복셀화 단절로 층간 경로 PathPartial — M9-9 실측).
                         // AddStairRamps(stair, stairsRoot);
-                        AddTopBridge(stair, stairsRoot, room.Rotation, floorOrigin.y + FloorGeometry.StairRise(definition, room.FloorIndex));
+                        // AddTopBridge(stair, stairsRoot, room.Rotation, floorOrigin.y + FloorGeometry.StairRise(definition, room.FloorIndex));
 
                         // 천장 절개 — 헤드룸 구간 (0,2)·(0,3), 천장고 6m 기준 밴드(벽은 min.y 가 바닥이라 안 걸린다)
                         Bounds ceilingArea = CellSpanBounds(room, template, 0, 2, 0, 3, floorOrigin, minX, minY, cellMeters);
@@ -818,6 +821,55 @@ namespace EmptyHouse.MapGen.Runtime
             }
 
             return bounds;
+        }
+
+        /// <summary>
+        /// 계단 인스턴스의 **몸체(보행 규격 4×12×9)** 합성 바운드 — 배치 정렬 기준. 제외 규약 2가지:
+        /// ① 이름에 Wall 이 든 조각(등받이 벽·스커트), ② 이름에 Deco 가 든 부모 아래 전부(아트가 규격 외
+        /// 장식을 자유롭게 묶는 명시 계약). 아트가 장식을 더해도 배치 정렬이 밀리지 않는다.
+        /// </summary>
+        /// <param name="stair">계단 인스턴스.</param>
+        /// <returns>몸체 합성 바운드 — 제외 후 조각이 하나도 없으면 전체 바운드 폴백.</returns>
+        private static Bounds StairBodyBounds(GameObject stair)
+        {
+            var bounds = new Bounds();
+            bool initialized = false;
+            foreach (Renderer renderer in stair.GetComponentsInChildren<Renderer>(false))
+            {
+                if (renderer.name.Contains("Wall") || IsUnderDecoGroup(renderer.transform, stair.transform))
+                {
+                    continue;
+                }
+
+                if (!initialized)
+                {
+                    bounds = renderer.bounds;
+                    initialized = true;
+                }
+                else
+                {
+                    bounds.Encapsulate(renderer.bounds);
+                }
+            }
+
+            return initialized ? bounds : CombinedRendererBounds(stair);
+        }
+
+        /// <summary>이 트랜스폼이 Deco 그룹(이름에 Deco 포함) 아래인지 — 배치 정렬 무시 대상 판정.</summary>
+        /// <param name="target">검사할 트랜스폼.</param>
+        /// <param name="root">계단 루트(여기까지만 거슬러 올라간다).</param>
+        /// <returns>조상(자신 포함) 중 이름에 Deco 가 있으면 true.</returns>
+        private static bool IsUnderDecoGroup(Transform target, Transform root)
+        {
+            for (Transform current = target; current != null && current != root; current = current.parent)
+            {
+                if (current.name.Contains("Deco"))
+                {
+                    return true;
+                }
+            }
+
+            return false;
         }
 
         /// <summary>
