@@ -223,7 +223,7 @@ namespace EmptyHouse.MapGen.Runtime
 
                     // 도착 클리어런스(중간층 전용) — 자기 계단이 같은 자리에 수직 반복(SSA)이라, 계단 하부
                     // 스커트·마감판이 도착 셀을 y 0~2.95 벽처럼 감싼다(M9-10 실측: PathPartial 의 원인).
-                    // 이 방 자기 계단 조각 중 클리어런스 볼륨(도착 셀 XZ × y 0~2.2)과 겹치는 것을 걷어낸다.
+                    // 이 방 자기 계단 조각 중 클리어런스 볼륨(도착 셀 XZ × y 0~2.2)과 겹치는 **낮은 조각만** 걷어낸다.
                     // 아래층 계단의 램프·플라이트는 별개 인스턴스라 건드리지 않는다
                     int clearanceCut = 0;
                     if (ownStair != null)
@@ -235,7 +235,9 @@ namespace EmptyHouse.MapGen.Runtime
                         clearance.size = new Vector3(clearance.size.x + 0.4f, 2.2f, clearance.size.z + 0.4f);
                         foreach (Renderer renderer in ownStair.GetComponentsInChildren<Renderer>(false))
                         {
-                            if (renderer.bounds.min.y < floorOrigin.y + 2.2f && renderer.bounds.Intersects(clearance))
+                            // 상단이 y+3.0 미만인 낮은 조각(스커트·마감판)만 — 바닥에서 시작하는 키 큰 등받이 벽(Deco 6m)은
+                            // 도착 동선을 막지 않으므로 보존한다(자르면 위층 계단 벽에 구멍 — 2026-08-13 실측)
+                            if (renderer.bounds.min.y < floorOrigin.y + 2.2f && renderer.bounds.max.y < floorOrigin.y + 3f && renderer.bounds.Intersects(clearance))
                             {
                                 renderer.gameObject.SetActive(false);
                                 clearanceCut++;
