@@ -12,6 +12,7 @@ using UnityEngine.SceneManagement;
 /// 복귀는 재접속이 아니라 씬 스왑이다 — NGO 세션은 유지되고 전 클라가 같은 세션으로 로비 씬을 로드한다(4장).
 /// GamePhase/GameResultReason 을 전 클라에 복제하고, 결과는 채널로만 방송한다(UI 미참조).
 /// 사망/귀환/포기 신호는 PlayerLifecycleEventChannelSO 로 서버에서만 수신한다.
+/// 결과 확정 시 로스터 전원 분의 개인 칭호를 ClientRpc 로 송신하고, 각 클라 수신부가 PlayerTitlesEventChannelSO 로 로컬 방송한다(EH-38 스텁).
 /// </summary>
 public class ServerGameManager : NetworkBehaviour
 {
@@ -39,6 +40,8 @@ public class ServerGameManager : NetworkBehaviour
     /// <summary>결과 확정 시 클라로 방송할 채널. 서버 매니저는 UI 를 직접 참조하지 않는다.</summary>
     [Header("Broadcast")]
     [SerializeField] private GameResultEventChannelSO gameResultChanged;
+
+    [SerializeField] private PlayerTitlesEventChannelSO playerTitlesChanged; // 개인 칭호 로컬 방송 채널. ClientRpc 수신부가 각 클라에서 raise 한다
 
     /// <summary>사망/귀환/포기 신호 수신 채널. 서버에서만 구독한다.</summary>
     [Header("Signals")]
@@ -181,7 +184,27 @@ public class ServerGameManager : NetworkBehaviour
         Log.D($"[ServerGameManager] 세션 종료 → {reason} (귀환자 있음={anyExtracted})");
         phase.Value = GamePhase.Result;
         resultReason.Value = reason;
+        BroadcastTitles();
         BeginReturnToLobbyCountdown();
+    }
+
+    /// <summary>
+    /// 로스터 전원 분의 개인 칭호를 확정해 전 클라로 송신한다. 결과 확정 직후 서버에서 1회 호출된다.
+    /// 스텁 단계 — 전원 LazyTeammate 고정. 기획 확정 시 집계·배정 로직(TitleAssigner)으로 교체될 자리다.
+    /// </summary>
+    private void BroadcastTitles()
+    {
+        // TODO(impl): roster 전원 → PlayerTitle{ClientId, LazyTeammate} 배열 구성 후 BroadcastTitlesClientRpc 송신.
+        Log.D("[ServerGameManager] BroadcastTitles");
+    }
+
+    /// <summary>서버가 확정한 칭호 배열을 수신해 각 클라 로컬 채널로 방송한다.</summary>
+    /// <param name="titles">플레이어별 칭호. 로스터 전원 분.</param>
+    [ClientRpc]
+    private void BroadcastTitlesClientRpc(PlayerTitle[] titles)
+    {
+        // TODO(impl): playerTitlesChanged.RaiseEvent(titles).
+        Log.D($"[ServerGameManager] BroadcastTitlesClientRpc {titles.Length}명");
     }
 
     /// <summary>

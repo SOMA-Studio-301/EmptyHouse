@@ -5,6 +5,7 @@ using Border.Core;
 using Border.Localization;
 using Unity.Services.Lobbies.Models;
 using UnityEngine;
+using UnityEngine.Serialization;
 
 /// <summary>
 /// 세션 결과창 — 서버가 확정한 결과를 표시하는 클라 UI(세션루프.md 5장). 자기 가시성은 UIManager 소유다:
@@ -13,6 +14,7 @@ using UnityEngine;
 /// 팀원 정보는 영속 <see cref="SessionCoordinator"/> 가 들고 있는 UGS 로비 스냅샷에서 읽는다 — 게임 씬에는 닉네임·스팀 ID 가 복제되지 않는다.
 /// 폰이 죽어도 살아남아야 하는 세션 스코프 UI라 Player 자식이 아니라 클라 UI 계층에 둔다(전멸 시 내 폰 despawn 에도 표시).
 /// 버튼은 없다 — 로비 복귀는 8초(⚪) 후 서버가 자동 전이하므로(D35, 5-1), 이 창은 카운트다운만 표시한다.
+/// 개인 칭호는 PlayerTitlesEventChannelSO 로 받는다 — Show 시 캐시(CurrentTitles)를 읽고, RPC 가 늦으면 구독으로 갱신한다(EH-38 스텁).
 /// </summary>
 public class UIResult : MonoBehaviour
 {
@@ -23,8 +25,13 @@ public class UIResult : MonoBehaviour
     [SerializeField] private UILocalizeText lobbyReturnText;  // "n초 후 로비로 이동". 남은 초는 동적 prefix 로 주입한다
     [SerializeField] private float lobbyReturnSeconds = 8f;   // 표시용 카운트다운 길이. ServerGameManager.resultDisplaySeconds 와 값을 맞춘다(복제 아님)
 
+    [Header("Titles")]
+    [SerializeField] private PlayerTitlesEventChannelSO playerTitlesChanged; // 개인 칭호 로컬 방송 채널. Show 시 캐시를 읽고 늦은 도착은 구독으로 갱신
+
     [Header("Localize Keys")]
-    [LocalizeKey] public string DefaultMemoKey; // 전원 공통 임시 메모 키. 기여도 판정 기획 확정 시 슬롯별로 갈린다
+    [FormerlySerializedAs("DefaultMemoKey")]
+    [LocalizeKey] public string DefaultTitleKey; // 칭호 미도착(None) 폴백 키
+    [LocalizeKey] public string LazyTeammateTitleKey; // TitleId.LazyTeammate 표시 키 — 스텁 단계 전원 배정. 기획 확정 시 카탈로그 SO 로 승격
 
     // 카운트다운 숫자 전용 버퍼. UILocalizeText 가 참조로 들고 있어 내용만 갈아끼운다.
     private readonly StringBuilder countdownBuilder = new StringBuilder(4);
@@ -32,9 +39,17 @@ public class UIResult : MonoBehaviour
     private readonly WaitForSeconds oneSecond = new WaitForSeconds(1f);
     private Coroutine countdownRoutine;
 
+    /// <summary>표시 중 칭호가 늦게 도착할 수 있어 채널 구독을 건다.</summary>
+    private void OnEnable()
+    {
+        // TODO(impl): playerTitlesChanged.OnEventRaised 에 HandleTitlesChanged 구독.
+        Log.D("[UIResult] OnEnable");
+    }
+
     /// <summary>결과창이 닫히면 카운트다운을 정지한다.</summary>
     private void OnDisable()
     {
+        // TODO(impl): playerTitlesChanged.OnEventRaised 구독 해제.
         if (countdownRoutine == null) return;
 
         StopCoroutine(countdownRoutine);
@@ -69,11 +84,31 @@ public class UIResult : MonoBehaviour
             }
 
             Player player = players[i];
+            // TODO(impl): playerTitlesChanged.CurrentTitles 에서 칭호를 찾아 ResolveTitleKey 로 키를 정한다
+            //             (clientId↔로비 슬롯 매핑 부재 — 스텁은 전원 동일 칭호라 첫 원소를 전 슬롯에 적용해도 무해).
             userSlots[i].SetPlayerInfo(
                 TryGetPlayerData(player, LobbyDataKeys.PlayerName, out string playerName) ? playerName : "Unknown",
                 TryGetPlayerData(player, LobbyDataKeys.SteamId, out string steamId) ? steamId : string.Empty,
-                DefaultMemoKey);
+                DefaultTitleKey);
         }
+    }
+
+    /// <summary>칭호 방송을 받아 표시 중인 슬롯을 다시 그린다. 결과창이 꺼져 있으면 다음 Show 가 캐시를 읽는다.</summary>
+    /// <param name="titles">플레이어별 칭호. 로스터 전원 분.</param>
+    private void HandleTitlesChanged(PlayerTitle[] titles)
+    {
+        // TODO(impl): ShowTeamSlots 재호출로 슬롯 칭호 갱신.
+        Log.D($"[UIResult] HandleTitlesChanged {titles.Length}명");
+    }
+
+    /// <summary>칭호를 표시용 로컬라이즈 키로 변환한다. 스텁 단계 — LazyTeammate 외에는 전부 폴백 키.</summary>
+    /// <param name="title">배정된 칭호.</param>
+    /// <returns>슬롯 칭호 라벨에 넘길 로컬라이즈 키.</returns>
+    private string ResolveTitleKey(TitleId title)
+    {
+        // TODO(impl): LazyTeammate → LazyTeammateTitleKey, 그 외 → DefaultTitleKey.
+        Log.D($"[UIResult] ResolveTitleKey {title}");
+        return default;
     }
 
     /// <summary>남은 초를 1초 간격으로 동적 prefix 에 주입한다. 0 이 되면 숫자를 지운다(씬 전환은 서버가 한다).</summary>
