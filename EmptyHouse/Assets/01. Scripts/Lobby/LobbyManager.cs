@@ -281,7 +281,10 @@ public class LobbyManager : MonoBehaviour
         }
     }
 
-    /// <summary>ID 로 방 입장을 요청한다. 실패하면 열려 있는 셀의 비밀번호 입력창을 흔든다.</summary>
+    /// <summary>
+    /// ID 로 방 입장을 요청한다. 비밀번호 오류면 열려 있는 셀의 입력창을 흔들고,
+    /// 그 외 실패는 낡은 목록(그 사이 출발·만석·소멸) 탓일 수 있으므로 목록을 즉시 새로 받는다.
+    /// </summary>
     /// <param name="lobbyId">대상 로비 ID</param>
     /// <param name="password">입력된 비밀번호</param>
     /// <returns>입장 완료를 기다리는 Task</returns>
@@ -290,7 +293,8 @@ public class LobbyManager : MonoBehaviour
         LobbySession.JoinResult result = await session.JoinByIdAsync(lobbyId, password);
 
         // 성공 시 UI 정리·화면 전환(SessionStarted)은 UIMenuManager 가 처리한다
-        if (result != LobbySession.JoinResult.Success) roomListPanel.RejectPassword();
+        if (result == LobbySession.JoinResult.WrongPassword) roomListPanel.RejectPassword();
+        else if (result == LobbySession.JoinResult.Error) await RefreshLobbyList();
     }
 
     #endregion
