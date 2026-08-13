@@ -104,6 +104,7 @@ GameObject:
   - component: {fileID: 3814831168945640586}
   - component: {fileID: 1110419948588627161}
   - component: {fileID: 5258635641953041261}
+  - component: {fileID: 910000000000000040}
   m_Layer: 0
   m_Name: Player_UnityChan
   m_TagString: Untagged
@@ -509,6 +510,24 @@ MonoBehaviour:
   meterLevelChanged: {fileID: 11400000, guid: 921d962283ca85149a5299193c133801, type: 2}
   settings: {fileID: 11400000, guid: f98030f04d614a5aadd0118115f3237c, type: 2}
   silenceWindowMultiplier: 2
+--- !u!114 &910000000000000040
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2490874660187570032}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 0380258ded124a7391ff96e347fb1fc1, type: 3}
+  m_Name:
+  m_EditorClassIdentifier: Assembly-CSharp::EmptyHouse.NoiseSystem.PlayerVoiceNoise
+  ShowTopMostFoldoutHeaderGroup: 1
+  voiceChannel: {fileID: 11400000, guid: f691692454eb45d4a3788012d1ed6d96, type: 2}
+  emissionIntervalSeconds: 0.6
+  speakingAmplitudeThreshold: 0.05
+  voiceMinDb: 15
+  voiceMaxDb: 40
 --- !u!114 &8714832752457740018
 MonoBehaviour:
   m_ObjectHideFlags: 0
