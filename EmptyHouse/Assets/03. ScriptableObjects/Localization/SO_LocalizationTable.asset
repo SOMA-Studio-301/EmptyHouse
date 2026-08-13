@@ -433,18 +433,30 @@ MonoBehaviour:
       value: "\uBC84\uC2A4 \uB9CC\uB4E4\uAE30"
     - languageCode: tw
       value: "\u5EFA\u7ACB\u5DF4\u58EB"
+  - key: UI_LOBBY_DEPARTED
+    translations:
+    - languageCode: cn
+      value: "\u5DF2\u53D1\u8F66"
+    - languageCode: en
+      value: Started
+    - languageCode: jp
+      value: "\u51FA\u767A\u6E08\u307F"
+    - languageCode: ko
+      value: "\uCD9C\uBC1C\uD568"
+    - languageCode: tw
+      value: "\u5DF2\u767C\u8ECA"
   - key: UI_LOBBY_ENTER
     translations:
     - languageCode: cn
-      value: "\u52A0\u5165"
+      value: "\u4E0A\u8F66"
     - languageCode: en
-      value: Join
+      value: Board
     - languageCode: jp
-      value: "\u53C2\u52A0"
+      value: "\u4E57\u8ECA"
     - languageCode: ko
-      value: "\uC785\uC7A5"
+      value: "\uD0D1\uC2B9"
     - languageCode: tw
-      value: "\u52A0\u5165"
+      value: "\u4E0A\u8ECA"
   - key: UI_LOBBY_FULL
     translations:
     - languageCode: cn
@@ -454,7 +466,7 @@ MonoBehaviour:
     - languageCode: jp
       value: "\u6E80\u54E1"
     - languageCode: ko
-      value: "\uB9CC\uC11D"
+      value: "\uB9CC\uCC28"
     - languageCode: tw
       value: "\u5DF2\u6EFF"
   - key: UI_LOBBY_PASSWORD

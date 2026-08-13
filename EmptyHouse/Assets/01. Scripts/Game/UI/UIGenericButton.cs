@@ -21,6 +21,8 @@ public class UIGenericButton : MonoBehaviour
     [SerializeField] private UILocalizeText buttonLocalizeText;
     [SerializeField] private Button button;
 
+    private TMP_Text labelText; // 라벨 TMP. SetLabelColor 첫 호출에 캐싱한다
+
     [Header("Audio")]
     [SerializeField] private SFXEventChannelSO sfxEventChannel;
     [SerializeField] private AudioId clickAudioId = AudioId.Sfx_Ui_Click;    // 버튼별로 교체 가능. None 이면 무음
@@ -83,6 +85,16 @@ public class UIGenericButton : MonoBehaviour
         }
 
         buttonLocalizeText.SetKey(localizationKey);
+    }
+
+    /// <summary>
+    /// 버튼 라벨 글자 색을 바꾼다. 상태(비활성 등)에 따라 라벨 톤을 바꿀 때 쓴다.
+    /// </summary>
+    /// <param name="color">적용할 글자 색</param>
+    public void SetLabelColor(Color color)
+    {
+        labelText ??= GetComponentInChildren<TMP_Text>(true);
+        labelText.color = color;
     }
 
     /// <summary>

@@ -123,10 +123,13 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   JoinKey: UI_LOBBY_ENTER
   FullKey: UI_LOBBY_FULL
+  DepartedKey: UI_LOBBY_DEPARTED
   lobbyNameText: {fileID: 5054141929966981376}
   playerCountText: {fileID: 3469039112787938513}
   joinButton: {fileID: 3901580100087633410}
   passwordField: {fileID: 6257339166371920098}
+  activeTextColor: {r: 0.90588236, g: 0.96862745, b: 0.9098039, a: 1}
+  inactiveTextColor: {r: 0.5, g: 0.5, b: 0.5, a: 1}
   background: {fileID: 3616468794415934430}
   normalSprite: {fileID: 3286163911610860551, guid: c8993417bf7a45241b3227dcf2f224da, type: 3}
   selectedSprite: {fileID: 3286163911610860551, guid: f6dd37af041e3f94aa27e39490b51388, type: 3}
