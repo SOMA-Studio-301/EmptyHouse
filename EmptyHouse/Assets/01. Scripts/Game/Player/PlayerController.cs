@@ -118,7 +118,15 @@ public class PlayerController : NetworkBehaviour
         itemUser.enabled = IsOwner;
         aimIndicator.enabled = IsOwner;
 
-        if (!IsOwner) return;
+        // 비소유자 인스턴스의 Vcam 은 로컬에서 즉시 꺼둔다. Vcam 은 네트워크를 모르는 일반 컴포넌트라
+        // CinemachineBrain 이 소유권 구분 없이 활성 Vcam 중 Priority 최고를 그냥 골라버리기 때문에,
+        // 이벤트 채널(onCameraChanged)에만 맡기면 남의 Vcam 이 먼저 켜져 있을 때 화면을 뺏길 수 있다.
+        if (!IsOwner)
+        {
+            eyeVcam.gameObject.SetActive(false);
+            disguiseVcam.gameObject.SetActive(false);
+            return;
+        }
 
         inputReader.MoveEvent += OnMoveInput;
         inputReader.LookEvent += OnLookInput;
