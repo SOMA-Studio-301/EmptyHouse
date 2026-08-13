@@ -28,6 +28,7 @@ public class UIManager : MonoBehaviour
     /// <summary>발행: 개인 이탈 요청. 네트워크 이탈 핸들러가 구독해 NGO 연결 종료 + Menu 씬 로드를 수행한다.</summary>
     [Header("Session Exit")]
     [SerializeField] private VoidEventChannelSO sessionExitRequested;
+    [SerializeField] private PopupEventChannelSO popupRequested; // 나가기는 되돌릴 수 없으므로 확인 팝업을 한 단계 거친다
 
     [Header("Screens")]
     [SerializeField] private UIPause pausePanel;
@@ -132,14 +133,24 @@ public class UIManager : MonoBehaviour
     }
 
     /// <summary>
-    /// 나가기 = 개인 이탈(포기). 세션을 종료하는 게 아니라 나 혼자 연결을 끊고 메인 메뉴로 나간다.
+    /// 나가기 = 개인 이탈(포기). 되돌릴 수 없으므로 바로 나가지 않고 확인 팝업을 띄운다.
+    /// 실제 이탈은 확인을 눌렀을 때 실행할 콜백(<see cref="ConfirmQuit"/>)으로 팝업에 맡긴다 — 취소하면 아무 일도 없다.
+    /// 팝업이 떠 있는 동안 Esc 는 <see cref="HandleCancelInput"/> 이 팝업 닫기로 우선 처리하므로 취소 경로가 자동으로 맞물린다.
+    /// </summary>
+    private void QuitGame()
+    {
+        popupRequested.RaiseEvent(PopupType.ExitRoom, ConfirmQuit);
+    }
+
+    /// <summary>
+    /// 나가기 확인. 개인 이탈(포기)을 실제로 수행한다 — 나 혼자 연결을 끊고 메인 메뉴로 나간다.
     /// 멀티플레이라 한 명이 전원 세션을 끝낼 수 없다(세션 종료는 서버 권위의 종료 조건으로만).
     /// 이탈 요청만 채널로 발행한다 — 실제 NGO 연결 종료·씬 로드는 네트워크 이탈 핸들러가 구독해 처리하므로
     /// 이 매니저는 netcode 를 만지지 않는다. 로스터 Left 는 그 연결 종료를 서버가 감지해 자동으로 반영한다.
     /// </summary>
-    private void QuitGame()
+    private void ConfirmQuit()
     {
-        Log.D("[UIManager] QuitGame — 개인 이탈 요청");
+        Log.D("[UIManager] ConfirmQuit — 개인 이탈 요청");
         sessionExitRequested.RaiseEvent();
     }
 
