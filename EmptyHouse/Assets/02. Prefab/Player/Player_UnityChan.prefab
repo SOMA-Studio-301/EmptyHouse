@@ -129,6 +129,7 @@ Transform:
   - {fileID: 6691411905100987897}
   - {fileID: 3162627435837655207}
   - {fileID: 6501918125745249282}
+  - {fileID: 1933587379100427406}
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!136 &924773955647982431
@@ -305,10 +306,12 @@ MonoBehaviour:
   bodyTurnSpeedDeg: 360
   saveLoadSystem: {fileID: 11400000, guid: 60c2f10eb6c3bed4c9bcb10231fb16d6, type: 2}
   changeMouseSensitivityEvent: {fileID: 11400000, guid: f5ccd24f9ed66ad49bc139217bacb9ef, type: 2}
+  onCameraChanged: {fileID: 11400000, guid: 3b7ded7960c397640ab8b20375db5ae2, type: 2}
+  eyeVcam: {fileID: 1395565267997973735}
+  disguiseVcam: {fileID: 4810850511519406914}
   moveSpeed: 5
   crouchSpeedMultiplier: 0.5
   disguiseSpeedMultiplier: 0.6
-  jumpSpeed: 5
   groundMask:
     serializedVersion: 2
     m_Bits: 65
@@ -510,24 +513,6 @@ MonoBehaviour:
   meterLevelChanged: {fileID: 11400000, guid: 921d962283ca85149a5299193c133801, type: 2}
   settings: {fileID: 11400000, guid: f98030f04d614a5aadd0118115f3237c, type: 2}
   silenceWindowMultiplier: 2
---- !u!114 &910000000000000040
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 2490874660187570032}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 0380258ded124a7391ff96e347fb1fc1, type: 3}
-  m_Name:
-  m_EditorClassIdentifier: Assembly-CSharp::EmptyHouse.NoiseSystem.PlayerVoiceNoise
-  ShowTopMostFoldoutHeaderGroup: 1
-  voiceChannel: {fileID: 11400000, guid: f691692454eb45d4a3788012d1ed6d96, type: 2}
-  emissionIntervalSeconds: 0.6
-  speakingAmplitudeThreshold: 0.05
-  voiceMinDb: 15
-  voiceMaxDb: 40
 --- !u!114 &8714832752457740018
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -823,6 +808,24 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::PlayerBodyVisibility
   ShowTopMostFoldoutHeaderGroup: 1
+--- !u!114 &910000000000000040
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2490874660187570032}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 0380258ded124a7391ff96e347fb1fc1, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::EmptyHouse.NoiseSystem.PlayerVoiceNoise
+  ShowTopMostFoldoutHeaderGroup: 1
+  voiceChannel: {fileID: 11400000, guid: f691692454eb45d4a3788012d1ed6d96, type: 2}
+  emissionIntervalSeconds: 0.6
+  speakingAmplitudeThreshold: 0.05
+  voiceMinDb: 15
+  voiceMaxDb: 40
 --- !u!1 &2490874660187570100
 GameObject:
   m_ObjectHideFlags: 0
@@ -848,11 +851,12 @@ Transform:
   m_GameObject: {fileID: 2490874660187570100}
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: 0, y: 0.55, z: 0.3}
+  m_LocalPosition: {x: 0, y: 0.3500002, z: 0.15}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children:
   - {fileID: 910000000000000021}
+  - {fileID: 1684767214139826177}
   m_Father: {fileID: 1374410532633928955}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1 &2524950095681879969
@@ -2978,6 +2982,10 @@ MonoBehaviour:
       NameHash: 670827364
       Synchronize: 1
       ParameterType: 1
+    - name: IsDisguised
+      NameHash: 749309774
+      Synchronize: 1
+      ParameterType: 4
   AnimatorParametersExpanded: 0
 --- !u!114 &1767102097731365976
 MonoBehaviour:
@@ -10344,6 +10352,81 @@ Transform:
   m_Children: []
   m_Father: {fileID: 6501918125745249624}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!1 &6883054853829724124
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 1684767214139826177}
+  - component: {fileID: 1395565267997973735}
+  m_Layer: 0
+  m_Name: EyeVcam
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &1684767214139826177
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 6883054853829724124}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 2490874660187570101}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &1395565267997973735
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 6883054853829724124}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: f9dfa5b682dcd46bda6128250e975f58, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Unity.Cinemachine::Unity.Cinemachine.CinemachineCamera
+  Priority:
+    Enabled: 0
+    m_Value: 0
+  OutputChannel: 1
+  StandbyUpdate: 2
+  m_StreamingVersion: 20241001
+  m_LegacyPriority: 0
+  Target:
+    TrackingTarget: {fileID: 0}
+    LookAtTarget: {fileID: 0}
+    CustomLookAtTarget: 0
+  Lens:
+    FieldOfView: 60
+    OrthographicSize: 10
+    NearClipPlane: 0.1
+    FarClipPlane: 5000
+    Dutch: 0
+    ModeOverride: 0
+    PhysicalProperties:
+      GateFit: 2
+      SensorSize: {x: 21.946, y: 16.002}
+      LensShift: {x: 0, y: 0}
+      FocusDistance: 10
+      Iso: 200
+      ShutterSpeed: 0.005
+      Aperture: 16
+      BladeCount: 5
+      Curvature: {x: 2, y: 11}
+      BarrelClipping: 0.25
+      Anamorphism: 0
+  BlendHint: 0
 --- !u!1 &7120427851015083468
 GameObject:
   m_ObjectHideFlags: 0
@@ -10556,6 +10639,81 @@ Transform:
   m_Children: []
   m_Father: {fileID: 6501918125745249396}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!1 &8946114125382807894
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 1933587379100427406}
+  - component: {fileID: 4810850511519406914}
+  m_Layer: 0
+  m_Name: DisguiseVcam
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 0
+--- !u!4 &1933587379100427406
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 8946114125382807894}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0.14529856, y: -0, z: -0, w: 0.98938787}
+  m_LocalPosition: {x: 0, y: 1.0595093, z: -3.4}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 1374410532633928955}
+  m_LocalEulerAnglesHint: {x: 16.709, y: 0, z: 0}
+--- !u!114 &4810850511519406914
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 8946114125382807894}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: f9dfa5b682dcd46bda6128250e975f58, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Unity.Cinemachine::Unity.Cinemachine.CinemachineCamera
+  Priority:
+    Enabled: 0
+    m_Value: 0
+  OutputChannel: 1
+  StandbyUpdate: 2
+  m_StreamingVersion: 20241001
+  m_LegacyPriority: 0
+  Target:
+    TrackingTarget: {fileID: 0}
+    LookAtTarget: {fileID: 0}
+    CustomLookAtTarget: 0
+  Lens:
+    FieldOfView: 60
+    OrthographicSize: 10
+    NearClipPlane: 0.1
+    FarClipPlane: 5000
+    Dutch: 0
+    ModeOverride: 0
+    PhysicalProperties:
+      GateFit: 2
+      SensorSize: {x: 21.946, y: 16.002}
+      LensShift: {x: 0, y: 0}
+      FocusDistance: 10
+      Iso: 200
+      ShutterSpeed: 0.005
+      Aperture: 16
+      BladeCount: 5
+      Curvature: {x: 2, y: 11}
+      BarrelClipping: 0.25
+      Anamorphism: 0
+  BlendHint: 0
 --- !u!1001 &5392365520988021570
 PrefabInstance:
   m_ObjectHideFlags: 0

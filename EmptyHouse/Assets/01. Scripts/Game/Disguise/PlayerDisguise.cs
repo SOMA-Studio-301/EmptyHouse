@@ -40,6 +40,9 @@ public sealed class PlayerDisguise : NetworkBehaviour
     public float Gauge01 => maxGauge <= 0f ? 0f : currentGauge.Value / maxGauge;
     public bool IsGaugeFull => currentGauge.Value >= maxGauge - 0.001f;
 
+    /// <summary>위장 상태가 바뀔 때 발행된다. isDisguised.OnValueChanged 와 동일 시점에 전 클라이언트에서 발행된다(카메라·애니메이션 전환용).</summary>
+    public event System.Action<bool> DisguiseChanged;
+
     public override void OnNetworkSpawn()
     {
         isDisguised.OnValueChanged += HandleDisguiseChanged;
@@ -163,6 +166,7 @@ public sealed class PlayerDisguise : NetworkBehaviour
     private void HandleDisguiseChanged(bool previous, bool current)
     {
         PublishState(current);
+        DisguiseChanged?.Invoke(current);
     }
 
     /// <summary>복제된 잔량 변경을 HUD 채널로 중계한다(오너 전용 구독이라 남의 잔량은 여기로 오지 않는다).</summary>
