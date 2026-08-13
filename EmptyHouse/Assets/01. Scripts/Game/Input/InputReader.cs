@@ -18,7 +18,7 @@ public class InputReader : ScriptableObject, GameInput.IGameplayActions, GameInp
     public event UnityAction InteractCanceledEvent = delegate { }; // 상호작용 버튼에서 손을 뗐을 때 발행. 홀드 진행 중이었다면 취소 신호
     public event UnityAction<int> EquipSlotEvent = delegate { }; // 숫자 키로 슬롯 선택. payload = 슬롯 인덱스(0-based). ※ 임시: Tab 홀드 없이 단독 입력 — Tab 게이팅(2장 키맵)은 후속
     public event UnityAction<int> CycleHandEvent = delegate { }; // 마우스 휠로 손 순환. payload = 방향(+1 정방향 / -1 역방향)
-    public event UnityAction JumpEvent   = delegate { }; // 점프 버튼이 눌렸을 때 발행
+    // public event UnityAction JumpEvent = delegate { }; // TODO(점프 삭제 예정): 점프 버튼이 눌렸을 때 발행
     public event UnityAction CrouchEvent         = delegate { }; // 웅크리기 버튼이 눌렸을 때 발행(홀드 시작)
     public event UnityAction CrouchCanceledEvent = delegate { }; // 웅크리기 버튼에서 손을 뗐을 때 발행(홀드 종료)
     public event UnityAction PauseEvent  = delegate { }; // 일시정지 버튼이 눌렸을 때 발행
@@ -27,8 +27,8 @@ public class InputReader : ScriptableObject, GameInput.IGameplayActions, GameInp
     public event UnityAction PreviousEvent = delegate { }; // 관전 대상 이전 순환(←). 관전 중에만 소비된다
     public event UnityAction DropEvent = delegate { }; // 버리기(G) 버튼이 눌렸을 때 발행
     public event UnityAction DisguiseEvent = delegate { }; // 위장(V) 토글 누름. 실제 상태 변경은 서버 권위 PlayerDisguise가 수행
-    public event UnityAction RadioPressedEvent = delegate { }; // 무전 Push-To-Talk(J) 누름
-    public event UnityAction RadioCanceledEvent = delegate { }; // 무전 Push-To-Talk(J) 해제
+    public event UnityAction RadioPressedEvent = delegate { }; // 무전 Push-To-Talk(Space) 누름
+    public event UnityAction RadioCanceledEvent = delegate { }; // 무전 Push-To-Talk(Space) 해제
     public event UnityAction AimPressedEvent = delegate { }; // 투척 조준(우클릭) 누름. 누르는 동안만 궤적이 유지된다
     public event UnityAction AimCanceledEvent = delegate { }; // 투척 조준(우클릭) 해제. 궤적을 즉시 지운다
     public event UnityAction FlashlightEvent = delegate { }; // 손전등 토글(F) 누름. 실제 온/오프는 서버 권위 PlayerFlashlight가 수행
@@ -174,16 +174,17 @@ public class InputReader : ScriptableObject, GameInput.IGameplayActions, GameInp
         }
     }
 
-    /// <summary>Jump 액션 콜백. 눌림을 <see cref="JumpEvent"/> 로 발행한다.</summary>
+    /// <summary>Jump 액션 콜백. 점프 기능 비활성화(삭제 예정)로 현재 미사용 — 인터페이스 요구사항이라 스텁만 유지한다.</summary>
     /// <param name="context">Input System 이 전달하는 콜백 컨텍스트.</param>
     public void OnJump(InputAction.CallbackContext context)
     {
-        RememberDevice(context);
-
-        if (context.phase == InputActionPhase.Performed)
-        {
-            JumpEvent.Invoke();
-        }
+        // TODO(점프 삭제 예정):
+        // RememberDevice(context);
+        //
+        // if (context.phase == InputActionPhase.Performed)
+        // {
+        //     JumpEvent.Invoke();
+        // }
     }
 
     /// <summary>
