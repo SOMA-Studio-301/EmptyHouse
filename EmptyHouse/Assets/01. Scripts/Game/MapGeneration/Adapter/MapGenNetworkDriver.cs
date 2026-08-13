@@ -17,10 +17,7 @@ namespace EmptyHouse.MapGen.Runtime
     public sealed class MapGenNetworkDriver : NetworkBehaviour
     {
         [Header("Config")]
-        [SerializeField] private MapPrefabRegistrySO prefabRegistry; // 프리팹 레지스트리(P5 라이트)
-        [SerializeField] private MapGenParamsSO genParamsAsset; // 생성 파라미터 단일 출처(9절) — 에디터 프리뷰도 같은 에셋을 읽는다. Seed 0 = 랜덤(서버가 확정, X8)
-        [SerializeField] private EmptyHouse.Environment.LightingProfileSO lightingProfile; // 조명 프로파일 — 조립기가 맵 루트의 조명 컬러에 넘긴다
-        [SerializeField] private MapFloorStackSO floorStack; // 층 스택(M9-8) — 미배선 또는 층 1개면 단층 v1 경로. 클라 전원이 같은 에셋을 가져야 한다(AC-02)
+        [SerializeField] private MapDefinitionSO mapDefinition; // 빈 집 정의(M10-1) — 구 직참조 4건(파라미터·층 스택·조명·레지스트리)이 이 한 장으로 접힌다. 클라 전원이 같은 에셋을 가져야 한다(AC-02)
 
         [Header("Event Channels")]
         [SerializeField] private VoidEventChannelSO onMapAssembledServer; // 서버 전용 발화 — 전 클라 조립 완료(X7). NavMesh 베이커가 구독
@@ -36,21 +33,22 @@ namespace EmptyHouse.MapGen.Runtime
         public GameObject LocalMapRoot { get; private set; } // 로컬 조립 맵 루트
         public System.Collections.Generic.IReadOnlyList<RoomTemplateDef> LocalTemplates { get; private set; } // 이번 생성에 쓴 평탄화 템플릿(M9-8) — 다층은 접미사 ID 라 레지스트리 재추출로 대체 불가
 
-        /// <summary>층 서수의 바닥면 Y 오프셋(m) — 스포너 마커·좀비 좌표의 층 가산에 쓴다. 단층·스택 부재는 0.</summary>
+        /// <summary>스포너·베이커가 소비하는 빈 집 정의 접근자 — 문·탈출문·아이템 프리팹의 층별 원천.</summary>
+        public MapDefinitionSO MapDefinition => mapDefinition;
+
+        /// <summary>층 서수의 바닥면 Y 오프셋(m) — 스포너 마커·좀비 좌표의 층 가산에 쓴다. 단층은 0.</summary>
         /// <param name="floorIndex">층 서수.</param>
         /// <returns>Y 오프셋(m).</returns>
         public float FloorPlaneY(int floorIndex)
         {
-            return floorStack != null && floorStack.Floors != null && floorStack.Floors.Length > 1
-                ? FloorGeometry.FloorPlaneY(floorStack, floorIndex)
-                : 0f;
+            return FloorGeometry.FloorPlaneY(mapDefinition, floorIndex);
         }
 
         /// <summary>층별 바닥면 Y 오프셋 목록(베이커 슬래브 판정용) — 단층은 {0}.</summary>
         /// <returns>층 평면 Y 배열.</returns>
         public float[] FloorPlaneYs()
         {
-            if (LocalBlueprint == null || floorStack == null || floorStack.Floors == null || floorStack.Floors.Length <= 1)
+            if (LocalBlueprint == null || mapDefinition.Floors.Length <= 1)
             {
                 return new[] { 0f };
             }
@@ -58,32 +56,19 @@ namespace EmptyHouse.MapGen.Runtime
             var planes = new float[LocalBlueprint.Floors.Count];
             for (int f = 0; f < LocalBlueprint.Floors.Count; f++)
             {
-                planes[f] = FloorGeometry.FloorPlaneY(floorStack, LocalBlueprint.Floors[f].FloorIndex);
+                planes[f] = FloorGeometry.FloorPlaneY(mapDefinition, LocalBlueprint.Floors[f].FloorIndex);
             }
 
             return planes;
         }
 
-        /// <summary>계획을 조립한다 — 층 스택이 다층이면 층 플랜(린트 통과 필수), 아니면 v1 단층 합성.</summary>
+        /// <summary>계획을 조립한다 — 빈 집 정의 단일 경로(M10-1). 단층·다층 모두 MapPlanBuilder 가 처리한다.</summary>
         /// <param name="snapshot">시드 확정 파라미터 스냅샷.</param>
-        /// <param name="flatAssets">다층일 때 평탄화 템플릿 SO(출력) — 단층은 null.</param>
+        /// <param name="flatAssets">평탄화 템플릿 SO(출력) — 실패 시 null.</param>
         /// <returns>생성 계획 — 린트 실패 시 null(조립 거부, R4).</returns>
         private MapGenPlan BuildPlan(MapGenParams snapshot, out RoomTemplateSO[] flatAssets)
         {
-            flatAssets = null;
-            if (floorStack != null && floorStack.Floors != null && floorStack.Floors.Length > 1)
-            {
-                var lintErrors = new System.Collections.Generic.List<string>();
-                if (!MapFloorPlanAssembler.Lint(floorStack, lintErrors))
-                {
-                    Log.E($"[MapGenNetworkDriver] 층 스택 린트 실패 — 조립 거부(R4): {string.Join(" / ", lintErrors)}");
-                    return null;
-                }
-
-                return MapFloorPlanAssembler.Build(floorStack, snapshot, out flatAssets);
-            }
-
-            return MapGenPlan.FromLegacy(snapshot, prefabRegistry.CreateTemplates());
+            return MapPlanBuilder.Build(mapDefinition, snapshot, out flatAssets);
         }
 
         /// <summary>
@@ -99,7 +84,7 @@ namespace EmptyHouse.MapGen.Runtime
                 return; // 서버 전용 · 시드는 세션 중 불변(재실행 없음)
             }
 
-            int confirmedSeed = genParamsAsset.Params.Seed;
+            int confirmedSeed = mapDefinition.GenParams.Seed;
             while (confirmedSeed == 0)
             {
                 confirmedSeed = Random.Range(int.MinValue, int.MaxValue); // 0 이 나오면 다시 — 0 은 "미확정" 표지라 시드로 못 쓴다(X8)
@@ -161,11 +146,11 @@ namespace EmptyHouse.MapGen.Runtime
                 return; // 미확정 전이·중복 호출(스폰 즉시 처리 + OnValueChanged 이중 진입) 무시
             }
 
-            // 템플릿 단일 출처 = 레지스트리/층 스택 SO(M9-3·M9-8) — 전 클라 같은 에셋 = 같은 계획(AC-02)
+            // 템플릿 단일 출처 = 빈 집 정의 SO(M10-1) — 전 클라 같은 에셋 = 같은 계획(AC-02)
             MapGenPlan plan = BuildPlan(SnapshotParams(current), out RoomTemplateSO[] flatAssets);
             if (plan == null)
             {
-                return; // 층 스택 린트 실패 — 조립 거부(R4)
+                return; // 정의 린트 실패 — 조립 거부(R4)
             }
 
             MapGenResult result = new MapGenerator().Generate(plan);
@@ -178,8 +163,7 @@ namespace EmptyHouse.MapGen.Runtime
 
             LocalBlueprint = result.Blueprint;
             LocalTemplates = plan.FlatTemplates;
-            LocalMapRoot = MapRuntimeAssembler.Assemble(LocalBlueprint, plan.FlatTemplates, prefabRegistry, transform, lightingProfile, null,
-                floorStack != null && floorStack.Floors != null && floorStack.Floors.Length > 1 ? floorStack : null, flatAssets);
+            LocalMapRoot = MapRuntimeAssembler.Assemble(LocalBlueprint, plan.FlatTemplates, mapDefinition, transform, null, flatAssets);
             localHash = BlueprintHash.Compute(LocalBlueprint);
             Log.D($"[MapGenNetworkDriver] 로컬 조립 완료 시드={current} 해시={localHash:X8} 리롤={result.RerollCount}");
             ReportAssembledServerRpc(localHash);
@@ -233,7 +217,7 @@ namespace EmptyHouse.MapGen.Runtime
         /// <returns>생성에 쓸 파라미터 복제본.</returns>
         private MapGenParams SnapshotParams(int seed)
         {
-            MapGenParams snapshot = JsonUtility.FromJson<MapGenParams>(JsonUtility.ToJson(genParamsAsset.Params));
+            MapGenParams snapshot = JsonUtility.FromJson<MapGenParams>(JsonUtility.ToJson(mapDefinition.GenParams));
             snapshot.Seed = seed;
             return snapshot;
         }

@@ -24,15 +24,13 @@ namespace EmptyHouse.MapGen.Runtime
         /// 씬에 (0,0,0) 앵커를 두면 입구가 항상 그 자리라 스폰 포인트를 씬 고정 좌표로 둘 수 있다.
         /// </summary>
         /// <param name="blueprint">조립할 블루프린트.</param>
-        /// <param name="templates">생성에 사용한 템플릿 목록(MapTemplateCatalog).</param>
-        /// <param name="registry">프리팹 레지스트리.</param>
+        /// <param name="templates">생성에 사용한 템플릿 목록.</param>
+        /// <param name="definition">빈 집 정의(M10-1) — 층별 환경 프리팹·셀 실측·층고·조명의 단일 원천.</param>
         /// <param name="parent">맵 루트를 붙일 부모(씬 배치 앵커 — 입구 앵커 방이 이 위치에 온다).</param>
-        /// <param name="lightingProfile">조명 프로파일 — 맵 루트에 붙는 조명 컬러가 컬링 파라미터를 여기서 읽는다.</param>
         /// <param name="instantiate">프리팹 인스턴스화기 — null 이면 Object.Instantiate(런타임 기본). 에디터 빌더는 PrefabUtility 경로를 주입해 씬 프리팹 링크를 보존한다(기하 코드는 단일 유지).</param>
-        /// <param name="floorStack">층 스택(M9-8) — null 이면 단층(전 층 Y 0). 층별 Y 오프셋(FloorGeometry 누적합)의 원천.</param>
-        /// <param name="flatTemplateAssets">평탄화 인덱스 → 템플릿 SO(다층 플랜 조립 산출물) — null 이면 레지스트리 ID 조회 폴백(단층 v1 경로).</param>
+        /// <param name="flatTemplateAssets">평탄화 인덱스 → 템플릿 SO(MapPlanBuilder.Build 산출물 — 접미사 ID 의 유일한 역참조 경로).</param>
         /// <returns>조립된 맵 루트.</returns>
-        public static GameObject Assemble(MapBlueprint blueprint, IReadOnlyList<RoomTemplateDef> templates, MapPrefabRegistrySO registry, Transform parent, EmptyHouse.Environment.LightingProfileSO lightingProfile, System.Func<GameObject, Transform, GameObject> instantiate = null, MapFloorStackSO floorStack = null, RoomTemplateSO[] flatTemplateAssets = null)
+        public static GameObject Assemble(MapBlueprint blueprint, IReadOnlyList<RoomTemplateDef> templates, MapDefinitionSO definition, Transform parent, System.Func<GameObject, Transform, GameObject> instantiate, RoomTemplateSO[] flatTemplateAssets)
         {
             Log.D($"[MapRuntimeAssembler] Assemble 시드={blueprint.Meta.Seed}");
             instantiate = instantiate ?? DefaultInstantiate;
@@ -42,15 +40,14 @@ namespace EmptyHouse.MapGen.Runtime
 
             // 셀 바운드 정규화 — 맵 로컬 (0,0) 이 최소 셀에 오게(XZ 는 전역 하나 — 층 루트는 Y 만 이동, 설계 D)
             (int minX, int minY) = MinCellBounds(blueprint);
-            Dictionary<int, float> floorPlanes = BuildFloorPlanes(blueprint, floorStack);
+            Dictionary<int, float> floorPlanes = BuildFloorPlanes(blueprint, definition);
+            float cellMeters = definition.Floors[0].CellMeters; // 계단 연결 층 쌍은 린트가 동일성을 강제 — 전역 하나로 충분
 
             var roomInstances = new GameObject[blueprint.Rooms.Count];
             for (int r = 0; r < blueprint.Rooms.Count; r++)
             {
-                GameObject prefab = flatTemplateAssets != null
-                    ? flatTemplateAssets[blueprint.Rooms[r].TemplateIndex].SelectPrefab(blueprint.Meta.Seed, r)
-                    : SelectRoomPrefab(registry, blueprint.Rooms[r].TemplateId, blueprint.Meta.Seed, r);
-                roomInstances[r] = PlaceRoom(blueprint.Rooms[r], prefab, mapRoot.transform, minX, minY, registry.CellMeters, floorPlanes[blueprint.Rooms[r].FloorIndex], instantiate);
+                GameObject prefab = flatTemplateAssets[blueprint.Rooms[r].TemplateIndex].SelectPrefab(blueprint.Meta.Seed, r);
+                roomInstances[r] = PlaceRoom(blueprint.Rooms[r], prefab, mapRoot.transform, minX, minY, cellMeters, floorPlanes[blueprint.Rooms[r].FloorIndex], instantiate);
                 // 방 인덱스를 이름에 박는다 — 스포너가 아이템 앵커(MapItemAnchor)를 방 단위로 찾을 때 쓰는 유일한 연결고리
                 roomInstances[r].name = $"Room_{r}_{blueprint.Rooms[r].TemplateId}";
             }
@@ -70,10 +67,11 @@ namespace EmptyHouse.MapGen.Runtime
                 }
 
                 Vector3 floorOrigin = mapRoot.transform.position + Vector3.up * floorPlanes[blueprint.Rooms[edge.RoomA].FloorIndex];
+                FloorDefinitionSO floorDef = definition.FloorOf(blueprint.Rooms[edge.RoomA].FloorIndex); // 환경 프리팹은 테마 종속 — 그 간선 층의 정의가 원천
                 if (edge.State == EdgeState.ReturnExit)
                 {
                     // 탈출문 — 잎 방 바깥 벽을 문 개구로 뚫고 앵커만 남긴다(문 오브젝트는 서버 스폰)
-                    PlaceOuterExitOpening(blueprint, templates, edge, e, roomInstances, registry, doorsRoot.transform, floorOrigin, minX, minY, instantiate);
+                    PlaceOuterExitOpening(blueprint, templates, edge, e, roomInstances, floorDef, doorsRoot.transform, floorOrigin, minX, minY, instantiate);
                     continue;
                 }
 
@@ -82,9 +80,9 @@ namespace EmptyHouse.MapGen.Runtime
                     // 방 봉인 소켓 = 벽 유지. 복도 봉인 소켓 = 단부에 벽이 없어 물리 처리 필요:
                     // 맞은편이 이미 연결된 방이면 그 벽을 절단해 전폭 개방(hallway_x2 반쪽 입), 아니면 벽 프리팹 봉인
                     if (FindTemplate(templates, blueprint.Rooms[edge.RoomA].TemplateId).IsCorridor
-                        && !TryOpenSealedHalfMouth(blueprint, templates, edge, e, roomInstances, registry, doorsRoot.transform, floorOrigin, minX, minY, instantiate))
+                        && !TryOpenSealedHalfMouth(blueprint, templates, edge, e, roomInstances, floorDef, doorsRoot.transform, floorOrigin, minX, minY, instantiate))
                     {
-                        PlaceCorridorSealWall(blueprint, templates, edge, registry, sealsRoot.transform, floorOrigin, minX, minY, instantiate);
+                        PlaceCorridorSealWall(blueprint, templates, edge, floorDef, sealsRoot.transform, floorOrigin, minX, minY, instantiate);
                     }
 
                     continue;
@@ -95,7 +93,7 @@ namespace EmptyHouse.MapGen.Runtime
                     continue;
                 }
 
-                PlaceOpening(blueprint, templates, edge, e, roomInstances, registry, floorOrigin, minX, minY, instantiate);
+                PlaceOpening(blueprint, templates, edge, e, roomInstances, floorDef, floorOrigin, minX, minY, instantiate);
             }
 
             var columnsRoot = new GameObject("Columns");
@@ -104,15 +102,15 @@ namespace EmptyHouse.MapGen.Runtime
             {
                 BlueprintFloor floor = blueprint.Floors[f];
                 Vector3 floorOrigin = mapRoot.transform.position + Vector3.up * floorPlanes[floor.FloorIndex];
-                PlaceCornerColumns(blueprint, templates, registry, columnsRoot.transform, floorOrigin, minX, minY, instantiate, floor.RoomStart, floor.RoomCount);
+                PlaceCornerColumns(blueprint, templates, definition.FloorOf(floor.FloorIndex), columnsRoot.transform, floorOrigin, minX, minY, instantiate, floor.RoomStart, floor.RoomCount);
             }
 
             // 계단 조립(M9-10) — 위층이 있는 계단실마다 완성 계단 삽입 + 천장·위층 바닥 절개
-            if (floorStack != null && blueprint.Floors.Count > 1)
+            if (blueprint.Floors.Count > 1)
             {
                 var stairsRoot = new GameObject("Stairs");
                 stairsRoot.transform.SetParent(mapRoot.transform, false);
-                PlaceStairs(blueprint, templates, floorStack, stairsRoot.transform, roomInstances, floorPlanes, mapRoot.transform.position, minX, minY, registry.CellMeters, instantiate);
+                PlaceStairs(blueprint, templates, definition, stairsRoot.transform, roomInstances, floorPlanes, mapRoot.transform.position, minX, minY, cellMeters, instantiate);
             }
 
             // 입구 고정 — 최소 셀 정규화는 시드마다 입구 위치를 흔든다. 입구 앵커 방(코어가 셀 (0,0)·Deg0 고정)의
@@ -124,7 +122,7 @@ namespace EmptyHouse.MapGen.Runtime
             AssignPhysicsLayers(mapRoot);
 
             // 조명 컬러 — 방 그룹 수집·기준점 계산은 컬러가 첫 Update 에서 처리한다(배치 확정 이후)
-            mapRoot.AddComponent<EmptyHouse.Environment.MapLightCuller>().Initialize(lightingProfile);
+            mapRoot.AddComponent<EmptyHouse.Environment.MapLightCuller>().Initialize(definition.LightingProfile);
 
             return mapRoot;
         }
@@ -139,7 +137,7 @@ namespace EmptyHouse.MapGen.Runtime
         /// </summary>
         /// <param name="blueprint">대상 블루프린트.</param>
         /// <param name="templates">템플릿 목록(IsStairAnchor 판별).</param>
-        /// <param name="floorStack">층 스택(StairPrefab 원천).</param>
+        /// <param name="definition">빈 집 정의(층별 StairPrefab 원천).</param>
         /// <param name="stairsRoot">계단 인스턴스 부모.</param>
         /// <param name="roomInstances">방 인스턴스 배열(절개 대상).</param>
         /// <param name="floorPlanes">층 서수 → 바닥면 Y.</param>
@@ -148,7 +146,7 @@ namespace EmptyHouse.MapGen.Runtime
         /// <param name="minY">맵 최소 셀 Y.</param>
         /// <param name="cellMeters">셀 실측(m).</param>
         /// <param name="instantiate">프리팹 인스턴스화기.</param>
-        private static void PlaceStairs(MapBlueprint blueprint, IReadOnlyList<RoomTemplateDef> templates, MapFloorStackSO floorStack, Transform stairsRoot, GameObject[] roomInstances, Dictionary<int, float> floorPlanes, Vector3 mapOrigin, int minX, int minY, float cellMeters, System.Func<GameObject, Transform, GameObject> instantiate)
+        private static void PlaceStairs(MapBlueprint blueprint, IReadOnlyList<RoomTemplateDef> templates, MapDefinitionSO definition, Transform stairsRoot, GameObject[] roomInstances, Dictionary<int, float> floorPlanes, Vector3 mapOrigin, int minX, int minY, float cellMeters, System.Func<GameObject, Transform, GameObject> instantiate)
         {
             var presentFloors = new HashSet<int>();
             for (int f = 0; f < blueprint.Floors.Count; f++)
@@ -171,7 +169,7 @@ namespace EmptyHouse.MapGen.Runtime
 
                 if (presentFloors.Contains(room.FloorIndex + 1))
                 {
-                    FloorPrefabSet entry = floorStack.Find(room.FloorIndex);
+                    FloorDefinitionSO entry = definition.FloorOf(room.FloorIndex);
                     if (entry == null || entry.StairPrefab == null)
                     {
                         Log.W($"[MapRuntimeAssembler] 층 {room.FloorIndex} StairPrefab 미배선 — 계단실 방 {r} 계단 생략(위층 보행 접근 불가)");
@@ -188,7 +186,7 @@ namespace EmptyHouse.MapGen.Runtime
                         stair.transform.position += new Vector3(strip.min.x - current.min.x, floorOrigin.y - current.min.y, strip.min.z - current.min.z);
 
                         AddStairRamps(stair, stairsRoot);
-                        AddTopBridge(stair, stairsRoot, room.Rotation, floorOrigin.y + StairRise(floorStack, room.FloorIndex));
+                        AddTopBridge(stair, stairsRoot, room.Rotation, floorOrigin.y + FloorGeometry.StairRise(definition, room.FloorIndex));
 
                         // 천장 절개 — 헤드룸 구간 (0,2)·(0,3), 천장고 6m 기준 밴드(벽은 min.y 가 바닥이라 안 걸린다)
                         Bounds ceilingArea = CellSpanBounds(room, template, 0, 2, 0, 3, floorOrigin, minX, minY, cellMeters);
@@ -245,15 +243,6 @@ namespace EmptyHouse.MapGen.Runtime
             }
 
             Log.D($"[MapRuntimeAssembler] 계단 삽입 {stairs}건");
-        }
-
-        /// <summary>층 f 계단 총 라이즈 = 그 층 층고(아래 층 보유 규약) — FloorGeometry 위임.</summary>
-        /// <param name="floorStack">층 스택.</param>
-        /// <param name="floorIndex">층 서수.</param>
-        /// <returns>라이즈(m).</returns>
-        private static float StairRise(MapFloorStackSO floorStack, int floorIndex)
-        {
-            return FloorGeometry.StairRise(floorStack, floorIndex);
         }
 
         /// <summary>방 로컬 셀 구간(사각 범위)을 회전 적용해 월드 XZ AABB(바닥면 y)로 만든다.</summary>
@@ -454,17 +443,17 @@ namespace EmptyHouse.MapGen.Runtime
             return -1;
         }
 
-        /// <summary>층 스택 → 층 서수별 Y 오프셋 테이블(단층·스택 부재 시 전부 0).</summary>
+        /// <summary>빈 집 정의 → 층 서수별 Y 오프셋 테이블(단층은 {0: 0}).</summary>
         /// <param name="blueprint">대상 블루프린트.</param>
-        /// <param name="floorStack">층 스택(null 허용).</param>
+        /// <param name="definition">빈 집 정의.</param>
         /// <returns>층 서수 → Y 오프셋(m).</returns>
-        private static Dictionary<int, float> BuildFloorPlanes(MapBlueprint blueprint, MapFloorStackSO floorStack)
+        private static Dictionary<int, float> BuildFloorPlanes(MapBlueprint blueprint, MapDefinitionSO definition)
         {
             var planes = new Dictionary<int, float>();
             for (int f = 0; f < blueprint.Floors.Count; f++)
             {
                 int floorIndex = blueprint.Floors[f].FloorIndex;
-                planes[floorIndex] = floorStack != null ? FloorGeometry.FloorPlaneY(floorStack, floorIndex) : 0f;
+                planes[floorIndex] = FloorGeometry.FloorPlaneY(definition, floorIndex);
             }
 
             if (planes.Count == 0)
@@ -513,11 +502,11 @@ namespace EmptyHouse.MapGen.Runtime
         /// <param name="edge">처리할 연결 간선.</param>
         /// <param name="edgeIndex">간선 인덱스(로그 추적용).</param>
         /// <param name="roomInstances">방 인스턴스 배열.</param>
-        /// <param name="registry">프리팹 레지스트리.</param>
+        /// <param name="floorDef">층 정의(환경 프리팹·셀 실측 원천).</param>
         /// <param name="mapOrigin">맵 원점 월드 좌표.</param>
         /// <param name="minX">맵 최소 셀 X.</param>
         /// <param name="minY">맵 최소 셀 Y.</param>
-        private static void PlaceOpening(MapBlueprint blueprint, IReadOnlyList<RoomTemplateDef> templates, BlueprintEdge edge, int edgeIndex, GameObject[] roomInstances, MapPrefabRegistrySO registry, Vector3 mapOrigin, int minX, int minY, System.Func<GameObject, Transform, GameObject> instantiate)
+        private static void PlaceOpening(MapBlueprint blueprint, IReadOnlyList<RoomTemplateDef> templates, BlueprintEdge edge, int edgeIndex, GameObject[] roomInstances, FloorDefinitionSO floorDef, Vector3 mapOrigin, int minX, int minY, System.Func<GameObject, Transform, GameObject> instantiate)
         {
             RoomTemplateDef templateA = FindTemplate(templates, blueprint.Rooms[edge.RoomA].TemplateId);
             SocketDef socketA = FindSocket(templateA, edge.SocketA);
@@ -536,7 +525,7 @@ namespace EmptyHouse.MapGen.Runtime
                 return;
             }
 
-            float cell = registry.CellMeters;
+            float cell = floorDef.CellMeters;
             Vector3 cellCenter = mapOrigin + new Vector3((worldCell.X - minX + 0.5f) * cell, 0f, (worldCell.Y - minY + 0.5f) * cell);
             Vector3 dirVec = DirectionVector(dir);
             Vector3 gateCenter = cellCenter + dirVec * (cell * 0.5f);
@@ -597,8 +586,8 @@ namespace EmptyHouse.MapGen.Runtime
                 ? new Vector3(profileAxis, mapOrigin.y + 3f, gateCenter.z)
                 : new Vector3(gateCenter.x, mapOrigin.y + 3f, profileAxis);
             var profile = new Bounds(profileCenter, boundaryAlongX ? new Vector3(4f, 6f, 1.6f) : new Vector3(1.6f, 6f, 4f));
-            CoverOpeningSlits(cutA, profile, boundaryAlongX, registry, doorsRoot, mapOrigin.y, edgeIndex, instantiate);
-            CoverOpeningSlits(cutB, profile, boundaryAlongX, registry, doorsRoot, mapOrigin.y, edgeIndex, instantiate);
+            CoverOpeningSlits(cutA, profile, boundaryAlongX, floorDef, doorsRoot, mapOrigin.y, edgeIndex, instantiate);
+            CoverOpeningSlits(cutB, profile, boundaryAlongX, floorDef, doorsRoot, mapOrigin.y, edgeIndex, instantiate);
 
             if (edge.State == EdgeState.OpenPassage)
             {
@@ -616,19 +605,19 @@ namespace EmptyHouse.MapGen.Runtime
         /// <param name="blueprint">대상 블루프린트.</param>
         /// <param name="templates">템플릿 목록.</param>
         /// <param name="edge">봉인 간선.</param>
-        /// <param name="registry">프리팹 레지스트리.</param>
+        /// <param name="floorDef">층 정의(환경 프리팹·셀 실측 원천).</param>
         /// <param name="sealsRoot">봉인 벽 부모.</param>
         /// <param name="mapOrigin">맵 원점 월드 좌표.</param>
         /// <param name="minX">맵 최소 셀 X.</param>
         /// <param name="minY">맵 최소 셀 Y.</param>
-        private static void PlaceCorridorSealWall(MapBlueprint blueprint, IReadOnlyList<RoomTemplateDef> templates, BlueprintEdge edge, MapPrefabRegistrySO registry, Transform sealsRoot, Vector3 mapOrigin, int minX, int minY, System.Func<GameObject, Transform, GameObject> instantiate)
+        private static void PlaceCorridorSealWall(MapBlueprint blueprint, IReadOnlyList<RoomTemplateDef> templates, BlueprintEdge edge, FloorDefinitionSO floorDef, Transform sealsRoot, Vector3 mapOrigin, int minX, int minY, System.Func<GameObject, Transform, GameObject> instantiate)
         {
             RoomTemplateDef template = FindTemplate(templates, blueprint.Rooms[edge.RoomA].TemplateId);
             SocketDef socket = FindSocket(template, edge.SocketA);
             CellCoord worldCell = CellMath.WorldCell(blueprint.Rooms[edge.RoomA], template, socket.LocalCell);
             SocketDirection dir = CellMath.RotateDirection(socket.Direction, blueprint.Rooms[edge.RoomA].Rotation);
 
-            float cell = registry.CellMeters;
+            float cell = floorDef.CellMeters;
             Vector3 cellCenter = mapOrigin + new Vector3((worldCell.X - minX + 0.5f) * cell, 0f, (worldCell.Y - minY + 0.5f) * cell);
             Vector3 dirVec = DirectionVector(dir);
             Vector3 boundaryCenter = cellCenter + dirVec * (cell * 0.5f);
@@ -637,7 +626,7 @@ namespace EmptyHouse.MapGen.Runtime
             Vector3 along = boundaryAlongX ? Vector3.right : Vector3.forward;
             for (int k = -1; k <= 1; k += 2)
             {
-                GameObject piece = instantiate(registry.SealWallPrefab, sealsRoot);
+                GameObject piece = instantiate(floorDef.SealWallPrefab, sealsRoot);
                 // 프리팹 forward(+Z)가 맵 안쪽(플레이어 시야)을 향하도록 소켓 바깥 방향(dir)의 반대로 회전한다
                 piece.transform.rotation = Quaternion.Euler(0f, YawFor(Opposite(dir)), 0f);
                 Vector3 target = boundaryCenter + along * k;
@@ -655,7 +644,7 @@ namespace EmptyHouse.MapGen.Runtime
         /// <summary>서로 다른 방·복도가 만나는 노출 코너에 이음 기둥을 세운다(빌더 PlaceCornerColumns 이관). 층 스코프(M9-8) — 이 층 방 구간만 대상.</summary>
         /// <param name="blueprint">대상 블루프린트.</param>
         /// <param name="templates">템플릿 목록.</param>
-        /// <param name="registry">프리팹 레지스트리.</param>
+        /// <param name="floorDef">층 정의(환경 프리팹·셀 실측 원천).</param>
         /// <param name="columnsRoot">기둥 부모.</param>
         /// <param name="mapOrigin">이 층 평면 원점(XZ = 맵 원점, Y = 층 바닥면).</param>
         /// <param name="minX">맵 최소 셀 X.</param>
@@ -663,7 +652,7 @@ namespace EmptyHouse.MapGen.Runtime
         /// <param name="instantiate">프리팹 인스턴스화기.</param>
         /// <param name="roomStart">이 층 방 구간 시작.</param>
         /// <param name="roomCount">이 층 방 수.</param>
-        private static void PlaceCornerColumns(MapBlueprint blueprint, IReadOnlyList<RoomTemplateDef> templates, MapPrefabRegistrySO registry, Transform columnsRoot, Vector3 mapOrigin, int minX, int minY, System.Func<GameObject, Transform, GameObject> instantiate, int roomStart, int roomCount)
+        private static void PlaceCornerColumns(MapBlueprint blueprint, IReadOnlyList<RoomTemplateDef> templates, FloorDefinitionSO floorDef, Transform columnsRoot, Vector3 mapOrigin, int minX, int minY, System.Func<GameObject, Transform, GameObject> instantiate, int roomStart, int roomCount)
         {
             // 정규화 셀 → 소유 방 맵 — **이 층 방만**(층별 격자 분리)
             int roomEnd = roomStart + roomCount;
@@ -785,7 +774,7 @@ namespace EmptyHouse.MapGen.Runtime
                 }
             }
 
-            float cell = registry.CellMeters;
+            float cell = floorDef.CellMeters;
             foreach (long key in SortedKeys(columnPoints))
             {
                 int px = (int)(key >> 32);
@@ -804,7 +793,7 @@ namespace EmptyHouse.MapGen.Runtime
                     continue;
                 }
 
-                GameObject column = instantiate(registry.CornerColumnPrefab, columnsRoot);
+                GameObject column = instantiate(floorDef.CornerColumnPrefab, columnsRoot);
 
                 // 프리팹 pivot 쏠림 대비 — 실측 바운드 중심을 격자점(경계 교점)에 정렬(빌더 동일 규칙)
                 column.transform.position = target;
@@ -839,19 +828,19 @@ namespace EmptyHouse.MapGen.Runtime
         /// <param name="edge">탈출문 간선(RoomB = -1).</param>
         /// <param name="edgeIndex">간선 인덱스(앵커 이름).</param>
         /// <param name="roomInstances">방 인스턴스 배열.</param>
-        /// <param name="registry">프리팹 레지스트리.</param>
+        /// <param name="floorDef">층 정의(환경 프리팹·셀 실측 원천).</param>
         /// <param name="doorsRoot">앵커·충진 조각 컨테이너.</param>
         /// <param name="mapOrigin">맵 원점 월드 좌표.</param>
         /// <param name="minX">맵 최소 셀 X.</param>
         /// <param name="minY">맵 최소 셀 Y.</param>
-        private static void PlaceOuterExitOpening(MapBlueprint blueprint, IReadOnlyList<RoomTemplateDef> templates, BlueprintEdge edge, int edgeIndex, GameObject[] roomInstances, MapPrefabRegistrySO registry, Transform doorsRoot, Vector3 mapOrigin, int minX, int minY, System.Func<GameObject, Transform, GameObject> instantiate)
+        private static void PlaceOuterExitOpening(MapBlueprint blueprint, IReadOnlyList<RoomTemplateDef> templates, BlueprintEdge edge, int edgeIndex, GameObject[] roomInstances, FloorDefinitionSO floorDef, Transform doorsRoot, Vector3 mapOrigin, int minX, int minY, System.Func<GameObject, Transform, GameObject> instantiate)
         {
             RoomTemplateDef template = FindTemplate(templates, blueprint.Rooms[edge.RoomA].TemplateId);
             SocketDef socket = FindSocket(template, edge.SocketA);
             CellCoord worldCell = CellMath.WorldCell(blueprint.Rooms[edge.RoomA], template, socket.LocalCell);
             SocketDirection dir = CellMath.RotateDirection(socket.Direction, blueprint.Rooms[edge.RoomA].Rotation);
 
-            float cell = registry.CellMeters;
+            float cell = floorDef.CellMeters;
             Vector3 cellCenter = mapOrigin + new Vector3((worldCell.X - minX + 0.5f) * cell, 0f, (worldCell.Y - minY + 0.5f) * cell);
             Vector3 gateCenter = cellCenter + DirectionVector(dir) * (cell * 0.5f);
             bool boundaryAlongX = dir == SocketDirection.North || dir == SocketDirection.South;
@@ -865,7 +854,7 @@ namespace EmptyHouse.MapGen.Runtime
                 ? new Vector3(cellCenterAxis, mapOrigin.y + 3f, gateCenter.z)
                 : new Vector3(gateCenter.x, mapOrigin.y + 3f, cellCenterAxis);
             var profile = new Bounds(profileCenter, boundaryAlongX ? new Vector3(4f, 6f, 1.6f) : new Vector3(1.6f, 6f, 4f));
-            CoverOpeningSlits(cut, profile, boundaryAlongX, registry, doorsRoot, mapOrigin.y, edgeIndex, instantiate);
+            CoverOpeningSlits(cut, profile, boundaryAlongX, floorDef, doorsRoot, mapOrigin.y, edgeIndex, instantiate);
 
             var anchor = new GameObject($"ReturnAnchor_e{edgeIndex}");
             anchor.transform.SetParent(doorsRoot, false);
@@ -883,13 +872,13 @@ namespace EmptyHouse.MapGen.Runtime
         /// <param name="sealedEdge">봉인 간선(RoomB = -1, RoomA = 복도).</param>
         /// <param name="edgeIndex">간선 인덱스(충진 조각 이름용).</param>
         /// <param name="roomInstances">방 인스턴스 배열.</param>
-        /// <param name="registry">프리팹 레지스트리.</param>
+        /// <param name="floorDef">층 정의(환경 프리팹·셀 실측 원천).</param>
         /// <param name="doorsRoot">충진 조각 컨테이너.</param>
         /// <param name="mapOrigin">맵 원점 월드 좌표.</param>
         /// <param name="minX">맵 최소 셀 X.</param>
         /// <param name="minY">맵 최소 셀 Y.</param>
         /// <returns>전폭 개방 성공 여부(false = Seal 필요).</returns>
-        private static bool TryOpenSealedHalfMouth(MapBlueprint blueprint, IReadOnlyList<RoomTemplateDef> templates, BlueprintEdge sealedEdge, int edgeIndex, GameObject[] roomInstances, MapPrefabRegistrySO registry, Transform doorsRoot, Vector3 mapOrigin, int minX, int minY, System.Func<GameObject, Transform, GameObject> instantiate)
+        private static bool TryOpenSealedHalfMouth(MapBlueprint blueprint, IReadOnlyList<RoomTemplateDef> templates, BlueprintEdge sealedEdge, int edgeIndex, GameObject[] roomInstances, FloorDefinitionSO floorDef, Transform doorsRoot, Vector3 mapOrigin, int minX, int minY, System.Func<GameObject, Transform, GameObject> instantiate)
         {
             int corridorRoom = sealedEdge.RoomA;
             RoomTemplateDef corridorTemplate = FindTemplate(templates, blueprint.Rooms[corridorRoom].TemplateId);
@@ -937,7 +926,7 @@ namespace EmptyHouse.MapGen.Runtime
             }
 
             // 방 벽 게이트 절단 + 잔여 슬릿 충진 — 개방 통로 프로파일(4×6m, 셀 중심 고정)과 동일 수치
-            float cell = registry.CellMeters;
+            float cell = floorDef.CellMeters;
             Vector3 cellCenter = mapOrigin + new Vector3((worldCell.X - minX + 0.5f) * cell, 0f, (worldCell.Y - minY + 0.5f) * cell);
             Vector3 dirVec = DirectionVector(dir);
             Vector3 gateCenter = cellCenter + dirVec * (cell * 0.5f);
@@ -951,7 +940,7 @@ namespace EmptyHouse.MapGen.Runtime
                 ? new Vector3(cellCenterAxis, mapOrigin.y + 3f, gateCenter.z)
                 : new Vector3(gateCenter.x, mapOrigin.y + 3f, cellCenterAxis);
             var profile = new Bounds(profileCenter, boundaryAlongX ? new Vector3(4f, 6f, 1.6f) : new Vector3(1.6f, 6f, 4f));
-            CoverOpeningSlits(cut, profile, boundaryAlongX, registry, doorsRoot, mapOrigin.y, edgeIndex, instantiate);
+            CoverOpeningSlits(cut, profile, boundaryAlongX, floorDef, doorsRoot, mapOrigin.y, edgeIndex, instantiate);
             return true;
         }
 
@@ -1001,12 +990,12 @@ namespace EmptyHouse.MapGen.Runtime
         /// <param name="sideCuts">이 평면에서 비활성화한 벽 바운드 목록.</param>
         /// <param name="profile">개구 프로파일 월드 바운드.</param>
         /// <param name="boundaryAlongX">경계선이 X 축 방향인지.</param>
-        /// <param name="registry">프리팹 레지스트리.</param>
+        /// <param name="floorDef">층 정의(환경 프리팹·셀 실측 원천).</param>
         /// <param name="doorsRoot">기둥 부모.</param>
         /// <param name="floorY">바닥 월드 Y.</param>
         /// <param name="edgeIndex">간선 인덱스(추적용 이름 표기).</param>
         /// <param name="instantiate">프리팹 인스턴스화기.</param>
-        private static void CoverOpeningSlits(List<Bounds> sideCuts, Bounds profile, bool boundaryAlongX, MapPrefabRegistrySO registry, Transform doorsRoot, float floorY, int edgeIndex, System.Func<GameObject, Transform, GameObject> instantiate)
+        private static void CoverOpeningSlits(List<Bounds> sideCuts, Bounds profile, bool boundaryAlongX, FloorDefinitionSO floorDef, Transform doorsRoot, float floorY, int edgeIndex, System.Func<GameObject, Transform, GameObject> instantiate)
         {
             Bounds hole = default;
             bool found = false;
@@ -1051,7 +1040,7 @@ namespace EmptyHouse.MapGen.Runtime
                 for (int k = 0; k < count; k++)
                 {
                     float axis = min + width * (k + 0.5f) / count;
-                    GameObject column = instantiate(registry.CornerColumnPrefab, doorsRoot);
+                    GameObject column = instantiate(floorDef.CornerColumnPrefab, doorsRoot);
 
                     // 코너 기둥과 동일 — pivot 쏠림 보정(실측 바운드 중심을 슬릿 중심에 정렬)
                     Vector3 target = boundaryAlongX
@@ -1106,20 +1095,6 @@ namespace EmptyHouse.MapGen.Runtime
             var list = new List<long>(keys);
             list.Sort();
             return list;
-        }
-
-        /// <summary>
-        /// 레지스트리의 템플릿 SO 에서 배치 프리팹을 고른다(M9-3) — 변형 풀이 있으면 시드 결정론 선택,
-        /// 비었으면 기본(Prefab) 폴백(미등재 템플릿 = 데이터 결함 — NRE 표면화).
-        /// </summary>
-        /// <param name="registry">프리팹 레지스트리.</param>
-        /// <param name="templateId">템플릿 ID.</param>
-        /// <param name="seed">확정 시드.</param>
-        /// <param name="roomIndex">블루프린트 방 인덱스.</param>
-        /// <returns>배치할 프리팹.</returns>
-        private static GameObject SelectRoomPrefab(MapPrefabRegistrySO registry, string templateId, int seed, int roomIndex)
-        {
-            return registry.FindTemplate(templateId).SelectPrefab(seed, roomIndex);
         }
 
         /// <summary>인스턴스의 바닥 타일(테마 바닥 토큰 매칭) 합산 월드 바운드 — 없으면 전체 렌더러 바운드 폴백.</summary>

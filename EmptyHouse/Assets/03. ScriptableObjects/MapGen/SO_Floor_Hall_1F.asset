@@ -1,0 +1,52 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 4450edb8467b4f81a68bd2b66d70d2e0, type: 3}
+  m_Name: SO_Floor_Hall_1F
+  m_EditorClassIdentifier: Assembly-CSharp::EmptyHouse.MapGen.Runtime.FloorDefinitionSO
+  ThemeId: hall
+  GenParams:
+    FloorIndex: 0
+    ThemeId: hall
+    RoomsTotalMin: 10
+    RoomsTotalMax: 11
+    CycleRoomPercent: 40
+    CorridorLinkPercent: 100
+    CorridorChainMax: 3
+    DangerBias: 0
+    ZombieDensitySafeMin: 0
+    ZombieDensitySafeMax: 1
+    ZombieDensityMidMin: 1
+    ZombieDensityMidMax: 2
+    ZombieDensityDangerMin: 2
+    ZombieDensityDangerMax: 3
+    ListenerRatioPercent: 25
+    HerdZombieCountMin: 3
+    HerdZombieCountMax: 5
+    EnabledZombieTypes: 1
+    ReturnExitCount: 2
+    WardrobeCount: 2
+  Templates:
+  - {fileID: 11400000, guid: eb073e73ad974e44db7d2536c38949d7, type: 2}
+  - {fileID: 11400000, guid: 86afa678698b92e4cb5b042a8e4ea6f4, type: 2}
+  - {fileID: 11400000, guid: 2ebe426cf13300b4cbc47433d8a08044, type: 2}
+  - {fileID: 11400000, guid: cf95ede05f3004a4d95dcb7ecde7583f, type: 2}
+  - {fileID: 11400000, guid: 46a0873230c88054ca4de3950aaba1ed, type: 2}
+  StairTemplate: {fileID: 11400000, guid: 260dc8c48c8c4f347899990671755c49, type: 2}
+  StairPrefab: {fileID: 2259866965526650562, guid: fb2ab0778cf1a9e45aaf0ac74b1abfe0, type: 3}
+  StairVoidSlabPrefab: {fileID: 1000012055620530, guid: 0b43439f16b9c244c8f25ba795d2aa7e, type: 3}
+  StairRailingPrefab: {fileID: 1000013786697550, guid: 1d0107bce683bff458e9b8635a95b326, type: 3}
+  SealWallPrefab: {fileID: 1000013176364378, guid: 2a0e93f1c47975a4c9441aa6b08911c0, type: 3}
+  CornerColumnPrefab: {fileID: 1000013264253126, guid: 3f3b782a52279ff468774a90452d285d, type: 3}
+  DoorPrefab: {fileID: 8746110194845012855, guid: 192952145331548418883183d3e6c7b2, type: 3}
+  ReturnExitPrefab: {fileID: 2130819151304789174, guid: 81c3af5f79cd07d4b86742ddb70bf883, type: 3}
+  CellMeters: 4
+  FloorHeight: 9

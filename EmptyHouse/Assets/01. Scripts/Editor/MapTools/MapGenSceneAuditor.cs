@@ -41,8 +41,7 @@ namespace EmptyHouse.MapGen.Editor
             }
 
             var generator = new MapGenerator();
-            var registry = AssetDatabase.LoadAssetAtPath<MapPrefabRegistrySO>("Assets/03. ScriptableObjects/MapGen/SO_MapPrefabRegistry.asset");
-            List<RoomTemplateDef> templates = registry.CreateTemplates(); // 빌더와 같은 원천(M9-3) — 재생성 대조가 성립하려면 같은 목록이어야 한다
+            var definition = AssetDatabase.LoadAssetAtPath<MapDefinitionSO>("Assets/03. ScriptableObjects/MapGen/SO_Map_Hall.asset");
             int total = 0;
             for (int i = 0; i < root.transform.childCount; i++)
             {
@@ -54,7 +53,17 @@ namespace EmptyHouse.MapGen.Editor
                     continue;
                 }
 
-                MapGenResult result = generator.Generate(MapGenSceneBuilder.CreateParams(seed), templates);
+                // 빌더와 같은 조립 경로(MapPlanBuilder)로 재생성한다 — 층 정의 GenParams 가 원천이라
+                // 레거시(FromLegacy) 경로로 재생성하면 정의·전역 값이 어긋나는 순간 감사가 오탐한다
+                MapGenPlan plan = MapPlanBuilder.Build(definition, MapGenSceneBuilder.CreateParams(seed), out _);
+                if (plan == null)
+                {
+                    Log.E("[MapGenSceneAuditor] 정의 린트 실패 — 감사 중단(R4)");
+                    return;
+                }
+
+                IReadOnlyList<RoomTemplateDef> templates = plan.FlatTemplates;
+                MapGenResult result = generator.Generate(plan);
                 if (!result.Success)
                 {
                     Log.E($"[MapGenSceneAuditor] 시드 {seed} 재생성 실패 — 씬과 코드 버전이 다르다(생성기 버전 확인).");

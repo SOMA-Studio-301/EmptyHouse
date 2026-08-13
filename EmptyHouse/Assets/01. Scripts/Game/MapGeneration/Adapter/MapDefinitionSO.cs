@@ -23,8 +23,7 @@ namespace EmptyHouse.MapGen.Runtime
         /// <returns>층 서수(B1 = -1 · 1F = 0 · 2F = +1).</returns>
         public int FloorIndexOf(int floorSlot)
         {
-            // TODO(impl): floorSlot - BasementCount
-            return default;
+            return floorSlot - BasementCount;
         }
 
         /// <summary>층 서수 → 층 정의. 범위 밖 = null(호출부가 X4/린트로 표면화). 순수 계산 — 로그 없음(CellMath 규약).</summary>
@@ -32,8 +31,8 @@ namespace EmptyHouse.MapGen.Runtime
         /// <returns>층 정의 — 없으면 null.</returns>
         public FloorDefinitionSO FloorOf(int floorIndex)
         {
-            // TODO(impl): Floors[floorIndex + BasementCount] — 범위 검사 후 반환
-            return default;
+            int slot = floorIndex + BasementCount;
+            return slot >= 0 && slot < Floors.Length ? Floors[slot] : null;
         }
     }
 }

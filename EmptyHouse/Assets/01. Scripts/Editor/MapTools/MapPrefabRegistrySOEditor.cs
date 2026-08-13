@@ -8,14 +8,14 @@ using UnityEngine;
 namespace EmptyHouse.EditorTools
 {
     /// <summary>
-    /// MapPrefabRegistrySO 커스텀 인스펙터 — 카탈로그 TemplateId·SpawnKind 전 종을 고정 행으로 노출해
-    /// ID 타이핑 없이 슬롯 할당만으로 설정하게 하고, 누락·중복·CellMeters 불일치(G1)를 즉시 표시한다.
+    /// MapPrefabRegistrySO(CommonRegistry — M10-1) 커스텀 인스펙터 — SpawnKind 전 종을 고정 행으로 노출해
+    /// ID 타이핑 없이 슬롯 할당만으로 설정하게 하고, 누락·중복을 즉시 표시한다.
+    /// 환경(테마 종속) 프리팹 섹션은 FloorDefinitionSO 이관으로 제거됐다(설계 B′ 분류표).
     /// 직렬화 형식은 원본 배열 그대로 유지한다(MapGenRuntimeSetup·소비 컴포넌트 호환).
     /// </summary>
     [CustomEditor(typeof(MapPrefabRegistrySO))]
     public sealed class MapPrefabRegistrySOEditor : Editor
     {
-        private static List<RoomTemplateDef> cachedCatalog; // 카탈로그 캐시 — 도메인 리로드까지 유지(Create() 반복 호출·로그 방지)
         private static readonly Color missingTint = new Color(1f, 0.55f, 0.55f); // 필수 슬롯 미할당 강조색
 
         /// <summary>SpawnKind 표시 그룹 — 인스펙터 행 순서의 단일 원천. HerdArea 는 구역 표지(스폰 오브젝트 아님)라 제외.</summary>
@@ -31,201 +31,19 @@ namespace EmptyHouse.EditorTools
 
         private static readonly HashSet<SpawnKind> spawnVariantFoldout = new HashSet<SpawnKind>(); // 변종 풀을 펼친 종류(도메인 리로드까지 유지)
 
-        /// <summary>카탈로그 템플릿 목록을 반환한다(최초 1회 생성 후 캐시).</summary>
-        /// <returns>런타임 템플릿 목록.</returns>
-        private static List<RoomTemplateDef> Catalog()
-        {
-            if (cachedCatalog == null)
-            {
-                cachedCatalog = MapTemplateCatalog.Create();
-            }
-
-            return cachedCatalog;
-        }
-
-        /// <summary>레지스트리 전용 인스펙터를 그린다 — 검증 요약·방·정적·스폰·셀 섹션 순.</summary>
+        /// <summary>레지스트리 전용 인스펙터를 그린다 — 스폰(변종·페어) 섹션.</summary>
         public override void OnInspectorGUI()
         {
             var registry = (MapPrefabRegistrySO)target;
-            DrawSummary(registry);
-            EditorGUILayout.Space();
-            DrawRoomSection(registry);
-            EditorGUILayout.Space();
-            DrawStaticSection(registry);
-            EditorGUILayout.Space();
             DrawSpawnSection(registry);
-            EditorGUILayout.Space();
-            DrawCellSection(registry);
         }
 
-        /// <summary>필수 항목 누락·불일치를 집계해 상단 요약 HelpBox 로 표시한다.</summary>
-        /// <param name="registry">대상 레지스트리.</param>
-        private static void DrawSummary(MapPrefabRegistrySO registry)
-        {
-            int missingRooms = 0;
-            foreach (RoomTemplateDef def in Catalog())
-            {
-                RoomTemplateSO so = FindTemplateAsset(registry, def.TemplateId);
-                if (so == null || so.Prefab == null)
-                {
-                    missingRooms++;
-                }
-            }
-
-            var problems = new List<string>();
-            if (missingRooms > 0)
-            {
-                problems.Add($"방 템플릿/프리팹 누락 {missingRooms}종");
-            }
-
-            if (registry.SealWallPrefab == null)
-            {
-                problems.Add("봉인 벽 누락");
-            }
-
-            if (registry.CornerColumnPrefab == null)
-            {
-                problems.Add("기둥 누락");
-            }
-
-            if (registry.DoorPrefab == null)
-            {
-                problems.Add("문 누락");
-            }
-
-            if (!Mathf.Approximately(registry.CellMeters, MapTemplateCatalog.CellMeters))
-            {
-                problems.Add("CellMeters 불일치");
-            }
-
-            if (problems.Count == 0)
-            {
-                EditorGUILayout.HelpBox("필수 항목 모두 등재됨", MessageType.Info);
-            }
-            else
-            {
-                EditorGUILayout.HelpBox("미해결: " + string.Join(" · ", problems), MessageType.Warning);
-            }
-        }
-
-        /// <summary>
-        /// 방/복도 템플릿 섹션(M9-3) — 레지스트리 Templates 배열의 상태를 카탈로그 기준으로 요약한다.
-        /// 템플릿 데이터·프리팹·변형 편집은 각 RoomTemplateSO 인스펙터 소관, 배열 채움은 셋업(Tools/Map/런타임 어댑터 셋업) 소관.
-        /// </summary>
-        /// <param name="registry">대상 레지스트리.</param>
-        private static void DrawRoomSection(MapPrefabRegistrySO registry)
-        {
-            EditorGUILayout.LabelField("방/복도 템플릿 SO — 배열 순서 = 코어 후보 순서(결정론)", EditorStyles.boldLabel);
-            foreach (RoomTemplateDef def in Catalog())
-            {
-                RoomTemplateSO so = FindTemplateAsset(registry, def.TemplateId);
-                string suffix = def.IsCorridor ? " · 복도" : def.IsEntranceAnchor ? " · 입구" : "";
-                var label = new GUIContent($"{def.TemplateId} ({def.WidthCells}×{def.HeightCells}{suffix})");
-
-                Color prev = GUI.color;
-                if (so == null || so.Prefab == null)
-                {
-                    GUI.color = missingTint;
-                }
-
-                EditorGUILayout.BeginHorizontal();
-                EditorGUI.BeginDisabledGroup(true);
-                EditorGUILayout.ObjectField(label, so, typeof(RoomTemplateSO), false);
-                EditorGUI.EndDisabledGroup();
-                GUILayout.Label(so == null ? "미등재" : so.Variants != null && so.Variants.Length > 0 ? $"변형 {so.Variants.Length}종" : "기본 프리팹", EditorStyles.miniLabel, GUILayout.Width(78f));
-                EditorGUILayout.EndHorizontal();
-                GUI.color = prev;
-            }
-
-            EditorGUILayout.HelpBox("템플릿 배열은 '런타임 어댑터 셋업'이 채운다 — 누락이 보이면 셋업 재실행", MessageType.None);
-        }
-
-        /// <summary>레지스트리 Templates 에서 TemplateId 로 템플릿 SO 를 찾는다.</summary>
-        /// <param name="registry">대상 레지스트리.</param>
-        /// <param name="templateId">템플릿 ID.</param>
-        /// <returns>일치 SO — 없으면 null.</returns>
-        private static RoomTemplateSO FindTemplateAsset(MapPrefabRegistrySO registry, string templateId)
-        {
-            if (registry.Templates == null)
-            {
-                return null;
-            }
-
-            for (int i = 0; i < registry.Templates.Length; i++)
-            {
-                if (registry.Templates[i] != null && registry.Templates[i].TemplateId == templateId)
-                {
-                    return registry.Templates[i];
-                }
-            }
-
-            return null;
-        }
-
-        /// <summary>봉인 벽·기둥 등 정적 지오메트리 섹션을 그린다.</summary>
-        /// <param name="registry">대상 레지스트리.</param>
-        private static void DrawStaticSection(MapPrefabRegistrySO registry)
-        {
-            EditorGUILayout.LabelField("정적 지오메트리 — 로컬 인스턴스화", EditorStyles.boldLabel);
-
-            Color prev = GUI.color;
-            if (registry.SealWallPrefab == null)
-            {
-                GUI.color = missingTint;
-            }
-
-            EditorGUI.BeginChangeCheck();
-            var wall = (GameObject)EditorGUILayout.ObjectField("봉인 벽 (SealWall)", registry.SealWallPrefab, typeof(GameObject), false);
-            GUI.color = prev;
-            if (EditorGUI.EndChangeCheck())
-            {
-                Undo.RecordObject(registry, "봉인 벽 변경");
-                registry.SealWallPrefab = wall;
-                EditorUtility.SetDirty(registry);
-            }
-
-            if (registry.CornerColumnPrefab == null)
-            {
-                GUI.color = missingTint;
-            }
-
-            EditorGUI.BeginChangeCheck();
-            var column = (GameObject)EditorGUILayout.ObjectField("이음 기둥 (CornerColumn)", registry.CornerColumnPrefab, typeof(GameObject), false);
-            GUI.color = prev;
-            if (EditorGUI.EndChangeCheck())
-            {
-                Undo.RecordObject(registry, "이음 기둥 변경");
-                registry.CornerColumnPrefab = column;
-                EditorUtility.SetDirty(registry);
-            }
-        }
-
-        /// <summary>문·SpawnKind 전 종 상태 오브젝트 섹션 — 그룹별 고정 행 + 중복 정리 + 미등재 안내.</summary>
+        /// <summary>SpawnKind 전 종 상태 오브젝트 섹션 — 그룹별 고정 행 + 중복 정리 + 미등재 안내.</summary>
         /// <param name="registry">대상 레지스트리.</param>
         private static void DrawSpawnSection(MapPrefabRegistrySO registry)
         {
             EditorGUILayout.LabelField("상태 오브젝트 — 서버 스폰(NetworkPrefabs 등록 필수)", EditorStyles.boldLabel);
-
-            Color prev = GUI.color;
-            if (registry.DoorPrefab == null)
-            {
-                GUI.color = missingTint;
-            }
-
-            EditorGUI.BeginChangeCheck();
-            var door = (NetworkObject)EditorGUILayout.ObjectField("문 (DoorPrefab)", registry.DoorPrefab, typeof(NetworkObject), false);
-            GUI.color = prev;
-            if (EditorGUI.EndChangeCheck())
-            {
-                Undo.RecordObject(registry, "문 프리팹 변경");
-                registry.DoorPrefab = door;
-                EditorUtility.SetDirty(registry);
-            }
-
-            if (registry.DoorPrefab == null)
-            {
-                EditorGUILayout.HelpBox("DoorPrefab 미등재 — 문이 스폰되지 않는다", MessageType.Warning);
-            }
+            EditorGUILayout.HelpBox("문·탈출문·봉인 벽·기둥·방 템플릿은 층 정의(FloorDefinitionSO) 소관으로 이관됐다(M10-1)", MessageType.None);
 
             foreach ((string label, SpawnKind[] kinds) group in spawnGroups)
             {
@@ -504,32 +322,6 @@ namespace EmptyHouse.EditorTools
                 }
 
                 EditorGUILayout.EndHorizontal();
-            }
-        }
-
-        /// <summary>CellMeters 섹션 — 카탈로그 값(G1)과 불일치 시 에러 표시·원클릭 보정.</summary>
-        /// <param name="registry">대상 레지스트리.</param>
-        private static void DrawCellSection(MapPrefabRegistrySO registry)
-        {
-            EditorGUILayout.LabelField("셀 실측", EditorStyles.boldLabel);
-            EditorGUI.BeginChangeCheck();
-            float next = EditorGUILayout.FloatField("CellMeters", registry.CellMeters);
-            if (EditorGUI.EndChangeCheck())
-            {
-                Undo.RecordObject(registry, "CellMeters 변경");
-                registry.CellMeters = next;
-                EditorUtility.SetDirty(registry);
-            }
-
-            if (!Mathf.Approximately(registry.CellMeters, MapTemplateCatalog.CellMeters))
-            {
-                EditorGUILayout.HelpBox($"MapTemplateCatalog.CellMeters({MapTemplateCatalog.CellMeters})와 불일치 — 서버·클라 조립 좌표가 어긋난다(G1)", MessageType.Error);
-                if (GUILayout.Button($"카탈로그 값({MapTemplateCatalog.CellMeters})으로 보정"))
-                {
-                    Undo.RecordObject(registry, "CellMeters 보정");
-                    registry.CellMeters = MapTemplateCatalog.CellMeters;
-                    EditorUtility.SetDirty(registry);
-                }
             }
         }
 

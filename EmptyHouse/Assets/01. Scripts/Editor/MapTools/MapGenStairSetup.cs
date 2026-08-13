@@ -21,8 +21,7 @@ namespace EmptyHouse.EditorTools
         private const string stairsFolder = "Assets/02. Prefab/Map/DecoratedRooms/Stairs"; // 계단실 프리팹 폴더
         private const string stairPrefabPath = stairsFolder + "/StairRoom-3x3.prefab"; // 계단실 그레이박스 프리팹
         private const string stairTemplatePath = "Assets/03. ScriptableObjects/MapGen/Templates/SO_Template_stair_3x3.asset"; // 계단실 템플릿 SO
-        private const string floorStackPath = "Assets/03. ScriptableObjects/MapGen/SO_MapFloorStack.asset"; // 3층 스택 SO
-        private const string registryPath = "Assets/03. ScriptableObjects/MapGen/SO_MapPrefabRegistry.asset"; // 테마 레지스트리(전 층 공유)
+        private const string mapDefinitionPath = "Assets/03. ScriptableObjects/MapGen/SO_Map_Hall3F.asset"; // 3층 빈 집 정의(M10-1 — 구 층 스택 승계)
         private const float floorHeight = 6f; // 층고(실측 확정 — Hall_Wall_6M)
         private const float cellMeters = 4f; // 셀 실측
 
@@ -199,45 +198,13 @@ namespace EmptyHouse.EditorTools
             template.Variants = new GameObject[0];
             EditorUtility.SetDirty(template);
 
-            // ── 3층 스택 SO — 전 층 Hall 테마 공유·층고 6m·DangerBias B1>2F>1F ─────────────────
-            var registry = AssetDatabase.LoadAssetAtPath<MapPrefabRegistrySO>(registryPath);
-            var stack = AssetDatabase.LoadAssetAtPath<MapFloorStackSO>(floorStackPath);
-            if (stack == null)
-            {
-                stack = ScriptableObject.CreateInstance<MapFloorStackSO>();
-                AssetDatabase.CreateAsset(stack, floorStackPath);
-            }
-
-            stack.Floors = new[]
-            {
-                FloorEntry(0, registry, template, 0),
-                FloorEntry(1, registry, template, 1),
-                FloorEntry(-1, registry, template, 2),
-            };
-            EditorUtility.SetDirty(stack);
             AssetDatabase.SaveAssets();
 
-            string summary = $"[MapGenStairSetup] 프리팹 {stairPrefabPath}(보이드 타일 {removed}·천장 절개 {ceilingRemoved}) · 템플릿 {stairTemplatePath} · 스택 {floorStackPath}";
+            // 3층 구성은 빈 집 정의(SO_Map_Hall3F — M10-1)가 원천이다. 구 층 스택 저작은 퇴역 —
+            // 층 배선(계단실 템플릿·계단 프리팹·층고)은 FloorDefinitionSO 에셋에서 직접 편집한다
+            string summary = $"[MapGenStairSetup] 프리팹 {stairPrefabPath}(보이드 타일 {removed}·천장 절개 {ceilingRemoved}) · 템플릿 {stairTemplatePath}";
             Log.D(summary);
             return summary;
-        }
-
-        /// <summary>층 스택 항목 하나를 만든다.</summary>
-        private static FloorPrefabSet FloorEntry(int floorIndex, MapPrefabRegistrySO registry, RoomTemplateSO stairTemplate, int dangerBias)
-        {
-            return new FloorPrefabSet
-            {
-                FloorIndex = floorIndex,
-                ThemeId = "hall",
-                Registry = registry,
-                StairTemplate = stairTemplate,
-                CellMeters = cellMeters,
-                FloorHeight = floorHeight,
-                GenParams = new FloorGenParams { FloorIndex = floorIndex, ThemeId = "hall", DangerBias = dangerBias },
-                StairFlightPrefab = AssetDatabase.LoadAssetAtPath<GameObject>(stairFlightPath),
-                StairVoidSlabPrefab = AssetDatabase.LoadAssetAtPath<GameObject>(landingSlabPath),
-                StairRailingPrefab = AssetDatabase.LoadAssetAtPath<GameObject>(railingPath),
-            };
         }
 
         /// <summary>플라이트 바운드를 따라 연속 경사 램프 플레이트(그레이박스 큐브)를 깐다 — 계단면 내비의 실체.</summary>
@@ -347,15 +314,13 @@ namespace EmptyHouse.EditorTools
         /// <returns>감사 요약.</returns>
         public static string BuildThreeFloorVerification(int seed)
         {
-            var stack = AssetDatabase.LoadAssetAtPath<MapFloorStackSO>(floorStackPath);
-            var registry = AssetDatabase.LoadAssetAtPath<MapPrefabRegistrySO>(registryPath);
-            var lintErrors = new List<string>();
-            if (!MapFloorPlanAssembler.Lint(stack, lintErrors))
+            var definition = AssetDatabase.LoadAssetAtPath<MapDefinitionSO>(mapDefinitionPath);
+            MapGenPlan plan = MapPlanBuilder.Build(definition, new MapGenParams { Seed = seed, VaccineFloorPlan = new[] { 1, -1, -1 } }, out RoomTemplateSO[] flatAssets);
+            if (plan == null)
             {
-                return "린트 실패: " + string.Join(" / ", lintErrors);
+                return "린트 실패 — 콘솔 에러 참조(R4)";
             }
 
-            MapGenPlan plan = MapFloorPlanAssembler.Build(stack, new MapGenParams { Seed = seed, VaccineFloorPlan = new[] { 1, -1, -1 } }, out RoomTemplateSO[] flatAssets);
             MapGenResult result = new MapGenerator().Generate(plan);
             if (!result.Success)
             {
@@ -370,8 +335,8 @@ namespace EmptyHouse.EditorTools
 
             var root = new GameObject("GeneratedMaps3F");
             root.transform.position = new Vector3(0f, 0f, -900f); // 기존 그레이박스와 겹치지 않는 남쪽
-            GameObject mapRoot = MapRuntimeAssembler.Assemble(result.Blueprint, plan.FlatTemplates, registry, root.transform, null,
-                (prefab, parent) => (GameObject)PrefabUtility.InstantiatePrefab(prefab, parent), stack, flatAssets);
+            GameObject mapRoot = MapRuntimeAssembler.Assemble(result.Blueprint, plan.FlatTemplates, definition, root.transform,
+                (prefab, parent) => (GameObject)PrefabUtility.InstantiatePrefab(prefab, parent), flatAssets);
 
             var culler = mapRoot.GetComponent<EmptyHouse.Environment.MapLightCuller>();
             if (culler != null)
@@ -392,7 +357,7 @@ namespace EmptyHouse.EditorTools
                 for (int f = 0; f < result.Blueprint.Floors.Count; f++)
                 {
                     int floorIndex = result.Blueprint.Floors[f].FloorIndex;
-                    float planeY = mapRoot.transform.position.y + FloorGeometry.FloorPlaneY(stack, floorIndex);
+                    float planeY = mapRoot.transform.position.y + FloorGeometry.FloorPlaneY(definition, floorIndex);
                     int roomIndex = FindStairRoom(result.Blueprint, shaft, floorIndex);
                     Transform roomInstance = mapRoot.transform.Find($"Room_{roomIndex}_{result.Blueprint.Rooms[roomIndex].TemplateId}");
                     if (roomInstance == null)
@@ -433,9 +398,9 @@ namespace EmptyHouse.EditorTools
             }
 
             GameObject mapRoot = root.transform.GetChild(0).gameObject;
-            var stack = AssetDatabase.LoadAssetAtPath<MapFloorStackSO>(floorStackPath);
+            var definition = AssetDatabase.LoadAssetAtPath<MapDefinitionSO>(mapDefinitionPath);
             float rootY = mapRoot.transform.position.y;
-            var planes = new List<float> { rootY, rootY + FloorGeometry.FloorPlaneY(stack, 1), rootY + FloorGeometry.FloorPlaneY(stack, -1) };
+            var planes = new List<float> { rootY, rootY + FloorGeometry.FloorPlaneY(definition, 1), rootY + FloorGeometry.FloorPlaneY(definition, -1) };
 
             // 층 침범 콘텐츠 제외 — 런타임 베이커(M9-9)와 동일: 방 루트 Y 기준 5.5m 이상에서 시작하는 렌더러 제외
             foreach (Transform child in mapRoot.transform)
@@ -520,15 +485,14 @@ namespace EmptyHouse.EditorTools
             surface.defaultArea = 1;
             surface.BuildNavMesh();
 
-            // 층별 대표 지점 — 그 층 계단실 방 중심을 NavMesh 에 스냅
-            var registry2 = AssetDatabase.LoadAssetAtPath<MapPrefabRegistrySO>(registryPath);
-            MapGenPlan plan = MapFloorPlanAssembler.Build(stack, new MapGenParams { Seed = seed, VaccineFloorPlan = new[] { 1, -1, -1 } }, out _);
+            // 층별 대표 지점 — 그 층 계단실 방 중심을 NavMesh 에 스냅. 조립과 같은 시드·같은 정의로 재생성(재현 보장)
+            MapGenPlan plan = MapPlanBuilder.Build(definition, new MapGenParams { Seed = seed, VaccineFloorPlan = new[] { 1, -1, -1 } }, out _);
             MapGenResult result = new MapGenerator().Generate(plan);
             var report = new System.Text.StringBuilder(buildSummary);
-            Vector3? from = SamplePointOnFloor(mapRoot, result.Blueprint, stack, 0);
+            Vector3? from = SamplePointOnFloor(mapRoot, result.Blueprint, definition, 0);
             foreach (int target in new[] { 1, -1 })
             {
-                Vector3? to = SamplePointOnFloor(mapRoot, result.Blueprint, stack, target);
+                Vector3? to = SamplePointOnFloor(mapRoot, result.Blueprint, definition, target);
                 if (from == null || to == null)
                 {
                     report.AppendLine($"층 {target}: 샘플 지점 스냅 실패(from={from != null} to={to != null})");
@@ -875,9 +839,9 @@ namespace EmptyHouse.EditorTools
         }
 
         /// <summary>층의 아무 비복도 방 중심을 NavMesh 표면에 스냅한 지점을 구한다(없으면 null).</summary>
-        private static Vector3? SamplePointOnFloor(GameObject mapRoot, MapBlueprint blueprint, MapFloorStackSO stack, int floorIndex)
+        private static Vector3? SamplePointOnFloor(GameObject mapRoot, MapBlueprint blueprint, MapDefinitionSO definition, int floorIndex)
         {
-            float planeY = mapRoot.transform.position.y + FloorGeometry.FloorPlaneY(stack, floorIndex);
+            float planeY = mapRoot.transform.position.y + FloorGeometry.FloorPlaneY(definition, floorIndex);
             for (int r = 0; r < blueprint.Rooms.Count; r++)
             {
                 if (blueprint.Rooms[r].FloorIndex != floorIndex)

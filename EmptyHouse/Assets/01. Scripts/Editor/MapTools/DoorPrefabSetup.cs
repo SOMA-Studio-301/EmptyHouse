@@ -252,19 +252,27 @@ namespace EmptyHouse.EditorTools
             }
         }
 
-        /// <summary>레지스트리 DoorPrefab 과 NetworkPrefabs 목록에 문 프리팹을 등재한다(중복 등재 방지).</summary>
+        /// <summary>hall 테마 층 정의들의 DoorPrefab 과 NetworkPrefabs 목록에 문 프리팹을 등재한다(중복 등재 방지, M10-1).</summary>
         private static void RegisterDoor()
         {
             var doorAsset = AssetDatabase.LoadAssetAtPath<GameObject>(doorPrefabPath);
-            var registry = AssetDatabase.LoadAssetAtPath<MapPrefabRegistrySO>(registryPath);
-            if (registry != null)
+            int wired = 0;
+            foreach (string guid in AssetDatabase.FindAssets("t:FloorDefinitionSO", new[] { "Assets/03. ScriptableObjects/MapGen" }))
             {
-                registry.DoorPrefab = doorAsset.GetComponent<NetworkObject>();
-                EditorUtility.SetDirty(registry);
+                var floor = AssetDatabase.LoadAssetAtPath<FloorDefinitionSO>(AssetDatabase.GUIDToAssetPath(guid));
+                if (floor.ThemeId != "hall")
+                {
+                    continue; // 문 외형은 테마 소유 — hall 층에만 배선
+                }
+
+                floor.DoorPrefab = doorAsset.GetComponent<NetworkObject>();
+                EditorUtility.SetDirty(floor);
+                wired++;
             }
-            else
+
+            if (wired == 0)
             {
-                Log.W($"[DoorPrefabSetup] 레지스트리 없음({registryPath}) — 런타임 어댑터 셋업을 먼저 실행");
+                Log.W("[DoorPrefabSetup] hall 층 정의 없음 — 런타임 어댑터 셋업을 먼저 실행");
             }
 
             var prefabsList = AssetDatabase.LoadAssetAtPath<ScriptableObject>(networkPrefabsPath);

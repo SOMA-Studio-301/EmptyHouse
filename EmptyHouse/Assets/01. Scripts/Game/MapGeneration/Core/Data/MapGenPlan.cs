@@ -110,6 +110,8 @@ namespace EmptyHouse.MapGen.Core
                 HerdZombieCountMin = genParams.HerdZombieCountMin,
                 HerdZombieCountMax = genParams.HerdZombieCountMax,
                 EnabledZombieTypes = genParams.EnabledZombieTypes,
+                ReturnExitCount = genParams.ReturnExitCount, // v1 전역값을 시드 층에 매핑(M10-1 이관 — 골든 불변의 축)
+                WardrobeCount = genParams.WardrobeCount,
             };
 
             var templateArray = new RoomTemplateDef[templates.Count];

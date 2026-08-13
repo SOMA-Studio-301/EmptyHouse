@@ -9,7 +9,7 @@ namespace EmptyHouse.MapGen.Core
     public sealed class FloorGenParams
     {
         public int FloorIndex; // 층 서수(부호) — B1 = -1, 1F = 0, 2F = +1. 0 = 입구 앵커가 놓이는 시드 층
-        public string ThemeId; // 테마 키 — 어댑터 FloorPrefabSet 조회 + 해시 폴딩 대상(클라 간 테마 불일치를 AC-02 가 잡는다)
+        public string ThemeId; // 테마 키 — 어댑터 층 정의(FloorDefinitionSO) 대조 + 해시 폴딩 대상(클라 간 테마 불일치를 AC-02 가 잡는다)
         public int RoomsTotalMin = 10; // 층 방 예산 하한 — 방 전용 집계(복도·입구 앵커·계단실 제외)
         public int RoomsTotalMax = 11; // 층 방 예산 상한
         public int CycleRoomPercent = 40; // 층 사이클 소속 방 목표 비율 %

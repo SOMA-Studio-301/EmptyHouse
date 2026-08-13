@@ -18,8 +18,9 @@ namespace EmptyHouse.MapGen.Core
         /// <param name="blueprint">검증할 블루프린트.</param>
         /// <param name="genParams">생성 파라미터(지름길 임계·Listener 보장 거리).</param>
         /// <param name="templates">템플릿 집합 — 지름길 가치의 방 단위 거리 계산에 복도 판별이 필요하다.</param>
+        /// <param name="floorParams">층별 파라미터(탈출문·벽장 기대치 합산용, M10-1) — null 이면 전역 스칼라 폴백(v1 호출부 호환).</param>
         /// <returns>패스별 통과/실패와 사유를 담은 리포트.</returns>
-        public ValidationReport Validate(MapBlueprint blueprint, MapGenParams genParams, IReadOnlyList<RoomTemplateDef> templates)
+        public ValidationReport Validate(MapBlueprint blueprint, MapGenParams genParams, IReadOnlyList<RoomTemplateDef> templates, FloorGenParams[] floorParams = null)
         {
             Log.D("[BlueprintValidator] Validate");
             BuildAdjacency(blueprint);
@@ -30,13 +31,49 @@ namespace EmptyHouse.MapGen.Core
             report.ShortcutValuesHold = CheckShortcutValues(blueprint, genParams, templates, report);
             report.FloorReachabilityHolds = CheckFloorReachability(blueprint, report);
 
-            // 사이클 소속 방 비율 목표 미달은 기하 후보 소진(베스트에포트) — 실패가 아니라 경고만(X6)
-            if (blueprint.Meta.CycleRoomPercentAchieved + 0.5f < genParams.CycleRoomPercent)
+            // 사이클 소속 방 비율 목표 미달은 기하 후보 소진(베스트에포트) — 실패가 아니라 경고만(X6).
+            // 목표는 층별 파라미터가 원천(M10-1) — 층 정보가 없으면 전역 스칼라(v1 호출부 호환)
+            if (floorParams != null && blueprint.Floors.Count > 0)
+            {
+                for (int f = 0; f < blueprint.Floors.Count; f++)
+                {
+                    BlueprintFloor floor = blueprint.Floors[f];
+                    for (int p = 0; p < floorParams.Length; p++)
+                    {
+                        if (floorParams[p].FloorIndex != floor.FloorIndex)
+                        {
+                            continue;
+                        }
+
+                        if (floor.CycleRoomPercentAchieved + 0.5f < floorParams[p].CycleRoomPercent)
+                        {
+                            report.Warnings.Add($"X6 경고: 층 {floor.FloorIndex} 사이클 소속 방 {floor.CycleRoomPercentAchieved:F1}% — 목표 {floorParams[p].CycleRoomPercent}% 미달(기하 후보 소진, 베스트에포트)");
+                        }
+
+                        break;
+                    }
+                }
+            }
+            else if (blueprint.Meta.CycleRoomPercentAchieved + 0.5f < genParams.CycleRoomPercent)
             {
                 report.Warnings.Add($"X6 경고: 사이클 소속 방 {blueprint.Meta.CycleRoomPercentAchieved:F1}% — 목표 {genParams.CycleRoomPercent}% 미달(기하 후보 소진, 베스트에포트)");
             }
 
-            // 탈출문·벽장 미달도 경고(X6) — 잎 방·방 수가 모자란 배치 사정이지 그래프 결함이 아니다
+            // 탈출문·벽장 미달도 경고(X6) — 잎 방·방 수가 모자란 배치 사정이지 그래프 결함이 아니다.
+            // 기대치는 층별 예산 합(M10-1 이관), 층 정보가 없으면 전역 스칼라(v1)
+            int expectedExits = genParams.ReturnExitCount;
+            int expectedWardrobes = genParams.WardrobeCount;
+            if (floorParams != null)
+            {
+                expectedExits = 0;
+                expectedWardrobes = 0;
+                for (int f = 0; f < floorParams.Length; f++)
+                {
+                    expectedExits += floorParams[f].ReturnExitCount;
+                    expectedWardrobes += floorParams[f].WardrobeCount;
+                }
+            }
+
             int returnExits = 0;
             for (int e = 0; e < blueprint.Edges.Count; e++)
             {
@@ -46,9 +83,9 @@ namespace EmptyHouse.MapGen.Core
                 }
             }
 
-            if (returnExits < genParams.ReturnExitCount)
+            if (returnExits < expectedExits)
             {
-                report.Warnings.Add($"X6 경고: 탈출문 {returnExits}/{genParams.ReturnExitCount} — 바깥 향 봉인 소켓을 가진 잎 방 부족");
+                report.Warnings.Add($"X6 경고: 탈출문 {returnExits}/{expectedExits} — 바깥 향 봉인 소켓을 가진 잎 방 부족");
             }
 
             int wardrobes = 0;
@@ -60,9 +97,9 @@ namespace EmptyHouse.MapGen.Core
                 }
             }
 
-            if (wardrobes < genParams.WardrobeCount)
+            if (wardrobes < expectedWardrobes)
             {
-                report.Warnings.Add($"X6 경고: 벽장 {wardrobes}/{genParams.WardrobeCount} — 배치 가능 방 부족");
+                report.Warnings.Add($"X6 경고: 벽장 {wardrobes}/{expectedWardrobes} — 배치 가능 방 부족");
             }
 
             report.AllPassed = report.EssentialsReachable && report.KeyInvariantHolds

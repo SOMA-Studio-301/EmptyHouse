@@ -12,13 +12,12 @@ namespace EmptyHouse.EditorTools
     /// <summary>
     /// A/B 결과 불변 증명 도구 — 시드 구간의 블루프린트를 정규화 문자열로 덤프해 파일로 남긴다.
     /// 리팩터 전(A)·후(B)에 각각 실행해 바이트 비교하면 "결과 불변"이 기계 증명된다(M9-1 수용 기준).
-    /// 파라미터는 런타임과 같은 SO_MapGenParams 단일 출처, 템플릿은 MapTemplateCatalog — 실제 생성 경로 그대로.
+    /// 파라미터·템플릿은 런타임과 같은 빈 집 정의(SO_Map_Hall) 단일 출처 — 실제 생성 경로 그대로(M10-1).
     /// 포맷은 Tests/BlueprintDump 와 동일 규칙(고정 순서·InvariantCulture) — Meta 는 제외(버전 문자열이 끼면 A/B 가 항상 다르다).
     /// </summary>
     public static class MapGenAbDump
     {
-        private const string paramsAssetPath = "Assets/03. ScriptableObjects/MapGen/SO_MapGenParams.asset"; // 파라미터 단일 출처
-        private const string registryAssetPath = "Assets/03. ScriptableObjects/MapGen/SO_MapPrefabRegistry.asset"; // 템플릿 단일 출처(M9-3)
+        private const string mapDefinitionPath = "Assets/03. ScriptableObjects/MapGen/SO_Map_Hall.asset"; // 빈 집 정의 단일 출처(M10-1)
 
         /// <summary>
         /// 시드 1~seedCount 의 덤프를 outDir 에 seed_{n:0000}.txt 로 기록한다.
@@ -30,15 +29,15 @@ namespace EmptyHouse.EditorTools
         {
             Directory.CreateDirectory(outDir);
             var generator = new MapGenerator();
-            var paramsAsset = AssetDatabase.LoadAssetAtPath<MapGenParamsSO>(paramsAssetPath);
-            var registry = AssetDatabase.LoadAssetAtPath<MapPrefabRegistrySO>(registryAssetPath);
+            var definition = AssetDatabase.LoadAssetAtPath<MapDefinitionSO>(mapDefinitionPath);
             int ok = 0;
             int fail = 0;
             for (int seed = 1; seed <= seedCount; seed++)
             {
-                MapGenParams genParams = JsonUtility.FromJson<MapGenParams>(JsonUtility.ToJson(paramsAsset.Params));
+                MapGenParams genParams = JsonUtility.FromJson<MapGenParams>(JsonUtility.ToJson(definition.GenParams));
                 genParams.Seed = seed;
-                MapGenResult result = generator.Generate(genParams, registry.CreateTemplates());
+                MapGenPlan plan = MapPlanBuilder.Build(definition, genParams, out _);
+                MapGenResult result = generator.Generate(plan);
                 string path = Path.Combine(outDir, $"seed_{seed:0000}.txt");
                 if (!result.Success)
                 {

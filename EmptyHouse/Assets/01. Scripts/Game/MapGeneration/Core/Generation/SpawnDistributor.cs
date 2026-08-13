@@ -63,7 +63,7 @@ namespace EmptyHouse.MapGen.Core
 
             if (!failed)
             {
-                DistributeWardrobes(rng, paramsCache, blueprint);
+                DistributeWardrobes(rng, blueprint);
             }
 
             return !failed;
@@ -96,14 +96,15 @@ namespace EmptyHouse.MapGen.Core
         }
 
         /// <summary>
-        /// 벽장(은신)을 분배한다 — 좀비가 있는 방 우선(회피 수단이 필요한 곳), 남는 예산은 나머지 방에.
+        /// 벽장(은신)을 층별 예산(<see cref="FloorGenParams.WardrobeCount"/> — M10-1 이관)만큼 분배한다 —
+        /// 층마다 좀비가 있는 방 우선(회피 수단이 필요한 곳), 남는 예산은 그 층 나머지 방에.
         /// 한 방에 몰리지 않게 방당 1개까지만 배치한다. 실제 좌표는 방 프리팹의 MapItemAnchor 가 정한다(어댑터).
         /// 예산보다 방이 적으면 있는 만큼만 — 실패로 보지 않는다(회피 수단은 X6 경고 대상).
+        /// 층 1개면 후보 목록·셔플 순서가 구 전역 예산판과 완전히 같다(골든 불변).
         /// </summary>
         /// <param name="rng">단일 난수 스트림.</param>
-        /// <param name="genParams">생성 파라미터(벽장 수).</param>
         /// <param name="blueprint">대상 블루프린트.</param>
-        private void DistributeWardrobes(DeterministicRng rng, MapGenParams genParams, MapBlueprint blueprint)
+        private void DistributeWardrobes(DeterministicRng rng, MapBlueprint blueprint)
         {
             Log.D("[SpawnDistributor] DistributeWardrobes");
 
@@ -117,38 +118,44 @@ namespace EmptyHouse.MapGen.Core
                 }
             }
 
-            // 후보 = 좀비 방 먼저(셔플), 그 다음 나머지 방(셔플) — 입구·복도는 제외
-            var primary = new List<int>();
-            var secondary = new List<int>();
-            for (int r = 1; r < blueprint.Rooms.Count; r++)
+            for (int slot = 0; slot < planCache.FloorParams.Length; slot++)
             {
-                if (roomTemplates[r].IsCorridor || roomTemplates[r].IsEntranceAnchor)
+                FloorGenParams floorParams = planCache.FloorParams[slot];
+
+                // 후보 = 이 층의 좀비 방 먼저(셔플), 그 다음 이 층 나머지 방(셔플) — 입구·복도는 제외.
+                // 예산 0 이어도 셔플은 수행한다 — rng 소비를 예산값에 의존시키면 다른 노브가 스트림을 흔든다
+                var primary = new List<int>();
+                var secondary = new List<int>();
+                for (int r = 1; r < blueprint.Rooms.Count; r++)
                 {
-                    continue;
+                    if (blueprint.Rooms[r].FloorIndex != floorParams.FloorIndex || roomTemplates[r].IsCorridor || roomTemplates[r].IsEntranceAnchor)
+                    {
+                        continue;
+                    }
+
+                    if (zombieRooms.Contains(r))
+                    {
+                        primary.Add(r);
+                    }
+                    else
+                    {
+                        secondary.Add(r);
+                    }
                 }
 
-                if (zombieRooms.Contains(r))
+                Shuffle(rng, primary);
+                Shuffle(rng, secondary);
+                primary.AddRange(secondary);
+
+                int placed = 0;
+                for (int i = 0; i < primary.Count && placed < floorParams.WardrobeCount; i++)
                 {
-                    primary.Add(r);
+                    blueprint.Spawns.Add(new BlueprintSpawn { RoomIndex = primary[i], MarkerId = -1, Kind = SpawnKind.Wardrobe, WanderRadiusCells = 0f });
+                    placed++;
                 }
-                else
-                {
-                    secondary.Add(r);
-                }
+
+                Log.D($"[SpawnDistributor] 층 {floorParams.FloorIndex} 벽장 {placed}/{floorParams.WardrobeCount} 개 배치(좀비 방 우선)");
             }
-
-            Shuffle(rng, primary);
-            Shuffle(rng, secondary);
-            primary.AddRange(secondary);
-
-            int placed = 0;
-            for (int i = 0; i < primary.Count && placed < genParams.WardrobeCount; i++)
-            {
-                blueprint.Spawns.Add(new BlueprintSpawn { RoomIndex = primary[i], MarkerId = -1, Kind = SpawnKind.Wardrobe, WanderRadiusCells = 0f });
-                placed++;
-            }
-
-            Log.D($"[SpawnDistributor] 벽장 {placed}/{genParams.WardrobeCount} 개 배치(좀비 방 우선)");
         }
 
         /// <summary>리스트를 Fisher-Yates 로 제자리 셔플한다(단일 rng 스트림).</summary>

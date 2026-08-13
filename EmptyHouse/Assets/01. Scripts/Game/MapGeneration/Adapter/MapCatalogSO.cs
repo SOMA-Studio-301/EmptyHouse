@@ -27,9 +27,17 @@ namespace EmptyHouse.MapGen.Runtime
         /// <returns>빈 집 정의 — 없으면 null.</returns>
         public MapDefinitionSO FindByMapId(string mapId)
         {
-            // TODO(impl): Entries 선형 탐색(Definition.MapId 대조)
             Log.D("[MapCatalogSO] FindByMapId");
-            return default;
+            for (int i = 0; i < Entries.Length; i++)
+            {
+                // 편집 중 빈 항목이 다른 맵 조회를 막지 않도록 건너뛴다(결손 자체는 카탈로그 린트 소관)
+                if (Entries[i].Definition != null && Entries[i].Definition.MapId == mapId)
+                {
+                    return Entries[i].Definition;
+                }
+            }
+
+            return null;
         }
     }
 }

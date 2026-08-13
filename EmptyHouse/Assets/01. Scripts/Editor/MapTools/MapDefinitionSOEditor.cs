@@ -6,36 +6,45 @@ using UnityEngine;
 namespace EmptyHouse.EditorTools
 {
     /// <summary>
-    /// 생성 파라미터 에셋(SO_MapGenParams) 커스텀 인스펙터 — 24개 수치를 목적별로 묶어 보여주고
+    /// 빈 집 정의(MapDefinitionSO) 커스텀 인스펙터(M10-1 — 구 SO_MapGenParams 인스펙터 승계) —
+    /// 정의 필드(맵 키·층·레지스트리·조명)를 위에, 맵 전역 생성 파라미터를 목적별 그룹으로 아래에 그리고
     /// 최소/최대 역전 같은 즉시 판정 가능한 결함을 그 자리에서 경고한다.
     /// 이 에셋이 런타임과 에디터 프리뷰의 단일 출처라, 여기서 바꾸면 양쪽이 함께 바뀐다 —
     /// 상단 안내와 "프리뷰 5맵 생성" 버튼으로 수정→확인 왕복을 짧게 만든다.
     /// </summary>
-    [CustomEditor(typeof(MapGenParamsSO))]
-    public sealed class MapGenParamsSOEditor : UnityEditor.Editor
+    [CustomEditor(typeof(MapDefinitionSO))]
+    public sealed class MapDefinitionSOEditor : UnityEditor.Editor
     {
+        private static readonly string[] definitionFields = { "MapId", "Floors", "BasementCount", "CommonRegistry", "LightingProfile" }; // 정의 고유 필드(그룹 위에 기본 드로어로)
+
         private const string previewMenuPath = "Tools/Map/절차 예시 맵 5개 생성"; // 프리뷰 빌더 메뉴(에디터 어셈블리 경계상 메뉴로 호출)
 
-        /// <summary>그룹 제목 → 그 그룹에 그릴 필드명 목록. 여기 없는 필드는 "기타"로 모아 그린다(필드 추가 누락 방지).</summary>
+        /// <summary>그룹 제목 → 그 그룹에 그릴 필드명 목록 — **맵 전역으로 실제 소비되는 노브만**. 여기·레거시 목록에 없는 필드는 "기타"로 모아 그린다(필드 추가 누락 방지).</summary>
         private static readonly (string title, string[] fields)[] groups =
         {
             ("시드", new[] { "Seed" }),
-            ("레이아웃", new[] { "RoomsTotalMin", "RoomsTotalMax", "CorridorLinkPercent", "CorridorChainMax", "CycleRoomPercent" }),
             ("지름길·검증", new[] { "ShortcutValueMin", "ListenerCounterDist", "RerollMax" }),
-            ("자물쇠", new[] { "ShortcutLockCountMin", "ShortcutLockCountMax", "ItemDoorLockCount" }),
-            ("좀비", new[] { "EnabledZombieTypes", "ZombieDensitySafeMin", "ZombieDensitySafeMax", "ZombieDensityMidMin", "ZombieDensityMidMax", "ZombieDensityDangerMin", "ZombieDensityDangerMax", "ListenerRatioPercent", "HerdZombieCountMin", "HerdZombieCountMax" }),
+            ("자물쇠·열쇠(R 불변식 — 전역 그래프)", new[] { "ShortcutLockCountMin", "ShortcutLockCountMax", "ItemDoorLockCount", "KeyDistanceMin", "KeyDistanceMax" }),
             ("아이템", new[] { "ThrowableBudget", "OilCount", "ScrapCount" }),
+            ("계단 샤프트(다층)", new[] { "ShaftCountMin", "ShaftCountMax", "ShaftDepthPercentMin", "ShaftDepthPercentMax", "ShaftMinSeparationCells", "FloorRetryMax" }),
+            ("층 배정", new[] { "VaccineFloorPlan", "CorpseStationFloorPlan" }),
         };
 
-        /// <summary>최소/최대 쌍 — 역전 시 경고한다.</summary>
+        /// <summary>층 이관 완료 스칼라(M9~M10-1) — 정의 기반 경로는 층 정의 GenParams 가 원천이라 여기 값은 죽어 있다. FromLegacy(테스트·레거시 툴) 전용으로만 남아 접힌 비활성 그룹으로 그린다.</summary>
+        private static readonly string[] legacyFields =
+        {
+            "RoomsTotalMin", "RoomsTotalMax", "CycleRoomPercent", "CorridorLinkPercent", "CorridorChainMax",
+            "ReturnExitCount", "WardrobeCount", "EnabledZombieTypes",
+            "ZombieDensitySafeMin", "ZombieDensitySafeMax", "ZombieDensityMidMin", "ZombieDensityMidMax",
+            "ZombieDensityDangerMin", "ZombieDensityDangerMax", "ListenerRatioPercent", "HerdZombieCountMin", "HerdZombieCountMax",
+        };
+
+        /// <summary>최소/최대 쌍 — 역전 시 경고한다(라이브 노브만 — 층 이관분은 층 정의 인스펙터 소관).</summary>
         private static readonly (string min, string max, string label)[] rangePairs =
         {
-            ("RoomsTotalMin", "RoomsTotalMax", "총 방 수"),
             ("ShortcutLockCountMin", "ShortcutLockCountMax", "지름길 자물쇠"),
-            ("ZombieDensitySafeMin", "ZombieDensitySafeMax", "안전 등급 좀비"),
-            ("ZombieDensityMidMin", "ZombieDensityMidMax", "중간 등급 좀비"),
-            ("ZombieDensityDangerMin", "ZombieDensityDangerMax", "위험 등급 좀비"),
-            ("HerdZombieCountMin", "HerdZombieCountMax", "위장 무대 무리"),
+            ("KeyDistanceMin", "KeyDistanceMax", "열쇠 거리"),
+            ("ShaftCountMin", "ShaftCountMax", "계단 샤프트"),
         };
 
         private readonly Dictionary<string, bool> foldouts = new Dictionary<string, bool>();
@@ -44,10 +53,16 @@ namespace EmptyHouse.EditorTools
         public override void OnInspectorGUI()
         {
             serializedObject.Update();
-            SerializedProperty root = serializedObject.FindProperty("Params");
+            SerializedProperty root = serializedObject.FindProperty("GenParams");
 
-            EditorGUILayout.HelpBox("런타임 드라이버와 에디터 프리뷰가 이 에셋 하나를 공유한다. 여기서 바꾸면 양쪽이 함께 바뀐다.", MessageType.Info);
-            DrawSummary(root);
+            EditorGUILayout.HelpBox("런타임 드라이버와 에디터 프리뷰가 이 에셋 하나를 공유한다. 여기서 바꾸면 양쪽이 함께 바뀐다.\n층별 노브(방 예산·사이클·복도·좀비·탈출문·벽장)는 각 층 정의(FloorDefinitionSO) 에셋에서 편집한다(M10-1).", MessageType.Info);
+            foreach (string field in definitionFields)
+            {
+                EditorGUILayout.PropertyField(serializedObject.FindProperty(field), true);
+            }
+
+            EditorGUILayout.Space();
+            DrawSummary(serializedObject, root);
             DrawWarnings(root);
             EditorGUILayout.Space();
 
@@ -57,6 +72,7 @@ namespace EmptyHouse.EditorTools
                 DrawGroup(root, title, fields, drawn);
             }
 
+            DrawLegacyGroup(root, drawn);
             DrawLeftovers(root, drawn);
 
             EditorGUILayout.Space();
@@ -105,6 +121,44 @@ namespace EmptyHouse.EditorTools
             EditorGUILayout.EndFoldoutHeaderGroup();
         }
 
+        /// <summary>층 이관 완료 스칼라를 접힌 **비활성** 그룹으로 그린다 — 실수 편집 차단 + "여기 값은 안 쓰인다"를 UI 로 못박는다.</summary>
+        /// <param name="root">GenParams 프로퍼티.</param>
+        /// <param name="drawn">이미 그린 필드 집합.</param>
+        private void DrawLegacyGroup(SerializedProperty root, HashSet<string> drawn)
+        {
+            const string title = "레거시 v1(층 이관 — 정의 경로 미사용)";
+            if (!foldouts.TryGetValue(title, out bool open))
+            {
+                open = false; // 기본 접힘 — 죽은 값이라 펼칠 일이 드물다
+            }
+
+            open = EditorGUILayout.BeginFoldoutHeaderGroup(open, title);
+            foldouts[title] = open;
+            if (open)
+            {
+                EditorGUILayout.HelpBox("FromLegacy(테스트·레거시 툴) 전용 — 실제 생성은 층 정의(FloorDefinitionSO)의 GenParams 를 쓴다.", MessageType.None);
+                EditorGUI.indentLevel++;
+                EditorGUI.BeginDisabledGroup(true);
+                foreach (string field in legacyFields)
+                {
+                    SerializedProperty property = root.FindPropertyRelative(field);
+                    if (property != null)
+                    {
+                        EditorGUILayout.PropertyField(property);
+                    }
+                }
+
+                EditorGUI.EndDisabledGroup();
+                EditorGUI.indentLevel--;
+            }
+
+            EditorGUILayout.EndFoldoutHeaderGroup();
+            foreach (string field in legacyFields)
+            {
+                drawn.Add(field); // 접혀 있어도 '기타' 안전망에 다시 나타나지 않게 그린 것으로 계산한다
+            }
+        }
+
         /// <summary>그룹 표에 없는 필드를 모아 그린다 — 필드가 추가돼도 인스펙터에서 사라지지 않게 하는 안전망.</summary>
         /// <param name="root">Params 프로퍼티.</param>
         /// <param name="drawn">이미 그린 필드 집합.</param>
@@ -146,15 +200,26 @@ namespace EmptyHouse.EditorTools
             EditorGUI.indentLevel--;
         }
 
-        /// <summary>현재 값으로 예상되는 규모를 한 줄로 요약한다.</summary>
-        /// <param name="root">Params 프로퍼티.</param>
-        private static void DrawSummary(SerializedProperty root)
+        /// <summary>현재 값으로 예상되는 규모를 한 줄로 요약한다 — 방 예산은 층 정의 합산(실소비 값).</summary>
+        /// <param name="serialized">정의 SerializedObject(층 목록 조회).</param>
+        /// <param name="root">GenParams 프로퍼티.</param>
+        private static void DrawSummary(SerializedObject serialized, SerializedProperty root)
         {
-            int roomsMin = IntOf(root, "RoomsTotalMin");
-            int roomsMax = IntOf(root, "RoomsTotalMax");
+            int roomsMin = 0;
+            int roomsMax = 0;
+            var definition = (MapDefinitionSO)serialized.targetObject;
+            for (int i = 0; i < definition.Floors.Length; i++)
+            {
+                if (definition.Floors[i] != null && definition.Floors[i].GenParams != null)
+                {
+                    roomsMin += definition.Floors[i].GenParams.RoomsTotalMin;
+                    roomsMax += definition.Floors[i].GenParams.RoomsTotalMax;
+                }
+            }
+
             int locks = IntOf(root, "ShortcutLockCountMax") + IntOf(root, "ItemDoorLockCount");
             int seed = IntOf(root, "Seed");
-            EditorGUILayout.LabelField($"방 {roomsMin}~{roomsMax} · 자물쇠 최대 {locks} · 시드 {(seed == 0 ? "랜덤(서버 확정)" : seed.ToString())}", EditorStyles.miniBoldLabel);
+            EditorGUILayout.LabelField($"층 {definition.Floors.Length} · 방 {roomsMin}~{roomsMax}(층 합) · 자물쇠 최대 {locks} · 시드 {(seed == 0 ? "랜덤(서버 확정)" : seed.ToString())}", EditorStyles.miniBoldLabel);
         }
 
         /// <summary>최소/최대 역전과 자물쇠 변종 재고 부족을 경고한다.</summary>

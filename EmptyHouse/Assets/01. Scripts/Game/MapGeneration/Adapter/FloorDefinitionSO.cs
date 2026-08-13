@@ -7,7 +7,7 @@ using UnityEngine;
 namespace EmptyHouse.MapGen.Runtime
 {
     /// <summary>
-    /// 층 정의 SO(M10-1, 설계 B′) — 층 하나 = 테마·질감의 단위. 구 <see cref="FloorPrefabSet"/>(인라인)의 승격이다.
+    /// 층 정의 SO(M10-1, 설계 B′) — 층 하나 = 테마·질감의 단위. 구 층 스택 인라인 항목(FloorPrefabSet)의 승격이다.
     /// **층 서수(FloorIndex)를 갖지 않는다** — 서수는 <see cref="MapDefinitionSO"/> 의 리스트 위치 + 지하 층 수로
     /// 유도되고, 플랜 조립(<see cref="MapPlanBuilder"/>)이 코어 파라미터 복제본에 스탬프한다.
     /// 같은 층 에셋을 여러 빈 집이 재사용할 수 있게 하는 것이 이 분리의 목적이다.
@@ -40,9 +40,19 @@ namespace EmptyHouse.MapGen.Runtime
         /// <returns>코어 템플릿 목록 — 배열 순서 유지, 말미에 계단실(null 이면 생략). 층 접미사는 MapPlanBuilder 소관.</returns>
         public List<RoomTemplateDef> CreateTemplates()
         {
-            // TODO(impl): Templates 순서 유지 추출(ToDef) + StairTemplate 말미 추가
             Log.D("[FloorDefinitionSO] CreateTemplates");
-            return default;
+            var result = new List<RoomTemplateDef>(Templates.Length + 1);
+            for (int i = 0; i < Templates.Length; i++)
+            {
+                result.Add(Templates[i].ToDef());
+            }
+
+            if (StairTemplate != null)
+            {
+                result.Add(StairTemplate.ToDef());
+            }
+
+            return result;
         }
 
         /// <summary>TemplateId 로 템플릿 SO 를 찾는다(계단실 포함) — 조립기의 배치 프리팹 조회용. 미등재 = null(데이터 결함).</summary>
@@ -50,9 +60,21 @@ namespace EmptyHouse.MapGen.Runtime
         /// <returns>일치 템플릿 SO — 없으면 null.</returns>
         public RoomTemplateSO FindTemplate(string templateId)
         {
-            // TODO(impl): Templates 선형 탐색 + StairTemplate 대조
             Log.D("[FloorDefinitionSO] FindTemplate");
-            return default;
+            for (int i = 0; i < Templates.Length; i++)
+            {
+                if (Templates[i].TemplateId == templateId)
+                {
+                    return Templates[i];
+                }
+            }
+
+            if (StairTemplate != null && StairTemplate.TemplateId == templateId)
+            {
+                return StairTemplate;
+            }
+
+            return null;
         }
     }
 }

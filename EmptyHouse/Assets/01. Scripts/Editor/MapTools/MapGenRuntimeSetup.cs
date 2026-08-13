@@ -21,9 +21,10 @@ namespace EmptyHouse.EditorTools
         private const string mapGenFolder = "Assets/03. ScriptableObjects/MapGen"; // 맵 생성 SO 위치
         private const string assembledChannelPath = eventFolder + "/SO_Event_MapAssembledServer.asset"; // 조립 완료(X7) 채널
         private const string navReadyChannelPath = eventFolder + "/SO_Event_MapNavMeshReadyServer.asset"; // 베이크 완료 채널
-        private const string registryPath = mapGenFolder + "/SO_MapPrefabRegistry.asset"; // 프리팹 레지스트리
+        private const string registryPath = mapGenFolder + "/SO_MapPrefabRegistry.asset"; // 프리팹 레지스트리(테마 무관 상호작용·아이템 — M10-1 이후 CommonRegistry 역할)
         private const string templatesFolder = mapGenFolder + "/Templates"; // 방 템플릿 SO 위치(M9-3)
-        private const string genParamsPath = mapGenFolder + "/SO_MapGenParams.asset"; // 생성 파라미터 단일 출처(런타임·에디터 프리뷰 공유)
+        private const string mapDefinitionPath = mapGenFolder + "/SO_Map_Hall.asset"; // 빈 집 정의 단일 출처(M10-1 — 런타임·에디터 프리뷰 공유)
+        private const string floorDefinitionPath = mapGenFolder + "/SO_Floor_Hall_Main.asset"; // 단층 층 정의(환경 프리팹·템플릿 소유)
         private const string managersPrefabPath = "Assets/02. Prefab/GameScene/=====MANAGERS=====.prefab"; // 상주 매니저 프리팹
         private const string managerChildName = "MapGenManager"; // MANAGERS 하위 자식 이름
         private const string playerSpawnerPrefabPath = "Assets/02. Prefab/Manager/GameScenePlayerSpawner.prefab"; // 플레이어 스포너(맵 조립 게이트 배선 대상)
@@ -66,8 +67,9 @@ namespace EmptyHouse.EditorTools
             VoidEventChannelSO assembledChannel = EnsureChannel(assembledChannelPath);
             VoidEventChannelSO navReadyChannel = EnsureChannel(navReadyChannelPath);
             MapPrefabRegistrySO registry = EnsureRegistry();
-            MapGenParamsSO genParams = EnsureGenParams();
-            SetupManagersPrefab(registry, genParams, assembledChannel, navReadyChannel);
+            RoomTemplateSO[] templates = EnsureTemplates(); // 템플릿 SO·변형 풀은 매 실행 재스캔(기존 코어 데이터는 보존)
+            MapDefinitionSO mapDefinition = EnsureMapDefinition(registry, templates);
+            SetupManagersPrefab(mapDefinition, assembledChannel, navReadyChannel);
             SetupPlayerSpawnerPrefab(assembledChannel);
             SetupPlayerPrefabs();
             AssetDatabase.SaveAssets();
@@ -92,24 +94,49 @@ namespace EmptyHouse.EditorTools
             return channel;
         }
 
-        /// <summary>생성 파라미터 에셋을 확보한다(없으면 코드 기본값으로 생성) — 기존 값은 절대 덮지 않는다(튜닝 결과 보존).</summary>
-        /// <returns>파라미터 에셋.</returns>
-        private static MapGenParamsSO EnsureGenParams()
+        /// <summary>
+        /// 빈 집 정의(단층 hall)를 확보한다(M10-1) — 없으면 층 정의(템플릿·봉인 벽·기둥·미터 규격)와 함께 생성한다.
+        /// 기존 에셋은 절대 덮지 않는다(튜닝·배선 결과 보존).
+        /// </summary>
+        /// <param name="registry">테마 무관 상호작용·아이템 레지스트리(CommonRegistry 로 배선).</param>
+        /// <param name="templates">확보된 방 템플릿 SO 배열(층 정의 최초 생성 시드).</param>
+        /// <returns>빈 집 정의 에셋.</returns>
+        private static MapDefinitionSO EnsureMapDefinition(MapPrefabRegistrySO registry, RoomTemplateSO[] templates)
         {
-            var asset = AssetDatabase.LoadAssetAtPath<MapGenParamsSO>(genParamsPath);
-            if (asset != null)
+            var definition = AssetDatabase.LoadAssetAtPath<MapDefinitionSO>(mapDefinitionPath);
+            if (definition != null)
             {
-                return asset;
+                return definition;
             }
 
             EnsureFolder(mapGenFolder);
-            asset = ScriptableObject.CreateInstance<MapGenParamsSO>();
-            AssetDatabase.CreateAsset(asset, genParamsPath);
-            Log.D($"[MapGenRuntimeSetup] 파라미터 에셋 생성 {genParamsPath} — 값은 코드 기본값. 인스펙터에서 조정하면 런타임·프리뷰가 함께 따라간다");
-            return asset;
+            var floor = AssetDatabase.LoadAssetAtPath<FloorDefinitionSO>(floorDefinitionPath);
+            if (floor == null)
+            {
+                floor = ScriptableObject.CreateInstance<FloorDefinitionSO>();
+                AssetDatabase.CreateAsset(floor, floorDefinitionPath);
+                floor.ThemeId = "hall";
+                floor.Templates = templates;
+                floor.SealWallPrefab = AssetDatabase.LoadAssetAtPath<GameObject>(sealWallPath);
+                floor.CornerColumnPrefab = AssetDatabase.LoadAssetAtPath<GameObject>(cornerColumnPath);
+                floor.CellMeters = MapTemplateCatalog.CellMeters;
+                floor.FloorHeight = 9f;
+                EditorUtility.SetDirty(floor);
+                Log.W($"[MapGenRuntimeSetup] 층 정의 생성 {floorDefinitionPath} — DoorPrefab·ReturnExitPrefab 은 제작 후 층 정의에 연결해야 스폰된다");
+            }
+
+            definition = ScriptableObject.CreateInstance<MapDefinitionSO>();
+            AssetDatabase.CreateAsset(definition, mapDefinitionPath);
+            definition.MapId = "hall";
+            definition.Floors = new[] { floor };
+            definition.BasementCount = 0;
+            definition.CommonRegistry = registry;
+            EditorUtility.SetDirty(definition);
+            Log.D($"[MapGenRuntimeSetup] 빈 집 정의 생성 {mapDefinitionPath} — 생성 파라미터는 인스펙터에서 조정하면 런타임·프리뷰가 함께 따라간다");
+            return definition;
         }
 
-        /// <summary>프리팹 레지스트리를 확보하고 템플릿 SO·봉인 벽·기둥을 채운다 — 문·스폰 프리팹 기존 값은 보존한다.</summary>
+        /// <summary>공용 레지스트리(테마 무관 상호작용·아이템)를 확보한다 — 스폰·페어 프리팹 기존 값은 보존한다.</summary>
         /// <returns>레지스트리 에셋.</returns>
         private static MapPrefabRegistrySO EnsureRegistry()
         {
@@ -122,18 +149,9 @@ namespace EmptyHouse.EditorTools
                 Log.D($"[MapGenRuntimeSetup] 레지스트리 생성 {registryPath}");
             }
 
-            registry.Templates = EnsureTemplates();
-            registry.SealWallPrefab = AssetDatabase.LoadAssetAtPath<GameObject>(sealWallPath);
-            registry.CornerColumnPrefab = AssetDatabase.LoadAssetAtPath<GameObject>(cornerColumnPath);
-            registry.CellMeters = MapTemplateCatalog.CellMeters;
             if (registry.SpawnPrefabs == null)
             {
                 registry.SpawnPrefabs = new SpawnPrefabEntry[0];
-            }
-
-            if (registry.DoorPrefab == null)
-            {
-                Log.W("[MapGenRuntimeSetup] DoorPrefab 미등재 — 문 프리팹 제작 후 레지스트리에 연결해야 문이 스폰된다");
             }
 
             EditorUtility.SetDirty(registry);
@@ -250,13 +268,13 @@ namespace EmptyHouse.EditorTools
         /// <returns>검사 결과 요약 문자열.</returns>
         public static string ValidateTemplateSync()
         {
-            var registry = AssetDatabase.LoadAssetAtPath<MapPrefabRegistrySO>(registryPath);
-            if (registry == null || registry.Templates == null)
+            var floor = AssetDatabase.LoadAssetAtPath<FloorDefinitionSO>(floorDefinitionPath);
+            if (floor == null || floor.Templates == null)
             {
-                return "[MapGenRuntimeSetup] 레지스트리/템플릿 미생성 — 셋업을 먼저 실행";
+                return "[MapGenRuntimeSetup] 층 정의/템플릿 미생성 — 셋업을 먼저 실행";
             }
 
-            List<RoomTemplateDef> fromSo = registry.CreateTemplates();
+            List<RoomTemplateDef> fromSo = floor.CreateTemplates();
             List<RoomTemplateDef> fixture = MapTemplateCatalog.Create();
             if (fromSo.Count != fixture.Count)
             {
@@ -405,11 +423,10 @@ namespace EmptyHouse.EditorTools
         }
 
         /// <summary>MANAGERS 프리팹에 MapGenManager 자식을 확보하고 컴포넌트·참조를 배선한다.</summary>
-        /// <param name="registry">프리팹 레지스트리.</param>
-        /// <param name="genParams">생성 파라미터 에셋.</param>
+        /// <param name="mapDefinition">빈 집 정의(M10-1 — 구 레지스트리·파라미터 직참조를 대체).</param>
         /// <param name="assembledChannel">조립 완료 채널.</param>
         /// <param name="navReadyChannel">베이크 완료 채널.</param>
-        private static void SetupManagersPrefab(MapPrefabRegistrySO registry, MapGenParamsSO genParams, VoidEventChannelSO assembledChannel, VoidEventChannelSO navReadyChannel)
+        private static void SetupManagersPrefab(MapDefinitionSO mapDefinition, VoidEventChannelSO assembledChannel, VoidEventChannelSO navReadyChannel)
         {
             GameObject root = PrefabUtility.LoadPrefabContents(managersPrefabPath);
             Transform child = root.transform.Find(managerChildName);
@@ -426,7 +443,7 @@ namespace EmptyHouse.EditorTools
             {
                 string sourcePath = PrefabUtility.GetPrefabAssetPathOfNearestInstanceRoot(child.gameObject);
                 PrefabUtility.UnloadPrefabContents(root);
-                WireManagerComponents(sourcePath, registry, genParams, assembledChannel, navReadyChannel);
+                WireManagerComponents(sourcePath, mapDefinition, assembledChannel, navReadyChannel);
                 return;
             }
 
@@ -442,8 +459,7 @@ namespace EmptyHouse.EditorTools
 
             // private [SerializeField] 배선 — SerializedObject 경유(프리팹 에셋 직접 수정)
             var driverSo = new SerializedObject(driver);
-            driverSo.FindProperty("prefabRegistry").objectReferenceValue = registry;
-            driverSo.FindProperty("genParamsAsset").objectReferenceValue = genParams;
+            driverSo.FindProperty("mapDefinition").objectReferenceValue = mapDefinition;
             driverSo.FindProperty("onMapAssembledServer").objectReferenceValue = assembledChannel;
             driverSo.ApplyModifiedPropertiesWithoutUndo();
 
@@ -455,7 +471,6 @@ namespace EmptyHouse.EditorTools
 
             var spawnerSo = new SerializedObject(spawner);
             spawnerSo.FindProperty("driver").objectReferenceValue = driver;
-            spawnerSo.FindProperty("prefabRegistry").objectReferenceValue = registry;
             spawnerSo.FindProperty("onMapNavMeshReadyServer").objectReferenceValue = navReadyChannel;
             spawnerSo.ApplyModifiedPropertiesWithoutUndo();
 
@@ -469,11 +484,10 @@ namespace EmptyHouse.EditorTools
         /// 원본을 고쳐야 어디에 배치하든 같은 값이 나온다(설정 단일 출처).
         /// </summary>
         /// <param name="prefabPath">MapGenManager 프리팹 경로.</param>
-        /// <param name="registry">프리팹 레지스트리.</param>
-        /// <param name="genParams">생성 파라미터 에셋.</param>
+        /// <param name="mapDefinition">빈 집 정의(M10-1).</param>
         /// <param name="assembledChannel">조립 완료 채널.</param>
         /// <param name="navReadyChannel">베이크 완료 채널.</param>
-        private static void WireManagerComponents(string prefabPath, MapPrefabRegistrySO registry, MapGenParamsSO genParams, VoidEventChannelSO assembledChannel, VoidEventChannelSO navReadyChannel)
+        private static void WireManagerComponents(string prefabPath, MapDefinitionSO mapDefinition, VoidEventChannelSO assembledChannel, VoidEventChannelSO navReadyChannel)
         {
             GameObject root = PrefabUtility.LoadPrefabContents(prefabPath);
             EnsureComponent<NetworkObject>(root);
@@ -482,8 +496,7 @@ namespace EmptyHouse.EditorTools
             MapStateObjectSpawner spawner = EnsureComponent<MapStateObjectSpawner>(root);
 
             var driverSo = new SerializedObject(driver);
-            driverSo.FindProperty("prefabRegistry").objectReferenceValue = registry;
-            driverSo.FindProperty("genParamsAsset").objectReferenceValue = genParams;
+            driverSo.FindProperty("mapDefinition").objectReferenceValue = mapDefinition;
             driverSo.FindProperty("onMapAssembledServer").objectReferenceValue = assembledChannel;
             driverSo.ApplyModifiedPropertiesWithoutUndo();
 
@@ -495,7 +508,6 @@ namespace EmptyHouse.EditorTools
 
             var spawnerSo = new SerializedObject(spawner);
             spawnerSo.FindProperty("driver").objectReferenceValue = driver;
-            spawnerSo.FindProperty("prefabRegistry").objectReferenceValue = registry;
             spawnerSo.FindProperty("onMapNavMeshReadyServer").objectReferenceValue = navReadyChannel;
             spawnerSo.ApplyModifiedPropertiesWithoutUndo();
 
