@@ -26,5 +26,7 @@ namespace EmptyHouse.MapGen.Core
         public int HerdZombieCountMin = 3; // 위장 무대 Walker 무리 최소 ⚪
         public int HerdZombieCountMax = 5; // 위장 무대 Walker 무리 최대 ⚪
         public ZombieTypeMask EnabledZombieTypes = ZombieTypeMask.Walker; // 층별 배치 활성 좀비 타입 — 층마다 다른 압박을 주는 노브
+        public int ReturnExitCount; // 층 탈출문 수(M10-1 — 구 MapGenParams.ReturnExitCount 에서 이관) — 비입구 층 기본 0, FromLegacy 가 v1 값을 시드 층에 매핑 ⚪
+        public int WardrobeCount; // 층 벽장 수(M10-1 — 구 MapGenParams.WardrobeCount 에서 이관) ⚪
     }
 }

@@ -57,6 +57,26 @@ namespace EmptyHouse.MapGen.Runtime
             return stack.Find(floorIndex).FloorHeight;
         }
 
+        /// <summary>층 서수의 바닥면 Y 오프셋 — 빈 집 정의판(M10-1). 규약은 스택판과 동일(누적합·아래 층 보유). 순수 계산 — 로그 없음(CellMath 규약).</summary>
+        /// <param name="definition">빈 집 정의.</param>
+        /// <param name="floorIndex">층 서수(B1 = -1 · 1F = 0 · 2F = +1).</param>
+        /// <returns>바닥면 Y 오프셋(m).</returns>
+        public static float FloorPlaneY(MapDefinitionSO definition, int floorIndex)
+        {
+            // TODO(impl): 스택판과 같은 누적합 — definition.FloorOf(f).FloorHeight 소비
+            return default;
+        }
+
+        /// <summary>층 f 계단의 총 라이즈 — 빈 집 정의판(M10-1). 순수 계산 — 로그 없음(CellMath 규약).</summary>
+        /// <param name="definition">빈 집 정의.</param>
+        /// <param name="floorIndex">층 서수.</param>
+        /// <returns>라이즈(m).</returns>
+        public static float StairRise(MapDefinitionSO definition, int floorIndex)
+        {
+            // TODO(impl): definition.FloorOf(floorIndex).FloorHeight
+            return default;
+        }
+
         /// <summary>
         /// 맵 루트 아래에 층별 루트 Transform 을 만든다 — 각 루트는 XZ 는 그대로 두고 Y 만 <see cref="FloorPlaneY"/> 로 이동한다.
         /// (계단 연결 층 쌍은 CellMeters 가 동일하도록 린트가 강제하므로 XZ 정규화는 전역 하나로 충분하다.)
