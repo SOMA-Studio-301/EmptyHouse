@@ -32,6 +32,7 @@ public class InputReader : ScriptableObject, GameInput.IGameplayActions, GameInp
     public event UnityAction AimPressedEvent = delegate { }; // 투척 조준(우클릭) 누름. 누르는 동안만 궤적이 유지된다
     public event UnityAction AimCanceledEvent = delegate { }; // 투척 조준(우클릭) 해제. 궤적을 즉시 지운다
     public event UnityAction FlashlightEvent = delegate { }; // 손전등 토글(F) 누름. 실제 온/오프는 서버 권위 PlayerFlashlight가 수행
+    public event UnityAction MapOverviewEvent = delegate { }; // 안내도 토글(M) 누름(EH-62). 개폐 판정은 UIMapOverview 가 수행
 
     private GameInput gameInput;
 
@@ -368,6 +369,18 @@ public class InputReader : ScriptableObject, GameInput.IGameplayActions, GameInp
         {
             FlashlightEvent.Invoke();
         }
+    }
+
+    /// <summary>
+    /// MapOverview 액션 콜백(M — 안내도 토글, EH-62). 눌림을 <see cref="MapOverviewEvent"/> 로 발행한다.
+    /// ⚠️ GameInput.inputactions 의 Gameplay 맵에 MapOverview 액션(M 바인딩)을 추가하고 클래스를 재생성해야
+    /// 이 콜백이 인터페이스 구현으로 연결된다 — 에셋 미갱신 상태에서는 호출되지 않는 일반 메서드다.
+    /// </summary>
+    /// <param name="context">Input System 이 전달하는 콜백 컨텍스트.</param>
+    public void OnMapOverview(InputAction.CallbackContext context)
+    {
+        // TODO(impl): RememberDevice + Performed 시 MapOverviewEvent 발행(OnFlashlight 동형)
+        Log.D("[InputReader] OnMapOverview");
     }
 
     // ── 미사용 액션 ─────────────────────────────────────────────

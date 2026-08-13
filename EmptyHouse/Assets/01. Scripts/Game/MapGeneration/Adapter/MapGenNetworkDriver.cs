@@ -21,6 +21,7 @@ namespace EmptyHouse.MapGen.Runtime
 
         [Header("Event Channels")]
         [SerializeField] private VoidEventChannelSO onMapAssembledServer; // 서버 전용 발화 — 전 클라 조립 완료(X7). NavMesh 베이커가 구독
+        [SerializeField] private MapOverviewEventChannelSO onMapOverviewReady; // 클라 로컬 발화(EH-62) — 자기 조립 직후 안내도 모델을 실어 발행. UIMapOverview 가 구독
 
         private readonly NetworkVariable<int> mapSeed = new NetworkVariable<int>(
             0, NetworkVariableReadPermission.Everyone, NetworkVariableWritePermission.Server); // 확정 시드(0 = 미확정) — 시드만 복제(정적 지오메트리 대역폭 0)
@@ -166,6 +167,8 @@ namespace EmptyHouse.MapGen.Runtime
             LocalMapRoot = MapRuntimeAssembler.Assemble(LocalBlueprint, plan.FlatTemplates, mapDefinition, transform, null, flatAssets);
             localHash = BlueprintHash.Compute(LocalBlueprint);
             Log.D($"[MapGenNetworkDriver] 로컬 조립 완료 시드={current} 해시={localHash:X8} 리롤={result.RerollCount}");
+            // 안내도 모델 발행(EH-62) — 클라 로컬. 서버 X7 집계와 무관하게 자기 맵이 준비되면 즉시
+            onMapOverviewReady.RaiseEvent(MapOverviewModel.Build(LocalBlueprint, plan.FlatTemplates, mapDefinition, LocalMapRoot.transform.position));
             ReportAssembledServerRpc(localHash);
         }
 
