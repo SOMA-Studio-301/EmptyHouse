@@ -31,6 +31,8 @@ namespace EmptyHouse.MapGen.Editor
         [SerializeField] private List<WanderOverride> wanderOverrides = new List<WanderOverride>(); // 배회 반경 마커 기본값 오버라이드(10절 편집 범위)
         [SerializeField] private BlueprintCanvasDrawer canvasDrawer = new BlueprintCanvasDrawer(); // 캔버스 렌더러 — 팬·줌 상태를 도메인 리로드 너머로 보존
         [SerializeField] private bool paramsFoldout = true; // 파라미터 오버라이드 폴드아웃 상태
+        [SerializeField] private bool floorParamsFoldout = true; // 층별 파라미터 폴드아웃 상태(층 스택 세트 전용)
+        [SerializeField] private List<FloorGenParams> floorParamOverrides = new List<FloorGenParams>(); // 층별 파라미터 세션 작업본 — 생성 시 스택 SO 값을 덮는다(SO 는 수정하지 않음)
         [SerializeField] private Vector2 inputScroll; // 입력 패널 스크롤 위치
         [SerializeField] private Vector2 validationScroll; // 검증 패널 스크롤 위치
 
@@ -164,6 +166,11 @@ namespace EmptyHouse.MapGen.Editor
                 p.EnabledZombieTypes = (ZombieTypeMask)EditorGUILayout.EnumFlagsField("활성 좀비 타입", p.EnabledZombieTypes);
             }
 
+            if (templateSetIndex >= 1)
+            {
+                DrawFloorParamOverrides();
+            }
+
             if (lastResult != null && lastResult.Success && lastResult.Blueprint.Floors.Count > 1)
             {
                 EditorGUILayout.Space(6f);
@@ -215,6 +222,128 @@ namespace EmptyHouse.MapGen.Editor
 
             EditorGUILayout.HelpBox("팬: 우클릭/휠클릭 드래그 · 줌: 휠\n생성 결과의 개별 수정은 지원하지 않는다(시드 재현 보존 — 10절).", MessageType.None);
             EditorGUILayout.EndScrollView();
+        }
+
+        /// <summary>
+        /// 층별 파라미터 오버라이드 섹션(층 스택 세트 전용) — 스택 SO 의 층 목록을 세션 작업본으로 복제해
+        /// 층마다 방 예산·사이클·복도·위험 가중·좀비 노브를 편집한다. SO 는 수정하지 않는다(10절 — 재료 편집은 세션 한정).
+        /// </summary>
+        private void DrawFloorParamOverrides()
+        {
+            var stack = AssetDatabase.LoadAssetAtPath<MapFloorStackSO>(floorStackPath);
+            if (stack == null || stack.Floors == null || stack.Floors.Length == 0)
+            {
+                return;
+            }
+
+            SyncFloorParamOverrides(stack);
+            EditorGUILayout.Space(6f);
+            floorParamsFoldout = EditorGUILayout.Foldout(floorParamsFoldout, "층별 파라미터(층 스택 오버라이드)", true);
+            if (!floorParamsFoldout)
+            {
+                return;
+            }
+
+            if (GUILayout.Button("스택 값 리셋"))
+            {
+                floorParamOverrides.Clear();
+                SyncFloorParamOverrides(stack);
+            }
+
+            for (int i = 0; i < floorParamOverrides.Count; i++)
+            {
+                FloorGenParams fp = floorParamOverrides[i];
+                EditorGUILayout.LabelField(BlueprintCanvasDrawer.FloorName(fp.FloorIndex), EditorStyles.boldLabel);
+                using (new EditorGUI.IndentLevelScope())
+                {
+                    fp.RoomsTotalMin = EditorGUILayout.IntField("방 예산 Min", fp.RoomsTotalMin);
+                    fp.RoomsTotalMax = EditorGUILayout.IntField("방 예산 Max", fp.RoomsTotalMax);
+                    fp.CycleRoomPercent = EditorGUILayout.IntSlider("사이클 소속 방 목표 %", fp.CycleRoomPercent, 0, 100);
+                    fp.CorridorLinkPercent = EditorGUILayout.IntSlider("복도 경유 확률 %", fp.CorridorLinkPercent, 0, 100);
+                    fp.CorridorChainMax = EditorGUILayout.IntField("복도 연쇄 Max", fp.CorridorChainMax);
+                    fp.DangerBias = EditorGUILayout.IntField("위험 층 가중", fp.DangerBias);
+                    fp.ZombieDensitySafeMin = EditorGUILayout.IntField("좀비 안전 Min", fp.ZombieDensitySafeMin);
+                    fp.ZombieDensitySafeMax = EditorGUILayout.IntField("좀비 안전 Max", fp.ZombieDensitySafeMax);
+                    fp.ZombieDensityMidMin = EditorGUILayout.IntField("좀비 중간 Min", fp.ZombieDensityMidMin);
+                    fp.ZombieDensityMidMax = EditorGUILayout.IntField("좀비 중간 Max", fp.ZombieDensityMidMax);
+                    fp.ZombieDensityDangerMin = EditorGUILayout.IntField("좀비 위험 Min", fp.ZombieDensityDangerMin);
+                    fp.ZombieDensityDangerMax = EditorGUILayout.IntField("좀비 위험 Max", fp.ZombieDensityDangerMax);
+                    fp.ListenerRatioPercent = EditorGUILayout.IntField("Listener 비율 %", fp.ListenerRatioPercent);
+                    fp.HerdZombieCountMin = EditorGUILayout.IntField("무리 좀비 Min", fp.HerdZombieCountMin);
+                    fp.HerdZombieCountMax = EditorGUILayout.IntField("무리 좀비 Max", fp.HerdZombieCountMax);
+                    fp.EnabledZombieTypes = (ZombieTypeMask)EditorGUILayout.EnumFlagsField("활성 좀비 타입", fp.EnabledZombieTypes);
+                }
+            }
+        }
+
+        /// <summary>
+        /// 층별 파라미터 작업본을 층 스택과 동기화한다 — 층 구성(수·서수)이 다르면 스택 값으로 재구축한다.
+        /// 매 프레임 호출되는 GUI 경로라 로그 트레이스를 두지 않는다.
+        /// </summary>
+        /// <param name="stack">기준 층 스택 SO.</param>
+        private void SyncFloorParamOverrides(MapFloorStackSO stack)
+        {
+            bool rebuild = floorParamOverrides.Count != stack.Floors.Length;
+            for (int i = 0; !rebuild && i < stack.Floors.Length; i++)
+            {
+                rebuild = floorParamOverrides[i].FloorIndex != stack.Floors[i].FloorIndex;
+            }
+
+            if (!rebuild)
+            {
+                return;
+            }
+
+            floorParamOverrides.Clear();
+            for (int i = 0; i < stack.Floors.Length; i++)
+            {
+                FloorPrefabSet entry = stack.Floors[i];
+                FloorGenParams source = entry.GenParams ?? new FloorGenParams();
+                FloorGenParams clone = JsonUtility.FromJson<FloorGenParams>(JsonUtility.ToJson(source));
+                clone.FloorIndex = entry.FloorIndex; // 서수·테마는 스택이 원천(어댑터 조립과 같은 강제 — 드리프트 차단)
+                clone.ThemeId = entry.ThemeId;
+                floorParamOverrides.Add(clone);
+            }
+        }
+
+        /// <summary>
+        /// 층별 파라미터 세션 오버라이드를 조립된 Plan 에 적용한다 — FloorIndex 매칭으로 튜닝 노브만 덮어쓰고
+        /// 서수·테마는 Plan(스택) 값을 유지한다. Plan 의 FloorGenParams 는 Build 가 만든 새 인스턴스라 직접 수정해도 SO 는 무사하다.
+        /// </summary>
+        /// <param name="plan">적용 대상 Plan.</param>
+        private void ApplyFloorParamOverrides(MapGenPlan plan)
+        {
+            Log.D("[MapGenPreviewWindow] ApplyFloorParamOverrides");
+            for (int i = 0; i < plan.FloorParams.Length; i++)
+            {
+                FloorGenParams target = plan.FloorParams[i];
+                for (int o = 0; o < floorParamOverrides.Count; o++)
+                {
+                    FloorGenParams source = floorParamOverrides[o];
+                    if (source.FloorIndex != target.FloorIndex)
+                    {
+                        continue;
+                    }
+
+                    target.RoomsTotalMin = source.RoomsTotalMin;
+                    target.RoomsTotalMax = source.RoomsTotalMax;
+                    target.CycleRoomPercent = source.CycleRoomPercent;
+                    target.CorridorLinkPercent = source.CorridorLinkPercent;
+                    target.CorridorChainMax = source.CorridorChainMax;
+                    target.DangerBias = source.DangerBias;
+                    target.ZombieDensitySafeMin = source.ZombieDensitySafeMin;
+                    target.ZombieDensitySafeMax = source.ZombieDensitySafeMax;
+                    target.ZombieDensityMidMin = source.ZombieDensityMidMin;
+                    target.ZombieDensityMidMax = source.ZombieDensityMidMax;
+                    target.ZombieDensityDangerMin = source.ZombieDensityDangerMin;
+                    target.ZombieDensityDangerMax = source.ZombieDensityDangerMax;
+                    target.ListenerRatioPercent = source.ListenerRatioPercent;
+                    target.HerdZombieCountMin = source.HerdZombieCountMin;
+                    target.HerdZombieCountMax = source.HerdZombieCountMax;
+                    target.EnabledZombieTypes = source.EnabledZombieTypes;
+                    break;
+                }
+            }
         }
 
         /// <summary>검증 결과 패널 — 4종 패스 각각의 통과/실패·실패 사유·경고(X6)·리롤 횟수·확정 시드를 표시한다(AC-23·AC-17).</summary>
@@ -414,6 +543,8 @@ namespace EmptyHouse.MapGen.Editor
                 }
 
                 MapGenPlan plan = MapFloorPlanAssembler.Build(stack, snapshot, out _);
+                SyncFloorParamOverrides(stack); // 패널이 아직 안 그려진 세션(단축 실행)에서도 작업본을 보장한다
+                ApplyFloorParamOverrides(plan);
                 lastResult = generator.Generate(plan);
                 lastTemplates = new List<RoomTemplateDef>(plan.FlatTemplates);
                 if (lastResult.Success)
