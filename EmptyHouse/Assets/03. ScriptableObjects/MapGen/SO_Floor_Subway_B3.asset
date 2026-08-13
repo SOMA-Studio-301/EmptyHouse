@@ -10,12 +10,12 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 4450edb8467b4f81a68bd2b66d70d2e0, type: 3}
-  m_Name: SO_Floor_Hall_B1
+  m_Name: SO_Floor_Subway_B3
   m_EditorClassIdentifier: Assembly-CSharp::EmptyHouse.MapGen.Runtime.FloorDefinitionSO
-  ThemeId: hall
+  ThemeId: subway
   GenParams:
-    FloorIndex: -1
-    ThemeId: hall
+    FloorIndex: -3
+    ThemeId: subway
     RoomsTotalMin: 10
     RoomsTotalMax: 11
     CycleRoomPercent: 40

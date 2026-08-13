@@ -10,9 +10,9 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: c5dfd33387e04cfd8e467c185a922f77, type: 3}
-  m_Name: SO_Map_Hall3F
+  m_Name: SO_Map_Subway
   m_EditorClassIdentifier: Assembly-CSharp::EmptyHouse.MapGen.Runtime.MapDefinitionSO
-  MapId: hall_3f
+  MapId: subway
   GenParams:
     Seed: 0
     RoomsTotalMin: 28
@@ -43,7 +43,6 @@ MonoBehaviour:
     HerdZombieCountMin: 3
     HerdZombieCountMax: 5
     EnabledZombieTypes: 1
-    Floors: []
     ShaftCountMin: 2
     ShaftCountMax: 3
     ShaftDepthPercentMin: 25
@@ -53,9 +52,11 @@ MonoBehaviour:
     VaccineFloorPlan: 01000000ffffffffffffffff
     CorpseStationFloorPlan: 
   Floors:
+  - {fileID: 11400000, guid: 774d2f3232088a74a843d143b7471a2b, type: 2}
+  - {fileID: 11400000, guid: 4e2c3809440700d40af037d63edae073, type: 2}
   - {fileID: 11400000, guid: 65118e34d9fc3054a99e92505e18db56, type: 2}
   - {fileID: 11400000, guid: 292eb4389e43f4f47a4af642e1e98072, type: 2}
   - {fileID: 11400000, guid: 52416170d9aaf344eba4397205254c1d, type: 2}
-  BasementCount: 1
+  BasementCount: 3
   CommonRegistry: {fileID: 11400000, guid: 8a81f61e4cebe0d4c8c7a8b02ec4afb5, type: 2}
   LightingProfile: {fileID: 11400000, guid: 3fecb8432b1bb4f4e9e08b5d04b81086, type: 2}

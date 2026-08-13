@@ -10,30 +10,30 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 4450edb8467b4f81a68bd2b66d70d2e0, type: 3}
-  m_Name: SO_Floor_Hall_Main
+  m_Name: SO_Floor_Subway_1F
   m_EditorClassIdentifier: Assembly-CSharp::EmptyHouse.MapGen.Runtime.FloorDefinitionSO
-  ThemeId: hall
+  ThemeId: subway
   GenParams:
     FloorIndex: 0
-    ThemeId: hall
-    RoomsTotalMin: 28
-    RoomsTotalMax: 32
-    CycleRoomPercent: 75
+    ThemeId: subway
+    RoomsTotalMin: 10
+    RoomsTotalMax: 11
+    CycleRoomPercent: 40
     CorridorLinkPercent: 100
     CorridorChainMax: 3
     DangerBias: 0
     ZombieDensitySafeMin: 0
-    ZombieDensitySafeMax: 0
-    ZombieDensityMidMin: 0
+    ZombieDensitySafeMax: 1
+    ZombieDensityMidMin: 1
     ZombieDensityMidMax: 2
-    ZombieDensityDangerMin: 3
-    ZombieDensityDangerMax: 5
+    ZombieDensityDangerMin: 2
+    ZombieDensityDangerMax: 3
     ListenerRatioPercent: 25
     HerdZombieCountMin: 3
     HerdZombieCountMax: 5
     EnabledZombieTypes: 1
     ReturnExitCount: 2
-    WardrobeCount: 6
+    WardrobeCount: 2
   Templates:
   - {fileID: 11400000, guid: eb073e73ad974e44db7d2536c38949d7, type: 2}
   - {fileID: 11400000, guid: 86afa678698b92e4cb5b042a8e4ea6f4, type: 2}
