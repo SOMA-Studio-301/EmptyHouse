@@ -194,8 +194,17 @@ public class ServerGameManager : NetworkBehaviour
     /// </summary>
     private void BroadcastTitles()
     {
-        // TODO(impl): roster 전원 → PlayerTitle{ClientId, LazyTeammate} 배열 구성 후 BroadcastTitlesClientRpc 송신.
-        Log.D("[ServerGameManager] BroadcastTitles");
+        // Log.D("[ServerGameManager] BroadcastTitles");
+
+        // 스텁 단계 — 로스터 전원 LazyTeammate 고정. 기획 확정 시 이 배정부가 집계 로직으로 교체된다.
+        PlayerTitle[] titles = new PlayerTitle[roster.Count];
+        int index = 0;
+        foreach (ulong clientId in roster.Keys)
+        {
+            titles[index++] = new PlayerTitle { ClientId = clientId, Title = TitleId.LazyTeammate };
+        }
+
+        BroadcastTitlesClientRpc(titles);
     }
 
     /// <summary>서버가 확정한 칭호 배열을 수신해 각 클라 로컬 채널로 방송한다.</summary>
@@ -203,8 +212,8 @@ public class ServerGameManager : NetworkBehaviour
     [ClientRpc]
     private void BroadcastTitlesClientRpc(PlayerTitle[] titles)
     {
-        // TODO(impl): playerTitlesChanged.RaiseEvent(titles).
-        Log.D($"[ServerGameManager] BroadcastTitlesClientRpc {titles.Length}명");
+        // Log.D($"[ServerGameManager] BroadcastTitlesClientRpc {titles.Length}명");
+        playerTitlesChanged.RaiseEvent(titles);
     }
 
     /// <summary>

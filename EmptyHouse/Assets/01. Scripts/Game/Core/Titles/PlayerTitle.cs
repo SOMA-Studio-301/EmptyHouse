@@ -1,4 +1,3 @@
-using Border.Core;
 using Unity.Netcode;
 
 /// <summary>
@@ -15,7 +14,7 @@ public struct PlayerTitle : INetworkSerializable
     /// <typeparam name="T">리더 또는 라이터.</typeparam>
     public void NetworkSerialize<T>(BufferSerializer<T> serializer) where T : IReaderWriter
     {
-        // TODO(impl): ClientId·Title SerializeValue(enum 미지원 NGO 버전이면 int 캐스팅).
-        Log.D("[PlayerTitle] NetworkSerialize");
+        serializer.SerializeValue(ref ClientId);
+        serializer.SerializeValue(ref Title);
     }
 }

@@ -42,14 +42,15 @@ public class UIResult : MonoBehaviour
     /// <summary>표시 중 칭호가 늦게 도착할 수 있어 채널 구독을 건다.</summary>
     private void OnEnable()
     {
-        // TODO(impl): playerTitlesChanged.OnEventRaised 에 HandleTitlesChanged 구독.
-        Log.D("[UIResult] OnEnable");
+        // Log.D("[UIResult] OnEnable");
+        playerTitlesChanged.OnEventRaised += HandleTitlesChanged;
     }
 
     /// <summary>결과창이 닫히면 카운트다운을 정지한다.</summary>
     private void OnDisable()
     {
-        // TODO(impl): playerTitlesChanged.OnEventRaised 구독 해제.
+        playerTitlesChanged.OnEventRaised -= HandleTitlesChanged;
+
         if (countdownRoutine == null) return;
 
         StopCoroutine(countdownRoutine);
@@ -63,7 +64,7 @@ public class UIResult : MonoBehaviour
     /// <param name="reason">서버가 확정한 종료 결과. 현재는 표시 분기가 없어 로그로만 남긴다.</param>
     public void Show(GameResultReason reason)
     {
-        Log.D($"[UIResult] Show {reason}");
+        // Log.D($"[UIResult] Show {reason}");
 
         ShowTeamSlots();
 
@@ -75,6 +76,11 @@ public class UIResult : MonoBehaviour
     {
         IReadOnlyList<Player> players = SessionCoordinator.Instance.CurrentLobby.Players;
 
+        // 스텁 단계 — clientId↔로비 슬롯 매핑이 없어 전원 동일 칭호를 가정한다. 캐시 첫 원소의 칭호를 전 슬롯에 적용하고,
+        // 캐시가 비었으면(방송 전) None → DefaultTitleKey 폴백. 실제 칭호 분기 카드에서 슬롯별 매핑으로 교체된다.
+        PlayerTitle[] titles = playerTitlesChanged.CurrentTitles;
+        string titleKey = ResolveTitleKey(titles != null && titles.Length > 0 ? titles[0].Title : TitleId.None);
+
         for (int i = 0; i < userSlots.Length; i++)
         {
             if (i >= players.Count)
@@ -84,12 +90,10 @@ public class UIResult : MonoBehaviour
             }
 
             Player player = players[i];
-            // TODO(impl): playerTitlesChanged.CurrentTitles 에서 칭호를 찾아 ResolveTitleKey 로 키를 정한다
-            //             (clientId↔로비 슬롯 매핑 부재 — 스텁은 전원 동일 칭호라 첫 원소를 전 슬롯에 적용해도 무해).
             userSlots[i].SetPlayerInfo(
                 TryGetPlayerData(player, LobbyDataKeys.PlayerName, out string playerName) ? playerName : "Unknown",
                 TryGetPlayerData(player, LobbyDataKeys.SteamId, out string steamId) ? steamId : string.Empty,
-                DefaultTitleKey);
+                titleKey);
         }
     }
 
@@ -97,8 +101,8 @@ public class UIResult : MonoBehaviour
     /// <param name="titles">플레이어별 칭호. 로스터 전원 분.</param>
     private void HandleTitlesChanged(PlayerTitle[] titles)
     {
-        // TODO(impl): ShowTeamSlots 재호출로 슬롯 칭호 갱신.
-        Log.D($"[UIResult] HandleTitlesChanged {titles.Length}명");
+        // Log.D($"[UIResult] HandleTitlesChanged {titles.Length}명");
+        ShowTeamSlots();
     }
 
     /// <summary>칭호를 표시용 로컬라이즈 키로 변환한다. 스텁 단계 — LazyTeammate 외에는 전부 폴백 키.</summary>
@@ -106,9 +110,8 @@ public class UIResult : MonoBehaviour
     /// <returns>슬롯 칭호 라벨에 넘길 로컬라이즈 키.</returns>
     private string ResolveTitleKey(TitleId title)
     {
-        // TODO(impl): LazyTeammate → LazyTeammateTitleKey, 그 외 → DefaultTitleKey.
-        Log.D($"[UIResult] ResolveTitleKey {title}");
-        return default;
+        // Log.D($"[UIResult] ResolveTitleKey {title}");
+        return title == TitleId.LazyTeammate ? LazyTeammateTitleKey : DefaultTitleKey;
     }
 
     /// <summary>남은 초를 1초 간격으로 동적 prefix 에 주입한다. 0 이 되면 숫자를 지운다(씬 전환은 서버가 한다).</summary>

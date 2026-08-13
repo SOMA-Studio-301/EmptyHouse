@@ -22,15 +22,16 @@ public class PlayerTitlesEventChannelSO : ScriptableObject
     /// <summary>SO 활성화 시 캐시를 비운다. 에디터에서 SO 는 플레이 세션 사이에 살아남으므로 이전 세션 값이 남지 않게 한다.</summary>
     private void OnEnable()
     {
-        // TODO(impl): CurrentTitles 초기화.
-        Log.D("[PlayerTitlesEventChannelSO] OnEnable");
+        // Log.D("[PlayerTitlesEventChannelSO] OnEnable");
+        CurrentTitles = null;
     }
 
     /// <summary>칭호 배열을 캐시하고 모든 구독자에게 방송한다(각 클라의 RPC 수신부에서 호출).</summary>
     /// <param name="titles">플레이어별 칭호. 로스터 전원 분.</param>
     public void RaiseEvent(PlayerTitle[] titles)
     {
-        // TODO(impl): CurrentTitles 캐시 갱신 후 OnEventRaised 방송.
-        Log.D($"[PlayerTitlesEventChannelSO] RaiseEvent {titles.Length}명");
+        // Log.D($"[PlayerTitlesEventChannelSO] RaiseEvent {titles.Length}명");
+        CurrentTitles = titles;
+        OnEventRaised.Invoke(titles);
     }
 }
