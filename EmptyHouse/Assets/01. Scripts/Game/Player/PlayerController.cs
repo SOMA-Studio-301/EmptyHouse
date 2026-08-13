@@ -284,6 +284,10 @@ public class PlayerController : NetworkBehaviour
         aimIndicator.enabled = false; // OnDisable 에서 궤적선을 스스로 지운다 — 관전 화면에 남지 않는다
         body.linearVelocity = Vector3.zero;
         body.useGravity = false; // PlayerBodyVisibility 가 콜라이더를 끈 뒤에도 중력이 남으면 계속 낙하해 위치가 흘러간다
+
+        // Vcam 을 꺼서 CinemachineBrain 이 Camera.main 을 계속 이쪽으로 붙잡지 않게 한다.
+        // 그러지 않으면 PlayerSpectatorController 가 궤도로 옮긴 Camera.main 트랜스폼을 Brain 이 매 프레임 되돌린다.
+        onCameraChanged.RaiseEvent(null);
     }
 
     /// <summary>
@@ -378,6 +382,8 @@ public class PlayerController : NetworkBehaviour
     /// <param name="isDisguised">변경된 위장 상태.</param>
     private void HandleDisguiseChanged(bool isDisguised)
     {
+        if (!IsOwner) return;
+
         onCameraChanged.RaiseEvent(isDisguised ? disguiseVcam : eyeVcam);
     }
 
