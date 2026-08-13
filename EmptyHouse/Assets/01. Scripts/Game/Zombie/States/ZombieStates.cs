@@ -258,6 +258,10 @@ public class ZombieChaseState : IZombieState
     {
         ZombieController controller = machine.Controller;
 
+        // 무리 추격에서 누가 비킬지는 타겟까지의 거리가 정한다 — 가까운 좀비가 우선권을 갖고,
+        // 뒤의 좀비가 옆으로 돌아 나간다. 거리가 매 프레임 변하므로 여기서 갱신한다(EH-43).
+        machine.UpdateChaseAvoidancePriority();
+
         // 사거리 판정이 지각 판정보다 먼저다. 상실 분기 안에 두면 대상이 시야 원뿔 밖으로 돌아
         // 들어왔을 때(뒤·옆에 붙었을 때) 몸이 닿아 있는데도 ChaseToInvestigateSeconds 동안 때리지 않는다.
         // 유효성은 ServerValidateTarget 이 매 프레임 보장하므로, 여기서 잡히는 대상은 살아 있고 위장도 아니다.
@@ -288,7 +292,8 @@ public class ZombieChaseState : IZombieState
         machine.MoveToTarget();
     }
 
-    public void Exit(ZombieStateMachine machine) { }
+    // 리셋하지 않으면 추격에서 내려온 좀비가 배회·조사 중에도 추격 때의 우선순위를 물고 다닌다.
+    public void Exit(ZombieStateMachine machine) => machine.ResetAvoidancePriority();
 }
 
 public class ZombieAttackState : IZombieState

@@ -5,6 +5,14 @@ using UnityEngine.AI;
 [RequireComponent(typeof(ZombieController), typeof(NavMeshAgent))]
 public class ZombieStateMachine : NetworkBehaviour
 {
+    // 추격 회피 우선순위(낮을수록 우선). 전원이 프리팹 기본값 50 동순위면 RVO 가 누가 비킬지
+    // 정하지 못해 회피 부담을 반반 나누다 오실레이션이 남는다(EH-43). 타겟에 가까운 좀비에게
+    // 우선권을 주면 뒤의 좀비가 앞을 비켜 옆으로 돌아 나간다. 범위는 기본값 50 을 가운데 둔 30~70.
+    private const int chasePriorityClosest = 30;
+    private const int chasePriorityFarthest = 70;
+    private const float chasePriorityMaxDistance = 20f; // 이 거리(m) 이상은 전부 최하 우선권
+    private const int defaultAvoidancePriority = 50;    // Zombie.prefab 의 NavMeshAgent 기본값
+
     [SerializeField] private ZombieController controller;
     [SerializeField] private NavMeshAgent agent;
     [SerializeField] private ZombiePlayerCaughtEventChannelSO playerCaughtChannel;
@@ -233,6 +241,26 @@ public class ZombieStateMachine : NetworkBehaviour
     {
         if (!IsServer || agent == null) return;
         agent.speed = speed;
+    }
+
+    /// <summary>
+    /// 타겟까지 남은 거리로 회피 우선순위를 매 프레임 갱신한다(가까울수록 우선).
+    /// 타겟이 없으면(추격 상실 구간) 마지막 값을 유지한다 — 어차피 상태를 벗어날 때 리셋된다.
+    /// </summary>
+    public void UpdateChaseAvoidancePriority()
+    {
+        if (!IsServer || agent == null || controller.CurrentTarget == null) return;
+
+        float distance = Vector3.Distance(transform.position, controller.CurrentTarget.position);
+        float t = Mathf.Clamp01(distance / chasePriorityMaxDistance);
+        agent.avoidancePriority = Mathf.RoundToInt(Mathf.Lerp(chasePriorityClosest, chasePriorityFarthest, t));
+    }
+
+    /// <summary>회피 우선순위를 프리팹 기본값으로 되돌린다. 추격을 벗어날 때 반드시 호출한다.</summary>
+    public void ResetAvoidancePriority()
+    {
+        if (!IsServer || agent == null) return;
+        agent.avoidancePriority = defaultAvoidancePriority;
     }
 
     private void UpdateFacing(float deltaTime)
