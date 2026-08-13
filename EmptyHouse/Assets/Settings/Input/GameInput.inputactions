@@ -158,6 +158,15 @@
                     "processors": "",
                     "interactions": "",
                     "initialStateCheck": false
+                },
+                {
+                    "name": "MapOverview",
+                    "type": "Button",
+                    "id": "1b4e6c90-2a73-4d58-8c61-9f04d7b28e10",
+                    "expectedControlType": "Button",
+                    "processors": "",
+                    "interactions": "",
+                    "initialStateCheck": false
                 }
             ],
             "bindings": [
@@ -455,6 +464,17 @@
                     "processors": "",
                     "groups": "Keyboard&Mouse",
                     "action": "Flashlight",
+                    "isComposite": false,
+                    "isPartOfComposite": false
+                },
+                {
+                    "name": "",
+                    "id": "1b4e6c90-2a73-4d58-8c61-9f04d7b28e11",
+                    "path": "<Keyboard>/tab",
+                    "interactions": "",
+                    "processors": "",
+                    "groups": "Keyboard&Mouse",
+                    "action": "MapOverview",
                     "isComposite": false,
                     "isPartOfComposite": false
                 },

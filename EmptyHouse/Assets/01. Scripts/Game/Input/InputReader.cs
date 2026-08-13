@@ -32,6 +32,7 @@ public class InputReader : ScriptableObject, GameInput.IGameplayActions, GameInp
     public event UnityAction AimPressedEvent = delegate { }; // 투척 조준(우클릭) 누름. 누르는 동안만 궤적이 유지된다
     public event UnityAction AimCanceledEvent = delegate { }; // 투척 조준(우클릭) 해제. 궤적을 즉시 지운다
     public event UnityAction FlashlightEvent = delegate { }; // 손전등 토글(F) 누름. 실제 온/오프는 서버 권위 PlayerFlashlight가 수행
+    public event UnityAction MapOverviewEvent = delegate { }; // 안내도 토글(M) 누름(EH-62). 개폐 판정은 UIMapOverview 가 수행
 
     private GameInput gameInput;
 
@@ -367,6 +368,20 @@ public class InputReader : ScriptableObject, GameInput.IGameplayActions, GameInp
         if (context.phase == InputActionPhase.Performed)
         {
             FlashlightEvent.Invoke();
+        }
+    }
+
+    /// <summary>
+    /// MapOverview 액션 콜백(M — 안내도 토글, EH-62). 눌림을 <see cref="MapOverviewEvent"/> 로 발행한다.
+    /// </summary>
+    /// <param name="context">Input System 이 전달하는 콜백 컨텍스트.</param>
+    public void OnMapOverview(InputAction.CallbackContext context)
+    {
+        RememberDevice(context);
+
+        if (context.phase == InputActionPhase.Performed)
+        {
+            MapOverviewEvent.Invoke();
         }
     }
 
