@@ -185,7 +185,9 @@ namespace EmptyHouse.MapGen.Runtime
                         Bounds current = CombinedRendererBounds(stair);
                         stair.transform.position += new Vector3(strip.min.x - current.min.x, floorOrigin.y - current.min.y, strip.min.z - current.min.z);
 
-                        AddStairRamps(stair, stairsRoot);
+                        // 램프 플레이트 비활성(2026-08-13 기획 반영) — 좀비 층간 이동이 기획상 차단이라 계단면 내비 연속성이 불필요.
+                        // 다층 좀비 이동이 열리면 아래 한 줄 복원(없으면 계단 복셀화 단절로 층간 경로 PathPartial — M9-9 실측).
+                        // AddStairRamps(stair, stairsRoot);
                         AddTopBridge(stair, stairsRoot, room.Rotation, floorOrigin.y + FloorGeometry.StairRise(definition, room.FloorIndex));
 
                         // 천장 절개 — 헤드룸 구간 (0,2)·(0,3), 천장고 6m 기준 밴드(벽은 min.y 가 바닥이라 안 걸린다)
