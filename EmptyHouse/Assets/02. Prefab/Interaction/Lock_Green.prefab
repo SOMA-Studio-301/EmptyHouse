@@ -1,6 +1,6 @@
 %YAML 1.1
 %TAG !u! tag:unity3d.com,2011:
---- !u!1001 &7458508655792745044
+--- !u!1001 &850356175432044751
 PrefabInstance:
   m_ObjectHideFlags: 0
   serializedVersion: 2
@@ -50,11 +50,15 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 1829482273108571828, guid: 63263ff2c8051a34090db5a1ed939a29, type: 3}
       propertyPath: m_Name
-      value: Lock_02
+      value: Lock_Green
       objectReference: {fileID: 0}
+    - target: {fileID: 3359024919400448815, guid: 63263ff2c8051a34090db5a1ed939a29, type: 3}
+      propertyPath: m_Mesh
+      value: 
+      objectReference: {fileID: -496664410053071598, guid: acb83d74250d34b4c85e6add1223dcfe, type: 3}
     - target: {fileID: 3366546344416222084, guid: 63263ff2c8051a34090db5a1ed939a29, type: 3}
       propertyPath: GlobalObjectIdHash
-      value: 1695712608
+      value: 4109515923
       objectReference: {fileID: 0}
     - target: {fileID: 3366546344416222084, guid: 63263ff2c8051a34090db5a1ed939a29, type: 3}
       propertyPath: SceneMigrationSynchronization
@@ -64,6 +68,10 @@ PrefabInstance:
       propertyPath: InScenePlacedSourceGlobalObjectIdHash
       value: 840443280
       objectReference: {fileID: 0}
+    - target: {fileID: 5194508736754871802, guid: 63263ff2c8051a34090db5a1ed939a29, type: 3}
+      propertyPath: 'm_Materials.Array.data[0]'
+      value: 
+      objectReference: {fileID: 4861778978402576406, guid: acb83d74250d34b4c85e6add1223dcfe, type: 3}
     m_RemovedComponents: []
     m_RemovedGameObjects: []
     m_AddedGameObjects: []

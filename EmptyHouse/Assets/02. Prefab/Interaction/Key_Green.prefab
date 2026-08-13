@@ -1,6 +1,6 @@
 %YAML 1.1
 %TAG !u! tag:unity3d.com,2011:
---- !u!1001 &1756358162558279740
+--- !u!1001 &9034911536585880780
 PrefabInstance:
   m_ObjectHideFlags: 0
   serializedVersion: 2
@@ -10,15 +10,15 @@ PrefabInstance:
     m_Modifications:
     - target: {fileID: 2750920622757039132, guid: 624b8ef91e8eeef49b3bef9a6098f01a, type: 3}
       propertyPath: m_LocalPosition.x
-      value: 0
+      value: 1041.025
       objectReference: {fileID: 0}
     - target: {fileID: 2750920622757039132, guid: 624b8ef91e8eeef49b3bef9a6098f01a, type: 3}
       propertyPath: m_LocalPosition.y
-      value: 0
+      value: 685.78876
       objectReference: {fileID: 0}
     - target: {fileID: 2750920622757039132, guid: 624b8ef91e8eeef49b3bef9a6098f01a, type: 3}
       propertyPath: m_LocalPosition.z
-      value: 0
+      value: -2.375
       objectReference: {fileID: 0}
     - target: {fileID: 2750920622757039132, guid: 624b8ef91e8eeef49b3bef9a6098f01a, type: 3}
       propertyPath: m_LocalRotation.w
@@ -48,9 +48,25 @@ PrefabInstance:
       propertyPath: m_LocalEulerAnglesHint.z
       value: 0
       objectReference: {fileID: 0}
+    - target: {fileID: 4621615472418461306, guid: 624b8ef91e8eeef49b3bef9a6098f01a, type: 3}
+      propertyPath: m_Mesh
+      value: 
+      objectReference: {fileID: -6579571654938043628, guid: c00af1aeb524a1a45bd62ea90361c1af, type: 3}
+    - target: {fileID: 6991922343254469061, guid: 624b8ef91e8eeef49b3bef9a6098f01a, type: 3}
+      propertyPath: pairId
+      value: 1
+      objectReference: {fileID: 0}
+    - target: {fileID: 6991922343254469061, guid: 624b8ef91e8eeef49b3bef9a6098f01a, type: 3}
+      propertyPath: itemData
+      value: 
+      objectReference: {fileID: 11400000, guid: 3ab6d928dc515f848a387604b994456d, type: 2}
+    - target: {fileID: 7371407550203067109, guid: 624b8ef91e8eeef49b3bef9a6098f01a, type: 3}
+      propertyPath: 'm_Materials.Array.data[0]'
+      value: 
+      objectReference: {fileID: 2100000, guid: 42947983de12a4a4a9f24f96c19e2970, type: 2}
     - target: {fileID: 7963251595659370824, guid: 624b8ef91e8eeef49b3bef9a6098f01a, type: 3}
       propertyPath: GlobalObjectIdHash
-      value: 3930135569
+      value: 2102261229
       objectReference: {fileID: 0}
     - target: {fileID: 7963251595659370824, guid: 624b8ef91e8eeef49b3bef9a6098f01a, type: 3}
       propertyPath: SceneMigrationSynchronization
@@ -62,7 +78,7 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 8764207917146816838, guid: 624b8ef91e8eeef49b3bef9a6098f01a, type: 3}
       propertyPath: m_Name
-      value: Key_00
+      value: Key_Green
       objectReference: {fileID: 0}
     m_RemovedComponents: []
     m_RemovedGameObjects: []
