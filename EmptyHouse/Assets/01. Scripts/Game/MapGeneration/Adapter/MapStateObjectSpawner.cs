@@ -17,8 +17,10 @@ namespace EmptyHouse.MapGen.Runtime
     public sealed class MapStateObjectSpawner : MonoBehaviour
     {
         [Header("Refs")]
-        [SerializeField] private MapGenNetworkDriver driver; // 블루프린트·맵 루트 원천
-        [SerializeField] private MapPrefabRegistrySO prefabRegistry; // 상태 오브젝트 프리팹 레지스트리
+        [SerializeField] private MapGenNetworkDriver driver; // 블루프린트·맵 루트·빈 집 정의 원천
+
+        private MapPrefabRegistrySO prefabRegistry => driver.MapDefinition.CommonRegistry; // 테마 무관 상호작용·아이템 프리팹(M10-1 — 정의가 단일 출처, 직배선과의 드리프트 차단)
+        private float cellMeters => driver.MapDefinition.Floors[0].CellMeters; // 셀 실측 — 계단 연결 층 쌍 동일(린트 강제)
 
         [Header("Event Channels")]
         [SerializeField] private VoidEventChannelSO onMapNavMeshReadyServer; // 구독 — 발화 시 서버 스폰 개시
@@ -76,12 +78,6 @@ namespace EmptyHouse.MapGen.Runtime
         private void SpawnReturnExits(MapBlueprint blueprint)
         {
             Log.D("[MapStateObjectSpawner] SpawnReturnExits");
-            if (prefabRegistry.ReturnExitPrefab == null)
-            {
-                Log.W("[MapStateObjectSpawner] 탈출문 프리팹 미등록(ReturnExitPrefab) — 탈출구 없음, 세션 종료 불가");
-                return;
-            }
-
             Transform doorsRoot = driver.LocalMapRoot.transform.Find("Doors");
             int spawned = 0;
             for (int e = 0; e < blueprint.Edges.Count; e++)
@@ -98,7 +94,9 @@ namespace EmptyHouse.MapGen.Runtime
                     continue;
                 }
 
-                NetworkObject exitDoor = Object.Instantiate(prefabRegistry.ReturnExitPrefab, anchor.position, anchor.rotation);
+                // 탈출문 외형은 그 간선 층의 테마 소유(M10-1) — 린트가 층별 배선을 보장한다
+                NetworkObject exitPrefab = driver.MapDefinition.FloorOf(blueprint.Rooms[blueprint.Edges[e].RoomA].FloorIndex).ReturnExitPrefab;
+                NetworkObject exitDoor = Object.Instantiate(exitPrefab, anchor.position, anchor.rotation);
                 Bounds frame = MapRuntimeAssembler.FrameBounds(exitDoor.gameObject);
                 exitDoor.transform.position += new Vector3(anchor.position.x - frame.center.x, 0f, anchor.position.z - frame.center.z);
                 exitDoor.Spawn();
@@ -135,7 +133,7 @@ namespace EmptyHouse.MapGen.Runtime
                     continue;
                 }
 
-                NetworkObject door = Object.Instantiate(prefabRegistry.DoorPrefab, anchor.position, anchor.rotation);
+                NetworkObject door = Object.Instantiate(driver.MapDefinition.FloorOf(blueprint.Rooms[edge.RoomA].FloorIndex).DoorPrefab, anchor.position, anchor.rotation);
 
                 // 문틀 기준 정렬 — 프리팹 피벗이 문틀 중심과 어긋나 있어, 문짝(Hall_Door_L/R) 제외 문틀 실측
                 // 바운드 중심을 앵커 XZ 에 맞춘다(에디터 빌더 동일 규칙). Spawn() 전에 정렬해야 초기 복제 포즈에 반영된다
@@ -405,7 +403,7 @@ namespace EmptyHouse.MapGen.Runtime
                 instance.Spawn();
 
                 ZombieController zombie = instance.GetComponentInChildren<ZombieController>();
-                zombie.ServerConfigureSpawn(position, spawn.WanderRadiusCells * prefabRegistry.CellMeters);
+                zombie.ServerConfigureSpawn(position, spawn.WanderRadiusCells * cellMeters);
                 spawned++;
             }
 
@@ -591,7 +589,7 @@ namespace EmptyHouse.MapGen.Runtime
             CellCoord worldCell = CellMath.WorldCell(blueprint.Rooms[spawn.RoomIndex], template, marker.LocalCell);
             (int minX, int minY) = MapRuntimeAssembler.MinCellBounds(blueprint);
 
-            float cell = prefabRegistry.CellMeters;
+            float cell = cellMeters;
             Vector3 mapOrigin = driver.LocalMapRoot.transform.position;
             float floorY = driver.FloorPlaneY(blueprint.Rooms[spawn.RoomIndex].FloorIndex); // 층 바닥면 가산(M9-8)
             return mapOrigin + new Vector3((worldCell.X - minX + 0.5f) * cell, floorY, (worldCell.Y - minY + 0.5f) * cell);

@@ -18,7 +18,7 @@ namespace EmptyHouse.MapGen.Editor
     {
         [SerializeField] private int seedInput; // 입력 시드 — 0 = 랜덤(생성 시 실제 값 확정·표기, X8)
         [SerializeField] private int lastConfirmedSeed; // 마지막 생성에 실제 사용한 확정 시드(AC-17·AC-22 재현 표기)
-        [SerializeField] private int templateSetIndex; // 템플릿 세트(0=프리팹 실측 단층, 1=층 스택 다층) — 시드 재현은 같은 세트에서만 성립
+        [SerializeField] private string selectedMapPath; // 선택된 빈 집 정의 에셋 경로 — 시드 재현은 같은 정의에서만 성립(도메인 리로드 보존)
         [SerializeField] private int floorFilterIndex; // 층 필터(0=전체, 1..N=Blueprint.Floors 순번) — 다층 결과 전용
         [SerializeField] private MapGenParams workingParams = new MapGenParams(); // 파라미터 오버라이드 작업본(9절)
         [SerializeField] private bool showDangerOverlay = true; // 위험 등급 그라데이션 표시(10절)
@@ -36,8 +36,8 @@ namespace EmptyHouse.MapGen.Editor
         [SerializeField] private Vector2 inputScroll; // 입력 패널 스크롤 위치
         [SerializeField] private Vector2 validationScroll; // 검증 패널 스크롤 위치
 
-        private static readonly string[] templateSetNames = { "프리팹 실측(단층)", "층 스택(다층)" }; // 템플릿 세트 선택지 — 인덱스는 templateSetIndex 와 계약. Dev 그레이박스는 제거(테스트 전용 세트)
-        private const string floorStackPath = "Assets/03. ScriptableObjects/MapGen/SO_MapFloorStack.asset"; // 다층 재료 — 런타임 드라이버와 같은 스택 SO
+        private string[] cachedMapPaths; // 프로젝트 내 전체 MapDefinitionSO 경로 캐시(도메인 리로드 시 재스캔)
+        private string[] cachedMapNames; // 드롭다운 표시명 — "MapId (에셋명)"
 
         private readonly MapGenerator generator = new MapGenerator(); // 게임과 동일 생성 라이브러리(AC-21)
         private MapGenResult lastResult; // 마지막 생성 결과 — 도메인 리로드 시 소실, 재생성으로 복원
@@ -111,13 +111,76 @@ namespace EmptyHouse.MapGen.Editor
             }
         }
 
-        /// <summary>입력 패널 — 시드(0=랜덤)·파라미터 오버라이드(9절)·기본값 리셋·오버레이 토글·배회 반경 오버라이드 편집·생성 버튼.</summary>
+        /// <summary>
+        /// 빈 집 선택 드롭다운 — 프로젝트 내 전체 MapDefinitionSO 를 스캔해 기획자가 자유롭게 갈아끼우며 본다.
+        /// ↻ 버튼으로 재스캔(에셋 추가·삭제 반영). 시드 재현은 같은 정의에서만 성립한다.
+        /// </summary>
+        private void DrawMapSelector()
+        {
+            if (cachedMapPaths == null)
+            {
+                RefreshMapCache();
+            }
+
+            using (new EditorGUILayout.HorizontalScope())
+            {
+                if (cachedMapPaths.Length == 0)
+                {
+                    EditorGUILayout.HelpBox("MapDefinitionSO 에셋이 없다 — 런타임 어댑터 셋업 실행 또는 Create > EmptyHouse > MapGen > Map Definition", MessageType.Warning);
+                }
+                else
+                {
+                    int index = System.Array.IndexOf(cachedMapPaths, selectedMapPath);
+                    if (index < 0)
+                    {
+                        index = 0; // 삭제·미선택 — 첫 정의로 폴백
+                        selectedMapPath = cachedMapPaths[0];
+                    }
+
+                    int next = EditorGUILayout.Popup("빈 집 정의", index, cachedMapNames);
+                    if (next != index)
+                    {
+                        selectedMapPath = cachedMapPaths[next];
+                        floorParamOverrides.Clear(); // 맵이 바뀌면 층 구성도 바뀐다 — 작업본은 새 정의 값으로 재구축
+                    }
+                }
+
+                if (GUILayout.Button("↻", GUILayout.Width(26f)))
+                {
+                    RefreshMapCache();
+                }
+            }
+        }
+
+        /// <summary>프로젝트의 MapDefinitionSO 전체를 재스캔해 드롭다운 캐시를 갱신한다.</summary>
+        private void RefreshMapCache()
+        {
+            Log.D("[MapGenPreviewWindow] RefreshMapCache");
+            string[] guids = AssetDatabase.FindAssets("t:MapDefinitionSO");
+            cachedMapPaths = new string[guids.Length];
+            cachedMapNames = new string[guids.Length];
+            for (int i = 0; i < guids.Length; i++)
+            {
+                cachedMapPaths[i] = AssetDatabase.GUIDToAssetPath(guids[i]);
+                var definition = AssetDatabase.LoadAssetAtPath<MapDefinitionSO>(cachedMapPaths[i]);
+                cachedMapNames[i] = $"{(string.IsNullOrEmpty(definition.MapId) ? "(MapId 없음)" : definition.MapId)} — {definition.name}";
+            }
+        }
+
+        /// <summary>현재 선택된 빈 집 정의를 로드한다 — 없으면 null(호출부가 안내).</summary>
+        /// <returns>선택 정의 — 미선택·삭제면 null.</returns>
+        private MapDefinitionSO SelectedDefinition()
+        {
+            return string.IsNullOrEmpty(selectedMapPath) ? null : AssetDatabase.LoadAssetAtPath<MapDefinitionSO>(selectedMapPath);
+        }
+
+        /// <summary>입력 패널 — 시드(0=랜덤)·빈 집 선택·파라미터 오버라이드(9절)·오버레이 토글·배회 반경 오버라이드 편집·생성 버튼.</summary>
         private void DrawInputPanel()
         {
             inputScroll = EditorGUILayout.BeginScrollView(inputScroll);
             EditorGUILayout.LabelField("생성", EditorStyles.boldLabel);
             seedInput = EditorGUILayout.IntField(new GUIContent("시드 (0 = 랜덤)"), seedInput);
-            templateSetIndex = EditorGUILayout.Popup("템플릿 세트", Mathf.Clamp(templateSetIndex, 0, templateSetNames.Length - 1), templateSetNames); // 구 세션 저장 인덱스(3종 시절) 흡수
+            DrawMapSelector();
             if (lastConfirmedSeed != 0)
             {
                 EditorGUILayout.LabelField($"마지막 확정 시드: {lastConfirmedSeed}", EditorStyles.miniLabel);
@@ -166,10 +229,7 @@ namespace EmptyHouse.MapGen.Editor
                 p.EnabledZombieTypes = (ZombieTypeMask)EditorGUILayout.EnumFlagsField("활성 좀비 타입", p.EnabledZombieTypes);
             }
 
-            if (templateSetIndex >= 1)
-            {
-                DrawFloorParamOverrides();
-            }
+            DrawFloorParamOverrides(); // 단층 정의도 층 1개의 층별 파라미터를 갖는다(M10-1)
 
             if (lastResult != null && lastResult.Success && lastResult.Blueprint.Floors.Count > 1)
             {
@@ -225,29 +285,29 @@ namespace EmptyHouse.MapGen.Editor
         }
 
         /// <summary>
-        /// 층별 파라미터 오버라이드 섹션(층 스택 세트 전용) — 스택 SO 의 층 목록을 세션 작업본으로 복제해
+        /// 층별 파라미터 오버라이드 섹션 — 선택된 빈 집 정의의 층 목록을 세션 작업본으로 복제해
         /// 층마다 방 예산·사이클·복도·위험 가중·좀비 노브를 편집한다. SO 는 수정하지 않는다(10절 — 재료 편집은 세션 한정).
         /// </summary>
         private void DrawFloorParamOverrides()
         {
-            var stack = AssetDatabase.LoadAssetAtPath<MapFloorStackSO>(floorStackPath);
-            if (stack == null || stack.Floors == null || stack.Floors.Length == 0)
+            MapDefinitionSO definition = SelectedDefinition();
+            if (definition == null || definition.Floors == null || definition.Floors.Length == 0)
             {
                 return;
             }
 
-            SyncFloorParamOverrides(stack);
+            SyncFloorParamOverrides(definition);
             EditorGUILayout.Space(6f);
-            floorParamsFoldout = EditorGUILayout.Foldout(floorParamsFoldout, "층별 파라미터(층 스택 오버라이드)", true);
+            floorParamsFoldout = EditorGUILayout.Foldout(floorParamsFoldout, "층별 파라미터(정의 오버라이드)", true);
             if (!floorParamsFoldout)
             {
                 return;
             }
 
-            if (GUILayout.Button("스택 값 리셋"))
+            if (GUILayout.Button("정의 값 리셋"))
             {
                 floorParamOverrides.Clear();
-                SyncFloorParamOverrides(stack);
+                SyncFloorParamOverrides(definition);
             }
 
             for (int i = 0; i < floorParamOverrides.Count; i++)
@@ -262,6 +322,8 @@ namespace EmptyHouse.MapGen.Editor
                     fp.CorridorLinkPercent = EditorGUILayout.IntSlider("복도 경유 확률 %", fp.CorridorLinkPercent, 0, 100);
                     fp.CorridorChainMax = EditorGUILayout.IntField("복도 연쇄 Max", fp.CorridorChainMax);
                     fp.DangerBias = EditorGUILayout.IntField("위험 층 가중", fp.DangerBias);
+                    fp.ReturnExitCount = EditorGUILayout.IntField("탈출문 수", fp.ReturnExitCount);
+                    fp.WardrobeCount = EditorGUILayout.IntField("벽장 수", fp.WardrobeCount);
                     fp.ZombieDensitySafeMin = EditorGUILayout.IntField("좀비 안전 Min", fp.ZombieDensitySafeMin);
                     fp.ZombieDensitySafeMax = EditorGUILayout.IntField("좀비 안전 Max", fp.ZombieDensitySafeMax);
                     fp.ZombieDensityMidMin = EditorGUILayout.IntField("좀비 중간 Min", fp.ZombieDensityMidMin);
@@ -277,16 +339,16 @@ namespace EmptyHouse.MapGen.Editor
         }
 
         /// <summary>
-        /// 층별 파라미터 작업본을 층 스택과 동기화한다 — 층 구성(수·서수)이 다르면 스택 값으로 재구축한다.
+        /// 층별 파라미터 작업본을 빈 집 정의와 동기화한다 — 층 구성(수·서수)이 다르면 정의 값으로 재구축한다.
         /// 매 프레임 호출되는 GUI 경로라 로그 트레이스를 두지 않는다.
         /// </summary>
-        /// <param name="stack">기준 층 스택 SO.</param>
-        private void SyncFloorParamOverrides(MapFloorStackSO stack)
+        /// <param name="definition">기준 빈 집 정의.</param>
+        private void SyncFloorParamOverrides(MapDefinitionSO definition)
         {
-            bool rebuild = floorParamOverrides.Count != stack.Floors.Length;
-            for (int i = 0; !rebuild && i < stack.Floors.Length; i++)
+            bool rebuild = floorParamOverrides.Count != definition.Floors.Length;
+            for (int i = 0; !rebuild && i < definition.Floors.Length; i++)
             {
-                rebuild = floorParamOverrides[i].FloorIndex != stack.Floors[i].FloorIndex;
+                rebuild = floorParamOverrides[i].FloorIndex != definition.FloorIndexOf(i);
             }
 
             if (!rebuild)
@@ -295,12 +357,12 @@ namespace EmptyHouse.MapGen.Editor
             }
 
             floorParamOverrides.Clear();
-            for (int i = 0; i < stack.Floors.Length; i++)
+            for (int i = 0; i < definition.Floors.Length; i++)
             {
-                FloorPrefabSet entry = stack.Floors[i];
+                FloorDefinitionSO entry = definition.Floors[i];
                 FloorGenParams source = entry.GenParams ?? new FloorGenParams();
                 FloorGenParams clone = JsonUtility.FromJson<FloorGenParams>(JsonUtility.ToJson(source));
-                clone.FloorIndex = entry.FloorIndex; // 서수·테마는 스택이 원천(어댑터 조립과 같은 강제 — 드리프트 차단)
+                clone.FloorIndex = definition.FloorIndexOf(i); // 서수·테마는 정의가 원천(MapPlanBuilder 조립과 같은 강제 — 드리프트 차단)
                 clone.ThemeId = entry.ThemeId;
                 floorParamOverrides.Add(clone);
             }
@@ -341,6 +403,8 @@ namespace EmptyHouse.MapGen.Editor
                     target.HerdZombieCountMin = source.HerdZombieCountMin;
                     target.HerdZombieCountMax = source.HerdZombieCountMax;
                     target.EnabledZombieTypes = source.EnabledZombieTypes;
+                    target.ReturnExitCount = source.ReturnExitCount;
+                    target.WardrobeCount = source.WardrobeCount;
                     break;
                 }
             }
@@ -515,8 +579,9 @@ namespace EmptyHouse.MapGen.Editor
         }
 
         /// <summary>
-        /// 현재 입력으로 생성을 실행한다 — 시드 확정(X8) 후 선택 템플릿 세트 새 인스턴스에 오버라이드를 적용해
-        /// MapGenerator.Generate 를 직접 호출한다(AC-21). 실패 결과도 그대로 패널에 보고한다(X2 — 폴백 없음).
+        /// 현재 입력으로 생성을 실행한다 — 시드 확정(X8) 후 선택한 빈 집 정의를 MapPlanBuilder 로 조립하고
+        /// 세션 오버라이드(전역·층별·배회)를 적용해 MapGenerator.Generate 를 직접 호출한다(AC-21 — 런타임 단일 경로).
+        /// 실패 결과도 그대로 패널에 보고한다(X2 — 폴백 없음).
         /// </summary>
         private void GenerateNow()
         {
@@ -528,41 +593,35 @@ namespace EmptyHouse.MapGen.Editor
             MapGenParams snapshot = JsonUtility.FromJson<MapGenParams>(JsonUtility.ToJson(workingParams));
             snapshot.Seed = lastConfirmedSeed;
 
-            if (templateSetIndex >= 1)
+            MapDefinitionSO definition = SelectedDefinition();
+            if (definition == null)
             {
-                // 층 스택(다층) — 런타임 드라이버와 같은 재료(SO_MapFloorStack → MapFloorPlanAssembler.Build).
-                // 배회 오버라이드는 미적용(층별 템플릿은 스택 소유), 파라미터 스냅샷은 공통 노브로 반영된다
-                var stack = AssetDatabase.LoadAssetAtPath<MapFloorStackSO>(floorStackPath);
-                var lintErrors = new List<string>();
-                if (!MapFloorPlanAssembler.Lint(stack, lintErrors))
-                {
-                    Log.E($"[MapGenPreviewWindow] 층 스택 린트 실패: {string.Join(" / ", lintErrors)}");
-                    lastResult = null;
-                    Repaint();
-                    return;
-                }
-
-                MapGenPlan plan = MapFloorPlanAssembler.Build(stack, snapshot, out _);
-                SyncFloorParamOverrides(stack); // 패널이 아직 안 그려진 세션(단축 실행)에서도 작업본을 보장한다
-                ApplyFloorParamOverrides(plan);
-                lastResult = generator.Generate(plan);
-                lastTemplates = new List<RoomTemplateDef>(plan.FlatTemplates);
-                if (lastResult.Success)
-                {
-                    displayBlueprint = FloorSpread(lastResult.Blueprint, plan);
-                }
-
-                floorFilterIndex = 0;
-                canvasDrawer.RequestFit();
+                Log.E("[MapGenPreviewWindow] 선택된 빈 집 정의가 없다 — 드롭다운에서 선택(↻ 로 재스캔) 후 생성");
+                lastResult = null;
                 Repaint();
                 return;
             }
 
-            // 프리팹 실측(단층) — 레지스트리 템플릿 SO(M9-3), 씬 빌더·런타임과 같은 재료로 봐야 모양 조정이 유효하다
-            List<RoomTemplateDef> templates = AssetDatabase.LoadAssetAtPath<MapPrefabRegistrySO>("Assets/03. ScriptableObjects/MapGen/SO_MapPrefabRegistry.asset").CreateTemplates();
-            ApplyWanderOverrides(templates);
-            lastResult = generator.Generate(snapshot, templates);
-            lastTemplates = templates;
+            MapGenPlan plan = MapPlanBuilder.Build(definition, snapshot, out _);
+            if (plan == null)
+            {
+                Log.E("[MapGenPreviewWindow] 정의 린트 실패 — 조립 거부(R4), 콘솔 에러 참조");
+                lastResult = null;
+                Repaint();
+                return;
+            }
+
+            SyncFloorParamOverrides(definition); // 패널이 아직 안 그려진 세션(단축 실행)에서도 작업본을 보장한다
+            ApplyFloorParamOverrides(plan);
+            ApplyWanderOverrides(plan.FlatTemplates);
+            lastResult = generator.Generate(plan);
+            lastTemplates = new List<RoomTemplateDef>(plan.FlatTemplates);
+            if (lastResult.Success && lastResult.Blueprint.Floors.Count > 1)
+            {
+                displayBlueprint = FloorSpread(lastResult.Blueprint, plan);
+            }
+
+            floorFilterIndex = 0;
             canvasDrawer.RequestFit();
             Repaint();
         }
@@ -643,7 +702,7 @@ namespace EmptyHouse.MapGen.Editor
 
         /// <summary>배회 반경 오버라이드를 템플릿 세트의 ZombieSpawn 마커 기본값에 적용한다 — 재료 편집이지 생성 결과 수정이 아니다(10절 편집 범위 원칙).</summary>
         /// <param name="templates">적용 대상 템플릿 목록(DevTemplateSet 새 인스턴스).</param>
-        private void ApplyWanderOverrides(List<RoomTemplateDef> templates)
+        private void ApplyWanderOverrides(IReadOnlyList<RoomTemplateDef> templates)
         {
             Log.D("[MapGenPreviewWindow] ApplyWanderOverrides");
             for (int i = 0; i < wanderOverrides.Count; i++)

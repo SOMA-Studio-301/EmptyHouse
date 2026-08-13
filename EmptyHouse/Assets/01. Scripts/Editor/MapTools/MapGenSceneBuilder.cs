@@ -16,23 +16,63 @@ namespace EmptyHouse.MapGen.Editor
     /// </summary>
     public static class MapGenSceneBuilder
     {
-        private const int mapCount = 5; // 예시 맵 수
         private const int baseSeed = 101; // 시드 탐색 시작값(재현 고정)
         private const float mapSpacing = 400f; // 맵 루트 간 X 간격(m) — 기본값(방 58~60 + 복도) 바운드와 여유
-        private const float mapZOffset = -400f; // 수작업 맵(Z 0~160)과 겹치지 않는 남쪽 오프셋
-        private const string rootName = "GeneratedMaps"; // 생성물 루트 이름(통째 삭제 = 원복)
         private const string markerMaterialFolder = "Assets/02. Prefab/Map/MapGenMarkers"; // 표식 머티리얼 폴더
-        private const string sharedParamsPath = "Assets/03. ScriptableObjects/MapGen/SO_MapGenParams.asset"; // 런타임 드라이버와 공유하는 파라미터 에셋(단일 출처)
-        private const string registryPath = "Assets/03. ScriptableObjects/MapGen/SO_MapPrefabRegistry.asset"; // 프리팹 레지스트리(단일 출처)
+        private const string mapDefinitionPath = "Assets/03. ScriptableObjects/MapGen/SO_Map_Hall.asset"; // 런타임 드라이버와 공유하는 빈 집 정의(단일 출처, M10-1)
 
-        /// <summary>
-        /// 활성 씬에 공유 파라미터(SO_MapGenParams) 기준 예시 맵 5개를 생성한다 —
-        /// baseSeed 부터 성공 시드를 5개 채택해 X 방향으로 나란히 배치하고 씬을 저장한다.
-        /// </summary>
+        /// <summary>활성 씬에 단층(SO_Map_Hall) 예시 맵 5개를 생성한다 — 성공 시드를 X 방향으로 나란히 배치·씬 저장.</summary>
         [MenuItem("Tools/Map/절차 예시 맵 5개 생성")]
         public static void BuildFiveExampleMaps()
         {
             Log.D("[MapGenSceneBuilder] BuildFiveExampleMaps");
+            BuildExampleMaps(mapDefinitionPath, 5, "GeneratedMaps", -400f, true);
+        }
+
+        /// <summary>활성 씬에 다층 예시 맵 2개를 생성한다 — 대상은 프로젝트 첫 다층 정의(스캔). 층간 검증(접지·NavMesh)은 계단 셋업 검증 툴 소관이라 감사는 생략.</summary>
+        [MenuItem("Tools/Map/절차 다층 예시 맵 2개 생성")]
+        public static void BuildTwoMultiFloorExampleMaps()
+        {
+            Log.D("[MapGenSceneBuilder] BuildTwoMultiFloorExampleMaps");
+            string path = FindFirstMultiFloorDefinitionPath();
+            if (path == null)
+            {
+                Log.W("[MapGenSceneBuilder] 다층(층 2개 이상) MapDefinitionSO 가 프로젝트에 없다 — 정의를 먼저 만들어라");
+                return;
+            }
+
+            BuildExampleMaps(path, 2, "GeneratedMaps_MultiFloor", -1400f, false);
+        }
+
+        /// <summary>프로젝트를 스캔해 첫 다층(층 ≥ 2) 빈 집 정의 경로를 찾는다 — 에셋 이름 하드코딩을 피하는 공용 조회(스윕·계단 검증 툴 공유).</summary>
+        /// <returns>다층 정의 에셋 경로 — 없으면 null.</returns>
+        internal static string FindFirstMultiFloorDefinitionPath()
+        {
+            foreach (string guid in AssetDatabase.FindAssets("t:MapDefinitionSO"))
+            {
+                string path = AssetDatabase.GUIDToAssetPath(guid);
+                var definition = AssetDatabase.LoadAssetAtPath<MapDefinitionSO>(path);
+                if (definition.Floors != null && definition.Floors.Length > 1)
+                {
+                    Log.D($"[MapGenSceneBuilder] 다층 정의 채택 — {definition.MapId}({path})");
+                    return path;
+                }
+            }
+
+            return null;
+        }
+
+        /// <summary>
+        /// 빈 집 정의 하나로 예시 맵 N개를 생성한다 — baseSeed 부터 성공 시드를 채택해 X 방향으로 나란히 배치하고 씬을 저장한다.
+        /// 재실행 시 같은 루트를 통째로 지우고 다시 만든다(멱등 — 원복 = 루트 삭제).
+        /// </summary>
+        /// <param name="definitionPath">빈 집 정의 에셋 경로.</param>
+        /// <param name="count">생성할 맵 수.</param>
+        /// <param name="root생성물Name">생성물 루트 이름(맵 세트별로 달라야 서로 지우지 않는다).</param>
+        /// <param name="zOffset">맵 앵커 Z 오프셋(m) — 다른 생성물 세트·수작업 맵과 겹치지 않는 대역.</param>
+        /// <param name="audit">단층 기하 감사 수행 여부(감사 도구는 단층 전제 — 다층은 계단 셋업 검증 툴 소관).</param>
+        private static void BuildExampleMaps(string definitionPath, int count, string root생성물Name, float zOffset, bool audit)
+        {
             if (EditorApplication.isPlaying)
             {
                 Log.W("[MapGenSceneBuilder] 플레이 모드에서는 실행할 수 없다 — 정지 후 재실행.");
@@ -49,24 +89,31 @@ namespace EmptyHouse.MapGen.Editor
             // 비활성 루트·과거 중복 루트까지 전부 제거(멱등) — GameObject.Find 는 비활성을 못 찾고 타 씬까지 검색한다
             foreach (GameObject sceneRoot in activeScene.GetRootGameObjects())
             {
-                if (sceneRoot.name == rootName)
+                if (sceneRoot.name == root생성물Name)
                 {
                     Object.DestroyImmediate(sceneRoot);
                 }
             }
 
-            var root = new GameObject(rootName);
+            var root = new GameObject(root생성물Name);
             var generator = new MapGenerator();
-            var registry = AssetDatabase.LoadAssetAtPath<MapPrefabRegistrySO>(registryPath);
-            List<RoomTemplateDef> templates = registry.CreateTemplates(); // 템플릿 단일 출처 = 레지스트리 SO(M9-3) — 런타임과 같은 목록
+            var definition = AssetDatabase.LoadAssetAtPath<MapDefinitionSO>(definitionPath); // 템플릿·파라미터 단일 출처 = 빈 집 정의(M10-1) — 런타임과 같은 재료
 
             int built = 0;
             int seed = baseSeed;
             var summary = new System.Text.StringBuilder();
             int totalIssues = 0;
-            while (built < mapCount && seed < baseSeed + 40)
+            while (built < count && seed < baseSeed + 40)
             {
-                MapGenResult result = generator.Generate(CreateParams(seed), templates);
+                MapGenPlan plan = MapPlanBuilder.Build(definition, CreateParams(definition, seed), out RoomTemplateSO[] flatAssets);
+                if (plan == null)
+                {
+                    Log.E("[MapGenSceneBuilder] 정의 린트 실패 — 중단(R4)");
+                    return;
+                }
+
+                IReadOnlyList<RoomTemplateDef> templates = plan.FlatTemplates;
+                MapGenResult result = generator.Generate(plan);
                 if (!result.Success)
                 {
                     Log.D($"[MapGenSceneBuilder] 시드 {seed} 실패 — 다음 시드 시도: {string.Join(" / ", result.FailReasons)}");
@@ -74,9 +121,9 @@ namespace EmptyHouse.MapGen.Editor
                     continue;
                 }
 
-                Vector3 offset = new Vector3(built * mapSpacing, 0f, mapZOffset);
-                GameObject mapRoot = BuildMap(result.Blueprint, templates, registry, root.transform, offset, built);
-                int issues = MapGenSceneAuditor.AuditMap(mapRoot, result.Blueprint, templates, built);
+                Vector3 offset = new Vector3(built * mapSpacing, 0f, zOffset);
+                GameObject mapRoot = BuildMap(result.Blueprint, templates, definition, root.transform, offset, built, flatAssets);
+                int issues = audit ? MapGenSceneAuditor.AuditMap(mapRoot, result.Blueprint, templates, built) : 0;
                 totalIssues += issues;
 
                 // 방 수는 방 전용 집계(복도·입구 제외) — Rooms.Count 그대로 찍으면 예산 위반으로 오독된다
@@ -95,7 +142,7 @@ namespace EmptyHouse.MapGen.Editor
                     }
                 }
 
-                summary.AppendLine($"맵 {built}: 시드 {seed} · 방 {roomTotal} · 복도 {corridorTotal} · 리롤 {result.RerollCount} · 경고 {result.LastReport.Warnings.Count} · 감사 {issues}건");
+                summary.AppendLine($"맵 {built}: 시드 {seed} · 층 {result.Blueprint.Floors.Count} · 방 {roomTotal} · 복도 {corridorTotal} · 리롤 {result.RerollCount} · 경고 {result.LastReport.Warnings.Count} · 감사 {issues}건");
                 built++;
                 seed++;
             }
@@ -108,35 +155,25 @@ namespace EmptyHouse.MapGen.Editor
 
             if (totalIssues > 0)
             {
-                Log.W($"[MapGenSceneBuilder] 완료 — {built}/{mapCount}개 생성 · 감사 문제 {totalIssues}건(콘솔 [Audit] 라인·씬 AuditMarkers 참조)\n{summary}");
+                Log.W($"[MapGenSceneBuilder] 완료 — {built}/{count}개 생성 · 감사 문제 {totalIssues}건(콘솔 [Audit] 라인·씬 AuditMarkers 참조)\n{summary}");
             }
             else
             {
-                Log.D($"[MapGenSceneBuilder] 완료 — {built}/{mapCount}개 생성 · 감사 문제 0건\n{summary}");
+                Log.D($"[MapGenSceneBuilder] 완료 — {built}/{count}개 생성 · 감사 문제 0건\n{summary}");
             }
         }
 
         /// <summary>
-        /// 씬 빌더 생성 파라미터 — 런타임 드라이버와 **같은 에셋**(SO_MapGenParams)을 직접 읽어 시드만 덮는다.
+        /// 씬 빌더 생성 파라미터 — 빈 집 정의의 맵 전역 파라미터를 읽어 시드만 덮는다.
         /// 프리뷰에서 본 맵 = 실제 플레이 맵을 보장하는 지점이다(과거 코드 초기값을 쓰다 복도 경유 100 vs 50 으로 갈렸다).
         /// 에셋 오염 방지를 위해 JSON 복제본을 반환한다. 감사 도구가 같은 파라미터로 블루프린트를 재현한다(드리프트 방지).
         /// </summary>
+        /// <param name="definition">빈 집 정의.</param>
         /// <param name="seed">확정 시드.</param>
         /// <returns>생성 파라미터 복제본.</returns>
-        internal static MapGenParams CreateParams(int seed)
+        internal static MapGenParams CreateParams(MapDefinitionSO definition, int seed)
         {
-            var asset = AssetDatabase.LoadAssetAtPath<MapGenParamsSO>(sharedParamsPath);
-            MapGenParams genParams;
-            if (asset == null)
-            {
-                Log.W($"[MapGenSceneBuilder] 파라미터 에셋 없음 — 코드 기본값으로 진행(런타임과 어긋날 수 있다): {sharedParamsPath}");
-                genParams = new MapGenParams();
-            }
-            else
-            {
-                genParams = JsonUtility.FromJson<MapGenParams>(JsonUtility.ToJson(asset.Params));
-            }
-
+            MapGenParams genParams = JsonUtility.FromJson<MapGenParams>(JsonUtility.ToJson(definition.GenParams));
             genParams.Seed = seed;
             return genParams;
         }
@@ -147,12 +184,13 @@ namespace EmptyHouse.MapGen.Editor
         /// </summary>
         /// <param name="blueprint">조립할 블루프린트.</param>
         /// <param name="templates">생성에 사용한 템플릿 목록.</param>
-        /// <param name="registry">프리팹 레지스트리.</param>
+        /// <param name="definition">빈 집 정의(환경 프리팹 원천, M10-1).</param>
         /// <param name="parent">루트 부모.</param>
         /// <param name="offset">맵 앵커 월드 오프셋(입구 앵커 방이 이 위치에 온다 — 런타임 입구 고정과 동일 규약).</param>
         /// <param name="index">맵 번호(이름용).</param>
+        /// <param name="flatAssets">평탄화 템플릿 SO(MapPlanBuilder.Build 산출물).</param>
         /// <returns>맵 루트 게임오브젝트(감사용).</returns>
-        private static GameObject BuildMap(MapBlueprint blueprint, IReadOnlyList<RoomTemplateDef> templates, MapPrefabRegistrySO registry, Transform parent, Vector3 offset, int index)
+        private static GameObject BuildMap(MapBlueprint blueprint, IReadOnlyList<RoomTemplateDef> templates, MapDefinitionSO definition, Transform parent, Vector3 offset, int index, RoomTemplateSO[] flatAssets)
         {
             Log.D($"[MapGenSceneBuilder] BuildMap {index} 시드={blueprint.Meta.Seed}");
 
@@ -160,8 +198,8 @@ namespace EmptyHouse.MapGen.Editor
             var anchor = new GameObject($"MapAnchor_{index}");
             anchor.transform.SetParent(parent, false);
             anchor.transform.position = offset;
-            GameObject mapRoot = MapRuntimeAssembler.Assemble(blueprint, templates, registry, anchor.transform, null,
-                (prefab, parentTransform) => (GameObject)PrefabUtility.InstantiatePrefab(prefab, parentTransform)); // 프리팹 링크 보존 — 씬 직렬화 비대 방지
+            GameObject mapRoot = MapRuntimeAssembler.Assemble(blueprint, templates, definition, anchor.transform,
+                (prefab, parentTransform) => (GameObject)PrefabUtility.InstantiatePrefab(prefab, parentTransform), flatAssets); // 프리팹 링크 보존 — 씬 직렬화 비대 방지
             mapRoot.name = $"GeneratedMap_{index}_Seed{blueprint.Meta.Seed}";
             mapRoot.transform.SetParent(parent, true);
             Object.DestroyImmediate(anchor);
@@ -193,7 +231,7 @@ namespace EmptyHouse.MapGen.Editor
                         continue; // 개구 기하 불일치로 조립기가 생략한 간선 — 감사가 표면화한다
                     }
 
-                    GameObject door = PlaceAlignedDoor(registry.DoorPrefab.gameObject, doorAnchor, doorsRoot);
+                    GameObject door = PlaceAlignedDoor(definition.FloorOf(blueprint.Rooms[edge.RoomA].FloorIndex).DoorPrefab.gameObject, doorAnchor, doorsRoot);
                     door.name = edge.State == EdgeState.DoorLocked
                         ? $"Door_e{e}_Locked_{edge.LockNumber}_{edge.LockKind}"
                         : $"Door_e{e}_Open";
@@ -206,7 +244,7 @@ namespace EmptyHouse.MapGen.Editor
                         continue;
                     }
 
-                    GameObject exitDoor = PlaceAlignedDoor(registry.ReturnExitPrefab.gameObject, returnAnchor, doorsRoot);
+                    GameObject exitDoor = PlaceAlignedDoor(definition.FloorOf(blueprint.Rooms[edge.RoomA].FloorIndex).ReturnExitPrefab.gameObject, returnAnchor, doorsRoot);
                     exitDoor.name = $"ReturnExit_e{e}_방{edge.RoomA}";
                 }
             }
@@ -217,7 +255,7 @@ namespace EmptyHouse.MapGen.Editor
             (int minX, int minY) = MapRuntimeAssembler.MinCellBounds(blueprint);
             for (int s = 0; s < blueprint.Spawns.Count; s++)
             {
-                PlaceSpawnMarker(blueprint, templates, blueprint.Spawns[s], spawnsRoot.transform, mapRoot.transform.position, minX, minY);
+                PlaceSpawnMarker(blueprint, templates, definition, blueprint.Spawns[s], spawnsRoot.transform, mapRoot.transform.position, minX, minY);
             }
 
             return mapRoot;
@@ -239,15 +277,16 @@ namespace EmptyHouse.MapGen.Editor
             return door;
         }
 
-        /// <summary>스폰 표식(색 구체)을 마커 전역 셀 중심에 놓는다 — 열쇠는 KeyNumber 를 이름에 표기.</summary>
+        /// <summary>스폰 표식(색 구체)을 마커 전역 셀 중심(그 방의 층 평면 높이)에 놓는다 — 열쇠는 KeyNumber 를 이름에 표기.</summary>
         /// <param name="blueprint">대상 블루프린트.</param>
         /// <param name="templates">템플릿 목록.</param>
+        /// <param name="definition">빈 집 정의(층 평면 Y 원천).</param>
         /// <param name="spawn">표식할 스폰.</param>
         /// <param name="spawnsRoot">표식 부모.</param>
         /// <param name="mapOrigin">맵 원점 월드 좌표.</param>
         /// <param name="minX">맵 최소 셀 X.</param>
         /// <param name="minY">맵 최소 셀 Y.</param>
-        private static void PlaceSpawnMarker(MapBlueprint blueprint, IReadOnlyList<RoomTemplateDef> templates, BlueprintSpawn spawn, Transform spawnsRoot, Vector3 mapOrigin, int minX, int minY)
+        private static void PlaceSpawnMarker(MapBlueprint blueprint, IReadOnlyList<RoomTemplateDef> templates, MapDefinitionSO definition, BlueprintSpawn spawn, Transform spawnsRoot, Vector3 mapOrigin, int minX, int minY)
         {
             RoomTemplateDef template = MapRuntimeAssembler.FindTemplate(templates, blueprint.Rooms[spawn.RoomIndex].TemplateId);
             MarkerDef marker = FindMarker(template, spawn.MarkerId);
@@ -259,10 +298,11 @@ namespace EmptyHouse.MapGen.Editor
             CellCoord worldCell = CellMath.WorldCell(blueprint.Rooms[spawn.RoomIndex], template, marker.LocalCell);
 
             float cell = MapTemplateCatalog.CellMeters;
+            float floorY = FloorGeometry.FloorPlaneY(definition, blueprint.Rooms[spawn.RoomIndex].FloorIndex); // 다층 — 표식은 그 방의 층 평면 위
             var sphere = GameObject.CreatePrimitive(PrimitiveType.Sphere);
             Object.DestroyImmediate(sphere.GetComponent<Collider>());
             sphere.transform.SetParent(spawnsRoot, false);
-            sphere.transform.position = mapOrigin + new Vector3((worldCell.X - minX + 0.5f) * cell, 1.2f, (worldCell.Y - minY + 0.5f) * cell);
+            sphere.transform.position = mapOrigin + new Vector3((worldCell.X - minX + 0.5f) * cell, floorY + 1.2f, (worldCell.Y - minY + 0.5f) * cell);
             sphere.transform.localScale = Vector3.one * (spawn.Kind == SpawnKind.HerdArea ? 2f : 1.1f);
             sphere.name = spawn.Kind == SpawnKind.Key ? $"Spawn_Key_{spawn.KeyNumber}" : $"Spawn_{spawn.Kind}";
             sphere.GetComponent<Renderer>().sharedMaterial = MarkerMaterial(spawn.Kind);

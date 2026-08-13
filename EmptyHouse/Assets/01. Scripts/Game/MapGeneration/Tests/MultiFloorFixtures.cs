@@ -28,9 +28,10 @@ namespace EmptyHouse.MapGen.Core.Tests
 
             var floorParams = new[]
             {
-                new FloorGenParams { FloorIndex = 0, ThemeId = "hall", RoomsTotalMin = 9, RoomsTotalMax = 11, CycleRoomPercent = 60, CorridorLinkPercent = 100, CorridorChainMax = 3, DangerBias = 0 },
-                new FloorGenParams { FloorIndex = 1, ThemeId = "hall", RoomsTotalMin = 6, RoomsTotalMax = 8, CycleRoomPercent = 60, CorridorLinkPercent = 100, CorridorChainMax = 3, DangerBias = 1 },
-                new FloorGenParams { FloorIndex = -1, ThemeId = "hall", RoomsTotalMin = 6, RoomsTotalMax = 8, CycleRoomPercent = 60, CorridorLinkPercent = 100, CorridorChainMax = 3, DangerBias = 2 },
+                // 탈출문은 시드 층 2(비입구 층 기본 0), 벽장은 층당 2(구 전역 6 의 층 배분 — M10-1 이관)
+                new FloorGenParams { FloorIndex = 0, ThemeId = "hall", RoomsTotalMin = 9, RoomsTotalMax = 11, CycleRoomPercent = 60, CorridorLinkPercent = 100, CorridorChainMax = 3, DangerBias = 0, ReturnExitCount = 2, WardrobeCount = 2 },
+                new FloorGenParams { FloorIndex = 1, ThemeId = "hall", RoomsTotalMin = 6, RoomsTotalMax = 8, CycleRoomPercent = 60, CorridorLinkPercent = 100, CorridorChainMax = 3, DangerBias = 1, WardrobeCount = 2 },
+                new FloorGenParams { FloorIndex = -1, ThemeId = "hall", RoomsTotalMin = 6, RoomsTotalMax = 8, CycleRoomPercent = 60, CorridorLinkPercent = 100, CorridorChainMax = 3, DangerBias = 2, WardrobeCount = 2 },
             };
 
             return MapGenPlan.Compose(genParams, floorParams, floors);

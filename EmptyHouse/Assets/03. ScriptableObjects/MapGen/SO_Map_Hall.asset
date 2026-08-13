@@ -9,16 +9,19 @@ MonoBehaviour:
   m_GameObject: {fileID: 0}
   m_Enabled: 1
   m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 4b2b328efcc26794d95a87d106161ece, type: 3}
-  m_Name: SO_MapGenParams
-  m_EditorClassIdentifier: Assembly-CSharp::EmptyHouse.MapGen.Runtime.MapGenParamsSO
-  Params:
+  m_Script: {fileID: 11500000, guid: c5dfd33387e04cfd8e467c185a922f77, type: 3}
+  m_Name: SO_Map_Hall
+  m_EditorClassIdentifier: Assembly-CSharp::EmptyHouse.MapGen.Runtime.MapDefinitionSO
+  MapId: hall
+  GenParams:
     Seed: 0
     RoomsTotalMin: 28
     RoomsTotalMax: 32
     CycleRoomPercent: 75
     CorridorLinkPercent: 100
     CorridorChainMax: 3
+    ReturnExitCount: 2
+    WardrobeCount: 6
     ShortcutValueMin: 1
     ListenerCounterDist: 2
     RerollMax: 20
@@ -40,3 +43,17 @@ MonoBehaviour:
     HerdZombieCountMin: 3
     HerdZombieCountMax: 5
     EnabledZombieTypes: 1
+    Floors: []
+    ShaftCountMin: 2
+    ShaftCountMax: 3
+    ShaftDepthPercentMin: 25
+    ShaftDepthPercentMax: 60
+    ShaftMinSeparationCells: 8
+    FloorRetryMax: 0
+    VaccineFloorPlan: 
+    CorpseStationFloorPlan: 
+  Floors:
+  - {fileID: 11400000, guid: c0ec0781732e9cc42842fd193571d87e, type: 2}
+  BasementCount: 0
+  CommonRegistry: {fileID: 11400000, guid: 8a81f61e4cebe0d4c8c7a8b02ec4afb5, type: 2}
+  LightingProfile: {fileID: 11400000, guid: 3fecb8432b1bb4f4e9e08b5d04b81086, type: 2}

@@ -1,0 +1,19 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: b8285b865ac640ae995a460cb9734beb, type: 3}
+  m_Name: SO_MapCatalog
+  m_EditorClassIdentifier: Assembly-CSharp::EmptyHouse.MapGen.Runtime.MapCatalogSO
+  Entries:
+  - Definition: {fileID: 11400000, guid: ea82e80893415bf4dbf0151bbb1f1d98, type: 2}
+    FuelCost: 50
+  - Definition: {fileID: 11400000, guid: 10e8303cf770cac44aabeabbc0f52a81, type: 2}
+    FuelCost: 100

@@ -10,12 +10,12 @@ namespace EmptyHouse.EditorTools
 {
     /// <summary>
     /// 자물쇠·지름길 지표 시드 스윕 — 정의 변경(복도 hop 제거·복도-방 문 허용) 전 기준선을 실측한다.
-    /// 생성 파라미터는 런타임과 같은 에셋(SO_MapGenParams)을 쓴다. 블루프린트를 읽기만 하고 아무것도 바꾸지 않는다.
+    /// 생성 파라미터·템플릿은 런타임과 같은 빈 집 정의(SO_Map_Hall)를 쓴다(M10-1). 블루프린트를 읽기만 하고 아무것도 바꾸지 않는다.
     /// 산출: 자물쇠 후보 수(현행/완화 가정), 채택 수, 지름길 이득 분포(현행 hop vs 방 단위 hop), 열쇠-자물쇠 거리.
     /// </summary>
     public static class MapGenLockSweep
     {
-        private const string genParamsPath = "Assets/03. ScriptableObjects/MapGen/SO_MapGenParams.asset"; // 파라미터 단일 출처
+        private const string mapDefinitionPath = "Assets/03. ScriptableObjects/MapGen/SO_Map_Hall.asset"; // 빈 집 정의 단일 출처(M10-1)
         private const int seedCount = 100; // 스윕 시드 수
         private const int baseSeed = 101; // 시작 시드(프리뷰와 동일 기준)
 
@@ -29,9 +29,8 @@ namespace EmptyHouse.EditorTools
         /// <returns>요약 리포트.</returns>
         public static string BuildReport()
         {
-            var paramsAsset = AssetDatabase.LoadAssetAtPath<MapGenParamsSO>(genParamsPath);
-            var registry = AssetDatabase.LoadAssetAtPath<MapPrefabRegistrySO>("Assets/03. ScriptableObjects/MapGen/SO_MapPrefabRegistry.asset");
-            List<RoomTemplateDef> templates = registry.CreateTemplates(); // 템플릿 단일 출처 = 레지스트리 SO(M9-3)
+            var definition = AssetDatabase.LoadAssetAtPath<MapDefinitionSO>(mapDefinitionPath);
+            List<RoomTemplateDef> templates = definition.Floors[0].CreateTemplates(); // 템플릿 단일 출처 = 층 정의 SO(M10-1)
             var generator = new MapGenerator();
 
             int ok = 0;
@@ -54,7 +53,7 @@ namespace EmptyHouse.EditorTools
 
             for (int i = 0; i < seedCount; i++)
             {
-                MapGenParams genParams = JsonUtility.FromJson<MapGenParams>(JsonUtility.ToJson(paramsAsset.Params));
+                MapGenParams genParams = JsonUtility.FromJson<MapGenParams>(JsonUtility.ToJson(definition.GenParams));
                 genParams.Seed = baseSeed + i;
                 MapGenResult result = generator.Generate(genParams, templates);
                 if (!result.Success)

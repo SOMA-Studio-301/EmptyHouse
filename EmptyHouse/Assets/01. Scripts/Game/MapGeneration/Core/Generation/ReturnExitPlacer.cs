@@ -5,7 +5,8 @@ namespace EmptyHouse.MapGen.Core
 {
     /// <summary>
     /// 탈출구(Door-Return) 배치 — 입구(방 0 = 버스 쪽)와 별개인 "맵 어딘가의 출구"(세션루프 0-3 귀환).
-    /// 가장 깊은 잎 방(연결 간선 1개·비복도) 을 ReturnExitCount 개 골라, 각 방의 봉인 소켓 중
+    /// 층별 예산(<see cref="FloorGenParams.ReturnExitCount"/> — 비입구 층 기본 0, M10-1 이관)만큼
+    /// 그 층의 가장 깊은 잎 방(연결 간선 1개·비복도)을 골라, 각 방의 봉인 소켓 중
     /// <b>맞은편 셀이 빈 공간인 것만</b> 탈출문으로 전환한다(EdgeState.ReturnExit) — 문 너머는 맵 바깥이라
     /// 다른 방으로 뚫릴 위험이 없다. 문은 열리지 않고 홀드 즉시 탈출이라 너머가 비어 있어도 무방하다.
     /// 잎 방·유효 소켓이 모자라면 있는 만큼만 배치한다(검증기가 X6 경고).
@@ -13,40 +14,19 @@ namespace EmptyHouse.MapGen.Core
     public static class ReturnExitPlacer
     {
         /// <summary>
-        /// 탈출문 간선을 전환한다 — 깊이 내림차순 잎 방에서 유효 소켓(바깥 향 봉인)이 있는 방만 채택.
+        /// 탈출문 간선을 전환한다 — 층마다 그 층 예산만큼, 깊이 내림차순 잎 방에서 유효 소켓(바깥 향 봉인)이 있는 방만 채택.
+        /// rng 를 소비하지 않는 순수 결정 단계라 층 루프 추가가 단층 결과를 바꾸지 않는다(골든 불변).
         /// </summary>
-        /// <param name="genParams">생성 파라미터(탈출구 개수).</param>
+        /// <param name="plan">생성 계획(층별 탈출구 예산).</param>
         /// <param name="blueprint">대상 블루프린트(레이아웃 완료 상태).</param>
         /// <param name="templates">템플릿 집합.</param>
         /// <param name="depths">입구 기준 방 깊이(DangerGradeCalculator).</param>
-        /// <returns>전환한 탈출문 수.</returns>
-        public static int Place(MapGenParams genParams, MapBlueprint blueprint, IReadOnlyList<RoomTemplateDef> templates, int[] depths)
+        /// <returns>전환한 탈출문 수(전 층 합).</returns>
+        public static int Place(MapGenPlan plan, MapBlueprint blueprint, IReadOnlyList<RoomTemplateDef> templates, int[] depths)
         {
             Log.D("[ReturnExitPlacer] Place");
 
-            // 탈출문은 입구 층 한정(M9-6) — 위·아래 층의 바깥은 공중/지하라 탈출 동선이 성립하지 않는다.
-            // 점유 집합도 입구 층 방만 모은다(층별 격자 분리 — 타 층 풋프린트가 이 층의 빈 공간 판정을 오염시키면 안 된다)
-            int entranceFloor = blueprint.Rooms[0].FloorIndex;
-            var occupied = new HashSet<long>();
-            for (int r = 0; r < blueprint.Rooms.Count; r++)
-            {
-                if (blueprint.Rooms[r].FloorIndex != entranceFloor)
-                {
-                    continue;
-                }
-
-                RoomTemplateDef template = FindTemplate(templates, blueprint.Rooms[r].TemplateId);
-                (int width, int height) = CellMath.RotatedSize(template.WidthCells, template.HeightCells, blueprint.Rooms[r].Rotation);
-                for (int x = 0; x < width; x++)
-                {
-                    for (int y = 0; y < height; y++)
-                    {
-                        occupied.Add(CellKey(blueprint.Rooms[r].Cell.X + x, blueprint.Rooms[r].Cell.Y + y));
-                    }
-                }
-            }
-
-            // 방별 연결 차수 — 잎 방 = 차수 1(비복도·비입구)
+            // 방별 연결 차수 — 잎 방 = 차수 1(비복도·비입구). 층 공통이라 루프 밖 1회
             var degrees = new int[blueprint.Rooms.Count];
             for (int e = 0; e < blueprint.Edges.Count; e++)
             {
@@ -60,35 +40,68 @@ namespace EmptyHouse.MapGen.Core
                 degrees[edge.RoomB]++;
             }
 
-            // 잎 방 후보 — 입구 층 한정(M9-6)·깊이 내림차순, 동률은 방 인덱스 오름차순(결정론)
-            var leaves = new List<int>();
-            for (int r = 1; r < blueprint.Rooms.Count; r++)
+            int placedTotal = 0;
+            for (int slot = 0; slot < plan.FloorParams.Length; slot++)
             {
-                if (blueprint.Rooms[r].FloorIndex != entranceFloor)
+                FloorGenParams floorParams = plan.FloorParams[slot];
+                if (floorParams.ReturnExitCount < 1)
                 {
-                    continue;
+                    continue; // 이 층은 탈출문 없음(비입구 층 기본)
                 }
 
-                RoomTemplateDef template = FindTemplate(templates, blueprint.Rooms[r].TemplateId);
-                if (!template.IsCorridor && !template.IsEntranceAnchor && degrees[r] == 1 && depths[r] >= 0)
+                // 점유 집합은 이 층 방만 모은다(층별 격자 분리 — 타 층 풋프린트가 이 층의 빈 공간 판정을 오염시키면 안 된다)
+                int floorIndex = floorParams.FloorIndex;
+                var occupied = new HashSet<long>();
+                for (int r = 0; r < blueprint.Rooms.Count; r++)
                 {
-                    leaves.Add(r);
+                    if (blueprint.Rooms[r].FloorIndex != floorIndex)
+                    {
+                        continue;
+                    }
+
+                    RoomTemplateDef template = FindTemplate(templates, blueprint.Rooms[r].TemplateId);
+                    (int width, int height) = CellMath.RotatedSize(template.WidthCells, template.HeightCells, blueprint.Rooms[r].Rotation);
+                    for (int x = 0; x < width; x++)
+                    {
+                        for (int y = 0; y < height; y++)
+                        {
+                            occupied.Add(CellKey(blueprint.Rooms[r].Cell.X + x, blueprint.Rooms[r].Cell.Y + y));
+                        }
+                    }
                 }
+
+                // 잎 방 후보 — 이 층 한정·깊이 내림차순, 동률은 방 인덱스 오름차순(결정론)
+                var leaves = new List<int>();
+                for (int r = 1; r < blueprint.Rooms.Count; r++)
+                {
+                    if (blueprint.Rooms[r].FloorIndex != floorIndex)
+                    {
+                        continue;
+                    }
+
+                    RoomTemplateDef template = FindTemplate(templates, blueprint.Rooms[r].TemplateId);
+                    if (!template.IsCorridor && !template.IsEntranceAnchor && degrees[r] == 1 && depths[r] >= 0)
+                    {
+                        leaves.Add(r);
+                    }
+                }
+
+                leaves.Sort((a, b) => depths[a] != depths[b] ? depths[b].CompareTo(depths[a]) : a.CompareTo(b));
+
+                int placed = 0;
+                for (int i = 0; i < leaves.Count && placed < floorParams.ReturnExitCount; i++)
+                {
+                    if (TryConvertOuterSeal(blueprint, templates, occupied, leaves[i]))
+                    {
+                        placed++;
+                    }
+                }
+
+                Log.D($"[ReturnExitPlacer] 층 {floorIndex} 탈출문 {placed}/{floorParams.ReturnExitCount} 개 배치(잎 방 후보 {leaves.Count})");
+                placedTotal += placed;
             }
 
-            leaves.Sort((a, b) => depths[a] != depths[b] ? depths[b].CompareTo(depths[a]) : a.CompareTo(b));
-
-            int placed = 0;
-            for (int i = 0; i < leaves.Count && placed < genParams.ReturnExitCount; i++)
-            {
-                if (TryConvertOuterSeal(blueprint, templates, occupied, leaves[i]))
-                {
-                    placed++;
-                }
-            }
-
-            Log.D($"[ReturnExitPlacer] 탈출문 {placed}/{genParams.ReturnExitCount} 개 배치(잎 방 후보 {leaves.Count})");
-            return placed;
+            return placedTotal;
         }
 
         /// <summary>

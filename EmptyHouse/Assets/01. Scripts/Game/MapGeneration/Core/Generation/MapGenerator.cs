@@ -67,7 +67,7 @@ namespace EmptyHouse.MapGen.Core
                 int[] grades = DangerGradeCalculator.ComputeDangerGrades(blueprint, hops, plan); // DangerBias 0 이면 hops 와 동일(v1 하위호환)
 
                 // 탈출문 전환은 자물쇠·스폰보다 먼저 — 봉인 간선을 바꾸는 작업이라 이후 단계가 최종 그래프를 본다
-                ReturnExitPlacer.Place(genParams, blueprint, plan.FlatTemplates, grades);
+                ReturnExitPlacer.Place(plan, blueprint, plan.FlatTemplates, grades);
 
                 if (!lockKeyPlacer.TryPlace(rng, genParams, blueprint, grades, plan.FlatTemplates))
                 {
@@ -81,7 +81,7 @@ namespace EmptyHouse.MapGen.Core
                     continue;
                 }
 
-                ValidationReport report = validator.Validate(blueprint, genParams, plan.FlatTemplates);
+                ValidationReport report = validator.Validate(blueprint, genParams, plan.FlatTemplates, plan.FloorParams);
                 result.LastReport = report;
                 if (report.AllPassed)
                 {
@@ -125,16 +125,6 @@ namespace EmptyHouse.MapGen.Core
                 errors.Add("X4: 시드 0 — 코어 진입 전에 서버가 실제 값으로 확정해야 한다(X8)");
             }
 
-            if (genParams.ReturnExitCount < 1)
-            {
-                errors.Add($"X4: 탈출문 수({genParams.ReturnExitCount}) < 1 — 탈출 경로가 없으면 세션이 끝나지 않는다");
-            }
-
-            if (genParams.WardrobeCount < 0)
-            {
-                errors.Add($"X4: 벽장 수({genParams.WardrobeCount}) < 0");
-            }
-
             if (genParams.OilCount < 1)
             {
                 errors.Add($"X4: OilCount({genParams.OilCount}) < 1 — 기름은 필수(7절 패스1)라 배치 0이면 검증이 항상 실패");
@@ -144,6 +134,22 @@ namespace EmptyHouse.MapGen.Core
             {
                 errors.Add("X4: 층 구성 불일치 — FloorParams·Floors 는 같은 길이(≥1)여야 한다");
                 return false; // 이하 층별 검사가 성립하지 않는다
+            }
+
+            // 탈출문·벽장은 층별 예산(M10-1 이관) — 합이 0이면 탈출 경로가 없어 세션이 끝나지 않는다
+            int returnExitTotal = 0;
+            for (int f = 0; f < plan.FloorParams.Length; f++)
+            {
+                returnExitTotal += plan.FloorParams[f].ReturnExitCount;
+                if (plan.FloorParams[f].WardrobeCount < 0)
+                {
+                    errors.Add($"X4: 층 {plan.FloorParams[f].FloorIndex} 벽장 수({plan.FloorParams[f].WardrobeCount}) < 0");
+                }
+            }
+
+            if (returnExitTotal < 1)
+            {
+                errors.Add($"X4: 탈출문 수 합({returnExitTotal}) < 1 — 탈출 경로가 없으면 세션이 끝나지 않는다");
             }
 
             if (plan.SeedFloorSlot < 0 || plan.SeedFloorSlot >= plan.Floors.Length)
