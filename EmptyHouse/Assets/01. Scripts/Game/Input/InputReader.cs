@@ -373,14 +373,16 @@ public class InputReader : ScriptableObject, GameInput.IGameplayActions, GameInp
 
     /// <summary>
     /// MapOverview 액션 콜백(M — 안내도 토글, EH-62). 눌림을 <see cref="MapOverviewEvent"/> 로 발행한다.
-    /// ⚠️ GameInput.inputactions 의 Gameplay 맵에 MapOverview 액션(M 바인딩)을 추가하고 클래스를 재생성해야
-    /// 이 콜백이 인터페이스 구현으로 연결된다 — 에셋 미갱신 상태에서는 호출되지 않는 일반 메서드다.
     /// </summary>
     /// <param name="context">Input System 이 전달하는 콜백 컨텍스트.</param>
     public void OnMapOverview(InputAction.CallbackContext context)
     {
-        // TODO(impl): RememberDevice + Performed 시 MapOverviewEvent 발행(OnFlashlight 동형)
-        Log.D("[InputReader] OnMapOverview");
+        RememberDevice(context);
+
+        if (context.phase == InputActionPhase.Performed)
+        {
+            MapOverviewEvent.Invoke();
+        }
     }
 
     // ── 미사용 액션 ─────────────────────────────────────────────
