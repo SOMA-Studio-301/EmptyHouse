@@ -47,11 +47,31 @@ namespace EmptyHouse.NoiseSystem
         {
             if (!IsServer || payload.EmittedDb <= 0f) return;
             if (!buckets.TryGetValue(payload.SourceId, out SourceBucket bucket))
+            {
                 bucket.FlushAt = Time.time + settings.SumWindowSeconds;
+                bucket.Db = payload.EmittedDb;
+            }
+            else
+            {
+                bucket.Db = CombineDb(bucket.Db, payload.EmittedDb);
+            }
 
             bucket.Origin = payload.Origin;
-            bucket.Db += payload.EmittedDb;
             buckets[payload.SourceId] = bucket;
+        }
+
+        /// <summary>
+        /// 같은 창에 겹친 두 소음을 에너지 영역에서 합쳐 dB 로 되돌린다. dB 를 선형으로 더하면
+        /// 걷기(20)+말하기(30)가 50dB 가 되어 전파 반경이 두 배로 부풀지만, 에너지 합은 30.4dB 다 —
+        /// 작은 소리는 큰 소리에 묻힌다는 실제 음향 특성 그대로다. 같은 크기 둘이 겹치면 +3dB 만 커진다.
+        /// </summary>
+        /// <param name="dbA">겹친 한쪽 dB.</param>
+        /// <param name="dbB">겹친 다른쪽 dB.</param>
+        /// <returns>에너지 합산된 dB.</returns>
+        private static float CombineDb(float dbA, float dbB)
+        {
+            return 10f * Mathf.Log10(
+                Mathf.Pow(10f, dbA / 10f) + Mathf.Pow(10f, dbB / 10f));
         }
 
         private void Update()
