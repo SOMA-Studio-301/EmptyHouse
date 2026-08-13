@@ -94,7 +94,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::UIResultUser
   nicknameText: {fileID: 6222662665845804829}
   avatarImage: {fileID: 8405657763464660978}
-  memoText: {fileID: 7328847734586696313}
+  titleText: {fileID: 7328847734586696313}
 --- !u!1 &1127695569808736326
 GameObject:
   m_ObjectHideFlags: 0
@@ -571,7 +571,7 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 9133578924384569489, guid: 85d3c76d8f8220644883d71b1c5370f0, type: 3}
       propertyPath: key
-      value: UI_ROOM_READY
+      value: UI_RESULT_TITLE_NONE
       objectReference: {fileID: 0}
     m_RemovedComponents: []
     m_RemovedGameObjects: []
