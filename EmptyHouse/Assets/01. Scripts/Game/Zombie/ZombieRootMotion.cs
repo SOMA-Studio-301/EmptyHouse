@@ -25,6 +25,10 @@ public class ZombieRootMotion : MonoBehaviour
     // 정지 프레임에 0 벡터로 정규화하면 이동이 한 프레임씩 끊겨 덜컥거린다. 그때는 정면 델타로 폴백.
     private const float minDesiredSpeed = 0.05f;
 
+    // NavMesh 스냅 탐색 반경(m) — 한 프레임 델타(수 cm)와 메시-바닥 높이 오차를 넉넉히 덮되,
+    // 다른 층(층고 9m)이나 이웃 통로의 메시로 순간이동하지 않을 만큼 좁게.
+    private const float maxSnapMeters = 1f;
+
     private Animator animator;           // 이 오브젝트의 Animator. 루트모션 델타의 출처
     private ZombieController controller; // 좀비 루트. 서버 판정과 에이전트 접근에 쓴다
 
@@ -57,7 +61,16 @@ public class ZombieRootMotion : MonoBehaviour
             delta = desired.normalized * planar.magnitude + Vector3.up * delta.y;
         }
 
-        root.position += delta;
-        if (agent.isOnNavMesh) agent.nextPosition = root.position;
+        // NavMesh 구속(EH-90) — 델타 적용 결과를 메시 위 최근접점으로 스냅한다. 루트모션은 수평
+        // 이동만 만들어 Y 를 정하는 주체가 없었고(경사·계단에서 지오메트리 그대로 관통), 계단이
+        // Not Walkable 장애물이 된 뒤에는 메시 밖으로 한 발도 못 나가야 "부딪히는 벽"이 성립한다.
+        // 반경 내 메시가 없으면 그 프레임 이동을 버린다 — 관통보다 제자리가 낫다.
+        Vector3 next = root.position + delta;
+        next = NavMesh.SamplePosition(next, out NavMeshHit hit, maxSnapMeters, NavMesh.AllAreas)
+            ? hit.position
+            : root.position;
+
+        root.position = next;
+        if (agent.isOnNavMesh) agent.nextPosition = next;
     }
 }

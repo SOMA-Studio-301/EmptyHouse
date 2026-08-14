@@ -1,6 +1,7 @@
 using System.Collections.Generic;
 using Border.Core;
 using EmptyHouse.MapGen.Core;
+using Unity.AI.Navigation;
 using UnityEngine;
 
 namespace EmptyHouse.MapGen.Runtime
@@ -187,11 +188,27 @@ namespace EmptyHouse.MapGen.Runtime
                         Bounds current = StairBodyBounds(stair);
                         stair.transform.position += new Vector3(strip.min.x - current.min.x, floorOrigin.y - current.min.y, strip.min.z - current.min.z);
 
-                        // 램프 플레이트·상단 브리지 비활성(2026-08-13 기획 반영) — 좀비 층간 이동이 기획상 차단이라
-                        // 계단면 내비 연속성이 불필요. 다층 좀비 이동이 열리면 아래 두 줄 복원
+                        // 램프 플레이트·상단 브리지 미생성(EH-90 확정) — 좀비 층간 이동이 기획상 차단이라
+                        // 계단은 보행면이 아니라 장애물이다(베이커의 Stair* Not Walkable 태깅과 한 쌍).
+                        // 다층 좀비 이동이 다시 열리면 아래 두 줄 복원 + 베이커 태깅을 Walkable 로 되돌릴 것
                         // (없으면 계단 복셀화 단절로 층간 경로 PathPartial — M9-9 실측).
                         // AddStairRamps(stair, stairsRoot);
                         // AddTopBridge(stair, stairsRoot, room.Rotation, floorOrigin.y + FloorGeometry.StairRise(definition, room.FloorIndex));
+
+                        // 계단 차단 볼륨(EH-90) — 지오메트리 Not Walkable 태깅만으로는 첫 단 언저리·계단 밑
+                        // 공간에 자투리 폴리곤이 남아 좀비가 풋프린트 안까지 파고들 수 있다. 몸체 바운즈 전체를
+                        // Not Walkable 볼륨으로 덮어 계단 진입 자체를 경로에서 제외한다(좀비는 계단 앞에서
+                        // 벽처럼 막힌다 — 플레이어는 NavMesh 를 안 쓰므로 무관). 상단은 위층 바닥면 0.5m
+                        // 아래에서 끊어 위층 통행 내비를 침식하지 않는다. 바운즈는 위치 정렬 뒤 재계산.
+                        Bounds body = StairBodyBounds(stair);
+                        var blocker = new GameObject($"StairNavBlock_{stair.name}");
+                        blocker.transform.SetParent(stairsRoot, false);
+                        float blockHeight = Mathf.Max(1f, body.size.y - 0.5f);
+                        blocker.transform.position = new Vector3(body.center.x, body.min.y + blockHeight * 0.5f, body.center.z);
+                        NavMeshModifierVolume blockVolume = blocker.AddComponent<NavMeshModifierVolume>();
+                        blockVolume.center = Vector3.zero;
+                        blockVolume.size = new Vector3(body.size.x, blockHeight, body.size.z);
+                        blockVolume.area = 1; // Not Walkable(빌트인 영역 1 — MapNavMeshRuntimeBaker.notWalkableArea 동일)
 
                         // 천장 절개 — 헤드룸 구간 (0,2)·(0,3), 천장고 6m 기준 밴드(벽은 min.y 가 바닥이라 안 걸린다)
                         Bounds ceilingArea = CellSpanBounds(room, template, 0, 2, 0, 3, floorOrigin, minX, minY, cellMeters);
