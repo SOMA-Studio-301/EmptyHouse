@@ -162,6 +162,14 @@ public sealed class RadioVoiceLeakRouter : MonoBehaviour
         audioSource.ignoreListenerPause = true;
         audioSource.bypassReverbZones = true;
 
+        // 원본 보이스 재생과 같은 믹서 그룹으로 보낸다 — 마스터의 AEC 필터가 이 소리를
+        // 스피커 출력 기준 신호로 잡아야 마이크로 재유입된 무전음이 상쇄된다(EH-93).
+        AudioSource cloneOrigin = source.GetComponent<AudioSource>();
+        if (cloneOrigin != null)
+        {
+            audioSource.outputAudioMixerGroup = cloneOrigin.outputAudioMixerGroup;
+        }
+
         AudioLowPassFilter radioFilter = leakObject.AddComponent<AudioLowPassFilter>();
         radioFilter.cutoffFrequency = 3500f;
         radioFilter.lowpassResonanceQ = 1.5f;
