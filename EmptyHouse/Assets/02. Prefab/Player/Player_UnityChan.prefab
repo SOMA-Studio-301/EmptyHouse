@@ -267,6 +267,7 @@ GameObject:
   - component: {fileID: 7556772348847717246}
   - component: {fileID: 7161473234652010412}
   - component: {fileID: 5679039205233311701}
+  - component: {fileID: 910000000000000097}
   - component: {fileID: 8399999556817308483}
   - component: {fileID: 8473248619750313470}
   - component: {fileID: 119432426559719344}
@@ -590,8 +591,25 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::PlayerDeathHandler
   ShowTopMostFoldoutHeaderGroup: 1
   playerLifecycle: {fileID: 11400000, guid: 99aaaaab4771c6d45bcc0132da11b06f, type: 2}
-  playerCaught: {fileID: 11400000, guid: 03bcb361216443aaacf8722ae0f347cc, type: 2}
   debugSuicideKey: 25
+--- !u!114 &910000000000000097
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2490874660187570032}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 018d64dcfbcd4a458a9a711b834e1b5b, type: 3}
+  m_Name:
+  m_EditorClassIdentifier: Assembly-CSharp::PlayerHealth
+  ShowTopMostFoldoutHeaderGroup: 1
+  deathHandler: {fileID: 5679039205233311701}
+  healthChanged: {fileID: 11400000, guid: af5f5328e6b34abe8c5caaf4a7011570, type: 2}
+  playerCaught: {fileID: 11400000, guid: 03bcb361216443aaacf8722ae0f347cc, type: 2}
+  maxHits: 3
+  invincibleSeconds: 1
 --- !u!114 &8399999556817308483
 MonoBehaviour:
   m_ObjectHideFlags: 0

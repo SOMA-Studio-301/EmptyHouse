@@ -333,8 +333,9 @@ public class ZombieAttackState : IZombieState
                 caught = true;
                 machine.NotifyPlayerCaught();
 
-                // 타격이 확정되면 대상은 사망한다. 시신을 계속 물고 있으면 추격 상실 타이머가
-                // 리셋되고 다음 목표로 전이하지 못하므로, 여기서 즉시 타겟을 놓는다.
+                // 타격이 확정되면 즉시 타겟을 놓는다. 사망(체력 소진)이면 시신을 물고 있어
+                // 추격 상실 타이머가 리셋되는 것을 막고, 생존(EH-97 체력제)이면 타격 락 동안
+                // 도망칠 틈을 준다 — 살아 있는 대상은 락이 끝난 뒤 지각으로 다시 획득된다.
                 controller.ServerReleaseTarget();
             }
             return;
