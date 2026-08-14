@@ -52,6 +52,7 @@ public class PlayerController : NetworkBehaviour
 
     private Rigidbody body; // Awake 캐시
     private NetworkTransform networkTransform; // Owner 권한 NetworkTransform — 스폰 포즈 강제 적용(Teleport)에 쓴다. Awake 캐시
+    private PlayerHeadCameraFollow headCameraFollow; // 시야 원점 추종 — 형제. 포즈를 강제로 옮긴 직후 추종 상태를 즉시 일치시킨다. Awake 캐시
     private PlayerDeathHandler deathHandler; // 비활성 게이팅 소스 — 형제. 사망 시 이동·시선·상호작용·인벤을 차단한다(2-1·관전은 PlayerSpectatorController)
     private PlayerReturn playerReturn; // 비활성 게이팅 소스 — 형제. 귀환도 사망과 똑같이 조작을 차단한다(세션루프.md 3장)
     private PlayerHiding hiding; // 은신 게이팅 소스 — 형제. 은신 중 이동·점프를 차단하고 시선을 콘 안으로 제한한다(2-1, 조작상호작용UI.md 3-5-1)
@@ -95,11 +96,12 @@ public class PlayerController : NetworkBehaviour
     public bool IsDisguised => disguise.IsDisguised; // 위장 상태 여부. 애니메이션 IsDisguised 파라미터용
     // public event System.Action JumpPerformed; // TODO(점프 삭제 예정): 점프가 실제로 발동한 순간 발행된다. 애니메이션 트리거용
 
-    /// <summary>Rigidbody 와 형제 PlayerDeathHandler·PlayerReturn·PlayerHiding·PlayerDisguise 참조를 캐시한다.</summary>
+    /// <summary>Rigidbody 와 형제 PlayerDeathHandler·PlayerReturn·PlayerHiding·PlayerDisguise·PlayerHeadCameraFollow 참조를 캐시한다.</summary>
     private void Awake()
     {
         body = GetComponent<Rigidbody>();
         networkTransform = GetComponent<NetworkTransform>();
+        headCameraFollow = GetComponent<PlayerHeadCameraFollow>();
         deathHandler = GetComponent<PlayerDeathHandler>();
         playerReturn = GetComponent<PlayerReturn>();
         hiding = GetComponent<PlayerHiding>();
@@ -187,7 +189,7 @@ public class PlayerController : NetworkBehaviour
         }
     }
 
-    /// <summary>권한자(소유자) 기준으로 포즈를 강제 적용한다. NetworkTransform 텔레포트 + Rigidbody 동기화.</summary>
+    /// <summary>권한자(소유자) 기준으로 포즈를 강제 적용한다. NetworkTransform 텔레포트 + Rigidbody 동기화 + 시야 원점 스냅.</summary>
     /// <param name="position">적용할 위치.</param>
     /// <param name="rotation">적용할 회전.</param>
     private void ForcePose(Vector3 position, Quaternion rotation)
@@ -196,6 +198,9 @@ public class PlayerController : NetworkBehaviour
         body.position = position;
         body.rotation = rotation;
         body.linearVelocity = Vector3.zero;
+
+        // 포즈 불연속(스폰·벽장 스냅)에서 애니메이션 포즈도 함께 튄다. 추종 필터를 즉시 일치시키지 않으면 시야가 새 자세로 끌려가듯 밀린다.
+        headCameraFollow.SnapToTarget();
     }
 
     /// <summary>
@@ -293,9 +298,8 @@ public class PlayerController : NetworkBehaviour
         body.linearVelocity = Vector3.zero;
         body.useGravity = false; // PlayerBodyVisibility 가 콜라이더를 끈 뒤에도 중력이 남으면 계속 낙하해 위치가 흘러간다
 
-        // Vcam 을 꺼서 CinemachineBrain 이 Camera.main 을 계속 이쪽으로 붙잡지 않게 한다.
-        // 그러지 않으면 PlayerSpectatorController 가 궤도로 옮긴 Camera.main 트랜스폼을 Brain 이 매 프레임 되돌린다.
-        onCameraChanged.RaiseEvent(null);
+        // 카메라는 건드리지 않는다 — 관전 Vcam 을 올리는 것은 PlayerSpectatorController 소관이고,
+        // 여기서 null 을 발행하면 구독 순서에 따라 방금 올라온 관전 Vcam 을 도로 꺼버릴 수 있다.
     }
 
     /// <summary>
@@ -391,6 +395,10 @@ public class PlayerController : NetworkBehaviour
     private void HandleDisguiseChanged(bool isDisguised)
     {
         if (!IsOwner) return;
+
+        // 비활성(사망·귀환) 중에는 화면 주인이 관전 Vcam 이다. 위장한 채로 죽으면 서버가 게이지를 계속 깎다가
+        // 0 에서 위장을 해제하는데(PlayerDisguise), 그 알림에 여기서 반응하면 관전 도중 카메라가 시체 눈으로 튄다.
+        if (IsInactive) return;
 
         onCameraChanged.RaiseEvent(isDisguised ? disguiseVcam : eyeVcam);
     }

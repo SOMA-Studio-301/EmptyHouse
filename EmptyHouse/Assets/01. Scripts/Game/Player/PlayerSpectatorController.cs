@@ -1,6 +1,7 @@
 using System.Collections.Generic;
 using Border.Core;
 using Border.Events;
+using Unity.Cinemachine;
 using Unity.Netcode;
 using UnityEngine;
 
@@ -11,7 +12,14 @@ using UnityEngine;
 /// 마우스 Look 으로 대상을 중심으로 카메라를 돌리고 InputReader 의 Next/Previous(←/→)로 생존 대상을 순환한다.
 /// 전원 사망은 게임오버라 관전 대상 0 은 존재하지 않는다(3-8-1).
 /// 사망 캐릭터의 이동·E·인벤 차단은 PlayerController 소관이다. 보이스 채널 분리(네트워크)·전신 모델(아트)은 선행 의존이라 다루지 않는다.
+///
+/// 카메라는 전용 Vcam(<see cref="spectatorVcam"/>)을 CameraEventChannelSO 로 올려 CinemachineBrain 이 몰게 한다(§4.5) —
+/// Camera.main 을 직접 옮기던 방식은 Brain 과 매 프레임 다투는 구조라 PlayerController 가 사망 시 Vcam 을 꺼주는 우회가 필요했다.
+/// 궤도 계산 결과는 Vcam 트랜스폼에 쓰고, 벽 차폐는 궤도선 위에서 거리만 줄여 처리한다(ResolveOrbitDistance).
+/// 실행 순서를 앞당긴 이유는 Brain 이 기본 순서(0)의 LateUpdate 에서 Vcam 상태를 읽기 때문이다 —
+/// 순서를 고정하지 않으면 Brain 이 지난 프레임 궤도를 읽어 카메라가 한 프레임 밀린다.
 /// </summary>
+[DefaultExecutionOrder(-100)]
 [RequireComponent(typeof(PlayerDeathHandler))]
 [RequireComponent(typeof(PlayerReturn))]
 public class PlayerSpectatorController : NetworkBehaviour
@@ -29,12 +37,21 @@ public class PlayerSpectatorController : NetworkBehaviour
     [Header("Spectator UI")]
     [SerializeField] private SpectatorEventChannelSO spectator; // 관전 HUD 양방향 채널. 대상 변경 발행 · HUD 좌우 버튼 순환 요청 수신(←/→ 키와 같은 경로)
 
+    [Header("Camera")]
+    [SerializeField] private CameraEventChannelSO onCameraChanged;  // Vcam 전환 요청 채널. PlayerController 와 같은 채널
+    [SerializeField] private CinemachineCamera spectatorVcam;       // 관전 전용 Vcam. 궤도 결과를 이 트랜스폼에 쓰고 Brain 이 Camera.main 을 몬다
+
     [Header("Spectator Camera")]
     [SerializeField] private float orbitDistance = 3.5f;   // 대상 중심에서 카메라까지의 거리(m). 3인칭이지 1인칭 승계가 아니다. ⚪ 튜닝값
     [SerializeField] private float orbitHeight = 1.5f;     // 궤도 중심을 대상 발밑에서 올릴 높이(m). 대상 몸통을 겨눈다. ⚪ 튜닝값
     [SerializeField] private float lookSensitivity = 0.1f; // 궤도 회전 기본 감도(튜닝값). orbit 카메라라 1인칭과 base 값은 독립이며, 설정창 배율만 공유한다. ⚪ 튜닝값
     [SerializeField] private float pitchClamp = 80f;       // 궤도 피치 상한(도). ±값으로 제한해 카메라가 뒤집히지 않게 한다. ⚪ 튜닝값
     [SerializeField] private float initialPitch = 10f;     // 대상 전환 직후의 초기 하향 피치(도). 살짝 내려다본 상태로 시작한다. ⚪ 튜닝값
+
+    [Header("Spectator Camera Collision")]
+    [SerializeField] private LayerMask cameraCollisionMask = ~0; // 궤도를 막는 레이어. Default·Ground·Wall·Door 를 선택한다(기둥·천장이 Default 다)
+    [SerializeField] private float cameraRadius = 0.25f;         // 차폐 판정 구 반지름(m). 근평면(0.1)보다 커야 벽면이 잘려 보이지 않는다. ⚪ 튜닝값
+    [SerializeField] private float minOrbitDistance = 0.6f;      // 벽에 밀렸을 때 허용할 최소 거리(m). 대상 몸통 안까지 파고드는 것을 막는다. ⚪ 튜닝값
 
     private PlayerDeathHandler deathHandler; // 사망 상태 소스. 같은 프리팹의 형제 컴포넌트
     private PlayerReturn playerReturn;       // 귀환 상태 소스. 같은 프리팹의 형제 컴포넌트
@@ -45,8 +62,8 @@ public class PlayerSpectatorController : NetworkBehaviour
     private PlayerReturn targetReturn;             // 현재 대상의 귀환 상태. 대상 지정 시 캐시(위와 동일)
     private float orbitYaw;                  // 궤도 수평각(도). 마우스 Look 이 누적한다
     private float orbitPitch;                // 궤도 상하각(도). 마우스 Look 이 누적하고 pitchClamp 로 제한된다
-    private Transform spectatorCamera;       // 관전 카메라 트랜스폼. EnterSpectate 에서 Camera.main 을 캐시(매 프레임 조회 회피)
     private float sensitivityMultiplier = 1f; // 시선 감도 배율. 스폰 시 Profile 에서 읽고 설정창 변경 시 채널로 갱신된다. lookSensitivity 에 곱한다
+    private readonly RaycastHit[] cameraHits = new RaycastHit[8]; // 차폐 판정 결과 버퍼. 매 프레임 쏘므로 NonAlloc 으로 GC 를 피한다
 
     /// <summary>형제 PlayerDeathHandler·PlayerReturn 참조를 캐시한다.</summary>
     private void Awake()
@@ -58,7 +75,13 @@ public class PlayerSpectatorController : NetworkBehaviour
     /// <summary>소유자에 한해 비활성 상태(사망·귀환)와 관전 입력 구독을 건다. 관전은 본인 화면의 로컬 연출이라 소유자만 관여한다.</summary>
     public override void OnNetworkSpawn()
     {
-        if (!IsOwner) return;
+        // 비소유자 인스턴스의 관전 Vcam 은 로컬에서 즉시 꺼둔다 — Brain 은 소유권을 모르고
+        // 활성 Vcam 중 Priority 최고를 그냥 고른다(PlayerController 의 eyeVcam·disguiseVcam 과 같은 이유).
+        if (!IsOwner)
+        {
+            spectatorVcam.gameObject.SetActive(false);
+            return;
+        }
 
         deathHandler.IsDead.OnValueChanged += HandleInactiveChanged;
         playerReturn.HasExtracted.OnValueChanged += HandleInactiveChanged;
@@ -161,31 +184,30 @@ public class PlayerSpectatorController : NetworkBehaviour
         else ExitSpectate();
     }
 
-    /// <summary>관전에 진입한다. GameState.Spectating 을 발행하고 카메라를 떼어 첫 생존 대상 궤도에 배치한다.</summary>
+    /// <summary>관전에 진입한다. GameState.Spectating 을 발행하고 첫 생존 대상 궤도에 배치한 뒤 관전 Vcam 을 올린다.</summary>
     private void EnterSpectate()
     {
         isSpectating = true;
         gameStateChanged.RaiseEvent(GameState.Spectating);
-
-        // 1인칭 pivot 에서 카메라를 떼어 궤도가 월드 좌표로 배치할 수 있게 한다.
-        spectatorCamera = Camera.main.transform;
-        spectatorCamera.SetParent(null);
 
         List<NetworkObject> targets = CollectAliveTargets();
         if (targets.Count == 0) return; // 전원 사망은 게임오버라 관전 대상 0 은 없다(3-8-1) — 경합 대비 방어적 스킵
 
         currentTargetIndex = 0;
         ApplySpectatorCamera(targets[currentTargetIndex]);
+
+        // 배치가 끝난 뒤에 올린다 — 먼저 켜면 Brain 이 지난 판의 궤도 위치에서 블렌드를 시작한다.
+        onCameraChanged.RaiseEvent(spectatorVcam);
     }
 
-    /// <summary>관전을 종료한다(귀환 부활 D18 — MVP 단일 외출이라 미발동). GameState.Game 으로 복귀시킨다.</summary>
+    /// <summary>관전을 종료한다(귀환 부활 D18 — MVP 단일 외출이라 미발동). 관전 Vcam 을 내리고 GameState.Game 으로 복귀시킨다.</summary>
     private void ExitSpectate()
     {
         isSpectating = false;
         currentTarget = null;
 
-        // 대상 추적만 해제한다. 1인칭 카메라 원복은 pivot 을 쥔 PlayerController 소관이며 부활(D18) 흐름에서 처리한다 — MVP 미발동.
-        if (spectatorCamera != null) spectatorCamera.SetParent(null);
+        // Vcam 만 내린다. 1인칭 Vcam 복귀는 eyeVcam 을 쥔 PlayerController 소관이며 부활(D18) 흐름에서 처리한다 — MVP 미발동.
+        onCameraChanged.RaiseEvent(null);
         gameStateChanged.RaiseEvent(GameState.Game);
     }
 
@@ -252,13 +274,40 @@ public class PlayerSpectatorController : NetworkBehaviour
         spectator.RaiseTargetChanged(target.OwnerClientId);
     }
 
-    /// <summary>궤도 각도(yaw/pitch)와 대상 위치로 카메라를 대상 뒤 3인칭에 배치한다.</summary>
+    /// <summary>궤도 각도(yaw/pitch)와 대상 위치로 관전 Vcam 을 대상 뒤 3인칭에 배치한다. 벽이 끼면 그 앞까지만 물러난다.</summary>
     private void PositionCamera()
     {
         Quaternion rot = Quaternion.Euler(orbitPitch, orbitYaw, 0f);
         Vector3 focus = currentTarget.transform.position + Vector3.up * orbitHeight;
+        Vector3 back = -(rot * Vector3.forward);
 
-        spectatorCamera.SetPositionAndRotation(focus - rot * Vector3.forward * orbitDistance, rot);
+        spectatorVcam.transform.SetPositionAndRotation(focus + back * ResolveOrbitDistance(focus, back), rot);
+    }
+
+    /// <summary>
+    /// 초점에서 카메라 쪽으로 구를 쓸어 차폐물 앞까지로 궤도 거리를 줄인다.
+    /// 궤도선 위에서 거리만 줄이므로 해가 하나뿐이다 — 기둥이 늘어선 곳에서도 좌우로 흔들리지 않는다
+    /// (차폐물을 피해 도는 CinemachineDeoccluder 를 쓰지 않는 이유다).
+    /// 반지름만큼 여유를 두고 멈추므로(SphereCast 거리는 구 중심 이동량) 벽면이 근평면에 잘리지 않는다.
+    /// </summary>
+    /// <param name="focus">궤도 중심(대상 몸통).</param>
+    /// <param name="back">초점에서 카메라로 향하는 단위 방향.</param>
+    /// <returns>차폐를 반영한 궤도 거리(m). 최소 minOrbitDistance.</returns>
+    private float ResolveOrbitDistance(Vector3 focus, Vector3 back)
+    {
+        int count = Physics.SphereCastNonAlloc(
+            focus, cameraRadius, back, cameraHits, orbitDistance, cameraCollisionMask, QueryTriggerInteraction.Ignore);
+
+        float distance = orbitDistance;
+        for (int i = 0; i < count; i++)
+        {
+            // 대상 본인은 건너뛴다 — 플레이어 캡슐이 Default 라 마스크에 걸리는데 초점이 그 안이라 거리 0 으로 잡힌다.
+            if (cameraHits[i].transform.root == currentTarget.transform) continue;
+
+            distance = Mathf.Min(distance, cameraHits[i].distance);
+        }
+
+        return Mathf.Max(minOrbitDistance, distance);
     }
 
     /// <summary>활성 생존 플레이어 NetworkObject 목록을 수집한다. IsDead 또는 HasExtracted 면 제외한다 — 귀환자는 비활성이라 관전 대상이 아니다(세션루프.md 3장).</summary>
