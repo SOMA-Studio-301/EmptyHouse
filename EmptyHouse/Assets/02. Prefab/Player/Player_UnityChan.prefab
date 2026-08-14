@@ -56,13 +56,13 @@ RectTransform:
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 1859354414739463313}
-  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalRotation: {x: -0, y: -1, z: -0, w: 0.00000020861626}
   m_LocalPosition: {x: 0, y: 0, z: 0}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
   m_Father: {fileID: 4999783868124835229}
-  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+  m_LocalEulerAnglesHint: {x: 0, y: -180, z: 0}
   m_AnchorMin: {x: 0.5, y: 0.5}
   m_AnchorMax: {x: 0.5, y: 0.5}
   m_AnchoredPosition: {x: 0, y: 0}
@@ -96,7 +96,7 @@ MonoBehaviour:
   m_OnCullStateChanged:
     m_PersistentCalls:
       m_Calls: []
-  m_text: 
+  m_text: "\uC548\uB155\uD558\uC138\uC694"
   m_isRightToLeft: 0
   m_fontAsset: {fileID: 11400000, guid: 58b6d3da99b238b42bd27daa9d71673d, type: 2}
   m_sharedMaterial: {fileID: -2006664490571270395, guid: 58b6d3da99b238b42bd27daa9d71673d, type: 2}
@@ -118,7 +118,7 @@ MonoBehaviour:
   m_spriteAsset: {fileID: 0}
   m_tintAllSprites: 0
   m_StyleSheet: {fileID: 0}
-  m_TextStyleHashCode: 0
+  m_TextStyleHashCode: -1183493901
   m_overrideHtmlColors: 0
   m_faceColor:
     serializedVersion: 2
@@ -178,7 +178,6 @@ GameObject:
   m_Component:
   - component: {fileID: 4999783868124835229}
   - component: {fileID: 7748730965544980717}
-  - component: {fileID: 7365250150564459875}
   m_Layer: 5
   m_Name: Canvas-Nameplate
   m_TagString: Untagged
@@ -225,28 +224,11 @@ Canvas:
   m_OverridePixelPerfect: 0
   m_SortingBucketNormalizedSize: 0
   m_VertexColorAlwaysGammaSpace: 0
-  m_AdditionalShaderChannelsFlag: 0
+  m_AdditionalShaderChannelsFlag: 25
   m_UpdateRectTransformForStandalone: 0
   m_SortingLayerID: 0
   m_SortingOrder: 0
   m_TargetDisplay: 0
---- !u!114 &7365250150564459875
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 2245664891686807345}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 13d91f954bb6a974a8afb196d46bcc2a, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::UIWorldBillboard
-  lockVerticalTilt: 1
-  scaleWithDistance: 1
-  referenceDistance: 5
-  minScaleFactor: 1
-  maxScaleFactor: 3
 --- !u!1 &2490874660187570032
 GameObject:
   m_ObjectHideFlags: 0
@@ -288,7 +270,6 @@ GameObject:
   - component: {fileID: 1110419948588627161}
   - component: {fileID: 5258635641953041261}
   - component: {fileID: 910000000000000040}
-  - component: {fileID: 9111448754282466405}
   m_Layer: 0
   m_Name: Player_UnityChan
   m_TagString: Untagged
@@ -691,13 +672,11 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::EmptyHouse.NoiseSystem.PlayerMovementNoiseEmitter
   ShowTopMostFoldoutHeaderGroup: 1
   emittedChannel: {fileID: 11400000, guid: 22360f3f2e054bf0afcd98bc8c6a0121, type: 2}
-  emissionIntervalSeconds: 0.6
   movingSpeedThreshold: 0.05
   walkingDb: 20
+  movementHoldSeconds: 0.1
   meterSampleChannel: {fileID: 11400000, guid: ade8c10254835274582e217562187b55, type: 2}
   meterLevelChanged: {fileID: 11400000, guid: 921d962283ca85149a5299193c133801, type: 2}
-  settings: {fileID: 11400000, guid: f98030f04d614a5aadd0118115f3237c, type: 2}
-  silenceWindowMultiplier: 2
 --- !u!114 &8714832752457740018
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -1011,28 +990,6 @@ MonoBehaviour:
   speakingAmplitudeThreshold: 0.05
   voiceMinDb: 15
   voiceMaxDb: 40
---- !u!114 &9111448754282466405
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 2490874660187570032}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 0bb0f9934ab1f4a4f9ce01df19e24893, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::UIPlayerNameplate
-  ShowTopMostFoldoutHeaderGroup: 1
-  nameplateRoot: {fileID: 2245664891686807345}
-  nameText: {fileID: 8207368630569622565}
-  micIcon: {fileID: 7592092475705593857}
-  maxVisibleDistance: 15
-  visibilityInterval: 0.2
-  speakingOnThreshold: 0.05
-  speakingOffThreshold: 0.02
-  speakingHoldSeconds: 0.25
-  voicePollInterval: 0.05
 --- !u!1 &2490874660187570100
 GameObject:
   m_ObjectHideFlags: 0
@@ -1208,7 +1165,7 @@ Transform:
   m_GameObject: {fileID: 3744386695429421830}
   serializedVersion: 2
   m_LocalRotation: {x: -0.45447883, y: 0.45673013, z: 0.54009587, w: -0.5414269}
-  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalPosition: {x: -0.07739018, y: -0.00007186963, z: 0.013905432}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children:
@@ -10599,7 +10556,7 @@ GameObject:
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
-  m_IsActive: 0
+  m_IsActive: 1
 --- !u!224 &1013226270354894460
 RectTransform:
   m_ObjectHideFlags: 0
@@ -10647,7 +10604,7 @@ MonoBehaviour:
   m_OnCullStateChanged:
     m_PersistentCalls:
       m_Calls: []
-  m_Sprite: {fileID: 21300000, guid: 92e987e525c066e41b35f6f1dafd0309, type: 3}
+  m_Sprite: {fileID: 21300000, guid: af925737ecef5475a82f2e57d46eb078, type: 3}
   m_Type: 0
   m_PreserveAspect: 1
   m_FillCenter: 1
