@@ -127,14 +127,17 @@ namespace EmptyHouse.MapGen.Runtime
                 tagged++;
             }
 
-            // 계단 플라이트 Walkable(M9-9) — 경사 28.9°(라이즈 3m/런 5.44m)로 에이전트 slope 45° 안이라
-            // 지오메트리 베이크만으로 층간 내비가 이어진다(NavMeshLink 불필요 — 링크 보간의 미끄러짐도 없다)
+            // 계단 전면 차단(EH-90) — 좀비 층간 이동이 기획상 금지라 계단은 보행면이 아니라 장애물이다.
+            // Stair* 토큰 전부(플라이트·참·난간 포괄)를 Not Walkable 로 명시 태깅 — 위의 바닥 슬래브
+            // 판정이 참·상단 개구 언저리를 Walkable 로 잡아도 뒤에 오는 이 블록이 덮어써, 계단 위에
+            // 폴리곤이 생기지 않는다. 다층 좀비 이동을 다시 열면 여기를 Walkable 로 되돌릴 것
+            // (그때 MapRuntimeAssembler 의 AddStairRamps/AddTopBridge 복원도 함께 — 해당 주석 참조).
             int stairTagged = 0;
             foreach (MeshRenderer renderer in mapRoot.GetComponentsInChildren<MeshRenderer>(true))
             {
-                if (!renderer.name.Contains("Stair") || renderer.name.Contains("Railing"))
+                if (!renderer.name.Contains("Stair"))
                 {
-                    continue; // 계단 토큰(Stair*) — 플라이트·램프·참·브리지·Hall_Stairs 포괄. 난간(Railing)은 차단물이라 제외
+                    continue;
                 }
 
                 NavMeshModifier modifier = renderer.GetComponent<NavMeshModifier>();
@@ -144,7 +147,7 @@ namespace EmptyHouse.MapGen.Runtime
                 }
 
                 modifier.overrideArea = true;
-                modifier.area = walkableArea;
+                modifier.area = notWalkableArea;
                 stairTagged++;
             }
 
@@ -168,7 +171,7 @@ namespace EmptyHouse.MapGen.Runtime
             surface.defaultArea = notWalkableArea;
             surface.BuildNavMesh();
 
-            Log.D($"[MapNavMeshRuntimeBaker] 베이크 완료 — 바닥 태깅 {tagged}·계단 태깅 {stairTagged} — onMapNavMeshReadyServer 발화");
+            Log.D($"[MapNavMeshRuntimeBaker] 베이크 완료 — 바닥 태깅 {tagged}·계단 차단 태깅 {stairTagged} — onMapNavMeshReadyServer 발화");
             onMapNavMeshReadyServer.RaiseEvent();
         }
     }
