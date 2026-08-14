@@ -38,9 +38,11 @@ public class PlayerSpectatorController : NetworkBehaviour
 
     private PlayerDeathHandler deathHandler; // 사망 상태 소스. 같은 프리팹의 형제 컴포넌트
     private PlayerReturn playerReturn;       // 귀환 상태 소스. 같은 프리팹의 형제 컴포넌트
-    private int currentTargetIndex;          // 현재 관전 대상 인덱스. 생존자 순환의 커서
+    private int currentTargetIndex;          // 현재 관전 대상 인덱스. 생존자 순환의 커서 — 목록 구성이 사망·귀환으로 바뀌므로 참고값이며, 실제 순환은 현재 대상의 IndexOf 로 다시 잡는다
     private bool isSpectating;               // 관전 중 여부. Look/Next/Previous 소비와 카메라 추적을 관전 상태로만 게이팅한다
     private NetworkObject currentTarget;     // 현재 관전 대상. LateUpdate 가 매 프레임 위치를 추적한다
+    private PlayerDeathHandler targetDeathHandler; // 현재 대상의 사망 상태. 대상 지정 시 캐시해 매 프레임 GetComponent 없이 유효성을 검사한다
+    private PlayerReturn targetReturn;             // 현재 대상의 귀환 상태. 대상 지정 시 캐시(위와 동일)
     private float orbitYaw;                  // 궤도 수평각(도). 마우스 Look 이 누적한다
     private float orbitPitch;                // 궤도 상하각(도). 마우스 Look 이 누적하고 pitchClamp 로 제한된다
     private Transform spectatorCamera;       // 관전 카메라 트랜스폼. EnterSpectate 에서 Camera.main 을 캐시(매 프레임 조회 회피)
@@ -84,10 +86,17 @@ public class PlayerSpectatorController : NetworkBehaviour
         changeMouseSensitivityEvent.OnEventRaised -= HandleMouseSensitivityChanged;
     }
 
-    /// <summary>관전 중 매 프레임 대상의 현재 위치를 추적해 궤도 카메라를 갱신한다. 대상 이동을 반영하려 LateUpdate 에서 처리한다.</summary>
+    /// <summary>
+    /// 관전 중 매 프레임 대상의 현재 위치를 추적해 궤도 카메라를 갱신한다. 대상 이동을 반영하려 LateUpdate 에서 처리한다.
+    /// 보던 대상이 죽거나 귀환하면 카메라가 그 자리에 박제되므로(EH-65), 유효성을 먼저 검사해 즉시 다른 생존자로 넘긴다 —
+    /// 관전 진입 시점에 생존자가 아직 안 잡힌 경합(대상 없음)도 같은 경로로 다음 프레임에 복구된다.
+    /// </summary>
     private void LateUpdate()
     {
-        if (!IsOwner || !isSpectating || currentTarget == null) return;
+        if (!IsOwner || !isSpectating) return;
+
+        if (!IsCurrentTargetSpectatable()) Retarget();
+        if (currentTarget == null) return;
 
         PositionCamera();
     }
@@ -180,17 +189,49 @@ public class PlayerSpectatorController : NetworkBehaviour
         gameStateChanged.RaiseEvent(GameState.Game);
     }
 
-    /// <summary>생존 플레이어를 방향으로 순환해 관전 대상을 바꾼다. 대상이 1명 이하면 순환이 무의미하므로 입력을 무시한다.</summary>
+    /// <summary>생존 플레이어를 방향으로 순환해 관전 대상을 바꾼다. 유일한 생존자를 이미 보고 있으면 순환이 무의미하므로 입력을 무시한다.</summary>
     /// <param name="direction">순환 방향(+1 다음 / -1 이전).</param>
     private void CycleTarget(int direction)
     {
         List<NetworkObject> targets = CollectAliveTargets();
+        if (targets.Count == 0) return; // 전원 사망은 게임오버라 관전 대상 0 은 없다(3-8-1) — 경합 대비 방어적 스킵
 
-        // 1명이면 인덱스는 그대로여도 ApplySpectatorCamera 가 궤도를 리셋해 카메라만 튄다 — 아예 무시한다(AC 3-8-1).
-        if (targets.Count <= 1) return;
+        // 사망·귀환으로 목록 구성이 계속 바뀌므로 저장된 인덱스가 아니라 현재 대상의 실제 위치에서 출발한다(EH-65).
+        int currentIndex = targets.IndexOf(currentTarget);
 
-        // 음수 방향도 감싸도록 정규화.
-        currentTargetIndex = ((currentTargetIndex + direction) % targets.Count + targets.Count) % targets.Count;
+        // 유일한 생존자를 이미 보고 있을 때만 무시한다 — ApplySpectatorCamera 가 궤도를 리셋해 카메라만 튄다(AC 3-8-1).
+        // 현재 대상이 무효(죽음·귀환으로 목록에 없음)면 생존자가 1명이어도 그쪽으로 넘어가야 하므로 막지 않는다(EH-65).
+        if (currentIndex >= 0 && targets.Count == 1) return;
+
+        // 음수 방향도 감싸도록 정규화. 대상이 무효였다면 방향과 무관하게 기존 커서 근처의 생존자부터 다시 잡는다.
+        currentTargetIndex = currentIndex < 0
+            ? Mathf.Clamp(currentTargetIndex, 0, targets.Count - 1)
+            : ((currentIndex + direction) % targets.Count + targets.Count) % targets.Count;
+        ApplySpectatorCamera(targets[currentTargetIndex]);
+    }
+
+    /// <summary>현재 대상이 계속 관전 가능한지 검사한다. 미지정·파괴(접속 종료)·사망·귀환이면 무효다.</summary>
+    /// <returns>계속 관전해도 되면 true.</returns>
+    private bool IsCurrentTargetSpectatable()
+    {
+        if (currentTarget == null || !currentTarget.IsSpawned) return false;
+        return !targetDeathHandler.IsDead.Value && !targetReturn.HasExtracted.Value;
+    }
+
+    /// <summary>
+    /// 무효해진 대상을 버리고 생존자 목록에서 대상을 다시 잡는다(EH-65 — 보던 대상의 사망·귀환 시 자동 전환).
+    /// 생존자가 없으면 대상만 비운다 — 전원 사망은 게임오버 수순이라 카메라는 마지막 자리에 둔다.
+    /// </summary>
+    private void Retarget()
+    {
+        List<NetworkObject> targets = CollectAliveTargets();
+        if (targets.Count == 0)
+        {
+            currentTarget = null;
+            return;
+        }
+
+        currentTargetIndex = Mathf.Clamp(currentTargetIndex, 0, targets.Count - 1);
         ApplySpectatorCamera(targets[currentTargetIndex]);
     }
 
@@ -199,6 +240,8 @@ public class PlayerSpectatorController : NetworkBehaviour
     private void ApplySpectatorCamera(NetworkObject target)
     {
         currentTarget = target;
+        targetDeathHandler = target.GetComponent<PlayerDeathHandler>();
+        targetReturn = target.GetComponent<PlayerReturn>();
 
         // 궤도를 대상이 바라보는 방향 뒤로 맞춰, 전환 직후 대상을 등지고 같은 방향을 보는 시점으로 시작한다.
         orbitYaw = target.transform.eulerAngles.y;
