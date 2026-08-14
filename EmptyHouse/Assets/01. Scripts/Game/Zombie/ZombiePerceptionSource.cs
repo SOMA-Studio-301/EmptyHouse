@@ -22,12 +22,21 @@ public sealed class ZombiePerceptionSource : NetworkBehaviour, IZombiePerception
 
     private Vector3 previousPosition;
     private bool isMoving;
+    private PlayerReturn playerReturn; // 같은 오브젝트의 귀환 권위 — Awake 캐시(자기완결, 인스펙터 배선 불필요)
 
     public Transform Root => transform;
     public Vector3 EyePosition => eyeAnchor != null ? eyeAnchor.position : transform.position + Vector3.up * 1.5f;
     public bool IsDisguised => isDisguised;
-    // 사망 권위를 서버 메모리에서 직접 읽는다(push 아님) — Die() 가 선 프레임부터 즉시 인지에서 제외된다(좀비AI E2).
-    public bool IsSpectator => deathHandler.IsDead.Value;
+    // 사망·귀환 권위를 서버 메모리에서 직접 읽는다(push 아님) — 확정이 선 프레임부터 즉시 인지에서 제외된다(좀비AI E2).
+    // 귀환도 관전이다(EH-94) — 귀환한 폰은 버스 자리에 투명하게 남으므로, 사망만 거르면 좀비가
+    // 이 유령 폰을 보고 타겟으로 물어 귀환한 관전자에게 추격 BGM 이 깔리고 좀비도 빈자리를 공격한다.
+    public bool IsSpectator => deathHandler.IsDead.Value || playerReturn.HasExtracted.Value;
+
+    /// <summary>형제 PlayerReturn 참조를 캐시한다 — PlayerBodyVisibility 와 같은 자기완결 방식.</summary>
+    private void Awake()
+    {
+        playerReturn = GetComponent<PlayerReturn>();
+    }
     public bool IsCrouching => isCrouching;
     public bool IsMoving => isMoving;
 
