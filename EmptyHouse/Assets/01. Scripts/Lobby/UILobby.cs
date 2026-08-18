@@ -100,6 +100,7 @@ public class UILobby : MonoBehaviour
     /// 방 화면을 스택보다 뒤에 두는 이유는 방 위에 팝업이 뜰 수 있어서다(이탈 확인 팝업 등).
     /// 헤더의 Back 버튼과 ESC(UIMenuManager 가 중계)가 함께 쓰는 유일한 경로다.
     /// 설정 창은 무엇보다 위에 뜨므로 가장 먼저 본다.
+    /// 출발이 확정된 방에서는 이탈 단계만 건너뛴다 — 설정 창 닫기는 그때도 살려 둬야 갇히지 않는다.
     /// </summary>
     public void Back()
     {
@@ -120,6 +121,9 @@ public class UILobby : MonoBehaviour
         // 방은 오조작 이탈이 손해가 커 확인 팝업을 한 겹 둔다. 확인을 눌러야 이탈 의도가 올라간다
         if (roomPanel.gameObject.activeSelf)
         {
+            // 출발이 확정된 뒤에는 뒤로 가기를 소비하지 않는다. 팝업을 띄워 봐야 확인해도 이탈이 거부돼 먹통으로 보인다
+            if (roomPanel.IsDeparting) return;
+
             popupRequested.RaiseEvent(PopupType.ExitRoom, RaiseRoomExitRequested);
             return;
         }

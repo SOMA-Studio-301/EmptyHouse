@@ -55,6 +55,8 @@ public class UIRoom : MonoBehaviour
 
     private Tween allReadyWarningTween; // 경고 알파 페이드 아웃 트윈. 유지 시간만큼 지연 뒤 알파 1 → 0
 
+    public bool IsDeparting => departText.gameObject.activeSelf; // 출발이 확정돼 씬 전환을 기다리는 중인지. Depart 텍스트 활성 여부가 곧 그 상태다
+
     /// <summary>버튼 리스너를 등록하고, 미리 배치된 유저 슬롯을 수집하고, 경고 페이드 트윈을 만든다.</summary>
     private void Awake()
     {
