@@ -186,7 +186,7 @@ RectTransform:
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0, y: 0}
   m_AnchorMax: {x: 0, y: 1}
-  m_AnchoredPosition: {x: 81, y: 0}
+  m_AnchoredPosition: {x: 58, y: 0}
   m_SizeDelta: {x: 303, y: 0}
   m_Pivot: {x: 0, y: 0.5}
 --- !u!222 &4586131267729665305
@@ -244,8 +244,8 @@ MonoBehaviour:
   m_faceColor:
     serializedVersion: 2
     rgba: 4294967295
-  m_fontSize: 27
-  m_fontSizeBase: 27
+  m_fontSize: 25
+  m_fontSizeBase: 25
   m_fontWeight: 400
   m_enableAutoSizing: 0
   m_fontSizeMin: 16
@@ -323,8 +323,8 @@ RectTransform:
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 1, y: 0.5}
   m_AnchorMax: {x: 1, y: 0.5}
-  m_AnchoredPosition: {x: 2.8997803, y: 0}
-  m_SizeDelta: {x: 100, y: 100}
+  m_AnchoredPosition: {x: 9.5, y: 0}
+  m_SizeDelta: {x: 325, y: 90}
   m_Pivot: {x: 1, y: 0.5}
 --- !u!222 &7910709424298348991
 CanvasRenderer:
@@ -399,7 +399,7 @@ RectTransform:
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 1, y: 0.5}
   m_AnchorMax: {x: 1, y: 0.5}
-  m_AnchoredPosition: {x: -389, y: 0}
+  m_AnchoredPosition: {x: -380, y: 0}
   m_SizeDelta: {x: 0, y: 0}
   m_Pivot: {x: 1, y: 0.5}
 --- !u!222 &8591449813800548672
@@ -457,8 +457,8 @@ MonoBehaviour:
   m_faceColor:
     serializedVersion: 2
     rgba: 4294967295
-  m_fontSize: 27
-  m_fontSizeBase: 27
+  m_fontSize: 25
+  m_fontSizeBase: 25
   m_fontWeight: 400
   m_enableAutoSizing: 0
   m_fontSizeMin: 18
@@ -554,7 +554,7 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 176970354420104938, guid: bbca1bbedd1178a459e212bc8b227aba, type: 3}
       propertyPath: m_SizeDelta.y
-      value: 32
+      value: 25
       objectReference: {fileID: 0}
     - target: {fileID: 176970354420104938, guid: bbca1bbedd1178a459e212bc8b227aba, type: 3}
       propertyPath: m_LocalPosition.x
@@ -586,11 +586,11 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 176970354420104938, guid: bbca1bbedd1178a459e212bc8b227aba, type: 3}
       propertyPath: m_AnchoredPosition.x
-      value: -107
+      value: -106
       objectReference: {fileID: 0}
     - target: {fileID: 176970354420104938, guid: bbca1bbedd1178a459e212bc8b227aba, type: 3}
       propertyPath: m_AnchoredPosition.y
-      value: -2
+      value: 0
       objectReference: {fileID: 0}
     - target: {fileID: 176970354420104938, guid: bbca1bbedd1178a459e212bc8b227aba, type: 3}
       propertyPath: m_LocalEulerAnglesHint.x
@@ -615,10 +615,6 @@ PrefabInstance:
     - target: {fileID: 2066800645240657143, guid: bbca1bbedd1178a459e212bc8b227aba, type: 3}
       propertyPath: m_Name
       value: PasswordSlideField
-      objectReference: {fileID: 0}
-    - target: {fileID: 5342489893481232161, guid: bbca1bbedd1178a459e212bc8b227aba, type: 3}
-      propertyPath: m_AnchoredPosition.x
-      value: -4.9550323
       objectReference: {fileID: 0}
     m_RemovedComponents: []
     m_RemovedGameObjects: []
@@ -797,7 +793,7 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 6160797260267854761, guid: 4553ab2f96ee21744b0ea7fb347ebc7c, type: 3}
       propertyPath: m_AnchoredPosition.x
-      value: -78
+      value: -73
       objectReference: {fileID: 0}
     - target: {fileID: 6160797260267854761, guid: 4553ab2f96ee21744b0ea7fb347ebc7c, type: 3}
       propertyPath: m_AnchoredPosition.y
@@ -825,7 +821,7 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 8258193960135870695, guid: 4553ab2f96ee21744b0ea7fb347ebc7c, type: 3}
       propertyPath: m_fontSize
-      value: 27
+      value: 25
       objectReference: {fileID: 0}
     - target: {fileID: 8258193960135870695, guid: 4553ab2f96ee21744b0ea7fb347ebc7c, type: 3}
       propertyPath: m_fontStyle
@@ -846,6 +842,14 @@ PrefabInstance:
     - target: {fileID: 8258193960135870695, guid: 4553ab2f96ee21744b0ea7fb347ebc7c, type: 3}
       propertyPath: m_fontSizeMax
       value: 27
+      objectReference: {fileID: 0}
+    - target: {fileID: 8258193960135870695, guid: 4553ab2f96ee21744b0ea7fb347ebc7c, type: 3}
+      propertyPath: m_fontSizeBase
+      value: 25
+      objectReference: {fileID: 0}
+    - target: {fileID: 8258193960135870695, guid: 4553ab2f96ee21744b0ea7fb347ebc7c, type: 3}
+      propertyPath: m_enableAutoSizing
+      value: 0
       objectReference: {fileID: 0}
     - target: {fileID: 8258193960135870695, guid: 4553ab2f96ee21744b0ea7fb347ebc7c, type: 3}
       propertyPath: m_fontColor32.rgba

@@ -14,8 +14,12 @@ using UnityEngine;
 public class UILobby : MonoBehaviour
 {
     [Header("Navigation")]
-    [SerializeField] private UIGenericButton backButton; // 뒤로 가기 버튼(공용 헤더). ESC 와 같은 경로를 탄다
-    [SerializeField] private TMP_Text subTitleText;      // 공용 헤더의 부제목. 떠 있는 서브뷰에 따라 갈아 끼운다
+    [SerializeField] private UIGenericButton backButton;     // 뒤로 가기 버튼(공용 헤더). ESC 와 같은 경로를 탄다
+    [SerializeField] private UIGenericButton settingsButton; // 설정 버튼(공용 헤더). 목록·방 어디서나 설정 창을 연다
+    [SerializeField] private TMP_Text subTitleText;          // 공용 헤더의 부제목. 떠 있는 서브뷰에 따라 갈아 끼운다
+
+    [Header("Settings")]
+    [SerializeField] private UISettings settingsPanel; // 설정 창. 메뉴 뷰와 같은 공용 인스턴스이며 닫힌 상태로 시작한다
 
     [Header("Broadcasting on")]
     [SerializeField] private PopupEventChannelSO popupRequested; // 방 나가기 확인 팝업 요청
@@ -39,12 +43,17 @@ public class UILobby : MonoBehaviour
     private readonly Stack<Action> popupStack = new Stack<Action>();
 
     private bool wasRoomOpenBeforeCreate; // 방 만들기 팝업을 연 시점에 방 화면이 떠 있었는지. 닫을 때 되돌릴 화면을 고른다
+    private bool isSettingsOpen;          // 설정 창을 이 뷰가 연 상태인지. 메뉴 뷰가 같은 패널을 끌 수 있어 activeSelf 대신 이 값을 본다
+
+    /// <summary>설정 창이 이 뷰에서 열려 있는지 여부.</summary>
+    public bool IsSettingsOpen => isSettingsOpen;
 
     /// <summary>위젯 리스너를 등록하고 자식 이벤트를 구독한 뒤 팝업·방 화면을 닫은 상태로 초기화한다.</summary>
     private void OnEnable()
     {
         // 액션 할당
         backButton.Clicked += Back;
+        settingsButton.Clicked += ShowSettings;
 
         roomListPanel.CreatePanelRequested += ShowCreatePanel;
         roomListPanel.RefreshRequested += RaiseRefreshRequested;
@@ -59,12 +68,17 @@ public class UILobby : MonoBehaviour
         popupStack.Clear();
         createContent.Hide();
         HideRoom();
+
+        // 씬에 켜진 채로 저장돼 있어도 여기서 닫는다. 아직 구독 전이라 해제 없이 바로 끈다.
+        isSettingsOpen = false;
+        settingsPanel.gameObject.SetActive(false);
     }
 
-    /// <summary>리스너를 해제한다.</summary>
+    /// <summary>리스너를 해제한다. 설정 창이 열린 채 로비가 꺼지면 구독이 남으므로 함께 닫는다.</summary>
     private void OnDisable()
     {
         backButton.Clicked -= Back;
+        settingsButton.Clicked -= ShowSettings;
 
         roomListPanel.CreatePanelRequested -= ShowCreatePanel;
         roomListPanel.RefreshRequested -= RaiseRefreshRequested;
@@ -75,6 +89,8 @@ public class UILobby : MonoBehaviour
         roomPanel.ReadyRequested -= RaiseRoomReadyRequested;
         roomPanel.StartRequested -= RaiseRoomStartRequested;
         roomPanel.InviteRequested -= RaiseRoomInviteRequested;
+
+        if (isSettingsOpen) HideSettings();
     }
 
     /// <summary>
@@ -83,9 +99,16 @@ public class UILobby : MonoBehaviour
     /// 방도 스택에 쌓지 않는다 — 이탈은 비동기라 지금 닫아 버리면 세션이 살아 있는 채로 화면만 닫힌다.
     /// 방 화면을 스택보다 뒤에 두는 이유는 방 위에 팝업이 뜰 수 있어서다(이탈 확인 팝업 등).
     /// 헤더의 Back 버튼과 ESC(UIMenuManager 가 중계)가 함께 쓰는 유일한 경로다.
+    /// 설정 창은 무엇보다 위에 뜨므로 가장 먼저 본다.
     /// </summary>
     public void Back()
     {
+        if (isSettingsOpen)
+        {
+            HideSettings();
+            return;
+        }
+
         if (roomListPanel.TryCloseOpenPasswordField()) return;
 
         if (popupStack.Count > 0)
@@ -122,6 +145,26 @@ public class UILobby : MonoBehaviour
 
     // 서브뷰의 데이터 갱신(목록 셀·방 슬롯)은 각 매니저가 UIRoomList / UIRoom 을 직접 참조해 그린다.
     // 여기서는 여닫기와 뒤로 가기 경로, 서브타이틀만 소유한다.
+
+    /// <summary>설정 창을 연다. 닫기 구독은 열려 있는 동안에만 유지한다.</summary>
+    public void ShowSettings()
+    {
+        if (isSettingsOpen) return;
+
+        isSettingsOpen = true;
+        settingsPanel.CloseRequested += HideSettings;
+        settingsPanel.gameObject.SetActive(true);
+    }
+
+    /// <summary>설정 창을 닫고 닫기 구독을 해제한다.</summary>
+    public void HideSettings()
+    {
+        if (!isSettingsOpen) return;
+
+        isSettingsOpen = false;
+        settingsPanel.CloseRequested -= HideSettings;
+        settingsPanel.gameObject.SetActive(false);
+    }
 
     /// <summary>셀의 입장 확정을 매니저용 이벤트로 올린다.</summary>
     /// <param name="lobby">대상 로비</param>
