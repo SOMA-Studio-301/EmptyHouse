@@ -2,6 +2,7 @@ using System;
 using Border.Localization;
 using TMPro;
 using UnityEngine;
+using UnityEngine.EventSystems;
 using UnityEngine.UI;
 using Unity.Services.Lobbies.Models;
 
@@ -12,8 +13,11 @@ using Unity.Services.Lobbies.Models;
 /// 입장 가능 여부 판정은 표시 수준에서만 하고, 실제 입장 로직은 상위 몫이다.
 /// 선택 상태는 배경 스프라이트로만 드러낸다 — 내부 위젯이 포커스를 쥐고 있거나 비밀번호 입력창이 열려 있으면 선택이다.
 /// 엔트리 간 배타는 따로 관리하지 않는다. EventSystem 이 포커스를 하나만 유지하고, 입력창 배타는 UIRoomList 가 이미 조율한다.
+/// 행 클릭은 공개방이면 단일 = 선택·더블 = 입장이고, 비밀번호 방이면 단일 클릭으로 입력창을 펼치는 것으로 끝난다.
+/// 공개방의 클릭 판은 행 전체로 늘린 입장 버튼이다 — 단일 클릭은 버튼이 EventSystem 포커스를 받아 선택으로 쓰이고,
+/// 입장 확정만 UIDoubleClickRelay 가 더블 클릭으로 걸러 올린다. 비밀번호 방은 버튼이 꺼져 배경이 클릭을 받는다.
 /// </summary>
-public class UILobbyEntry : MonoBehaviour
+public class UILobbyEntry : MonoBehaviour, IPointerClickHandler
 {
     /// <summary>발행: 입장 확정. 표시 중인 로비와 입력된 비밀번호(공개 방이면 빈 문자열)를 싣는다.</summary>
     public event Action<Lobby, string> JoinClicked;
@@ -21,13 +25,17 @@ public class UILobbyEntry : MonoBehaviour
     /// <summary>발행: 비밀번호 입력창 여닫힘. 상위가 엔트리를 하나만 열어두게 자기 자신을 싣는다.</summary>
     public event Action<UILobbyEntry, bool> PasswordFieldToggled;
 
+    /// <summary>발행: 비밀번호 입력창의 편집 포커스 변화. 상위가 목록 재그리기를 멈출지 정하는 데 쓴다.</summary>
+    public event Action<UILobbyEntry, bool> PasswordFocusChanged;
+
     [LocalizeKey] public string JoinKey;     // 탑승(입장 가능) 라벨 키
     [LocalizeKey] public string FullKey;     // 만차(만석) 라벨 키
     [LocalizeKey] public string DepartedKey; // 출발(게임 진행 중) 라벨 키
 
     [SerializeField] private TMP_Text lobbyNameText;             // 방 이름 라벨. 키 미등록 문자열은 원문 그대로 출력된다
     [SerializeField] private TMP_Text playerCountText;           // 인원 수 라벨
-    [SerializeField] private UIGenericButton joinButton;         // 입장 버튼. 공개방·출발·만석에서 노출된다
+    [SerializeField] private UIGenericButton joinButton;         // 입장 버튼. 공개방·출발·만석에서 노출되며 행 전체를 덮는다
+    [SerializeField] private UIDoubleClickRelay joinDoubleClick; // 입장 버튼의 더블 클릭 릴레이. 단일 클릭은 선택으로만 쓰고 입장은 이쪽이 확정한다
     [SerializeField] private UIPasswordSlideField passwordField; // 슬라이드 비밀번호 입력. 비밀번호 방에서만 노출된다
 
     [Header("Button Colors")]
@@ -43,16 +51,21 @@ public class UILobbyEntry : MonoBehaviour
     [SerializeField] private Sprite selectedGlowSprite;   // 선택 글로우
     [SerializeField] private UIFocusRelay[] focusRelays;  // 포커스를 감시할 내부 위젯 릴레이. 입장 버튼·자물쇠 토글·입력창
 
-    private Lobby lobby;         // 표시 중인 로비
-    private bool hasPassword;    // 표시 중인 로비가 비밀번호 방인지
-    private bool isPasswordOpen; // 비밀번호 입력창이 열려 있는지. 포커스가 밖으로 나가도 선택을 유지시킨다
+    public bool IsPasswordFocused => passwordField.IsFocused; // 비밀번호 입력창이 편집 포커스를 쥐고 있는지
+
+    private Lobby lobby;            // 표시 중인 로비
+    private bool hasPassword;       // 표시 중인 로비가 비밀번호 방인지
+    private bool isPasswordOpen;    // 비밀번호 입력창이 열려 있는지. 포커스가 밖으로 나가도 선택을 유지시킨다
+    private bool usePasswordField;  // 입장 위젯으로 입력창을 쓰는지. 행 클릭 동작이 갈린다
+    private bool isJoinable;        // 지금 입장할 수 있는 방인지. 출발·만석이면 false
 
     /// <summary>버튼·입력창·포커스 릴레이 리스너를 등록한다.</summary>
     private void Awake()
     {
-        joinButton.Clicked += RaiseJoinClicked;
+        joinDoubleClick.DoubleClicked += RaiseJoinClicked; // 버튼의 단일 클릭은 선택으로만 쓴다
         passwordField.ToggleChanged += HandlePasswordFieldToggled;
         passwordField.Submitted += RaiseJoinClicked; // Enter 로도 입장이 확정된다
+        passwordField.FocusChanged += HandlePasswordFocusChanged;
 
         foreach (UIFocusRelay relay in focusRelays)
         {
@@ -63,14 +76,28 @@ public class UILobbyEntry : MonoBehaviour
     /// <summary>리스너를 해제한다.</summary>
     private void OnDestroy()
     {
-        joinButton.Clicked -= RaiseJoinClicked;
+        joinDoubleClick.DoubleClicked -= RaiseJoinClicked;
         passwordField.ToggleChanged -= HandlePasswordFieldToggled;
         passwordField.Submitted -= RaiseJoinClicked;
+        passwordField.FocusChanged -= HandlePasswordFocusChanged;
 
         foreach (UIFocusRelay relay in focusRelays)
         {
             relay.FocusChanged -= HandleFocusChanged;
         }
+    }
+
+    /// <summary>
+    /// 배경으로 들어온 행 클릭을 받는다. 비밀번호 방에서 단일 클릭으로 입력창을 펼치는 경로 하나뿐이다.
+    /// 공개방·출발·만석은 입장 버튼이 행 전체를 덮고 있어 클릭이 그쪽에서 소비되므로 여기까지 오지 않는다.
+    /// </summary>
+    /// <param name="eventData">EventSystem 이 전달하는 포인터 데이터. 연속 클릭 횟수를 읽는다</param>
+    public void OnPointerClick(PointerEventData eventData)
+    {
+        if (!usePasswordField) return;
+        if (eventData.clickCount != 1) return; // 이미 펼친 뒤의 연타는 흘린다
+
+        passwordField.Open();
     }
 
     /// <summary>
@@ -92,6 +119,9 @@ public class UILobbyEntry : MonoBehaviour
         bool isFull = lobby.Players.Count >= lobby.MaxPlayers;
         bool useButton = isDeparted || isFull || !hasPassword;
 
+        isJoinable = !isDeparted && !isFull;
+        usePasswordField = !useButton; // 행 클릭이 입장인지 입력창 펼치기인지를 가른다
+
         joinButton.gameObject.SetActive(useButton);
         passwordField.gameObject.SetActive(!useButton);
 
@@ -101,7 +131,6 @@ public class UILobbyEntry : MonoBehaviour
 
         if (!useButton) return;
 
-        bool isJoinable = !isDeparted && !isFull;
         joinButton.Interactable = isJoinable;
         joinButton.SetButton(isDeparted ? DepartedKey : isFull ? FullKey : JoinKey);
         joinButton.SetLabelColor(isJoinable ? activeTextColor : inactiveTextColor);
@@ -134,6 +163,13 @@ public class UILobbyEntry : MonoBehaviour
     private void HandleFocusChanged(bool _)
     {
         ApplySelectionSprite();
+    }
+
+    /// <summary>입력창의 편집 포커스 변화를 자기 자신과 함께 올린다. 상위가 목록 재그리기를 멈출지 정한다.</summary>
+    /// <param name="isFocused">포커스를 얻었는지 여부</param>
+    private void HandlePasswordFocusChanged(bool isFocused)
+    {
+        PasswordFocusChanged?.Invoke(this, isFocused);
     }
 
     /// <summary>

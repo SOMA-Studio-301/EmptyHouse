@@ -25,10 +25,13 @@ public class UIPasswordSlideField : MonoBehaviour
 
     public event Action<bool> ToggleChanged; // 발행: 토글 상태 변경. 열림 여부를 싣는다
     public event Action Submitted;           // 발행: 입력창에서 Enter 로 확정
+    public event Action<bool> FocusChanged;  // 발행: 입력창 편집 포커스 변화. 얻었으면 true 를 싣는다
 
     public bool IsOn => secretToggle.isOn;               // 입력창이 열려 있는지
     public string Password => passwordInput.text.Trim(); // 입력된 비밀번호
+    public bool IsFocused => isFocused;                  // 입력창이 편집 포커스를 쥐고 있는지(= 지금 타이핑 중인지)
 
+    private bool isFocused;          // 편집 포커스 보유 상태. 같은 값의 중복 발행을 막는다
     private RectTransform inputRect; // 폭을 여닫는 입력창 RectTransform
     private float openWidth;         // 펼쳤을 때 폭. 프리팹에 작성된 너비를 그대로 읽는다
     private Tween slideTween;        // 재사용하는 폭 트윈. PlayForward = 펼침, PlayBackwards = 접힘
@@ -93,13 +96,19 @@ public class UIPasswordSlideField : MonoBehaviour
     {
         secretToggle.onValueChanged.AddListener(HandleToggleChanged);
         passwordInput.onSubmit.AddListener(RaiseSubmitted);
+        passwordInput.onSelect.AddListener(HandleInputSelected);
+        passwordInput.onDeselect.AddListener(HandleInputDeselected);
     }
 
-    /// <summary>리스너를 해제한다.</summary>
+    /// <summary>리스너를 해제한다. 꺼지는 동안 포커스가 켜진 채로 남지 않게 함께 내린다.</summary>
     private void OnDisable()
     {
         secretToggle.onValueChanged.RemoveListener(HandleToggleChanged);
         passwordInput.onSubmit.RemoveListener(RaiseSubmitted);
+        passwordInput.onSelect.RemoveListener(HandleInputSelected);
+        passwordInput.onDeselect.RemoveListener(HandleInputDeselected);
+
+        SetFocused(false);
     }
 
     /// <summary>입력창을 펼친다. 이미 열려 있으면 아무것도 하지 않는다.</summary>
@@ -126,6 +135,7 @@ public class UIPasswordSlideField : MonoBehaviour
         secretToggle.SetIsOnWithoutNotify(false);
         slideTween.Rewind(); // OnRewind 가 입력창을 비활성화한다
         HideWarning();
+        SetFocused(false); // 알림 없는 초기화지만 포커스는 상위(목록 갱신 보류)가 보고 있어 반드시 내린다
     }
 
     /// <summary>비밀번호가 틀렸음을 알린다. 입력창을 흔들고 비운 뒤 다시 포커스를 준다.</summary>
@@ -183,6 +193,9 @@ public class UIPasswordSlideField : MonoBehaviour
             passwordInput.text = "";
             passwordInput.DeactivateInputField();
             slideTween.PlayBackwards();
+
+            // 접히면서 입력창이 꺼지면 onDeselect 가 오지 않을 수 있어 여기서 확실히 내린다
+            SetFocused(false);
         }
 
         ToggleChanged?.Invoke(isOn);
@@ -193,5 +206,29 @@ public class UIPasswordSlideField : MonoBehaviour
     private void RaiseSubmitted(string _)
     {
         Submitted?.Invoke();
+    }
+
+    /// <summary>입력창이 편집 포커스를 얻었음을 반영한다.</summary>
+    /// <param name="_">입력된 문자열. 쓰지 않는다</param>
+    private void HandleInputSelected(string _)
+    {
+        SetFocused(true);
+    }
+
+    /// <summary>입력창이 편집 포커스를 잃었음을 반영한다.</summary>
+    /// <param name="_">입력된 문자열. 쓰지 않는다</param>
+    private void HandleInputDeselected(string _)
+    {
+        SetFocused(false);
+    }
+
+    /// <summary>편집 포커스 상태를 바꾸고 변화가 있을 때만 발행한다.</summary>
+    /// <param name="value">새 포커스 보유 여부</param>
+    private void SetFocused(bool value)
+    {
+        if (isFocused == value) return;
+
+        isFocused = value;
+        FocusChanged?.Invoke(value);
     }
 }

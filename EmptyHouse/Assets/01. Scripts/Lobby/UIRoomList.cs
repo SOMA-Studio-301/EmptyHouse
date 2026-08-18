@@ -23,7 +23,8 @@ public class UIRoomList : MonoBehaviour
     public event Action<Lobby, string> JoinRequested; // 엔트리의 입장 확정. (대상 로비, 비밀번호. 공개 방이면 빈 문자열)
 
     private UILobbyEntry openPasswordEntry;      // 비밀번호 입력창이 열려 있는 엔트리. 한 번에 하나만 허용한다
-    private IReadOnlyList<Lobby> pendingLobbies; // 비밀번호 입력 중 보류된 목록. 입력창이 닫히면 그때 그린다
+    private UILobbyEntry focusedPasswordEntry;   // 비밀번호를 실제로 입력 중인 엔트리. 재그리기를 멈추는 기준은 열림이 아니라 이쪽이다
+    private IReadOnlyList<Lobby> pendingLobbies; // 비밀번호 입력 중 보류된 목록. 포커스가 빠지면 그때 그린다
 
     /// <summary>레이아웃 확인용으로 씬에 박아둔 더미 엔트리를 걷어낸다. 첫 목록이 내려오기 전에 한 번만 돈다.</summary>
     private void Awake()
@@ -38,6 +39,7 @@ public class UIRoomList : MonoBehaviour
         refreshButton.Clicked += RaiseRefreshRequested;
 
         openPasswordEntry = null;
+        focusedPasswordEntry = null;
         pendingLobbies = null;
     }
 
@@ -62,12 +64,13 @@ public class UIRoomList : MonoBehaviour
 
     /// <summary>
     /// 로비 목록을 엔트리로 다시 그린다. 엔트리의 입장 확정은 JoinRequested 로 올린다.
-    /// 비밀번호 입력 중에는 엔트리를 파괴하면 입력이 날아가므로 목록을 보류했다가 입력창이 닫힐 때 그린다.
+    /// 비밀번호를 입력 중일 때는 엔트리를 파괴하면 입력이 날아가므로 목록을 보류했다가 포커스가 빠질 때 그린다.
+    /// 기준은 입력창이 열려 있는지가 아니라 편집 포커스가 있는지다 — 열어두고 방치한 엔트리 때문에 갱신이 멈추면 안 된다.
     /// </summary>
     /// <param name="lobbies">표시할 로비 목록</param>
     public void ShowLobbyList(IReadOnlyList<Lobby> lobbies)
     {
-        if (openPasswordEntry != null)
+        if (focusedPasswordEntry != null)
         {
             pendingLobbies = lobbies;
             return;
@@ -85,6 +88,7 @@ public class UIRoomList : MonoBehaviour
             // 엔트리는 재그리기마다 파괴되므로 해제 불요
             entry.JoinClicked += RaiseJoinRequested;
             entry.PasswordFieldToggled += HandleEntryPasswordFieldToggled;
+            entry.PasswordFocusChanged += HandleEntryPasswordFocusChanged;
         }
     }
 
@@ -115,6 +119,7 @@ public class UIRoomList : MonoBehaviour
     public void ResetPasswordState()
     {
         openPasswordEntry = null;
+        focusedPasswordEntry = null;
         pendingLobbies = null;
     }
 
@@ -149,7 +154,7 @@ public class UIRoomList : MonoBehaviour
 
     /// <summary>
     /// 엔트리의 비밀번호 입력창 여닫힘을 받아 한 번에 하나만 열려 있게 조율한다.
-    /// 마지막 입력창이 닫히면 그동안 보류해 둔 목록을 그린다.
+    /// 보류해 둔 목록 그리기는 여기가 아니라 포커스 통지가 맡는다 — 닫힘보다 포커스 상실이 항상 먼저 온다.
     /// </summary>
     /// <param name="entry">상태가 바뀐 엔트리</param>
     /// <param name="isOpen">열림 여부</param>
@@ -170,6 +175,25 @@ public class UIRoomList : MonoBehaviour
         if (openPasswordEntry != entry) return;
 
         openPasswordEntry = null;
+    }
+
+    /// <summary>
+    /// 엔트리의 비밀번호 입력 포커스를 받아 목록 재그리기를 멈추고 푼다.
+    /// 포커스가 빠지는 순간 보류해 둔 목록이 있으면 바로 그린다 — 다음 자동 새로고침(10초)까지 기다리지 않는다.
+    /// </summary>
+    /// <param name="entry">상태가 바뀐 엔트리</param>
+    /// <param name="isFocused">포커스 보유 여부</param>
+    private void HandleEntryPasswordFocusChanged(UILobbyEntry entry, bool isFocused)
+    {
+        if (isFocused)
+        {
+            focusedPasswordEntry = entry;
+            return;
+        }
+
+        if (focusedPasswordEntry != entry) return;
+
+        focusedPasswordEntry = null;
 
         if (pendingLobbies != null) ShowLobbyList(pendingLobbies);
     }
