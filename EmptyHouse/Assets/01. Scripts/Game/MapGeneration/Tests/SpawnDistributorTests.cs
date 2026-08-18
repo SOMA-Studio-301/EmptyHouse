@@ -100,6 +100,79 @@ namespace EmptyHouse.MapGen.Core.Tests
             }
         }
 
+        /// <summary>위장 무대는 HerdSpawnBands 가 허용한 등급 밴드에만 선다 — 안전 구역 무리 스폰 차단.</summary>
+        [Test]
+        public void TryDistribute_위장_무대는_허용_등급_밴드에만_선다()
+        {
+            for (int seed = 1; seed <= SeedCount; seed++)
+            {
+                MapBlueprint blueprint = Generate(seed, out MapGenParams genParams, out _);
+                int[] depths = DangerGradeCalculator.ComputeHopDistances(blueprint);
+                int maxDepth = 0;
+                for (int r = 0; r < depths.Length; r++)
+                {
+                    if (depths[r] > maxDepth)
+                    {
+                        maxDepth = depths[r];
+                    }
+                }
+
+                List<int> herdRooms = CollectRooms(blueprint, SpawnKind.HerdArea);
+                for (int h = 0; h < herdRooms.Count; h++)
+                {
+                    DangerBandMask band = BandOf(depths[herdRooms[h]], maxDepth);
+                    Assert.That(genParams.HerdSpawnBands & band, Is.Not.EqualTo(DangerBandMask.None),
+                        $"시드 {seed}: 무대 방 {herdRooms[h]} 가 미허용 밴드({band}) 에 있다");
+                }
+            }
+        }
+
+        /// <summary>무대 방의 좀비는 전부 HerdArea 마커에 선다 — 방당 마커 역할 배타(같은 자리 중복 스폰 차단).</summary>
+        [Test]
+        public void TryDistribute_무대_방은_ZombieSpawn_마커를_쓰지_않는다()
+        {
+            for (int seed = 1; seed <= SeedCount; seed++)
+            {
+                MapBlueprint blueprint = Generate(seed, out _, out IReadOnlyList<RoomTemplateDef> templates);
+                var herdRooms = new HashSet<int>(CollectRooms(blueprint, SpawnKind.HerdArea));
+
+                for (int s = 0; s < blueprint.Spawns.Count; s++)
+                {
+                    BlueprintSpawn spawn = blueprint.Spawns[s];
+                    if (spawn.Kind != SpawnKind.ZombieWalker && spawn.Kind != SpawnKind.ZombieListener && spawn.Kind != SpawnKind.ZombieWatcher)
+                    {
+                        continue;
+                    }
+
+                    MarkerDef marker = FindMarker(templates, blueprint, spawn.RoomIndex, spawn.MarkerId);
+                    if (herdRooms.Contains(spawn.RoomIndex))
+                    {
+                        Assert.That(marker.Kind, Is.EqualTo(MarkerKind.HerdArea),
+                            $"시드 {seed}: 무대 방 {spawn.RoomIndex} 의 좀비가 {marker.Kind} 마커에 놓였다(역할 배타 위반)");
+                    }
+                    else
+                    {
+                        Assert.That(marker.Kind, Is.EqualTo(MarkerKind.ZombieSpawn),
+                            $"시드 {seed}: 일반 방 {spawn.RoomIndex} 의 좀비가 {marker.Kind} 마커에 놓였다(역할 배타 위반)");
+                    }
+                }
+            }
+        }
+
+        /// <summary>위험 등급 밴드 — SpawnDistributor.DangerBandOf 와 같은 3분할 기준(테스트 미러).</summary>
+        /// <param name="depth">방 위험 깊이.</param>
+        /// <param name="maxDepth">전체 최대 깊이.</param>
+        /// <returns>단일 비트 밴드 값.</returns>
+        private static DangerBandMask BandOf(int depth, int maxDepth)
+        {
+            if (depth * 3 <= maxDepth)
+            {
+                return DangerBandMask.Safe;
+            }
+
+            return depth * 3 <= maxDepth * 2 ? DangerBandMask.Mid : DangerBandMask.Danger;
+        }
+
         /// <summary>
         /// 마커 밖 좌표(마커 참조 없는 스폰)가 0개다(AC-15 · 2절).
         /// 예외 — 앵커 전용 종류(벽장)는 MarkerId = -1 이다: 좌표를 방 프리팹의 MapItemAnchor 가 정하므로
@@ -372,7 +445,9 @@ namespace EmptyHouse.MapGen.Core.Tests
         {
             switch (kind)
             {
-                case SpawnKind.ZombieWalker: return marker.Kind == MarkerKind.ZombieSpawn && (marker.ZombieMask & ZombieTypeMask.Walker) != 0;
+                // 무리(위장 무대) Walker 는 HerdArea 마커에 선다 — 개체 Walker 는 ZombieSpawn 마커(방당 배타)
+                case SpawnKind.ZombieWalker: return marker.Kind == MarkerKind.HerdArea
+                    || (marker.Kind == MarkerKind.ZombieSpawn && (marker.ZombieMask & ZombieTypeMask.Walker) != 0);
                 case SpawnKind.ZombieListener: return marker.Kind == MarkerKind.ZombieSpawn && (marker.ZombieMask & ZombieTypeMask.Listener) != 0;
                 case SpawnKind.ZombieWatcher: return marker.Kind == MarkerKind.ZombieSpawn && (marker.ZombieMask & ZombieTypeMask.Watcher) != 0;
                 case SpawnKind.VaccineAntigen:

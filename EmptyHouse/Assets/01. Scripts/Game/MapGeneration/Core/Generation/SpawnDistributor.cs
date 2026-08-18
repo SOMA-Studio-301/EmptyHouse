@@ -175,7 +175,9 @@ namespace EmptyHouse.MapGen.Core
         /// <summary>
         /// 좀비 예산을 위험 등급별 밀도로 분배한다(5절). 타입 규칙 — Watcher: 어두움 태그 방 +
         /// 길목 GeneratorSlot 세트 / Listener: 관문 앞 투척물 보장(6절 불변식과 연동) / 나머지 Walker.
-        /// HerdArea 에는 Walker 단독 무리(Listener 미포함). 활성 타입은 EnabledZombieTypes 로 게이트.
+        /// HerdArea 에는 Walker 단독 무리(Listener 미포함) — 무리는 HerdArea 마커에만 서고, 그 방은 일반 밀도에서 빠져
+        /// 방당 마커 역할이 배타가 된다(같은 자리 중복 스폰 차단). 무대 채택은 HerdSpawnBands 등급 게이트를 통과해야 한다.
+        /// 활성 타입은 EnabledZombieTypes 로 게이트.
         /// 등급 밴드는 최대 깊이 3등분(하위 안전 / 중위 중간 / 상위 위험)으로 해석한다.
         /// </summary>
         /// <param name="rng">단일 난수 스트림.</param>
@@ -186,6 +188,16 @@ namespace EmptyHouse.MapGen.Core
         {
             Log.D("[SpawnDistributor] DistributeZombies");
 
+            // 등급 밴드 기준선 — 무리 게이트가 먼저 쓰므로 두 배치 단계보다 앞서 구한다
+            int maxDepth = 0;
+            for (int r = 0; r < dangerDepths.Length; r++)
+            {
+                if (dangerDepths[r] > maxDepth)
+                {
+                    maxDepth = dangerDepths[r];
+                }
+            }
+
             // 위장 무대 — HerdArea 마커 방마다 무대 등록 + Walker 단독 무리
             for (int r = 0; r < blueprint.Rooms.Count; r++)
             {
@@ -194,6 +206,16 @@ namespace EmptyHouse.MapGen.Core
                 {
                     if (markers[m].Kind != MarkerKind.HerdArea)
                     {
+                        continue;
+                    }
+
+                    FloorGenParams herdFloor = FloorParamsOf(r); // 무리 수·허용 밴드·활성 타입은 층별 노브(M9-6)
+
+                    // 등급 게이트 — 허용 밴드 밖(기본: 안전 구역)이면 무대로 쓰지 않는다.
+                    // 무리는 밀도 밴드를 우회하는 유일한 경로라, 게이트가 없으면 입구 옆 안전 방에도 3~5마리가 선다.
+                    if ((herdFloor.HerdSpawnBands & DangerBandOf(r, dangerDepths, maxDepth)) == 0)
+                    {
+                        Log.D($"[SpawnDistributor] HerdArea 스킵: 방 {r} 등급 밴드 미허용 — 일반 방으로 배치");
                         continue;
                     }
 
@@ -208,36 +230,23 @@ namespace EmptyHouse.MapGen.Core
                     herdRooms.Add(r);
                     blueprint.Spawns.Add(new BlueprintSpawn { RoomIndex = r, MarkerId = markers[m].Id, Kind = SpawnKind.HerdArea, WanderRadiusCells = 0f });
 
-                    FloorGenParams herdFloor = FloorParamsOf(r); // 무리 수·활성 타입은 층별 노브(M9-6)
                     if ((herdFloor.EnabledZombieTypes & ZombieTypeMask.Walker) == 0)
                     {
                         continue;
                     }
 
+                    // 무리는 무대 마커(HerdArea) 자리에 선다 — ZombieSpawn 마커는 쓰지 않는다.
+                    // 한 방이 두 마커를 겸용하면 같은 자리에 무리와 개체가 겹쳐 스폰되므로 방당 마커 역할은 배타다
+                    // (무대로 쓰인 방은 아래 일반 밀도 배치에서 통째로 제외된다). 배회 반경은 무대 마커 값(0 = 무대 고정).
                     int herdCount = rng.Next(herdFloor.HerdZombieCountMin, herdFloor.HerdZombieCountMax + 1);
                     for (int k = 0; k < herdCount; k++)
                     {
-                        int markerId = PickMarker(rng, r, MarkerKind.ZombieSpawn, out float wander, zombieMask: ZombieTypeMask.Walker);
-                        if (markerId < 0)
-                        {
-                            break;
-                        }
-
-                        blueprint.Spawns.Add(new BlueprintSpawn { RoomIndex = r, MarkerId = markerId, Kind = SpawnKind.ZombieWalker, WanderRadiusCells = wander });
+                        blueprint.Spawns.Add(new BlueprintSpawn { RoomIndex = r, MarkerId = markers[m].Id, Kind = SpawnKind.ZombieWalker, WanderRadiusCells = markers[m].WanderRadiusCells });
                     }
                 }
             }
 
             // 일반 밀도 배치 — 입구(0)와 위장 무대 방 제외
-            int maxDepth = 0;
-            for (int r = 0; r < dangerDepths.Length; r++)
-            {
-                if (dangerDepths[r] > maxDepth)
-                {
-                    maxDepth = dangerDepths[r];
-                }
-            }
-
             for (int r = 1; r < blueprint.Rooms.Count; r++)
             {
                 if (herdRooms.Contains(r))
@@ -247,20 +256,20 @@ namespace EmptyHouse.MapGen.Core
 
                 FloorGenParams floorParams = FloorParamsOf(r); // 밀도 밴드·비율·활성 타입 = 층별 노브(M9-6)
                 int min, max;
-                if (dangerDepths[r] * 3 <= maxDepth)
+                switch (DangerBandOf(r, dangerDepths, maxDepth))
                 {
-                    min = floorParams.ZombieDensitySafeMin;
-                    max = floorParams.ZombieDensitySafeMax;
-                }
-                else if (dangerDepths[r] * 3 <= maxDepth * 2)
-                {
-                    min = floorParams.ZombieDensityMidMin;
-                    max = floorParams.ZombieDensityMidMax;
-                }
-                else
-                {
-                    min = floorParams.ZombieDensityDangerMin;
-                    max = floorParams.ZombieDensityDangerMax;
+                    case DangerBandMask.Safe:
+                        min = floorParams.ZombieDensitySafeMin;
+                        max = floorParams.ZombieDensitySafeMax;
+                        break;
+                    case DangerBandMask.Mid:
+                        min = floorParams.ZombieDensityMidMin;
+                        max = floorParams.ZombieDensityMidMax;
+                        break;
+                    default:
+                        min = floorParams.ZombieDensityDangerMin;
+                        max = floorParams.ZombieDensityDangerMax;
+                        break;
                 }
 
                 int count = rng.Next(min, max + 1);
@@ -961,6 +970,24 @@ namespace EmptyHouse.MapGen.Core
             }
 
             return false;
+        }
+
+        /// <summary>
+        /// 방의 위험 등급 밴드 — 최대 깊이 3등분(하위 안전 / 중위 중간 / 상위 위험, 5절).
+        /// 밀도 배치와 무리 게이트가 같은 기준을 써야 "안전 구역 무좀비" 규칙이 무리 경로로 새지 않는다.
+        /// </summary>
+        /// <param name="room">방 인덱스.</param>
+        /// <param name="dangerDepths">방별 위험 깊이.</param>
+        /// <param name="maxDepth">전체 최대 깊이.</param>
+        /// <returns>단일 비트 밴드 값.</returns>
+        private static DangerBandMask DangerBandOf(int room, int[] dangerDepths, int maxDepth)
+        {
+            if (dangerDepths[room] * 3 <= maxDepth)
+            {
+                return DangerBandMask.Safe;
+            }
+
+            return dangerDepths[room] * 3 <= maxDepth * 2 ? DangerBandMask.Mid : DangerBandMask.Danger;
         }
 
         /// <summary>방에서 조건(종류 + 마스크 교차)에 맞는 마커를 rng 로 고른다.</summary>

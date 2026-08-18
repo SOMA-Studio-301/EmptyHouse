@@ -11,7 +11,7 @@ namespace EmptyHouse.MapGen.Core
     /// </summary>
     public sealed class MapGenerator
     {
-        public const string GeneratorVersion = "0.13.0"; // 생성기 버전 — MapBlueprintMeta에 스냅샷(1절). 0.13.0: 계단 샤프트(SSA — 시드 층 강제 삽입·전 층 좌표 복사·수직 간선, M9-5). 층 1개 블루프린트 결과는 0.11.0 과 동일(골든 증명)
+        public const string GeneratorVersion = "0.14.0"; // 생성기 버전 — MapBlueprintMeta에 스냅샷(1절). 0.14.0: 위장 무대 배치 규칙 — 무리는 HerdArea 마커 전용(ZombieSpawn 마커와 방당 배타) + HerdSpawnBands 등급 게이트. 0.13.0: 계단 샤프트(SSA — 시드 층 강제 삽입·전 층 좌표 복사·수직 간선, M9-5)
 
         private readonly DeterministicRng rng = new DeterministicRng(); // 단일 난수 스트림(8절)
         private readonly LayoutGenerator layoutGenerator = new LayoutGenerator(); // 3절

@@ -105,6 +105,7 @@ namespace EmptyHouse.MapGen.Core
                 ZombieDensityDangerMin = genParams.ZombieDensityDangerMin,
                 ZombieDensityDangerMax = genParams.ZombieDensityDangerMax,
                 ListenerRatioPercent = genParams.ListenerRatioPercent,
+                HerdSpawnBands = genParams.HerdSpawnBands,
                 HerdZombieCountMin = genParams.HerdZombieCountMin,
                 HerdZombieCountMax = genParams.HerdZombieCountMax,
                 EnabledZombieTypes = genParams.EnabledZombieTypes,

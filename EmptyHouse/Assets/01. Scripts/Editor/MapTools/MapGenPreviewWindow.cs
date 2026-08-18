@@ -43,6 +43,7 @@ namespace EmptyHouse.MapGen.Editor
         private MapGenResult lastResult; // 마지막 생성 결과 — 도메인 리로드 시 소실, 재생성으로 복원
         private List<RoomTemplateDef> lastTemplates; // 마지막 생성에 쓴 템플릿 — 오버레이가 풋프린트·마커를 조회
         private MapBlueprint displayBlueprint; // 캔버스 표시용 블루프린트 — 다층이면 층별 X 오프셋 펼침 사본(원본 좌표는 층간 겹침)
+        private bool[] safeZoneRooms; // 방 인덱스 → 안전지대 여부(RoomTemplateSO.ExcludeFromNavMesh 가 정본 — 매직 스트링 대조 금지)
 
         /// <summary>배회 반경 오버라이드 1건 — (템플릿, ZombieSpawn 마커) 기본값을 세션 단위로 대체한다(10절 — 재료 편집).</summary>
         [Serializable]
@@ -84,6 +85,7 @@ namespace EmptyHouse.MapGen.Editor
                     SpawnKindFilterMask = spawnKindFilterMask,
                     AssumedCellMeters = assumedCellMeters,
                     HearingRefDb = hearingRefDb,
+                    SafeZoneRooms = safeZoneRooms,
                 };
                 // 층 필터·라벨(M9 다층) — 다층 결과에서만 활성. FloorFilter 기본은 반드시 int.MinValue(전체) — 0 이면 1F 필터가 된다
                 options.FloorFilter = int.MinValue;
@@ -457,7 +459,7 @@ namespace EmptyHouse.MapGen.Editor
             EditorGUILayout.EndScrollView();
         }
 
-        /// <summary>구성 통계 — 방/복도 수와 직결·복도 경유 간선 수를 표시한다(직결/경유 혼합 비율 확인용).</summary>
+        /// <summary>구성 통계 — 방/복도/안전지대 수와 직결·복도 경유 간선 수를 표시한다(직결/경유 혼합 비율 확인용).</summary>
         private void DrawCompositionStats()
         {
             if (!lastResult.Success || lastResult.Blueprint == null || lastTemplates == null)
@@ -546,7 +548,19 @@ namespace EmptyHouse.MapGen.Editor
 
             float leafPct = nonCorridorRooms == 0 ? 0f : 100f * leafRooms / nonCorridorRooms;
 
-            EditorGUILayout.LabelField($"방 {roomCount} + 입구 1 · 복도 {corridorCount}", EditorStyles.miniLabel);
+            int safeZoneCount = 0;
+            if (safeZoneRooms != null)
+            {
+                for (int r = 0; r < safeZoneRooms.Length; r++)
+                {
+                    if (safeZoneRooms[r])
+                    {
+                        safeZoneCount++;
+                    }
+                }
+            }
+
+            EditorGUILayout.LabelField($"방 {roomCount} + 입구 1 · 복도 {corridorCount} · 안전지대 {safeZoneCount}", EditorStyles.miniLabel);
             EditorGUILayout.LabelField($"방↔방 직결 {directEdges} · 방↔복도 {roomCorridorEdges} · 복도↔복도 {corridorCorridorEdges}", EditorStyles.miniLabel);
             EditorGUILayout.LabelField($"사이클 소속 방 {blueprint.Meta.CycleRoomPercentAchieved:F1}% (목표 {workingParams.CycleRoomPercent}%) · 잎 방 {leafPct:F1}%", EditorStyles.miniLabel);
         }
@@ -598,15 +612,17 @@ namespace EmptyHouse.MapGen.Editor
             {
                 Log.E("[MapGenPreviewWindow] 선택된 빈 집 정의가 없다 — 드롭다운에서 선택(↻ 로 재스캔) 후 생성");
                 lastResult = null;
+                safeZoneRooms = null;
                 Repaint();
                 return;
             }
 
-            MapGenPlan plan = MapPlanBuilder.Build(definition, snapshot, out _);
+            MapGenPlan plan = MapPlanBuilder.Build(definition, snapshot, out RoomTemplateSO[] flatAssets);
             if (plan == null)
             {
                 Log.E("[MapGenPreviewWindow] 정의 린트 실패 — 조립 거부(R4), 콘솔 에러 참조");
                 lastResult = null;
+                safeZoneRooms = null;
                 Repaint();
                 return;
             }
@@ -621,9 +637,35 @@ namespace EmptyHouse.MapGen.Editor
                 displayBlueprint = FloorSpread(lastResult.Blueprint, plan);
             }
 
+            safeZoneRooms = ResolveSafeZoneRooms(lastResult, flatAssets);
             floorFilterIndex = 0;
             canvasDrawer.RequestFit();
             Repaint();
+        }
+
+        /// <summary>
+        /// 방 인덱스별 안전지대 여부를 산출한다 — 판별 정본은 <see cref="RoomTemplateSO.ExcludeFromNavMesh"/>
+        /// (좀비가 못 들어오는 방 = NavMesh 베이크 제외 방). TemplateId 문자열 대조는 쓰지 않는다.
+        /// </summary>
+        /// <param name="result">생성 결과(실패면 null 반환).</param>
+        /// <param name="flatAssets">평탄화 템플릿 SO — 인덱스가 BlueprintRoom.TemplateIndex 와 정렬.</param>
+        /// <returns>방 인덱스 기준 안전지대 플래그 배열(판별 불가 시 null).</returns>
+        private static bool[] ResolveSafeZoneRooms(MapGenResult result, RoomTemplateSO[] flatAssets)
+        {
+            if (result == null || !result.Success || flatAssets == null)
+            {
+                return null;
+            }
+
+            MapBlueprint blueprint = result.Blueprint;
+            var flags = new bool[blueprint.Rooms.Count];
+            for (int r = 0; r < blueprint.Rooms.Count; r++)
+            {
+                int index = blueprint.Rooms[r].TemplateIndex;
+                flags[r] = index >= 0 && index < flatAssets.Length && flatAssets[index] != null && flatAssets[index].ExcludeFromNavMesh;
+            }
+
+            return flags;
         }
 
         /// <summary>

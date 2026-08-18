@@ -8,8 +8,8 @@ namespace EmptyHouse.MapGen.Core
     public sealed class MapGenParams
     {
         public int Seed; // 확정 시드 — 0(랜덤)은 코어 진입 전에 서버가 실제 값으로 확정한다(X8)
-        public int RoomsTotalMin = 58; // 총 방 수 하한 — 방 전용 집계(복도·입구 앵커 제외), 미리보기 튜닝 확정(2026-08-06)
-        public int RoomsTotalMax = 60; // 총 방 수 상한 — 방 전용 집계
+        public int RoomsTotalMin = 28; // 총 방 수 하한 — 방 전용 집계(복도·입구 앵커 제외), 미리보기 튜닝 확정(2026-08-07)
+        public int RoomsTotalMax = 32; // 총 방 수 상한 — 방 전용 집계
         public int CycleRoomPercent = 75; // 사이클 소속 방 목표 비율 %(0 = 순수 트리) — 인접쌍 개방+복도 브리지로 목표까지 채택, 기하 상한(~67, 2026-08-06 실측) 초과분은 베스트에포트+X6 경고
         public int CorridorLinkPercent = 100; // 방 확장 시 복도 경유 연결 확률 %(0=전부 직결) — 복도는 방+복도 원자 배치라 막다른 끝이 생기지 않는다. 미리보기 튜닝 확정(2026-08-06, 복도 MaxCount 소진 시 직결 폴백이 혼합을 만든다)
         public int CorridorChainMax = 3; // 복도 연쇄 최대 세그먼트 수(1 = 연쇄 없음) — 경유 연결마다 1~Max 균등 롤, 먼 방 연결용. 체인 전체가 원자 트랜잭션이라 막다른 끝 불변
@@ -33,6 +33,7 @@ namespace EmptyHouse.MapGen.Core
         public int ThrowableBudget = 4; // 회피 예산분 투척물 개수(D4 — 외출마다 재배치 ⚪)
         public int OilCount = 3; // 기름 배치 수(⚪ — 깊은 구역 집중, G2)
         public int ScrapCount = 6; // 스크랩 배치 수(⚪ — 깊이 비례, G2)
+        public DangerBandMask HerdSpawnBands = DangerBandMask.Mid | DangerBandMask.Danger; // 위장 무대(무리) 배치 허용 위험 등급 밴드 — 기본은 안전 구역 제외
         public int HerdZombieCountMin = 3; // 위장 무대 Walker 무리 최소(⚪ — 레벨디자인 4절)
         public int HerdZombieCountMax = 5; // 위장 무대 Walker 무리 최대 ⚪
         public ZombieTypeMask EnabledZombieTypes = ZombieTypeMask.Walker; // 배치 활성 좀비 타입 — 현재 Walker만 게임에 구현되어 기본값 Walker. Watcher·Listener 는 구현 후 활성화
