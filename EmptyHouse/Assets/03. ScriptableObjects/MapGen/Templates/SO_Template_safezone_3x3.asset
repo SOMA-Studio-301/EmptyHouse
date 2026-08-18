@@ -10,31 +10,26 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 4b0619b1f6df3c04d87719bd1170ecb3, type: 3}
-  m_Name: SO_Template_hallway
+  m_Name: SO_Template_safezone_3x3
   m_EditorClassIdentifier: Assembly-CSharp::EmptyHouse.MapGen.Runtime.RoomTemplateSO
-  TemplateId: hallway
-  WidthCells: 1
-  HeightCells: 2
+  TemplateId: safezone_3x3
+  WidthCells: 3
+  HeightCells: 3
   AllowedFloors: 2
   Tags: 0
-  MinCount: 0
-  MaxCount: 44
-  IsCorridor: 1
+  MinCount: 4
+  MaxCount: 4
+  IsCorridor: 0
   IsEntranceAnchor: 0
   IsStairAnchor: 0
   Sockets:
   - Id: 0
-    CellX: 0
+    CellX: 1
     CellY: 0
     Direction: 2
     MandatoryDoor: 0
-  - Id: 1
-    CellX: 0
-    CellY: 1
-    Direction: 0
-    MandatoryDoor: 0
   Markers: []
-  Prefab: {fileID: 95024115327502240, guid: a9ee4d290af335a4fad7d27bc4057383, type: 3}
+  Prefab: {fileID: 3845632745750674989, guid: 4bf84551b30597a43b30fbaceca9930b, type: 3}
   Variants:
-  - {fileID: 95024115327502240, guid: d6088508d108b1b428062891d9df6d0e, type: 3}
-  ExcludeFromNavMesh: 0
+  - {fileID: 6884995001170551733, guid: d55fdfc4169e893469f6ce10d990b8b1, type: 3}
+  ExcludeFromNavMesh: 1

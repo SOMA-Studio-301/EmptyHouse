@@ -159,6 +159,26 @@ namespace EmptyHouse.MapGen.Runtime
                     },
                     Markers = new MarkerDef[0],
                 },
+                new RoomTemplateDef
+                {
+                    // 안전지대(M-SafeZone) — 좀비 무접촉 방. 마커 0개가 스폰 원천 차단(스폰은 100% 마커 구동),
+                    // 단일 소켓이 영구 잎 보장 — 관통 노드가 되면 NavMesh 구멍이 필수 경로를 막는 초크가 된다.
+                    // 베이크 제외는 어댑터 재료(RoomTemplateSO.ExcludeFromNavMesh) 소관 — 코어는 모른다.
+                    TemplateId = "safezone_3x3",
+                    WidthCells = 3,
+                    HeightCells = 3,
+                    AllowedFloors = FloorMask.F1,
+                    Tags = RoomTagMask.None,
+                    MinCount = 4,
+                    MaxCount = 4, // 맵당 상수 4개(층 단위 강제 — 현 Hall 은 1층이라 곱 맵 전체 개수)
+                    IsCorridor = false,
+                    IsEntranceAnchor = false,
+                    Sockets = new[]
+                    {
+                        new SocketDef { Id = 0, LocalCell = new CellCoord(1, 0), Direction = SocketDirection.South },
+                    },
+                    Markers = new MarkerDef[0],
+                },
                 // hallway_x2(8×8m 광폭 복도)는 2026-08-10 카탈로그에서 제외했다. 단부가 소켓 2개(전폭 8m)라
                 // 한쪽만 짝이 맺히면 나머지 반쪽이 봉인돼 통로 한가운데 가벽이 선다 —
                 // 실측(58~60방 300시드) 맞은편이 차 있는 복도 봉인 2701건이 전부 x2 발이었고, 일반 복도는 0건이었다.

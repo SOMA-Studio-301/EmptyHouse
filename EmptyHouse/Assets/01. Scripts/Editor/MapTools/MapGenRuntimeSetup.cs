@@ -44,6 +44,7 @@ namespace EmptyHouse.EditorTools
             ("room_6x6", "Assets/02. Prefab/Map/EmptyRooms/EmptyRoom-6x6.prefab"),
             ("room_6x9", "Assets/02. Prefab/Map/EmptyRooms/EmptyRoom-6x9.prefab"),
             ("hallway", "Assets/02. Prefab/Map/EmptyRooms/Hallway.prefab"),
+            ("safezone_3x3", "Assets/02. Prefab/Map/EmptyRooms/EmptyRoom-3x3.prefab"),
             ("hallway_x2", "Assets/02. Prefab/Map/EmptyRooms/Hallway x2.prefab"),
         };
 
@@ -55,6 +56,7 @@ namespace EmptyHouse.EditorTools
             ("Assets/02. Prefab/Map/DecoratedRooms/6x9", new[] { "room_6x9" }),
             ("Assets/02. Prefab/Map/DecoratedRooms/Entrance", new[] { "entrance_6x6" }),
             ("Assets/02. Prefab/Map/DecoratedRooms/Hallway", new[] { "hallway", "hallway_x2" }),
+            ("Assets/02. Prefab/Map/DecoratedRooms/SafeZone", new[] { "safezone_3x3" }),
         };
 
         private const string sealWallPath = "Assets/04. Arts/Environment/HorrorPack/!Prefabs/Architectural/Hall_Props/Hall_Wall_6M_1Side.prefab"; // 복도 봉인 벽
@@ -178,6 +180,7 @@ namespace EmptyHouse.EditorTools
                 {
                     so = ScriptableObject.CreateInstance<RoomTemplateSO>();
                     so.CopyFrom(defs[i]);
+                    so.ExcludeFromNavMesh = defs[i].TemplateId == "safezone_3x3"; // 안전지대 어댑터 플래그 시드(최초 1회 — 이후 진실은 SO)
                     AssetDatabase.CreateAsset(so, path);
                     Log.D($"[MapGenRuntimeSetup] 템플릿 SO 생성 {path}");
                 }
