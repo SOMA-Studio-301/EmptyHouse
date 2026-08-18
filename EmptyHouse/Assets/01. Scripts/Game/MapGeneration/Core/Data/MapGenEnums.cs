@@ -76,6 +76,16 @@ namespace EmptyHouse.MapGen.Core
         Watcher = 4
     }
 
+    /// <summary>위험 등급 밴드 마스크(5절) — 좀비 밀도 밴드와 같은 3분할(최대 깊이 3등분) 위에서 배치 허용 구간을 지정한다.</summary>
+    [Flags]
+    public enum DangerBandMask
+    {
+        None = 0,
+        Safe = 1,
+        Mid = 2,
+        Danger = 4
+    }
+
     /// <summary>ItemSpawn 마커의 허용 아이템 카테고리 마스크(5절).</summary>
     [Flags]
     public enum ItemCategoryMask

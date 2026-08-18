@@ -28,8 +28,8 @@ MonoBehaviour:
     ShortcutLockCountMin: 2
     ShortcutLockCountMax: 3
     ItemDoorLockCount: 2
-    KeyDistanceMin: 2
-    KeyDistanceMax: 4
+    KeyDistanceMin: 1
+    KeyDistanceMax: 3
     ZombieDensitySafeMin: 0
     ZombieDensitySafeMax: 0
     ZombieDensityMidMin: 0
@@ -40,10 +40,10 @@ MonoBehaviour:
     ThrowableBudget: 4
     OilCount: 3
     ScrapCount: 6
+    HerdSpawnBands: 6
     HerdZombieCountMin: 3
     HerdZombieCountMax: 5
     EnabledZombieTypes: 1
-    Floors: []
     ShaftCountMin: 2
     ShaftCountMax: 3
     ShaftDepthPercentMin: 25

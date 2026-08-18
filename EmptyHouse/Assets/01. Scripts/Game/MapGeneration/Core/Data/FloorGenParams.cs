@@ -23,6 +23,7 @@ namespace EmptyHouse.MapGen.Core
         public int ZombieDensityDangerMin = 2; // 위험 등급 방 좀비 최소 ⚪
         public int ZombieDensityDangerMax = 3; // 위험 등급 방 좀비 최대 ⚪
         public int ListenerRatioPercent = 25; // 비어둠 방에서 Listener 를 고를 확률 % ⚪
+        public DangerBandMask HerdSpawnBands = DangerBandMask.Mid | DangerBandMask.Danger; // 위장 무대(무리) 배치를 허용할 위험 등급 밴드 — 기본은 안전 구역 제외(앞 구역 무좀비 규칙과 정합)
         public int HerdZombieCountMin = 3; // 위장 무대 Walker 무리 최소 ⚪
         public int HerdZombieCountMax = 5; // 위장 무대 Walker 무리 최대 ⚪
         public ZombieTypeMask EnabledZombieTypes = ZombieTypeMask.Walker; // 층별 배치 활성 좀비 타입 — 층마다 다른 압박을 주는 노브

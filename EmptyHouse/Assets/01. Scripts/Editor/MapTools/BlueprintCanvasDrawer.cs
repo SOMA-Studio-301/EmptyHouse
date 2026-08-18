@@ -28,6 +28,7 @@ namespace EmptyHouse.MapGen.Editor
             public float HearingRefDb; // 기준 소음 dB(10절 예시 = 투척물 50)
             public int FloorFilter; // 층 필터 — int.MinValue = 전체, 그 외 = 해당 층 서수만 표시(M9 다층)
             public bool ShowFloorLabels; // 층 섬 라벨(1F/2F/B1) 표시 — 다층 펼침 전용
+            public bool[] SafeZoneRooms; // 방 인덱스 → 안전지대 여부(RoomTemplateSO.ExcludeFromNavMesh 기준). null 이면 표기 생략
         }
 
         private const float minZoom = 3f; // 줌 하한(px/셀)
@@ -109,7 +110,7 @@ namespace EmptyHouse.MapGen.Editor
                     DrawSpawnOverlay(localRect, blueprint, templates, options);
                 }
 
-                DrawHoverTooltip(localRect, blueprint, templates, cachedDepths);
+                DrawHoverTooltip(localRect, blueprint, templates, cachedDepths, options);
                 DrawLegend(localRect);
             }
 
@@ -294,9 +295,14 @@ namespace EmptyHouse.MapGen.Editor
                 }
 
                 Color fill;
+                bool safeZone = IsSafeZone(options, r);
                 if (r == 0)
                 {
                     fill = new Color(0.15f, 0.35f, 0.6f); // 입구 앵커 = 파랑
+                }
+                else if (safeZone)
+                {
+                    fill = new Color(0.1f, 0.62f, 0.58f); // 안전지대 = 청록. 위험 그라데이션보다 우선(좀비 무접촉 방이라 등급 의미가 없다)
                 }
                 else if (depths[r] < 0)
                 {
@@ -317,15 +323,25 @@ namespace EmptyHouse.MapGen.Editor
                     fill.a = 1f;
                 }
 
-                EditorGUI.DrawRect(rect, new Color(0f, 0f, 0f, 0.8f));
-                EditorGUI.DrawRect(new Rect(rect.x + 1f, rect.y + 1f, rect.width - 2f, rect.height - 2f), fill);
+                EditorGUI.DrawRect(rect, safeZone ? new Color(0.45f, 1f, 0.95f) : new Color(0f, 0f, 0f, 0.8f));
+                float inset = safeZone ? 2f : 1f; // 안전지대는 테두리를 두껍게 — 축소 상태에서도 눈에 띈다
+                EditorGUI.DrawRect(new Rect(rect.x + inset, rect.y + inset, rect.width - inset * 2f, rect.height - inset * 2f), fill);
 
                 if (zoom >= gridLabelZoom && !template.IsCorridor)
                 {
-                    string label = template.Tags.HasFlag(RoomTagMask.Dark) ? $"{r}·D" : r.ToString();
+                    string label = safeZone ? "SAFE" : template.Tags.HasFlag(RoomTagMask.Dark) ? $"{r}·D" : r.ToString();
                     GUI.Label(rect, label, roomLabelStyle);
                 }
             }
+        }
+
+        /// <summary>방이 안전지대인지 — 호출자가 넘긴 플래그 배열 조회(배열 없거나 범위 밖이면 false).</summary>
+        /// <param name="options">오버레이 옵션.</param>
+        /// <param name="roomIndex">방 인덱스.</param>
+        /// <returns>안전지대면 true.</returns>
+        private static bool IsSafeZone(OverlayOptions options, int roomIndex)
+        {
+            return options.SafeZoneRooms != null && roomIndex >= 0 && roomIndex < options.SafeZoneRooms.Length && options.SafeZoneRooms[roomIndex];
         }
 
         /// <summary>방이 층 필터를 통과하는지 판정한다 — int.MinValue = 전체 표시(M9 다층).</summary>
@@ -674,7 +690,8 @@ namespace EmptyHouse.MapGen.Editor
         /// <param name="blueprint">블루프린트.</param>
         /// <param name="templates">템플릿 목록.</param>
         /// <param name="depths">방별 입구 깊이.</param>
-        private void DrawHoverTooltip(Rect canvasRect, MapBlueprint blueprint, IReadOnlyList<RoomTemplateDef> templates, int[] depths)
+        /// <param name="options">오버레이 옵션(안전지대 플래그 조회용).</param>
+        private void DrawHoverTooltip(Rect canvasRect, MapBlueprint blueprint, IReadOnlyList<RoomTemplateDef> templates, int[] depths, OverlayOptions options)
         {
             Vector2 mouse = Event.current.mousePosition;
             if (!canvasRect.Contains(mouse))
@@ -703,6 +720,11 @@ namespace EmptyHouse.MapGen.Editor
             if (template.IsCorridor)
             {
                 summary.Append(" (복도)");
+            }
+
+            if (IsSafeZone(options, hoverRoom))
+            {
+                summary.Append(" (안전지대 — NavMesh 제외·스폰 없음)");
             }
 
             summary.Append($"\n입구 깊이 {depths[hoverRoom]}");
