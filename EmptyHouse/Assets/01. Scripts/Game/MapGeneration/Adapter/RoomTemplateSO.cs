@@ -56,6 +56,7 @@ namespace EmptyHouse.MapGen.Runtime
         [Header("어댑터 재료 — 배치 프리팹")]
         public GameObject Prefab; // 기본(폴백) 프리팹 — Variants 가 비었을 때 사용
         public GameObject[] Variants = new GameObject[0]; // 데코 변형 풀(셋업 스캔 산출물 — 이름 오름차순, 시드 결정론 선택)
+        public bool ExcludeFromNavMesh; // 안전지대 등 — 조립 시 방 루트에 NavMeshModifier(ignoreFromBuild)를 스탬프해 베이크에서 제외
 
         /// <summary>코어 순수 데이터로 추출한다 — 호출마다 새 인스턴스(호출자 오버라이드가 에셋을 오염시키지 않게).</summary>
         /// <returns>코어 템플릿 서술자.</returns>

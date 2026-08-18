@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using Border.Core;
 using Border.Events;
 using Unity.AI.Navigation;
@@ -51,6 +52,20 @@ namespace EmptyHouse.MapGen.Runtime
             float rootY = mapRoot.transform.position.y;
             float[] floorPlanes = driver.FloorPlaneYs(); // 층별 바닥면(M9-8) — 단층은 {0}
 
+            // 저작 베이크 제외 마킹 사전 수집 — 방 루트나 바닥 오브젝트에 저작된
+            // NavMeshModifier.ignoreFromBuild 를 존중한다(붙인 오브젝트 + 하위 전체).
+            // 아래 태깅 루프들이 렌더러마다 modifier 를 새로 붙여 상위 마킹을 덮어쓰므로,
+            // 붙이기 전인 이 시점에 읽어둔다 — 여기서 걸린 렌더러는 Walkable 태깅 대상에서 빠진다
+            var excluded = new HashSet<MeshRenderer>();
+            foreach (MeshRenderer renderer in mapRoot.GetComponentsInChildren<MeshRenderer>(true))
+            {
+                NavMeshModifier authored = renderer.GetComponentInParent<NavMeshModifier>(true);
+                if (authored != null && authored.ignoreFromBuild)
+                {
+                    excluded.Add(renderer);
+                }
+            }
+
             // 층 침범 콘텐츠 제외(M9-9) — 장식 프리팹이 자기 층고(6m)를 넘어 위층 공간에 낮은 보·판으로 떠서
             // 위층 통행 클리어런스를 죽인다(실측: B1 room_6x9 PropSet 벌크헤드가 1F y1.0 에 침범).
             // 방 루트 Y(=층 평면) 기준 5.5m 이상에서 시작하는 렌더러는 베이크 제외(계단 전용 토큰은 예외)
@@ -82,6 +97,11 @@ namespace EmptyHouse.MapGen.Runtime
             int tagged = 0;
             foreach (MeshRenderer renderer in mapRoot.GetComponentsInChildren<MeshRenderer>(true))
             {
+                if (excluded.Contains(renderer))
+                {
+                    continue; // 저작 베이크 제외 방/바닥
+                }
+
                 // 그림자 차폐 전용 렌더러(ShadowsOnly, 예: Screen 판)는 베이크 제외 — 보이지 않는 판이
                 // 바닥 위를 덮어 내비를 섬으로 쪼갠다(M9-9 실측: 층 내 방간 통행 전면 단절의 원인)
                 if (renderer.shadowCastingMode == UnityEngine.Rendering.ShadowCastingMode.ShadowsOnly)
@@ -135,6 +155,11 @@ namespace EmptyHouse.MapGen.Runtime
             int stairTagged = 0;
             foreach (MeshRenderer renderer in mapRoot.GetComponentsInChildren<MeshRenderer>(true))
             {
+                if (excluded.Contains(renderer))
+                {
+                    continue; // 저작 베이크 제외 방/바닥
+                }
+
                 if (!renderer.name.Contains("Stair"))
                 {
                     continue;

@@ -19,6 +19,18 @@ namespace EmptyHouse.MapGen.Core.Tests
             var genParams = new MapGenParams { Seed = seed };
 
             var seedTemplates = new List<RoomTemplateDef>(catalog) { StairTemplate("stair_f0") };
+
+            // 안전지대 상수 강제(Min=Max=4)는 실측 층 예산(28~32방) 전제 — 픽스처의 9~11 예산에서는
+            // 단일 소켓 잎 4개 강제가 프런티어 고갈로 리롤 전멸을 만든다(시드 28 실측).
+            // 다층 픽스처의 검증 목적은 계단·층 연결이므로 시드 층에서도 선택 배치로 완화한다(비시드 층은 CloneForFloor 가 이미 Min 0).
+            foreach (RoomTemplateDef t in seedTemplates)
+            {
+                if (t.TemplateId == "safezone_3x3")
+                {
+                    t.MinCount = 0;
+                }
+            }
+
             var floors = new[]
             {
                 new FloorTemplateSet { FloorIndex = 0, ThemeId = "hall", Templates = seedTemplates.ToArray() },

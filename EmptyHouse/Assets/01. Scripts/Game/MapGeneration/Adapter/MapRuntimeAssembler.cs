@@ -47,10 +47,17 @@ namespace EmptyHouse.MapGen.Runtime
             var roomInstances = new GameObject[blueprint.Rooms.Count];
             for (int r = 0; r < blueprint.Rooms.Count; r++)
             {
-                GameObject prefab = flatTemplateAssets[blueprint.Rooms[r].TemplateIndex].SelectPrefab(blueprint.Meta.Seed, r);
+                RoomTemplateSO templateAsset = flatTemplateAssets[blueprint.Rooms[r].TemplateIndex];
+                GameObject prefab = templateAsset.SelectPrefab(blueprint.Meta.Seed, r);
                 roomInstances[r] = PlaceRoom(blueprint.Rooms[r], prefab, mapRoot.transform, minX, minY, cellMeters, floorPlanes[blueprint.Rooms[r].FloorIndex], instantiate);
                 // 방 인덱스를 이름에 박는다 — 스포너가 아이템 앵커(MapItemAnchor)를 방 단위로 찾을 때 쓰는 유일한 연결고리
                 roomInstances[r].name = $"Room_{r}_{blueprint.Rooms[r].TemplateId}";
+                if (templateAsset.ExcludeFromNavMesh)
+                {
+                    // 베이크 제외 방(안전지대) — 방 루트 마킹을 서버 베이커의 저작 제외 사전 수집이 존중한다
+                    roomInstances[r].AddComponent<NavMeshModifier>().ignoreFromBuild = true;
+                }
+
             }
 
             // 간선 처리 순서·컨테이너 이름은 에디터 빌더와 동일 — 스포너·감사가 이름으로 조회한다.
