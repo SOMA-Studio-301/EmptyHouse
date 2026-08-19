@@ -1,12 +1,13 @@
 using System;
 using UnityEngine;
 
-/// <summary>무전기 HUD 아이콘이 그려야 할 상태. 보유 여부와 송신 여부를 한 값으로 합친 것이다.</summary>
+/// <summary>무전기 HUD 아이콘이 그려야 할 상태. 보유·손에 듦·송신을 한 값으로 합친 것이다.</summary>
 public enum RadioHudState
 {
     None = 0,         // 미보유 또는 관전 — 아이콘을 숨긴다
-    Idle = 1,         // 보유 + 대기(Space 안 누름)
-    Transmitting = 2, // 보유 + 송신 중(Space 홀드)
+    Owned = 1,        // 보유 + 손에 안 듦 — 흐린 아이콘. Space 를 눌러도 송신되지 않는 상태라 밝게 그리면 거짓 어포던스다
+    HeldIdle = 2,     // 손에 듦 + 대기 — 송신 가능. Space 홀드를 기다린다
+    Transmitting = 3, // 송신 중(손에 들고 Space 홀드)
 }
 
 /// <summary>

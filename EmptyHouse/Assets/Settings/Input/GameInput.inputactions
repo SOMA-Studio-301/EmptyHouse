@@ -142,6 +142,15 @@
                     "initialStateCheck": false
                 },
                 {
+                    "name": "RadioEquip",
+                    "type": "Button",
+                    "id": "201d1903-3f94-4fb9-ba27-44e52d2a9102",
+                    "expectedControlType": "Button",
+                    "processors": "",
+                    "interactions": "",
+                    "initialStateCheck": false
+                },
+                {
                     "name": "Aim",
                     "type": "Button",
                     "id": "3c1e7a02-5f4b-4a19-9d63-0b8f2c714ae5",
@@ -497,6 +506,17 @@
                     "processors": "",
                     "groups": "Keyboard&Mouse",
                     "action": "Radio",
+                    "isComposite": false,
+                    "isPartOfComposite": false
+                },
+                {
+                    "name": "",
+                    "id": "b7a6ee49-5067-4d58-bcc6-a0c2517d8618",
+                    "path": "<Keyboard>/r",
+                    "interactions": "",
+                    "processors": "",
+                    "groups": "Keyboard&Mouse",
+                    "action": "RadioEquip",
                     "isComposite": false,
                     "isPartOfComposite": false
                 },

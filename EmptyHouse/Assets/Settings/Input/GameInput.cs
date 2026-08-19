@@ -228,6 +228,15 @@ public partial class @GameInput: IInputActionCollection2, IDisposable
                     ""initialStateCheck"": false
                 },
                 {
+                    ""name"": ""RadioEquip"",
+                    ""type"": ""Button"",
+                    ""id"": ""201d1903-3f94-4fb9-ba27-44e52d2a9102"",
+                    ""expectedControlType"": ""Button"",
+                    ""processors"": """",
+                    ""interactions"": """",
+                    ""initialStateCheck"": false
+                },
+                {
                     ""name"": ""Aim"",
                     ""type"": ""Button"",
                     ""id"": ""3c1e7a02-5f4b-4a19-9d63-0b8f2c714ae5"",
@@ -583,6 +592,17 @@ public partial class @GameInput: IInputActionCollection2, IDisposable
                     ""processors"": """",
                     ""groups"": ""Keyboard&Mouse"",
                     ""action"": ""Radio"",
+                    ""isComposite"": false,
+                    ""isPartOfComposite"": false
+                },
+                {
+                    ""name"": """",
+                    ""id"": ""b7a6ee49-5067-4d58-bcc6-a0c2517d8618"",
+                    ""path"": ""<Keyboard>/r"",
+                    ""interactions"": """",
+                    ""processors"": """",
+                    ""groups"": ""Keyboard&Mouse"",
+                    ""action"": ""RadioEquip"",
                     ""isComposite"": false,
                     ""isPartOfComposite"": false
                 },
@@ -1383,6 +1403,7 @@ public partial class @GameInput: IInputActionCollection2, IDisposable
         m_Gameplay_Drop = m_Gameplay.FindAction("Drop", throwIfNotFound: true);
         m_Gameplay_Disguise = m_Gameplay.FindAction("Disguise", throwIfNotFound: true);
         m_Gameplay_Radio = m_Gameplay.FindAction("Radio", throwIfNotFound: true);
+        m_Gameplay_RadioEquip = m_Gameplay.FindAction("RadioEquip", throwIfNotFound: true);
         m_Gameplay_Aim = m_Gameplay.FindAction("Aim", throwIfNotFound: true);
         m_Gameplay_Flashlight = m_Gameplay.FindAction("Flashlight", throwIfNotFound: true);
         m_Gameplay_MapOverview = m_Gameplay.FindAction("MapOverview", throwIfNotFound: true);
@@ -1494,6 +1515,7 @@ public partial class @GameInput: IInputActionCollection2, IDisposable
     private readonly InputAction m_Gameplay_Drop;
     private readonly InputAction m_Gameplay_Disguise;
     private readonly InputAction m_Gameplay_Radio;
+    private readonly InputAction m_Gameplay_RadioEquip;
     private readonly InputAction m_Gameplay_Aim;
     private readonly InputAction m_Gameplay_Flashlight;
     private readonly InputAction m_Gameplay_MapOverview;
@@ -1568,6 +1590,10 @@ public partial class @GameInput: IInputActionCollection2, IDisposable
         /// Provides access to the underlying input action "Gameplay/Radio".
         /// </summary>
         public InputAction @Radio => m_Wrapper.m_Gameplay_Radio;
+        /// <summary>
+        /// Provides access to the underlying input action "Gameplay/RadioEquip".
+        /// </summary>
+        public InputAction @RadioEquip => m_Wrapper.m_Gameplay_RadioEquip;
         /// <summary>
         /// Provides access to the underlying input action "Gameplay/Aim".
         /// </summary>
@@ -1651,6 +1677,9 @@ public partial class @GameInput: IInputActionCollection2, IDisposable
             @Radio.started += instance.OnRadio;
             @Radio.performed += instance.OnRadio;
             @Radio.canceled += instance.OnRadio;
+            @RadioEquip.started += instance.OnRadioEquip;
+            @RadioEquip.performed += instance.OnRadioEquip;
+            @RadioEquip.canceled += instance.OnRadioEquip;
             @Aim.started += instance.OnAim;
             @Aim.performed += instance.OnAim;
             @Aim.canceled += instance.OnAim;
@@ -1716,6 +1745,9 @@ public partial class @GameInput: IInputActionCollection2, IDisposable
             @Radio.started -= instance.OnRadio;
             @Radio.performed -= instance.OnRadio;
             @Radio.canceled -= instance.OnRadio;
+            @RadioEquip.started -= instance.OnRadioEquip;
+            @RadioEquip.performed -= instance.OnRadioEquip;
+            @RadioEquip.canceled -= instance.OnRadioEquip;
             @Aim.started -= instance.OnAim;
             @Aim.performed -= instance.OnAim;
             @Aim.canceled -= instance.OnAim;
@@ -2130,6 +2162,13 @@ public partial class @GameInput: IInputActionCollection2, IDisposable
         /// <seealso cref="UnityEngine.InputSystem.InputAction.performed" />
         /// <seealso cref="UnityEngine.InputSystem.InputAction.canceled" />
         void OnRadio(InputAction.CallbackContext context);
+        /// <summary>
+        /// Method invoked when associated input action "RadioEquip" is either <see cref="UnityEngine.InputSystem.InputAction.started" />, <see cref="UnityEngine.InputSystem.InputAction.performed" /> or <see cref="UnityEngine.InputSystem.InputAction.canceled" />.
+        /// </summary>
+        /// <seealso cref="UnityEngine.InputSystem.InputAction.started" />
+        /// <seealso cref="UnityEngine.InputSystem.InputAction.performed" />
+        /// <seealso cref="UnityEngine.InputSystem.InputAction.canceled" />
+        void OnRadioEquip(InputAction.CallbackContext context);
         /// <summary>
         /// Method invoked when associated input action "Aim" is either <see cref="UnityEngine.InputSystem.InputAction.started" />, <see cref="UnityEngine.InputSystem.InputAction.performed" /> or <see cref="UnityEngine.InputSystem.InputAction.canceled" />.
         /// </summary>

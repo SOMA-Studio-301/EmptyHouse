@@ -29,6 +29,7 @@ public class InputReader : ScriptableObject, GameInput.IGameplayActions, GameInp
     public event UnityAction DisguiseEvent = delegate { }; // 위장(V) 토글 누름. 실제 상태 변경은 서버 권위 PlayerDisguise가 수행
     public event UnityAction RadioPressedEvent = delegate { }; // 무전 Push-To-Talk(Space) 누름
     public event UnityAction RadioCanceledEvent = delegate { }; // 무전 Push-To-Talk(Space) 해제
+    public event UnityAction RadioEquipEvent = delegate { }; // 무전기 장착(R) 누름. 전용 칸의 무전기를 손에 든다 — 장착 판정은 PlayerInventory 가 수행
     public event UnityAction AimPressedEvent = delegate { }; // 투척 조준(우클릭) 누름. 누르는 동안만 궤적이 유지된다
     public event UnityAction AimCanceledEvent = delegate { }; // 투척 조준(우클릭) 해제. 궤적을 즉시 지운다
     public event UnityAction FlashlightEvent = delegate { }; // 손전등 토글(F) 누름. 실제 온/오프는 서버 권위 PlayerFlashlight가 수행
@@ -338,6 +339,16 @@ public class InputReader : ScriptableObject, GameInput.IGameplayActions, GameInp
         {
             RadioCanceledEvent.Invoke();
         }
+    }
+
+    /// <summary>RadioEquip 액션 콜백(R). 무전기 장착 신호를 중계한다.</summary>
+    public void OnRadioEquip(InputAction.CallbackContext context)
+    {
+        RememberDevice(context);
+
+        if (context.phase != InputActionPhase.Performed) return;
+
+        RadioEquipEvent.Invoke();
     }
 
     /// <summary>

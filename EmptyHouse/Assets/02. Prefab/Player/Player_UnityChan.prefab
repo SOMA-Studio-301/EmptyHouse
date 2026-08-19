@@ -138,7 +138,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: d5a57f767e5e46a458fc5d3c628d0cbb, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Unity.Netcode.Runtime::Unity.Netcode.NetworkObject
-  GlobalObjectIdHash: 3422737945
+  GlobalObjectIdHash: 3912006500
   InScenePlacedSourceGlobalObjectIdHash: 3422737945
   DeferredDespawnTick: 0
   Ownership: 1
@@ -344,6 +344,8 @@ MonoBehaviour:
   sfxEventChannel: {fileID: 11400000, guid: 0338426556d75b241bee37e3eca8f958, type: 2}
   slotSelectAudioId: 111
   dropper: {fileID: 1777472600522537525}
+  radioSlot: {fileID: 910000000000000010}
+  radioItemData: {fileID: 11400000, guid: 63a4934fea60abc43912fc6eee5d5c96, type: 2}
   groundMask:
     serializedVersion: 2
     m_Bits: 65
@@ -621,12 +623,8 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::PlayerRadioSlot
   ShowTopMostFoldoutHeaderGroup: 1
-  hudParent: {fileID: 3162627435837655207}
-  inputReader: {fileID: 11400000, guid: eaa08e0560934b24b9f7d5f7d9f863dd, type: 2}
-  hudPosition: {x: 395, y: 20}
-  hudSize: {x: 100, y: 100}
-  emptyColor: {r: 0, g: 0, b: 0, a: 0.5}
-  filledColor: {r: 0.1, g: 0.55, b: 0.2, a: 0.8}
+  slotView: {fileID: 4394555148275864202}
+  radioItemData: {fileID: 11400000, guid: 63a4934fea60abc43912fc6eee5d5c96, type: 2}
 --- !u!114 &910000000000000011
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -642,6 +640,7 @@ MonoBehaviour:
   ShowTopMostFoldoutHeaderGroup: 1
   inputReader: {fileID: 11400000, guid: eaa08e0560934b24b9f7d5f7d9f863dd, type: 2}
   radioSlot: {fileID: 910000000000000010}
+  inventory: {fileID: 7556772348847717246}
   radioHudStateChanged: {fileID: 11400000, guid: 814736561f7bdb54990e39b03bc5d8c5, type: 2}
 --- !u!114 &910000000000000029
 MonoBehaviour:
@@ -10098,6 +10097,14 @@ PrefabInstance:
     serializedVersion: 3
     m_TransformParent: {fileID: 1374410532633928955}
     m_Modifications:
+    - target: {fileID: 2168682005218264931, guid: 6814b8499c961124f81d8c6fb8e793b9, type: 3}
+      propertyPath: m_SizeDelta.x
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 2168682005218264931, guid: 6814b8499c961124f81d8c6fb8e793b9, type: 3}
+      propertyPath: m_SizeDelta.y
+      value: 0
+      objectReference: {fileID: 0}
     - target: {fileID: 5378292883712474751, guid: 6814b8499c961124f81d8c6fb8e793b9, type: 3}
       propertyPath: m_Pivot.x
       value: 0
@@ -10579,6 +10586,17 @@ RectTransform:
   m_CorrespondingSourceObject: {fileID: 6385582194591638872, guid: a01b5dafe709b44459151d8afc5a8b52, type: 3}
   m_PrefabInstance: {fileID: 8322033953895853567}
   m_PrefabAsset: {fileID: 0}
+--- !u!114 &4394555148275864202 stripped
+MonoBehaviour:
+  m_CorrespondingSourceObject: {fileID: 5728954029928316789, guid: a01b5dafe709b44459151d8afc5a8b52, type: 3}
+  m_PrefabInstance: {fileID: 8322033953895853567}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: a855fc59f0bf9ac4e8911fecc89809d0, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::UIInventorySlot
 --- !u!114 &5554895056618055241 stripped
 MonoBehaviour:
   m_CorrespondingSourceObject: {fileID: 4497757194245721014, guid: a01b5dafe709b44459151d8afc5a8b52, type: 3}

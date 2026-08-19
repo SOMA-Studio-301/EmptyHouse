@@ -3,8 +3,9 @@ using UnityEngine;
 
 /// <summary>
 /// 로컬 플레이어의 무전기 보유 상태와 Dissonance Radio 방을 연결한다.
-/// 무전기를 인벤토리에 하나라도 보유하면 Radio 방을 수신하고,
-/// Space 를 누르는 동안에만 비공간(2D) 송신 채널을 연다.
+/// 수신 자격은 보유(전용 칸 채움)이고, 송신은 <b>무전기를 손에 들고</b> Space 를 누르는 동안에만 열린다(사용자 확정 2026-08-19).
+/// 손에 듦 판정은 오너 로컬(PlayerInventory.HeldIndex)로만 한다 — 원격이 필요로 하는 결과는
+/// 이미 isTransmitting(NetworkVariable)으로 복제되므로, HasRadio(수신 자격)에 손 조건을 섞으면 안 된다.
 /// 근접 보이스 채널은 별도 트리거가 계속 관리하므로 무전 중에도 유지된다.
 /// 관전(사망 OR 귀환) 상태에서는 무전기가 죽는다 — 관전자 음성은 관전 전용 방으로만 나가야 하는데,
 /// 무전은 그 방을 우회해 생존자에게 닿는 경로이기 때문이다(VoiceChatGlobalBridge).
@@ -15,6 +16,7 @@ public sealed class PlayerRadioVoiceController : NetworkBehaviour
     [Header("Dependencies")]
     [SerializeField] private InputReader inputReader;
     [SerializeField] private PlayerRadioSlot radioSlot;
+    [SerializeField] private PlayerInventory inventory; // 같은 프리팹의 인벤토리 — 손 포인터(무전기를 들었는가) 판정. 오너에서만 읽는다
 
     [Header("Channels")]
     [SerializeField] private RadioHudStateEventChannelSO radioHudStateChanged; // 발행: 무전기 표시 상태. 오너만 발행하며 씬 레벨 HUD 아이콘이 구독한다
@@ -39,11 +41,19 @@ public sealed class PlayerRadioVoiceController : NetworkBehaviour
         (deathHandler != null && deathHandler.IsDead.Value)
         || (playerReturn != null && playerReturn.HasExtracted.Value);
 
+    // 무전기를 손에 들고 있는가 — 송신 게이트 전용, 오너 로컬 판정. HasRadio(수신 자격)에 절대 섞지 말 것.
+    private bool IsHoldingRadio => inventory.HeldIndex == PlayerInventory.RadioHandIndex;
+
     private void Awake()
     {
         if (radioSlot == null)
         {
             radioSlot = GetComponent<PlayerRadioSlot>();
+        }
+
+        if (inventory == null)
+        {
+            inventory = GetComponent<PlayerInventory>();
         }
 
         deathHandler = GetComponent<PlayerDeathHandler>();
@@ -138,9 +148,12 @@ public sealed class PlayerRadioVoiceController : NetworkBehaviour
     {
         if (!IsOwner) return;
 
-        if (!HasRadio)
+        // 송신 자격 = 보유(수신 자격) + 손에 듦. 단일 분기라 드랍(칸 빔)·사망/귀환(관전)·손 전환이 전부 여기서 끊긴다 —
+        // 시작 분기에만 손 조건을 걸면 "송신 중 손 전환 → 무전기를 집어넣고도 계속 송신"이 새는 것을 확인했다.
+        // Update 가 매 프레임 폴링하므로 이벤트 구독 없이 1프레임 내 차단된다.
+        if (!HasRadio || !IsHoldingRadio)
         {
-            pushToTalkHeld = false;
+            pushToTalkHeld = false; // 자격 상실 시 홀드를 버린다 — 자격 회복 후에는 Space 재입력이 필요하다(의도)
             SetTransmitting(false);
             PublishHudState();
             return;
@@ -159,12 +172,13 @@ public sealed class PlayerRadioVoiceController : NetworkBehaviour
         PublishHudState();
     }
 
-    /// <summary>현재 보유·송신 상태를 표시 상태로 번역해 발행한다.</summary>
+    /// <summary>현재 보유·손에 듦·송신 상태를 표시 상태로 번역해 발행한다.</summary>
     private void PublishHudState()
     {
-        PublishHudState(!HasRadio
-            ? RadioHudState.None
-            : IsTransmitting ? RadioHudState.Transmitting : RadioHudState.Idle);
+        PublishHudState(!HasRadio ? RadioHudState.None
+            : IsTransmitting ? RadioHudState.Transmitting
+            : IsHoldingRadio ? RadioHudState.HeldIdle
+            : RadioHudState.Owned);
     }
 
     /// <summary>표시 상태를 HUD 채널에 방송한다. 값이 실제로 바뀐 호출에만 발행한다 — Update 마다 도는 경로다.</summary>

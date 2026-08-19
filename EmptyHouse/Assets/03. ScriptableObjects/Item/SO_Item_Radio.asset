@@ -1,0 +1,23 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 4421bab4f7940f548a97a9532cf396bb, type: 3}
+  m_Name: SO_Item_Radio
+  m_EditorClassIdentifier: Assembly-CSharp::ItemDataSO
+  NameKey: ITEM_NAME_RADIO
+  Icon: {fileID: 21300000, guid: 374cbadde204ac642bd727cfb7513ccc, type: 3}
+  Kind: 5
+  PickupVerbKey: INT_PROMPT_PICKUP
+  PickupNoiseDb: 12
+  HandUsage: 0
+  HeldPrefab: {fileID: 4684644989489743987, guid: a2abf224d2a26704bb11dafcfda4fa14, type: 3}
+  WorldPrefab: {fileID: 920000000000000001, guid: 7f824d91ee264f1a849738f33a0216ad, type: 3}
+  ProjectilePrefab: {fileID: 0}

@@ -38,6 +38,8 @@ public sealed class RadioPickupInteractable : SingleClickInteractableBase
         PlayerRadioSlot slot = interactor.GetComponent<PlayerRadioSlot>();
         if (slot == null || !slot.TryFill()) return;
 
+        interactor.Inventory.EquipRadioOnPickup(); // 주운 즉시 손에 든다 — TryAdd 자동 장착과 같은 규칙(전환 딜레이 없음)
+
         RaiseNoise(pickupNoiseDb);
         DespawnSelf();
     }

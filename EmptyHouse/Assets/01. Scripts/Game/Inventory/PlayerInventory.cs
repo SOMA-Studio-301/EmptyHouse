@@ -6,7 +6,7 @@ using UnityEngine;
 /// <summary>
 /// 플레이어 1인의 인벤토리 — 슬롯 N칸 + 손(슬롯 포인터)
 /// 플레이어 프리팹에 붙는 플레이어별 컴포넌트다(멀티에서 사람마다 1개)
-/// 손은 별도 칸이 아니라 "지금 꺼내 든 슬롯의 인덱스"이며, -1 = 맨손
+/// 손은 별도 칸이 아니라 "지금 꺼내 든 슬롯의 인덱스"이며, -1 = 맨손 · -2 = 무전기(저장은 PlayerRadioSlot 전용 칸)
 /// 입력은 InputReader 이벤트를 직접 구독한다 — 현재는 숫자 단독(임시)·휠. Tab 홀드·G 버리기는 후속.
 /// HUD 는 밀어넣기(push) 단방향: 슬롯 변경은 RefreshSlot, 손 이동은 PointHand 를 반드시 경유한다.
 /// </summary>
@@ -14,6 +14,9 @@ public class PlayerInventory : MonoBehaviour
 {
     /// <summary>맨손을 뜻하는 손 인덱스 값 (0-2 용어: 맨손).</summary>
     public const int BareHandIndex = -1;
+
+    /// <summary>무전기를 손에 든 상태의 손 인덱스 값. 저장은 인벤 배열이 아니라 <see cref="PlayerRadioSlot"/> 전용 칸이므로 배열 밖 센티널을 쓴다.</summary>
+    public const int RadioHandIndex = -2;
 
     [Header("Slots")]
     [SerializeField] private int inventorySlots = 3; // 3-10 inventory_slots ⚪ — 상한이 아니라 시작값. 상수로 박지 말 것(6-10)
@@ -33,6 +36,10 @@ public class PlayerInventory : MonoBehaviour
 
     [Header("Player")]
     [SerializeField] private PlayerItemDropper dropper; // 같은 프리팹의 서버 권위 스폰 창구 — 인벤은 위치만 정하고 스폰은 서버에 맡긴다
+
+    [Header("Radio")]
+    [SerializeField] private PlayerRadioSlot radioSlot; // 같은 프리팹의 무전기 전용 칸 — 저장은 저쪽, 손 포인터만 인벤이 관리한다
+    [SerializeField] private ItemDataSO radioItemData; // SO_Item_Radio 프로젝트 에셋 — 의사 슬롯·드랍·사망 드롭이 공유하는 무전기 데이터
 
     [Header("Drop")]
     [SerializeField] private LayerMask groundMask; // 드롭 위치 접지 판정 대상 레이어. 인스펙터에서 Ground 만 선택한다
@@ -54,11 +61,21 @@ public class PlayerInventory : MonoBehaviour
     /// <summary>
     /// 맨손 여부. 어떤 슬롯도 가리키지 않는 상태(0-2)에 더해, 휠 순환으로 **빈 칸을 가리키는 상태도
     /// 맨손 취급**이다(기획 확정 2026-07-11) — 포인터는 그 칸에 머물러 다음 휠 입력의 기준이 된다.
+    /// ⚠ 음수 센티널(-1 맨손 · -2 무전기) 분기가 배열 접근보다 반드시 앞이어야 한다 — slots[-2] 는 즉사 크래시다.
     /// </summary>
-    public bool IsBareHanded => heldIndex == BareHandIndex || slots[heldIndex].IsEmpty;
+    public bool IsBareHanded =>
+        heldIndex == RadioHandIndex ? !radioSlot.IsFilled
+        : heldIndex == BareHandIndex || slots[heldIndex].IsEmpty;
 
-    /// <summary>손에 든 칸의 상태. 맨손(빈 칸을 가리키는 경우 포함)이면 빈 값을 반환한다.</summary>
-    public InventorySlot HeldSlot => IsBareHanded ? default : slots[heldIndex];
+    /// <summary>손에 든 칸의 상태. 맨손(빈 칸을 가리키는 경우 포함)이면 빈 값, 무전기를 들었으면 의사 슬롯을 반환한다.</summary>
+    public InventorySlot HeldSlot =>
+        heldIndex == RadioHandIndex
+            ? radioSlot.IsFilled ? RadioPseudoSlot : default
+            : IsBareHanded ? default : slots[heldIndex];
+
+    // 무전기를 든 상태를 인벤 계약(InventorySlot)으로 번역한 의사 슬롯. 저장소는 여전히 radioSlot 하나다 —
+    // 이 값 덕에 PlayerHandItem(손 모델 복제)·Kind 게이트(자물쇠·투척)가 무전기를 일반 아이템과 같은 경로로 본다.
+    private InventorySlot RadioPseudoSlot => new InventorySlot { Data = radioItemData };
 
     public bool IsSwapping { get; private set; } // 손 전환 딜레이(hand_swap_sec) 진행 중 — E·좌클릭 게이트. 슬롯 입력은 차단하지 않는다(즉시 반영 + 타이머 리셋)
 
@@ -68,12 +85,13 @@ public class PlayerInventory : MonoBehaviour
         slots = new InventorySlot[inventorySlots];
     }
 
-    /// <summary>입력 이벤트 구독을 시작한다. 숫자 키 → 슬롯 선택, 휠 → 손 순환.</summary>
+    /// <summary>입력 이벤트 구독을 시작한다. 숫자 키 → 슬롯 선택, 휠 → 손 순환, R → 무전기 장착.</summary>
     private void OnEnable()
     {
         inputReader.EquipSlotEvent += EquipSlot;
         inputReader.CycleHandEvent += CycleHand;
         inputReader.DropEvent += DropHeld;
+        inputReader.RadioEquipEvent += EquipRadio;
     }
 
     /// <summary>입력 이벤트 구독을 해제한다.</summary>
@@ -82,6 +100,7 @@ public class PlayerInventory : MonoBehaviour
         inputReader.EquipSlotEvent -= EquipSlot;
         inputReader.CycleHandEvent -= CycleHand;
         inputReader.DropEvent -= DropHeld;
+        inputReader.RadioEquipEvent -= EquipRadio;
     }
 
     /// <summary>
@@ -166,11 +185,12 @@ public class PlayerInventory : MonoBehaviour
     /// 손 포인터를 옮기고 HUD 하이라이트를 따라 옮긴다.
     /// heldIndex 를 고치는 모든 경로(EquipSlot·CycleHand·StowHand·자동 맨손)는 이 헬퍼를 경유해야 화면이 따라온다.
     /// </summary>
-    /// <param name="index">새 손 인덱스. <see cref="BareHandIndex"/> 면 맨손(하이라이트 전부 off).</param>
+    /// <param name="index">새 손 인덱스. <see cref="BareHandIndex"/> 면 맨손(하이라이트 전부 off), <see cref="RadioHandIndex"/> 면 무전기.</param>
     private void PointHand(int index)
     {
         heldIndex = index;
-        ui.SetHeldIndex(index);
+        ui.SetHeldIndex(index); // -2 는 어떤 칸과도 일치하지 않으므로 인벤 하이라이트는 전부 꺼진다 — 의도한 표현
+        radioSlot.SetHeld(index == RadioHandIndex);
     }
 
     /// <summary>
@@ -188,6 +208,32 @@ public class PlayerInventory : MonoBehaviour
 
         PointHand(index);
         StartSwap();
+    }
+
+    /// <summary>
+    /// 무전기를 손에 든다 (전용 키 R). 미보유·이미 든 상태면 무시한다.
+    /// 숫자 키(EquipSlot)와 분리한 이유: 슬롯이 상점 확장(4-5)으로 늘면 "SlotCount+1번 키"는 계속 밀려나
+    /// 근육기억이 깨지고, 6칸부터는 바인딩 자체가 없다 — 전용 키는 확장과 완전히 독립이다.
+    /// 미보유 가드는 필수다 — 없으면 유령 장착 → G 드랍으로 없던 무전기가 실물 스폰되는 무한 복제가 성립한다.
+    /// </summary>
+    private void EquipRadio()
+    {
+        if (!radioSlot.IsFilled) return;
+        if (heldIndex == RadioHandIndex) return; // 이미 든 상태에 셀프 전환 딜레이를 걸지 않는다 (EquipSlot 라인과 같은 규칙)
+
+        PointHand(RadioHandIndex);
+        StartSwap();
+    }
+
+    /// <summary>
+    /// 픽업 직후 무전기 자동 장착 — <see cref="TryAdd"/> 의 자동 장착과 같은 규칙(전환 딜레이 없음).
+    /// <see cref="RadioPickupInteractable"/> 이 TryFill 성공 직후 호출한다.
+    /// </summary>
+    public void EquipRadioOnPickup()
+    {
+        if (!radioSlot.IsFilled) return;
+
+        PointHand(RadioHandIndex);
     }
 
     /// <summary>
@@ -211,29 +257,38 @@ public class PlayerInventory : MonoBehaviour
     }
 
     /// <summary>
-    /// 손 슬롯을 순환한다 (마우스 휠): 맨손 → 1 → 2 → 3 → 맨손 (2장 키맵).
+    /// 손 슬롯을 순환한다 (마우스 휠): 맨손 → 1 → 2 → 3 → [무전기(보유 시)] → 맨손.
     /// 빈 칸을 건너뛰지 않는다 — 빈 칸에 멈추고 그동안은 맨손 취급이다(기획 확정 2026-07-11).
     /// 전환 중 입력도 즉시 반영 — 연속 스크롤 시 포인터가 바로바로 따라가고 딜레이만 최근 입력 기준으로 재시작
     /// </summary>
     /// <param name="direction">휠 방향. +1 = 정방향, -1 = 역방향.</param>
     private void CycleHand(int direction)
     {
-        // 맨손(-1) 을 포함한 SlotCount + 1 개의 위치를 순환한다. -1 을 0 으로 밀어 모듈러를 태우고 되돌린다.
-        int positionCount = SlotCount + 1;
-        int position = heldIndex + 1;
+        // 순환 위치는 맨손(0) · 슬롯(1..N) · 무전기(N+1, 보유 시에만) 로 명시 매핑한다.
+        // 옛 "+1 시프트" 트릭은 -1 전용이라 -2(무전기)를 표현하지 못한다 — 역방향에서 엉뚱한 칸으로 점프했다.
+        // heldIndex==-2 인데 미보유인 상태는 제거 경로의 순서 규칙(PointHand 가 Clear 보다 먼저)이 원천 차단한다.
+        bool hasRadio = radioSlot.IsFilled;
+        int positionCount = SlotCount + 1 + (hasRadio ? 1 : 0);
+        int position = heldIndex == RadioHandIndex ? SlotCount + 1 : heldIndex + 1;
         int next = (position + direction + positionCount) % positionCount; // direction 이 음수여도 음수 나머지가 나오지 않게 한 바퀴 더한다
 
-        PointHand(next - 1);
+        PointHand(next == 0 ? BareHandIndex : next <= SlotCount ? next - 1 : RadioHandIndex);
         StartSwap();
     }
 
     /// <summary>
     /// 손에 든 아이템을 월드에 떨군다 — 버리기 (G). WorldPrefab 을 스폰하고 슬롯을 비운 뒤
-    /// 자동 맨손이 된다. 맨손이면 아무것도 하지 않는다.
+    /// 자동 맨손이 된다. 맨손이면 아무것도 하지 않는다. 무전기를 들었으면 전용 칸 드랍으로 분기한다.
     /// </summary>
     private void DropHeld()
     {
         if (IsBareHanded) return;
+
+        if (heldIndex == RadioHandIndex)
+        {
+            DropRadio();
+            return;
+        }
 
         int index = heldIndex;
         ItemDataSO data = slots[index].Data;
@@ -243,6 +298,20 @@ public class PlayerInventory : MonoBehaviour
         slots[index].Clear();
         RefreshSlot(index);
         PointHand(BareHandIndex);
+    }
+
+    /// <summary>
+    /// 손에 든 무전기를 월드에 떨군다 — 전용 칸을 비우고 맨손이 된다 (사용자 확정 2026-08-19 · 스펙 D33 "버릴 수 없음"의 의도적 이탈).
+    /// 맨손 전환이 Clear 보다 먼저다 — Changed 콜백이 동기 실행되므로, 이 순서면
+    /// "무전기를 들었는데 칸은 빈" 과도 상태가 구조적으로 존재하지 않는다(CycleHand 가 이 규칙에 기댄다).
+    /// </summary>
+    private void DropRadio()
+    {
+        if (!radioSlot.IsFilled) return; // 유령 드랍 방어 — 실물 없는 스폰 요청을 원천 차단
+
+        PointHand(BareHandIndex);
+        RequestDrop(radioItemData, ResolveGroundPosition(transform.position + transform.forward * dropForwardOffset));
+        radioSlot.Clear();
     }
 
     /// <summary>
@@ -271,15 +340,15 @@ public class PlayerInventory : MonoBehaviour
     }
 
     /// <summary>
-    /// 전 슬롯의 내용을 꺼내 반환하고 인벤을 완전히 비운다 — 사망 드롭 전용(D19: 손에 든 것 포함 전 아이템 드롭, 백신도 예외 없음).
-    /// 스폰은 하지 않는다 — 어디에 무엇을 남길지는 호출자(<see cref="PlayerDeathDropper"/>)가 정한다.
+    /// 전 슬롯 + 무전기 전용 칸의 내용을 꺼내 반환하고 완전히 비운다 — 사망 드롭 전용(D19: 손에 든 것 포함 전 아이템 드롭, 백신도 예외 없음).
+    /// 무전기 포함은 사용자 확정(2026-08-19). 스폰은 하지 않는다 — 어디에 무엇을 남길지는 호출자(<see cref="PlayerDeathDropper"/>)가 정한다.
     /// 반환 배열에는 비어 있던 칸이 포함되지 않으므로, 그대로 순회해 스폰하면 된다.
     /// </summary>
-    /// <returns>비우기 직전의 슬롯 내용. 채워져 있던 칸만 담기며, 인벤이 비어 있었다면 길이 0 배열이다.</returns>
+    /// <returns>비우기 직전의 슬롯 내용. 채워져 있던 칸만 담기며, 전부 비어 있었다면 길이 0 배열이다.</returns>
     public InventorySlot[] DrainAll()
     {
         // InventorySlot 은 struct 라 리스트에 담긴 시점에 복사본이 남는다 — 원본을 비워도 반환값은 안전하다.
-        List<InventorySlot> drained = new List<InventorySlot>(slots.Length);
+        List<InventorySlot> drained = new List<InventorySlot>(slots.Length + 1);
 
         for (int i = 0; i < slots.Length; i++)
         {
@@ -291,6 +360,15 @@ public class PlayerInventory : MonoBehaviour
         }
 
         PointHand(BareHandIndex);
+
+        // 무전기도 함께 떨군다. Clear 를 빼먹으면 월드 스폰 + isFilled 잔존으로 무전기가 +1 복제된다.
+        // 맨손 전환(PointHand)이 Clear 보다 먼저다 — DropRadio 와 같은 순서 규칙.
+        if (radioSlot.IsFilled)
+        {
+            drained.Add(RadioPseudoSlot);
+            radioSlot.Clear();
+        }
+
         return drained.ToArray();
     }
 
@@ -302,6 +380,7 @@ public class PlayerInventory : MonoBehaviour
     public void ConsumeHeld()
     {
         if (IsBareHanded) return;
+        if (heldIndex == RadioHandIndex) return; // 무전기는 사용 소멸이 없다 — Kind 게이트상 도달 불가지만 slots[-2] 접근을 방어한다
 
         // 비운 칸은 제자리에 남는다 — 뒤 칸을 당겨오는 재정렬이 아니다.
         int index = heldIndex;
