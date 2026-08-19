@@ -225,6 +225,7 @@ GameObject:
   - component: {fileID: 8736766179195782354}
   - component: {fileID: 7216355985376101163}
   - component: {fileID: 7597836310180154422}
+  - component: {fileID: 9193485714435276855}
   m_Layer: 5
   m_Name: Image
   m_TagString: Untagged
@@ -289,6 +290,22 @@ MonoBehaviour:
   m_FillOrigin: 0
   m_UseSpriteMesh: 0
   m_PixelsPerUnitMultiplier: 1
+--- !u!114 &9193485714435276855
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 8025395703766886782}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: b7e7d682ff30cf84faa7b1ee62f99d7c, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::UIRadioIndicator
+  radioHudStateChanged: {fileID: 11400000, guid: 814736561f7bdb54990e39b03bc5d8c5, type: 2}
+  iconImage: {fileID: 7597836310180154422}
+  idleSprite: {fileID: 21300000, guid: 374cbadde204ac642bd727cfb7513ccc, type: 3}
+  transmittingSprite: {fileID: 21300000, guid: 21700df8a664ffd4da02a60c3c7947df, type: 3}
 --- !u!1 &8479792085461471037
 GameObject:
   m_ObjectHideFlags: 0

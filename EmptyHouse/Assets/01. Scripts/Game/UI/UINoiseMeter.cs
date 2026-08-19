@@ -71,9 +71,15 @@ public class UINoiseMeter : MonoBehaviour
         Render(db);
     }
 
-    /// <summary>segmentPrefab 을 segmentCount 개 복제해 <see cref="segments"/> 를 채운다. 원본 프리팹 인스턴스는 화면에 남기지 않는다.</summary>
+    /// <summary>
+    /// segmentPrefab 을 segmentCount 개 복제해 <see cref="segments"/> 를 채운다. 원본 프리팹 인스턴스는 화면에 남기지 않는다.
+    /// 부모에 미리 놓인 칸을 먼저 비우는 이유: 저작 시안용으로 남겨둔 칸은 <see cref="segments"/> 밖이라
+    /// <see cref="Render"/> 가 색을 칠하지 않고, 역순 레이아웃에서 게이지 아래를 차지해 기준선을 밀어 올린다.
+    /// </summary>
     private void BuildSegments()
     {
+        ClearAuthoredSegments();
+
         segments = new Image[segmentCount];
         for (int i = 0; i < segmentCount; i++)
         {
@@ -84,6 +90,19 @@ public class UINoiseMeter : MonoBehaviour
 
         // 씬에 놓인 칸을 원본으로 지정했다면 그 원본이 칸 하나로 더 세어진다 — 프로젝트 프리팹이면 씬에 없으므로 해당 없다.
         if (segmentPrefab.gameObject.scene.IsValid()) segmentPrefab.gameObject.SetActive(false);
+    }
+
+    /// <summary>부모에 미리 놓여 있던 칸을 모두 지운다. 뒤에서부터 도는 이유는 파괴가 인덱스를 밀지 않게 하기 위해서다.</summary>
+    private void ClearAuthoredSegments()
+    {
+        for (int i = segmentParent.childCount - 1; i >= 0; i--)
+        {
+            GameObject authored = segmentParent.GetChild(i).gameObject;
+
+            // Destroy 는 프레임 끝에 처리돼 이번 프레임 레이아웃이 아직 이 칸을 센다 — 먼저 꺼서 자리부터 뺀다.
+            authored.SetActive(false);
+            Destroy(authored);
+        }
     }
 
     /// <summary>

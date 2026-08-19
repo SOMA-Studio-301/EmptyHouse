@@ -325,7 +325,7 @@ public class InputReader : ScriptableObject, GameInput.IGameplayActions, GameInp
         }
     }
 
-    /// <summary>Radio 액션 콜백. J 누름/해제를 Push-To-Talk 시작/종료 신호로 중계한다.</summary>
+    /// <summary>Radio 액션 콜백. Space 누름/해제를 Push-To-Talk 시작/종료 신호로 중계한다.</summary>
     public void OnRadio(InputAction.CallbackContext context)
     {
         RememberDevice(context);

@@ -71,14 +71,15 @@ public class UIInventory : MonoBehaviour
         }
     }
 
-    /// <summary>기존 슬롯 뷰를 모두 파기한다. 재생성 시 이전 칸이 남아 중복 표시되는 것을 막는다.</summary>
+    /// <summary>
+    /// slotParent 밑을 전부 비운다. 재생성 시 이전 칸이 남아 중복 표시되는 것을 막고,
+    /// 에디터에서 미리 배치해 둔 더미 슬롯도 첫 Build 에서 함께 제거한다.
+    /// </summary>
     private void ClearSlots()
     {
-        if (slotViews == null) return;
-
-        for (int i = 0; i < slotViews.Length; i++)
+        for (int i = slotParent.childCount - 1; i >= 0; i--)
         {
-            Destroy(slotViews[i].gameObject);
+            Destroy(slotParent.GetChild(i).gameObject);
         }
 
         slotViews = null;

@@ -4,7 +4,7 @@ using UnityEngine;
 /// <summary>
 /// 로컬 플레이어의 무전기 보유 상태와 Dissonance Radio 방을 연결한다.
 /// 무전기를 인벤토리에 하나라도 보유하면 Radio 방을 수신하고,
-/// J를 누르는 동안에만 비공간(2D) 송신 채널을 연다.
+/// Space 를 누르는 동안에만 비공간(2D) 송신 채널을 연다.
 /// 근접 보이스 채널은 별도 트리거가 계속 관리하므로 무전 중에도 유지된다.
 /// 관전(사망 OR 귀환) 상태에서는 무전기가 죽는다 — 관전자 음성은 관전 전용 방으로만 나가야 하는데,
 /// 무전은 그 방을 우회해 생존자에게 닿는 경로이기 때문이다(VoiceChatGlobalBridge).
@@ -16,8 +16,12 @@ public sealed class PlayerRadioVoiceController : NetworkBehaviour
     [SerializeField] private InputReader inputReader;
     [SerializeField] private PlayerRadioSlot radioSlot;
 
+    [Header("Channels")]
+    [SerializeField] private RadioHudStateEventChannelSO radioHudStateChanged; // 발행: 무전기 표시 상태. 오너만 발행하며 씬 레벨 HUD 아이콘이 구독한다
+
     private bool pushToTalkHeld;
     private bool subscribed;
+    private RadioHudState publishedHudState = RadioHudState.None; // 마지막으로 발행한 표시 상태. Update 마다 도는 경로라 중복 발행을 여기서 걸러낸다
     private PlayerDeathHandler deathHandler; // 관전 판정용 형제 컴포넌트. 복제 상태라 원격 인스턴스에서도 읽힌다
     private PlayerReturn playerReturn;       // 관전 판정용 형제 컴포넌트. 위와 같음
     private readonly NetworkVariable<bool> isTransmitting = new(
@@ -65,6 +69,7 @@ public sealed class PlayerRadioVoiceController : NetworkBehaviour
         Unsubscribe();
         pushToTalkHeld = false;
         SetTransmitting(false);
+        PublishHudState(RadioHudState.None);
         base.OnNetworkDespawn();
     }
 
@@ -84,6 +89,7 @@ public sealed class PlayerRadioVoiceController : NetworkBehaviour
         Unsubscribe();
         pushToTalkHeld = false;
         SetTransmitting(false);
+        PublishHudState(RadioHudState.None);
     }
 
     private void Update()
@@ -105,6 +111,7 @@ public sealed class PlayerRadioVoiceController : NetworkBehaviour
     {
         pushToTalkHeld = false;
         SetTransmitting(false);
+        PublishHudState();
     }
 
     private void Subscribe()
@@ -135,6 +142,7 @@ public sealed class PlayerRadioVoiceController : NetworkBehaviour
         {
             pushToTalkHeld = false;
             SetTransmitting(false);
+            PublishHudState();
             return;
         }
 
@@ -147,6 +155,26 @@ public sealed class PlayerRadioVoiceController : NetworkBehaviour
         {
             SetTransmitting(false);
         }
+
+        PublishHudState();
+    }
+
+    /// <summary>현재 보유·송신 상태를 표시 상태로 번역해 발행한다.</summary>
+    private void PublishHudState()
+    {
+        PublishHudState(!HasRadio
+            ? RadioHudState.None
+            : IsTransmitting ? RadioHudState.Transmitting : RadioHudState.Idle);
+    }
+
+    /// <summary>표시 상태를 HUD 채널에 방송한다. 값이 실제로 바뀐 호출에만 발행한다 — Update 마다 도는 경로다.</summary>
+    /// <param name="state">발행할 무전기 표시 상태.</param>
+    private void PublishHudState(RadioHudState state)
+    {
+        if (publishedHudState == state) return;
+
+        publishedHudState = state;
+        radioHudStateChanged.RaiseEvent(state);
     }
 
     private void SetTransmitting(bool value)

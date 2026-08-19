@@ -78,7 +78,7 @@ public sealed class PlayerRadioSlot : NetworkBehaviour
         {
             string binding = inputReader != null
                 ? inputReader.GetRadioBindingDisplayString()
-                : "J";
+                : "Space";
             slotLabel.text = IsFilled ? $"RADIO\n[{binding}]" : "RADIO\n—";
             slotLabel.color = IsFilled
                 ? Color.white
