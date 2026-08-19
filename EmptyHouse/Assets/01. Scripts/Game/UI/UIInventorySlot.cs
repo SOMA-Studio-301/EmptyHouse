@@ -11,15 +11,21 @@ using UnityEngine.UI;
 public class UIInventorySlot : MonoBehaviour
 {
     [Header("Widgets")]
-    [SerializeField] private Image iconImage;
-    [SerializeField] private GameObject highlightRoot;
-    [SerializeField] private TMP_Text numberLabel;
+    [SerializeField] private Image backgroundImage;                   // 선택/비선택 배경을 그리는 이미지
+    [SerializeField] private Image iconImage;                         // 칸에 든 아이템 아이콘
+    [SerializeField] private TMP_Text indexLabel;                     // 칸 번호 라벨
+
+    [Header("Selection")]
+    [SerializeField] private Sprite unselectedSprite;                 // 손에 들지 않은 칸 배경
+    [SerializeField] private Sprite selectedSprite;                   // 손에 든 칸 배경
+    [SerializeField] private Color unselectedTextColor = Color.white; // 손에 들지 않은 칸의 번호 색
+    [SerializeField] private Color selectedTextColor = Color.white;   // 손에 든 칸의 번호 색
 
     /// <summary>칸 번호를 라벨에 표시한다. Tab 홀드 + 숫자 키의 그 번호이므로 1부터 셈</summary>
     /// <param name="number">표시할 칸 번호(1-based).</param>
     public void SetNumber(int number)
     {
-        numberLabel.text = number.ToString();
+        indexLabel.text = number.ToString();
     }
 
     /// <summary>칸에 든 아이템의 아이콘을 그림</summary>
@@ -37,10 +43,11 @@ public class UIInventorySlot : MonoBehaviour
         iconImage.enabled = false;
     }
 
-    /// <summary>손에 든 칸 하이라이트를 켜고 끔</summary>
+    /// <summary>손에 든 칸 표시를 켜고 끔. 배경 스프라이트와 번호 색을 함께 바꾼다</summary>
     /// <param name="isHeld">이 칸을 손에 들고 있는지 여부.</param>
     public void SetHighlight(bool isHeld)
     {
-        highlightRoot.SetActive(isHeld);
+        backgroundImage.sprite = isHeld ? selectedSprite : unselectedSprite;
+        indexLabel.color = isHeld ? selectedTextColor : unselectedTextColor;
     }
 }
