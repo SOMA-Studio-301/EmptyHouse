@@ -97,6 +97,16 @@ public class SaveLoadSystem : ScriptableObject
         Log.D($"[SaveLoadSystem] 프로필 저장 -> {json}");
     }
 
+    /// <summary>프로필을 기본값으로 되돌리고 즉시 디스크에 쓴다. 런 데이터(RunSave)는 건드리지 않는다.</summary>
+    public void ResetProfile()
+    {
+        profile = new ProfileSave(); // 기본값의 단일 소스는 ProfileSave 의 필드 초기화식이다 — 여기서 항목별로 다시 대입하면 설정 추가 때 빠뜨린다
+        isProfileLoaded = true;      // 방금 기본값으로 채웠으므로 디스크를 다시 읽을 필요가 없다
+
+        SaveProfile();
+        Log.D("[SaveLoadSystem] 프로필을 기본값으로 초기화 — 런 데이터는 보존된다.");
+    }
+
     /// <summary>런 데이터를 디스크에서 읽어 캐시에 덮어쓴다. 파일이 없으면 기본값을 유지한다.</summary>
     public void LoadRun()
     {

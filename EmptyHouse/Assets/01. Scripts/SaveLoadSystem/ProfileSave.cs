@@ -1,5 +1,4 @@
 using System;
-using Border.Settings;
 
 /// <summary>
 /// 기기 단위로 영속되는 프로필 데이터. 현재는 설정값(오디오·그래픽·언어)만 담는다.
@@ -15,7 +14,7 @@ public class ProfileSave
     public float AmbientVolume = 1f;
 
     public int ResolutionIndex = 0;
-    public int WindowModeIndex = SettingsGraphicsUtility.BorderlessWindowModeIndex;
+    public int WindowModeIndex = GraphicsSettingsUtility.BorderlessWindowModeIndex;
 
     public string LanguageCode = "ko";
 
