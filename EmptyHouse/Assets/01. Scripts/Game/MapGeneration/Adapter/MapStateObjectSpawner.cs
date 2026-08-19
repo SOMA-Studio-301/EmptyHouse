@@ -116,6 +116,7 @@ namespace EmptyHouse.MapGen.Runtime
         {
             Log.D("[MapStateObjectSpawner] SpawnDoors");
             Transform doorsRoot = driver.LocalMapRoot.transform.Find("Doors");
+            int[] hops = DangerGradeCalculator.ComputeHopDistances(blueprint); // 자물쇠 접근측(입구에서 얕은 방) 판정용
             int spawned = 0;
             for (int e = 0; e < blueprint.Edges.Count; e++)
             {
@@ -145,7 +146,9 @@ namespace EmptyHouse.MapGen.Runtime
                 doorRoot.ServerConfigure(edge.LockNumber, locked);
                 if (locked)
                 {
-                    SpawnLock(doorRoot, edge.LockNumber);
+                    // 접근측 = 입구 기준 hop 이 얕은 방 — 자물쇠는 걸어오는 쪽 면에 보여야 한다(동률은 RoomA)
+                    int approachRoom = hops[edge.RoomA] <= hops[edge.RoomB] ? edge.RoomA : edge.RoomB;
+                    SpawnLock(doorRoot, edge.LockNumber, RoomCenterWorld(blueprint, templates, approachRoom));
                 }
 
                 spawned++;
@@ -411,12 +414,14 @@ namespace EmptyHouse.MapGen.Runtime
         }
 
         /// <summary>
-        /// 잠긴 문의 LockPos 에 번호별 자물쇠 변종을 스폰하고 문↔자물쇠를 상호 연결한다(M7 요구 1·2).
+        /// 잠긴 문의 접근측 면 앵커에 번호별 자물쇠 변종을 스폰하고 문↔자물쇠를 상호 연결한다(M7 요구 1·2).
+        /// 앵커는 문이 접근 지점으로 고른다(양면 규약 — DoorInteractable.LockPosToward).
         /// 변종 미등재면 경고 — 문은 잠긴 채 자물쇠가 없어 해정 불가(레지스트리 등재 필요).
         /// </summary>
         /// <param name="door">잠긴 문 루트.</param>
         /// <param name="lockNumber">자물쇠 번호(1부터).</param>
-        private void SpawnLock(DoorInteractable door, int lockNumber)
+        /// <param name="approachWorldPos">접근측 기준 월드 좌표(입구에서 얕은 방 중심).</param>
+        private void SpawnLock(DoorInteractable door, int lockNumber, Vector3 approachWorldPos)
         {
             NetworkObject prefab = PairPrefab(lockNumber, false);
             if (prefab == null)
@@ -425,7 +430,7 @@ namespace EmptyHouse.MapGen.Runtime
                 return;
             }
 
-            Transform lockPos = door.LockPos;
+            Transform lockPos = door.LockPosToward(approachWorldPos);
             NetworkObject lockObject = Object.Instantiate(prefab, lockPos.position, lockPos.rotation);
             lockObject.Spawn();
             lockObject.GetComponentInChildren<DoorLockFace>().ServerAttachDoor(door);
@@ -575,6 +580,23 @@ namespace EmptyHouse.MapGen.Runtime
             }
 
             return null;
+        }
+
+        /// <summary>방 풋프린트 중심의 월드 좌표(바닥 높이) — 자물쇠 접근측 판정 기준점. 조립기와 같은 정규화·셀 실측.</summary>
+        /// <param name="blueprint">대상 블루프린트.</param>
+        /// <param name="templates">템플릿 목록.</param>
+        /// <param name="roomIndex">대상 방 인덱스.</param>
+        /// <returns>방 중심 월드 좌표.</returns>
+        private Vector3 RoomCenterWorld(MapBlueprint blueprint, IReadOnlyList<RoomTemplateDef> templates, int roomIndex)
+        {
+            BlueprintRoom room = blueprint.Rooms[roomIndex];
+            RoomTemplateDef template = MapRuntimeAssembler.FindTemplate(templates, room.TemplateId);
+            (int width, int height) = CellMath.RotatedSize(template.WidthCells, template.HeightCells, room.Rotation);
+            (int minX, int minY) = MapRuntimeAssembler.MinCellBounds(blueprint);
+
+            Vector3 mapOrigin = driver.LocalMapRoot.transform.position;
+            float floorY = driver.FloorPlaneY(room.FloorIndex);
+            return mapOrigin + new Vector3((room.Cell.X - minX + width * 0.5f) * cellMeters, floorY, (room.Cell.Y - minY + height * 0.5f) * cellMeters);
         }
 
         /// <summary>스폰 마커의 월드 좌표(마커 전역 셀 중심, 바닥 높이) — 조립기와 같은 정규화·셀 실측을 쓴다.</summary>

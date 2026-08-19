@@ -156,7 +156,7 @@ MonoBehaviour:
   m_OnCullStateChanged:
     m_PersistentCalls:
       m_Calls: []
-  m_Sprite: {fileID: 10905, guid: 0000000000000000f000000000000000, type: 0}
+  m_Sprite: {fileID: 7482667652216324306, guid: db750325989564987a34393247d883b4, type: 3}
   m_Type: 0
   m_PreserveAspect: 0
   m_FillCenter: 1
@@ -178,7 +178,7 @@ GameObject:
   - component: {fileID: 3621664148005319719}
   - component: {fileID: 261393373192586998}
   m_Layer: 0
-  m_Name: Marker
+  m_Name: Template_Marker
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
@@ -231,7 +231,7 @@ MonoBehaviour:
   m_OnCullStateChanged:
     m_PersistentCalls:
       m_Calls: []
-  m_Sprite: {fileID: 10913, guid: 0000000000000000f000000000000000, type: 0}
+  m_Sprite: {fileID: -2413806693520163455, guid: a86470a33a6bf42c4b3595704624658b, type: 3}
   m_Type: 0
   m_PreserveAspect: 0
   m_FillCenter: 1
@@ -316,7 +316,7 @@ MonoBehaviour:
   roomsRoot: {fileID: 8661524210110766308}
   roomRectTemplate: {fileID: 3818202020547671189}
   roomColor: {r: 0.5, g: 0.5, b: 0.5, a: 1}
-  corridorColor: {r: 0.32, g: 0.32, b: 0.32, a: 1}
+  corridorColor: {r: 0.5019608, g: 0.5019608, b: 0.5019608, a: 1}
   markersRoot: {fileID: 2057764049588434490}
   markerTemplate: {fileID: 261393373192586998}
   playerColor: {r: 1, g: 1, b: 1, a: 1}
@@ -373,12 +373,12 @@ GameObject:
   - component: {fileID: 8005498709285561892}
   - component: {fileID: 3818202020547671189}
   m_Layer: 0
-  m_Name: RoomRect
+  m_Name: Template_Room
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
-  m_IsActive: 0
+  m_IsActive: 1
 --- !u!224 &774562992620834687
 RectTransform:
   m_ObjectHideFlags: 0
@@ -426,7 +426,7 @@ MonoBehaviour:
   m_OnCullStateChanged:
     m_PersistentCalls:
       m_Calls: []
-  m_Sprite: {fileID: 10905, guid: 0000000000000000f000000000000000, type: 0}
+  m_Sprite: {fileID: 7482667652216324306, guid: db750325989564987a34393247d883b4, type: 3}
   m_Type: 0
   m_PreserveAspect: 0
   m_FillCenter: 1
@@ -501,7 +501,7 @@ MonoBehaviour:
   m_OnCullStateChanged:
     m_PersistentCalls:
       m_Calls: []
-  m_Sprite: {fileID: 10905, guid: 0000000000000000f000000000000000, type: 0}
+  m_Sprite: {fileID: -2413806693520163455, guid: a86470a33a6bf42c4b3595704624658b, type: 3}
   m_Type: 3
   m_PreserveAspect: 0
   m_FillCenter: 1

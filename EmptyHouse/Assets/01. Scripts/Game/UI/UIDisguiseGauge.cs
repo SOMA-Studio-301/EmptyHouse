@@ -17,16 +17,20 @@ public class UIDisguiseGauge : MonoBehaviour
 
     [Header("Widgets")]
     [SerializeField] private Image backgroundImage; // 호 배경(= 잔량 만땅 자리). fullAngle 로 이 스크립트가 채운다
-    [SerializeField] private Image fillImage; // 잔량 호. 각도와 경고색을 입히는 대상이다
+    [SerializeField] private Image fillImage; // 잔량 호. 각도를 입히는 대상이다(경고색은 아래 주석 참고)
 
     [Header("Arc")]
     [Range(0f, 360f)] [SerializeField] private float emptyAngle = 0f; // 잔량 0 일 때 호 각도(도). 0 보다 크면 바닥나도 얇게 남는다
     [Range(0f, 360f)] [SerializeField] private float fullAngle = 120f; // 잔량 1 일 때 호 각도(도). 배경 호도 이 값으로 고정된다
 
-    [Header("Colors")]
-    [SerializeField] private Color fullColor = new Color(0.35f, 0.82f, 0.36f, 1f); // 잔량 충분 구간 색
-    [SerializeField] private Color lowColor = new Color(0.90f, 0.25f, 0.22f, 1f); // 잔량 고갈 시점 색
-    [Range(0f, 1f)] [SerializeField] private float lowThreshold01 = 0.3f; // 이 잔량 아래부터 lowColor 로 물들기 시작한다. 그 위는 fullColor 고정
+    [Header("Editor Preview")]
+    [Range(0f, 1f)] [SerializeField] private float previewGauge01 = 1f; // 에디터 전용 미리보기 잔량. 슬라이더를 굴리면 OnValidate 가 호를 다시 그린다. 플레이 중에는 채널 값이 우선한다
+
+    // 잔량 경고색은 보류 — 색 규칙 확정 시 아래 필드와 ResolveFillColor 를 함께 되살릴 것
+    // [Header("Colors")]
+    // [SerializeField] private Color fullColor = new Color(0.35f, 0.82f, 0.36f, 1f); // 잔량 충분 구간 색
+    // [SerializeField] private Color lowColor = new Color(0.90f, 0.25f, 0.22f, 1f); // 잔량 고갈 시점 색
+    // [Range(0f, 1f)] [SerializeField] private float lowThreshold01 = 0.3f; // 이 잔량 아래부터 lowColor 로 물들기 시작한다. 그 위는 fullColor 고정
 
     // 직전에 그린 잔량. 값이 실제로 바뀐 호출에만 위젯을 건드린다. -1 은 "아직 한 번도 안 그림"
     private float renderedGauge01 = -1f;
@@ -54,8 +58,8 @@ public class UIDisguiseGauge : MonoBehaviour
 
         ApplyBackgroundArc();
 
-        // 편집 중이면 최대 각도를 보여주고, 플레이 중이면 마지막으로 그린 잔량을 그대로 다시 그린다.
-        float replay = Application.isPlaying && renderedGauge01 >= 0f ? renderedGauge01 : 1f;
+        // 편집 중이면 미리보기 슬라이더 값을 보여주고, 플레이 중이면 마지막으로 그린 잔량을 그대로 다시 그린다.
+        float replay = Application.isPlaying && renderedGauge01 >= 0f ? renderedGauge01 : previewGauge01;
 
         renderedGauge01 = -1f; // 각도만 바뀐 호출에서 Render 가 조기 반환하지 않도록 캐시를 무효화한다
         Render(replay);
@@ -71,20 +75,20 @@ public class UIDisguiseGauge : MonoBehaviour
         renderedGauge01 = gauge01;
 
         fillImage.fillAmount = Mathf.Lerp(emptyAngle, fullAngle, gauge01) / 360f;
-        fillImage.color = ResolveFillColor(gauge01);
+        // fillImage.color = ResolveFillColor(gauge01); // 경고색 보류 — 색은 Inspector 에 설정된 값을 그대로 둔다
     }
 
-    /// <summary>잔량을 경고색으로 번역한다. 임계 위는 fullColor 고정이고, 그 아래에서 lowColor 로 보간된다.</summary>
-    /// <param name="gauge01">현재 잔량(0~1).</param>
-    /// <returns>Fill 에 칠할 색.</returns>
-    private Color ResolveFillColor(float gauge01)
-    {
-        // Render 와 같은 빈도로 호출되므로 진입 트레이스를 두지 않는다.
-        // 임계가 0 이면 경고 구간 자체가 없다 — 나눗셈에 들어가기 전에 걸러낸다.
-        if (lowThreshold01 <= 0f || gauge01 >= lowThreshold01) return fullColor;
-
-        return Color.Lerp(lowColor, fullColor, gauge01 / lowThreshold01);
-    }
+    // /// <summary>잔량을 경고색으로 번역한다. 임계 위는 fullColor 고정이고, 그 아래에서 lowColor 로 보간된다.</summary>
+    // /// <param name="gauge01">현재 잔량(0~1).</param>
+    // /// <returns>Fill 에 칠할 색.</returns>
+    // private Color ResolveFillColor(float gauge01)
+    // {
+    //     // Render 와 같은 빈도로 호출되므로 진입 트레이스를 두지 않는다.
+    //     // 임계가 0 이면 경고 구간 자체가 없다 — 나눗셈에 들어가기 전에 걸러낸다.
+    //     if (lowThreshold01 <= 0f || gauge01 >= lowThreshold01) return fullColor;
+    //
+    //     return Color.Lerp(lowColor, fullColor, gauge01 / lowThreshold01);
+    // }
 
     /// <summary>배경 호를 잔량 만땅 각도(fullAngle)에 맞춘다.</summary>
     private void ApplyBackgroundArc()
