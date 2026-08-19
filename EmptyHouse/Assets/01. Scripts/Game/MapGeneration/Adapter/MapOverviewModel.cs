@@ -135,6 +135,15 @@ namespace EmptyHouse.MapGen.Runtime
             return result;
         }
 
+        /// <summary>월드 거리(m)를 셀 단위 거리로 환산한다 — 사거리·반경을 도식 축척에 맞출 때 쓴다.</summary>
+        /// <param name="meters">월드 거리(m).</param>
+        /// <returns>셀 단위 거리.</returns>
+        public float MetersToCells(float meters)
+        {
+            // 매 프레임 호출되므로 진입 트레이스를 두지 않는다.
+            return meters / cellMeters;
+        }
+
         /// <summary>월드 요(도)를 맵 회전각(도)으로 변환한다 — 시야 부채꼴 회전용(셀 좌표계 +X=East·+Y=North 정합).</summary>
         /// <param name="worldYawDegrees">카메라 월드 요(도).</param>
         /// <returns>맵 공간 회전각(도).</returns>

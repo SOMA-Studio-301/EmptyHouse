@@ -6,6 +6,8 @@ using UnityEngine.UI;
 /// 안내도 방향 밝힘(EH-62, 요구 5) — 전면 어둠 오버레이 + 플레이어 위치 중심 부채꼴이 카메라 요를 따라 회전한다.
 /// **방향 기반, 벽 차폐 없음**(확정 해석) · 방문 기억 없음 — 상태 저장 0.
 /// 마커 레이어(markersRoot)는 이 마스크 위에 있어 어두운 영역에서도 보인다.
+/// 각도·어둠 농도는 UIMapOverview 가 단일 소유해 <see cref="Configure"/> 로 주입하고,
+/// 반경은 좀비 표시 사거리와 같은 길이라 <see cref="SetRadius"/> 로 도식 축척에 맞춰 받는다.
 /// </summary>
 public sealed class UIMapViewCone : MonoBehaviour
 {
@@ -13,45 +15,47 @@ public sealed class UIMapViewCone : MonoBehaviour
     [SerializeField] private RectTransform coneRect; // 부채꼴 이미지(자식) — 피벗 = 플레이어 위치, 회전 = 시선 방향
     [SerializeField] private Image darknessOverlay; // 전면 어둠 오버레이(자식) — 부채꼴 밖 가림
 
-    [Header("Tuning ⚪")]
-    [SerializeField] private float coneAngleDegrees = 70f; // 부채꼴 각도(도) — 기본 카메라 수평 FOV 근사, Figma/플레이테스트 튜닝
-    [SerializeField] private float coneRadiusPixels = 160f; // 부채꼴 사거리(패널 픽셀) — 밝히는 범위 크기. 0 이하면 Cone RectTransform 크기를 그대로 쓴다
-    [SerializeField] private float outsideVisibility = 0.1f; // 부채꼴 밖 잔여 가시성(0 = 완전 암전) — "보는 곳만 밝힘" 강도
-
+    private float coneAngleDegrees; // 부채꼴 각도(도) — UIMapOverview 주입
+    private float outsideVisibility; // 부채꼴 밖 잔여 가시성 — UIMapOverview 주입
     private Image coneImage; // 부채꼴 이미지 — Filled/Radial360(Origin Top)이면 각도를 fillAmount 로 구동. 통짜 스프라이트면 회전만(선택 의존)
 
-    /// <summary>부채꼴 각도·사거리·어둠 농도를 인스펙터 값대로 1회 적용한다.</summary>
+    /// <summary>부채꼴 이미지 참조를 캐시한다.</summary>
     private void Awake()
     {
         Log.D("[UIMapViewCone] Awake");
 
         coneImage = coneRect.GetComponent<Image>();
+    }
+
+    /// <summary>각도·어둠 농도를 주입받아 즉시 반영한다 — 값의 단일 소유자는 UIMapOverview 다.</summary>
+    /// <param name="angleDegrees">부채꼴 각도(도).</param>
+    /// <param name="outsideAlpha">부채꼴 밖 잔여 가시성(0 = 완전 암전).</param>
+    public void Configure(float angleDegrees, float outsideAlpha)
+    {
+        coneAngleDegrees = angleDegrees;
+        outsideVisibility = outsideAlpha;
         ApplyTuning();
     }
 
-    /// <summary>인스펙터 튜닝(각도·사거리·어둠)을 에디터에서 즉시 반영한다.</summary>
-    private void OnValidate()
+    /// <summary>부채꼴 반경(패널 픽셀)을 설정한다 — 좀비 표시 사거리를 도식 축척으로 환산한 값.</summary>
+    /// <param name="radiusPixels">반경(패널 픽셀).</param>
+    public void SetRadius(float radiusPixels)
+    {
+        coneRect.sizeDelta = new Vector2(radiusPixels * 2f, radiusPixels * 2f); // 중심 피벗 기준 반지름
+    }
+
+    /// <summary>부채꼴 각도(fillAmount)와 어둠 오버레이 알파를 갱신한다.</summary>
+    private void ApplyTuning()
     {
         if (coneRect == null || darknessOverlay == null)
         {
-            return; // 프리팹 조립 중 — 참조가 채워지기 전
+            return; // 프리팹 조립 중 — 참조가 채워지기 전(런타임 누락은 SetPose 에서 NRE 로 드러난다)
         }
 
-        coneImage = coneRect.GetComponent<Image>();
-        ApplyTuning();
-    }
-
-    /// <summary>부채꼴 각도(fillAmount)·사거리(사각형 크기)와 어둠 오버레이 알파를 갱신한다.</summary>
-    private void ApplyTuning()
-    {
+        coneImage = coneImage != null ? coneImage : coneRect.GetComponent<Image>();
         if (coneImage != null && coneImage.type == Image.Type.Filled)
         {
             coneImage.fillAmount = Mathf.Clamp01(coneAngleDegrees / 360f);
-        }
-
-        if (coneRadiusPixels > 0f)
-        {
-            coneRect.sizeDelta = new Vector2(coneRadiusPixels * 2f, coneRadiusPixels * 2f); // 중심 피벗 기준 반지름
         }
 
         Color darkness = darknessOverlay.color;

@@ -4,22 +4,35 @@ using UnityEngine;
 /// <summary>
 /// 시야 내 좀비 판정(EH-62) — 로컬 카메라 기준 순수 표시용 판정. **좀비 AI 인지와 완전히 무관하다.**
 /// 판정: 뷰포트 안 + 최대 거리 이내 + Wall·Door 레이어 Linecast 비차폐. 깜빡임 방지로 시야 이탈 후
-/// 잔상 유지 시간(⚪) 동안은 표시를 유지한다. 좀비 열거는 <see cref="ZombieRuntimeRegistrySO"/> — 씬 검색 금지.
+/// 잔상 유지 시간 동안은 표시를 유지한다. 좀비 열거는 <see cref="ZombieRuntimeRegistrySO"/> — 씬 검색 금지.
+/// 판정 수치는 <see cref="UIMapOverview"/> 가 단일 소유하고 <see cref="Configure"/> 로 주입한다.
 /// </summary>
 public sealed class ZombieSightProbe : MonoBehaviour
 {
     [Header("Refs")]
     [SerializeField] private ZombieRuntimeRegistrySO zombieRegistry; // 좀비 열거 원천(프로젝트 에셋)
 
-    [Header("Sight")]
-    [SerializeField] private float maxDistance = 30f; // 표시 최대 거리(m) ⚪
-    [SerializeField] private LayerMask occlusionMask; // 차폐 레이어(Wall·Door) — 벽 뒤 좀비 미표시(요구 2)
-    [SerializeField] private float lingerSeconds = 0.5f; // 시야 이탈 후 잔상 유지(s) ⚪ — 경계 깜빡임 방지
-    [SerializeField] private float chestHeightMeters = 1.2f; // 차폐 Linecast 목표 높이(m) ⚪ — 발밑은 바닥에 먹혀 항상 가려진다
+    private float maxDistance; // 표시 최대 거리(m) — UIMapOverview 주입
+    private float lingerSeconds; // 시야 이탈 후 잔상 유지(s) — UIMapOverview 주입
+    private float chestHeightMeters; // 차폐 Linecast 목표 높이(m) — UIMapOverview 주입
+    private LayerMask occlusionMask; // 차폐 레이어(Wall·Door) — UIMapOverview 주입
 
     private readonly Dictionary<ZombieController, float> lastSeenTime = new Dictionary<ZombieController, float>(); // 좀비 → 마지막 목격 시각(잔상 판정)
     private readonly List<ZombieController> pruneBuffer = new List<ZombieController>(); // 파괴된 키 정리용 재사용 버퍼(열거 중 제거 불가)
     private Camera cachedCamera; // 로컬 메인 카메라 캐시 — 관전 전환 시 교체되므로 파괴되면 다시 찾는다
+
+    /// <summary>판정 파라미터를 주입받는다 — 값의 단일 소유자는 UIMapOverview 다.</summary>
+    /// <param name="rangeMeters">표시 최대 거리(m) — 밝힘 부채꼴 반경과 같은 길이.</param>
+    /// <param name="linger">시야 이탈 후 잔상 유지(s).</param>
+    /// <param name="chestHeight">차폐 Linecast 목표 높이(m).</param>
+    /// <param name="occlusion">차폐 레이어 마스크.</param>
+    public void Configure(float rangeMeters, float linger, float chestHeight, LayerMask occlusion)
+    {
+        maxDistance = rangeMeters;
+        lingerSeconds = linger;
+        chestHeightMeters = chestHeight;
+        occlusionMask = occlusion;
+    }
 
     /// <summary>
     /// 현재 표시 대상 좀비의 월드 좌표를 수집한다(잔상 포함). 호출자가 준 버퍼를 채운다(GC 0).

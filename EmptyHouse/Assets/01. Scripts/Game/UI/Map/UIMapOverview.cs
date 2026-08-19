@@ -39,6 +39,14 @@ public sealed class UIMapOverview : MonoBehaviour
     [Header("View Cone")]
     [SerializeField] private UIMapViewCone viewCone; // 방향 밝힘 부채꼴(자식 컴포넌트) — 요구 5
 
+    [Header("Tuning ⚪ — 안내도 파라미터 단일 소유(자식 컴포넌트에 주입)")]
+    [SerializeField] private float sightRangeMeters = 30f; // 좀비 표시 사거리(m) = 밝힘 부채꼴 반경. 밝은 영역이 곧 "좀비가 보이는 범위"라 한 값으로 묶는다
+    [SerializeField] private float sightLingerSeconds = 0.5f; // 좀비 마커 잔상(s) — 시야를 벗어나도 이만큼 유지(경계 깜빡임 방지). 키우면 늦게 사라진다
+    [SerializeField] private float zombieChestHeightMeters = 1.2f; // 차폐 Linecast 목표 높이(m) — 발밑은 바닥에 먹혀 항상 가려진다
+    [SerializeField] private LayerMask sightOcclusionMask; // 차폐 레이어(Wall·Door) — 벽 뒤 좀비 미표시(요구 2)
+    [SerializeField] private float viewConeAngleDegrees = 70f; // 밝힘 부채꼴 각도(도)
+    [SerializeField] private float outsideVisibility = 0.1f; // 부채꼴 밖 잔여 가시성(0 = 완전 암전)
+
     private MapOverviewModel model; // 수신한 도식 모델(맵마다 교체)
     private readonly List<Image> roomPool = new List<Image>(); // 방 사각형 풀(방 60+ GC 0)
     private readonly List<Image> markerPool = new List<Image>(); // 마커 풀(플레이어+좀비 공용)
@@ -56,6 +64,7 @@ public sealed class UIMapOverview : MonoBehaviour
 
         inputReader.MapOverviewEvent += HandleToggle;
         onMapOverviewReady.OnEventRaised += HandleMapOverviewReady;
+        PushTuning();
         roomRectTemplate.gameObject.SetActive(false);
         markerTemplate.gameObject.SetActive(false);
         SetOpen(false);
@@ -115,6 +124,9 @@ public sealed class UIMapOverview : MonoBehaviour
         mapCenterCells = model.CellSize * 0.5f;
         cellToPanel = Mathf.Min(panelSize.x / model.CellSize.x, panelSize.y / model.CellSize.y);
 
+        // 밝힘 반경 = 좀비 표시 사거리(같은 길이) — 도식 축척으로 환산해 내려보낸다
+        viewCone.SetRadius(model.MetersToCells(sightRangeMeters) * cellToPanel);
+
         int used = 0;
         int corridors = 0;
         for (int i = 0; i < model.Rooms.Count; i++)
@@ -137,6 +149,24 @@ public sealed class UIMapOverview : MonoBehaviour
 
         HidePoolFrom(roomPool, used);
         Log.D($"[UIMapOverview] RebuildRooms 층={currentFloor} 사각형={used}(복도 {corridors})");
+    }
+
+    /// <summary>튜닝 파라미터를 자식 컴포넌트에 주입한다 — 값의 단일 소유자는 이 컴포넌트다.</summary>
+    private void PushTuning()
+    {
+        sightProbe.Configure(sightRangeMeters, sightLingerSeconds, zombieChestHeightMeters, sightOcclusionMask);
+        viewCone.Configure(viewConeAngleDegrees, outsideVisibility);
+    }
+
+    /// <summary>인스펙터에서 값을 바꾸면 자식에 즉시 반영한다 — 플레이 중이 아니어도 확인할 수 있다.</summary>
+    private void OnValidate()
+    {
+        if (sightProbe == null || viewCone == null)
+        {
+            return; // 프리팹 조립 중 — 참조가 채워지기 전
+        }
+
+        PushTuning();
     }
 
     /// <summary>셀 공간 좌표를 패널 로컬 좌표로 옮긴다 — 맵 중심이 컨테이너 중앙에 오게 정렬한다.</summary>

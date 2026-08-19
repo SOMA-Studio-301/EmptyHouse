@@ -88,9 +88,6 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::UIMapViewCone
   coneRect: {fileID: 8515212387487797997}
   darknessOverlay: {fileID: 1893969591889707551}
-  coneAngleDegrees: 70
-  coneRadiusPixels: 160
-  outsideVisibility: 0.1
 --- !u!1 &4796829860749697043
 GameObject:
   m_ObjectHideFlags: 0
@@ -292,12 +289,6 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::ZombieSightProbe
   zombieRegistry: {fileID: 11400000, guid: a1f48fbd7d4b4d33a5a1c7e6b7f00003, type: 2}
-  maxDistance: 30
-  occlusionMask:
-    serializedVersion: 2
-    m_Bits: 1152
-  lingerSeconds: 0.5
-  chestHeightMeters: 1.2
 --- !u!114 &8082570929199513990
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -323,6 +314,14 @@ MonoBehaviour:
   zombieColor: {r: 1, g: 0, b: 0, a: 1}
   sightProbe: {fileID: 1351600547254292753}
   viewCone: {fileID: 5699942652221301939}
+  sightRangeMeters: 30
+  sightLingerSeconds: 0.5
+  zombieChestHeightMeters: 1.2
+  sightOcclusionMask:
+    serializedVersion: 2
+    m_Bits: 1152
+  viewConeAngleDegrees: 70
+  outsideVisibility: 0.1
 --- !u!1 &5640626337031393092
 GameObject:
   m_ObjectHideFlags: 0
@@ -471,7 +470,7 @@ RectTransform:
   m_AnchorMin: {x: 0.5, y: 0.5}
   m_AnchorMax: {x: 0.5, y: 0.5}
   m_AnchoredPosition: {x: 0, y: 0}
-  m_SizeDelta: {x: 320, y: 320}
+  m_SizeDelta: {x: 60, y: 60}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!222 &4980691038774358194
 CanvasRenderer:
