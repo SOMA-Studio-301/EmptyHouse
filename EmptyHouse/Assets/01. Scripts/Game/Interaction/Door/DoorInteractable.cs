@@ -21,11 +21,21 @@ public sealed class DoorInteractable : NetworkBehaviour
     [SerializeField] private AudioId unlockAudioId = AudioId.None; // 해정 시 재생(전용 음원 등재 전까지 None — 채널이 무시)
 
     [Header("Lock")]
-    [SerializeField] private Transform lockPos; // 자물쇠 스폰 앵커(이음 쪽) — 잠긴 문이면 스포너가 이 위치에 자물쇠 변종 NetworkObject 를 스폰한다
+    [SerializeField] private Transform lockPosFront; // 자물쇠 스폰 앵커 앞면(로컬 −Z — 문이 닫히는 쪽) — 스포너가 접근측 면을 골라 스폰
+    [SerializeField] private Transform lockPosBack; // 자물쇠 스폰 앵커 뒷면(로컬 +Z — 문이 열리는 쪽)
 
     private NetworkObject attachedLock; // 서버 전용 — 이 문에 걸린 자물쇠 오브젝트(해정 승인 시 소멸)
 
-    public Transform LockPos => lockPos; // 스포너의 자물쇠 배치 기준
+    /// <summary>
+    /// 접근 지점을 향한 면의 자물쇠 앵커를 고른다 — 자물쇠는 입구에서 걸어오는 쪽(접근측)에 보여야 한다.
+    /// 문짝은 로컬 +Z 로 열리는 규약이라, 접근점이 +Z 반공간이면 뒷면 앵커·아니면 앞면 앵커.
+    /// </summary>
+    /// <param name="approachWorldPos">접근측 기준 월드 좌표(접근 방 중심).</param>
+    /// <returns>접근측 면의 자물쇠 앵커.</returns>
+    public Transform LockPosToward(Vector3 approachWorldPos)
+    {
+        return Vector3.Dot(approachWorldPos - transform.position, transform.forward) > 0f ? lockPosBack : lockPosFront;
+    }
 
     private static readonly int isOpenAnimHash = Animator.StringToHash("IsOpen"); // 애니메이터 개방 토글 파라미터(스펙 2절)
 

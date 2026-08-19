@@ -16,7 +16,7 @@ namespace EmptyHouse.EditorTools
     /// </summary>
     public static class DoorPrefabSetup
     {
-        private const string doorPrefabPath = "Assets/02. Prefab/Map/Rooms/Door.prefab"; // 대상 문 조립체
+        private const string doorPrefabPath = "Assets/02. Prefab/Map/DecoratedRooms/Door/Door.prefab"; // 대상 문 조립체(2026-08-13 폴더 이동 반영)
         private const string animFolder = "Assets/02. Prefab/Map/Rooms/DoorAnim"; // 애니메이션 에셋 폴더
         private const string controllerPath = animFolder + "/DoorAnimator.controller"; // IsOpen 토글 컨트롤러
         private const string closedClipPath = animFolder + "/Door_Closed.anim"; // 닫힘 포즈(기본 상태)
@@ -67,13 +67,14 @@ namespace EmptyHouse.EditorTools
             doorSo.ApplyModifiedPropertiesWithoutUndo();
 
             // 손잡이 면은 양쪽 문짝 자식(개방 스윙과 함께 비켜나 열린 문간 레이를 가로채지 않게, 어느 쪽을 조작해도 동일).
-            // 자물쇠는 별도 스폰 오브젝트 — 문은 LockPos 앵커(이음 쪽)만 제공한다
+            // 자물쇠는 별도 스폰 오브젝트 — 문은 양면 LockPos 앵커만 제공하고 스포너가 접근측 면을 고른다
             RemoveLegacyFaces(root, leafL, leafR);
             SetupHandleFace(leafL, door, noiseChannel, "HandleFace_L");
             SetupHandleFace(leafR, door, noiseChannel, "HandleFace_R");
-            Transform lockPos = EnsureLockPos(root, leafR);
+            (Transform lockFront, Transform lockBack) = EnsureLockAnchors(root, leafR);
             var lockPosSo = new SerializedObject(door);
-            lockPosSo.FindProperty("lockPos").objectReferenceValue = lockPos;
+            lockPosSo.FindProperty("lockPosFront").objectReferenceValue = lockFront;
+            lockPosSo.FindProperty("lockPosBack").objectReferenceValue = lockBack;
             lockPosSo.ApplyModifiedPropertiesWithoutUndo();
 
             PrefabUtility.SaveAsPrefabAsset(root, doorPrefabPath);
@@ -166,27 +167,42 @@ namespace EmptyHouse.EditorTools
         }
 
         /// <summary>
-        /// 자물쇠 스폰 앵커(LockPos)를 루트 자식으로 확보한다 — 닫힌 오른쪽 문짝의 이음(seam) 가장자리,
-        /// 손잡이 높이의 월드 위치를 루트 로컬로 환산해 배치한다. 자물쇠는 별도 NetworkObject 라 해정 시 소멸된다.
+        /// 자물쇠 스폰 앵커 양면(LockPos 앞면 −Z·LockPos_Back 뒷면 +Z)을 루트 자식으로 확보한다 —
+        /// 닫힌 오른쪽 문짝의 이음(seam) 가장자리, 손잡이 높이. 뒷면은 문짝 두께 너머 미러 + 야우 180°.
+        /// 스포너가 접근측(입구에서 얕은 방) 면을 골라 스폰한다. 자물쇠는 별도 NetworkObject 라 해정 시 소멸된다.
         /// </summary>
         /// <param name="root">프리팹 루트.</param>
         /// <param name="leafR">오른쪽 문짝(이음 기준).</param>
-        /// <returns>LockPos 트랜스폼.</returns>
-        private static Transform EnsureLockPos(GameObject root, Transform leafR)
+        /// <returns>(앞면, 뒷면) 앵커 트랜스폼.</returns>
+        private static (Transform front, Transform back) EnsureLockAnchors(GameObject root, Transform leafR)
         {
-            Transform lockPos = root.transform.Find("LockPos");
-            if (lockPos == null)
-            {
-                lockPos = new GameObject("LockPos").transform;
-                lockPos.SetParent(root.transform, false);
-            }
+            Transform front = EnsureChild(root, "LockPos");
+            Transform back = EnsureChild(root, "LockPos_Back");
 
             Bounds bounds = LeafBounds(leafR);
             float seamSign = Mathf.Sign(bounds.center.x == 0f ? 1f : bounds.center.x);
             var seamLocal = new Vector3(bounds.center.x + seamSign * bounds.extents.x * 0.85f, Mathf.Max(1.0f, bounds.center.y * 0.85f), bounds.center.z);
-            lockPos.position = leafR.TransformPoint(seamLocal); // 닫힘 포즈 기준 월드 위치 — 루트 자식이라 개방 스윙과 무관
-            lockPos.rotation = root.transform.rotation;
-            return lockPos;
+            front.position = leafR.TransformPoint(seamLocal); // 닫힘 포즈 기준 월드 위치 — 루트 자식이라 개방 스윙과 무관
+            front.rotation = root.transform.rotation;
+            back.position = front.position + root.transform.forward * (bounds.extents.z * 2f + 0.04f); // 문짝 두께 + 여유 너머 반대면
+            back.rotation = root.transform.rotation * Quaternion.Euler(0f, 180f, 0f);
+            return (front, back);
+        }
+
+        /// <summary>루트 바로 아래 이름 일치 자식을 확보한다(없으면 생성).</summary>
+        /// <param name="root">프리팹 루트.</param>
+        /// <param name="name">자식 이름.</param>
+        /// <returns>자식 트랜스폼.</returns>
+        private static Transform EnsureChild(GameObject root, string name)
+        {
+            Transform child = root.transform.Find(name);
+            if (child == null)
+            {
+                child = new GameObject(name).transform;
+                child.SetParent(root.transform, false);
+            }
+
+            return child;
         }
 
         /// <summary>상호작용 면 자식을 확보한다 — Interactable 레이어·트리거 박스 콜라이더·면 스크립트·참조 배선.</summary>
