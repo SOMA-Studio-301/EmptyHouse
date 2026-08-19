@@ -45,9 +45,11 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::SettingsSystem
   saveLoadSystem: {fileID: 11400000, guid: 60c2f10eb6c3bed4c9bcb10231fb16d6, type: 2}
+  resetSettingsEvent: {fileID: 11400000, guid: bab78ee21a4950817209c7bf3b9b2231, type: 2}
   changeMasterVolumeEvent: {fileID: 11400000, guid: 18da7539e03d50c47acd5809c908a798, type: 2}
   changeMusicVolumeEvent: {fileID: 11400000, guid: 73cccc140046bb444b304bc12223036f, type: 2}
   changeSfxVolumeEvent: {fileID: 11400000, guid: 05de50ca67cb0b549bd01b16436613ca, type: 2}
   changeAmbientVolumeEvent: {fileID: 11400000, guid: 8f35dd60c39dc5547acd6de9f81a155e, type: 2}
+  changeMouseSensitivityEvent: {fileID: 11400000, guid: f5ccd24f9ed66ad49bc139217bacb9ef, type: 2}
   changeResolutionEvent: {fileID: 11400000, guid: 6ef97d0fce2742a469de3d1321ae40cd, type: 2}
   changeLanguageEvent: {fileID: 11400000, guid: 7774bf21efac27848bae85b4d62bdc71, type: 2}

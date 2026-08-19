@@ -313,7 +313,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::UIPause
   resumeButton: {fileID: 8944846258171065098}
-  backButton: {fileID: 0}
+  backButton: {fileID: 3653852295477646189}
   settingsButton: {fileID: 6453223260042796229}
   quitButton: {fileID: 2202258218959979}
 --- !u!1001 &1387266398898500463
@@ -502,7 +502,7 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 8591348059611719750, guid: 4553ab2f96ee21744b0ea7fb347ebc7c, type: 3}
       propertyPath: m_AnchoredPosition.x
-      value: -2.987503
+      value: -2.9874878
       objectReference: {fileID: 0}
     - target: {fileID: 8692540962114388110, guid: 4553ab2f96ee21744b0ea7fb347ebc7c, type: 3}
       propertyPath: m_Name
@@ -684,6 +684,17 @@ RectTransform:
   m_CorrespondingSourceObject: {fileID: 3164507050725151081, guid: df732fc888754ac4892fb50aba5d24b7, type: 3}
   m_PrefabInstance: {fileID: 2540866265528687048}
   m_PrefabAsset: {fileID: 0}
+--- !u!114 &3653852295477646189 stripped
+MonoBehaviour:
+  m_CorrespondingSourceObject: {fileID: 1294766363560938149, guid: df732fc888754ac4892fb50aba5d24b7, type: 3}
+  m_PrefabInstance: {fileID: 2540866265528687048}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: b2f15aa8b6cf2c148b64f4fd0138a6f8, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
 --- !u!1001 &3957680466844785824
 PrefabInstance:
   m_ObjectHideFlags: 0
