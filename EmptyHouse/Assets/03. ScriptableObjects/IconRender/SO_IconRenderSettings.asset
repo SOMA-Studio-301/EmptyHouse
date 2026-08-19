@@ -1,0 +1,38 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 28e2aad81f053284e8f103e76e5cd05f, type: 3}
+  m_Name: SO_IconRenderSettings
+  m_EditorClassIdentifier: Assembly-CSharp-Editor::EmptyHouse.EditorTools.IconRenderSettingsSO
+  RigPrefab: {fileID: 4768546136701623587, guid: ee58d0ebb20fd86479e7d84e1f94e3a7, type: 3}
+  OutputFolder: Assets/04. Arts/UI/Icons
+  FileNamePrefix: hud_icon_
+  RenderSize: 1024
+  FinalSize: 256
+  AssignIcons: 1
+  Padding: 0.85
+  AmbientColor: {r: 0.12, g: 0.12, b: 0.14, a: 1}
+  ExtraTargets:
+  - {fileID: 920000000000000001, guid: 7f824d91ee264f1a849738f33a0216ad, type: 3}
+  AspectOverrides: []
+  RotationOverrides:
+  - Prefab: {fileID: 1829482273108571828, guid: 45863a1a5d45d01498d17401fb6375a2, type: 3}
+    Euler: {x: -90, y: 0, z: 0}
+  - Prefab: {fileID: 343061398008657290, guid: 203d43b168caddf46aab80d56716dded, type: 3}
+    Euler: {x: 0, y: 0, z: -90}
+  - Prefab: {fileID: 8752639920411005133, guid: 18d8fb2863e1b6e4791ddd2b239f8a3a, type: 3}
+    Euler: {x: 0, y: 0, z: -90}
+  - Prefab: {fileID: 31848, guid: f0a1b2c3d4e5f60718293a4b5c6d7e12, type: 3}
+    Euler: {x: -90, y: 180, z: 0}
+  - Prefab: {fileID: 31851, guid: f0a1b2c3d4e5f60718293a4b5c6d7e13, type: 3}
+    Euler: {x: -90, y: 180, z: 0}
+  - Prefab: {fileID: 31850, guid: f0a1b2c3d4e5f60718293a4b5c6d7e14, type: 3}
+    Euler: {x: -90, y: 180, z: 0}

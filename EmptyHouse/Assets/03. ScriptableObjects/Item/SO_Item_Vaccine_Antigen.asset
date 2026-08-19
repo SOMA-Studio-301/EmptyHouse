@@ -13,9 +13,11 @@ MonoBehaviour:
   m_Name: SO_Item_Vaccine_Antigen
   m_EditorClassIdentifier: Assembly-CSharp::ItemDataSO
   NameKey: ITEM_NAME_VACCINE_ANTIGEN
-  Icon: {fileID: 10901, guid: 0000000000000000f000000000000000, type: 0}
+  Icon: {fileID: 21300000, guid: 6e4138147994e58499e288d6f368232c, type: 3}
   Kind: 2
   PickupVerbKey: INT_PROMPT_COLLECT
   PickupNoiseDb: 10
+  HandUsage: 0
+  HeldPrefab: {fileID: 0}
   WorldPrefab: {fileID: 31848, guid: f0a1b2c3d4e5f60718293a4b5c6d7e12, type: 3}
   ProjectilePrefab: {fileID: 0}
