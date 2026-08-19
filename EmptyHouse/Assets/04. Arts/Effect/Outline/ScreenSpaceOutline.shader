@@ -4,6 +4,10 @@ Shader "Custom/Outline"
     {
         [HDR] _OutlineColor ("외곽선 컬러", Color) = (1, 0, 0, 1)
         _OutlineWidth ("외곽선 두께 (픽셀)", Range(0, 20)) = 3
+        _RefDistance ("기준 거리 (m)", Float) = 5
+        _DistancePower ("거리 영향도 (0=일정, -1=가까울수록 두껍게, +1=멀수록 두껍게)", Range(-2, 2)) = 0
+        _MinWidthPixels ("두께 하한 (픽셀)", Range(0, 10)) = 0.5
+        _MaxWidthPixels ("두께 상한 (픽셀)", Range(1, 100)) = 40
         // 각진 메시(큐브 등)는 면마다 법선이 쪼개져 있어 법선 확장 시 코너가 갈라진다.
         // 피벗이 메시 중심에 있는 볼록한 물체라면 방사 확장이 더 깔끔하다
         [Toggle(_RADIAL_EXTRUDE)] _RadialExtrude ("피벗 기준 방사 확장 (각진 메시용)", Float) = 0
@@ -61,10 +65,14 @@ Shader "Custom/Outline"
             CBUFFER_START(UnityPerMaterial)
                 float4 _OutlineColor;
                 float _OutlineWidth;
+                float _RefDistance;
+                float _DistancePower;
+                float _MinWidthPixels;
+                float _MaxWidthPixels;
             CBUFFER_END
 
             // 법선 방향으로 확장한 정점을 클립 공간으로 변환한다.
-            // 확장량은 카메라 거리에 비례하므로 화면상 두께는 거리와 무관하게 일정하다
+            // 화면상 두께는 _DistancePower 가 결정한다 (0=거리 무관 일정, -1=가까울수록 두껍게)
             Varyings OutlineVert(Attributes input)
             {
                 Varyings output = (Varyings)0;
@@ -81,7 +89,9 @@ Shader "Custom/Outline"
             #endif
 
                 float3 expandedOS;
-                OutlineOffsetOS_float(input.positionOS.xyz, extrudeDirOS, _OutlineWidth, expandedOS);
+                OutlineOffsetOS_float(input.positionOS.xyz, extrudeDirOS, _OutlineWidth,
+                                      _RefDistance, _DistancePower,
+                                      _MinWidthPixels, _MaxWidthPixels, expandedOS);
 
                 output.positionCS = TransformObjectToHClip(expandedOS);
                 return output;

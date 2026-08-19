@@ -5,7 +5,8 @@
 // 법선 방향으로 정점을 밀어낸 뒷면(Render Face = Back)을 원본 위에 겹쳐 그리면
 // 실루엣만 삐져나와 외곽선이 된다.
 //
-// 확장량을 카메라 거리에 비례시켜 화면상 두께를 픽셀 단위로 고정한다.
+// 확장량은 뷰 공간 깊이에 비례시켜 화면 픽셀 단위로 다루고,
+// 거기에 거리 항을 곱해 원근 반응을 조절한다(distancePower).
 // (원점 기준 스케일 방식은 피벗이 치우치면 외곽선도 같이 쏠리므로 쓰지 않는다)
 //
 // 그래프 설정: Unlit 타깃 + Render Face = Back + Depth Write On
@@ -16,14 +17,23 @@
 #include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/Core.hlsl"
 #endif
 
-// positionOS    : 오브젝트 공간 정점 위치 (Position 노드, Object 공간)
-// normalOS      : 오브젝트 공간 법선 (Normal Vector 노드, Object 공간)
-// widthPixels   : 외곽선 두께(화면 픽셀). 카메라 거리와 무관하게 일정하다
-// OutPositionOS : 확장된 오브젝트 공간 위치. Vertex 블록의 Position 에 연결한다
+// positionOS     : 오브젝트 공간 정점 위치 (Position 노드, Object 공간)
+// normalOS       : 오브젝트 공간 법선 (Normal Vector 노드, Object 공간)
+// widthPixels    : refDistance 에서의 외곽선 두께(화면 픽셀)
+// refDistance    : 기준 거리(m). 이 거리에서는 distancePower 와 무관하게 항상 widthPixels
+// distancePower  : 거리 영향도. 0 = 거리 무관 일정, -1 = 월드 고정(가까울수록 두껍다),
+//                  +1 = 멀수록 두껍다
+// minWidthPixels : 두께 하한(픽셀). 먼 거리에서 1px 아래로 내려가면 깜빡이므로 막는다
+// maxWidthPixels : 두께 상한(픽셀). 근접 시 화면을 덮는 것을 막는다
+// OutPositionOS  : 확장된 오브젝트 공간 위치. Vertex 블록의 Position 에 연결한다
 void OutlineOffsetOS_float(
     float3 positionOS,
     float3 normalOS,
     float widthPixels,
+    float refDistance,
+    float distancePower,
+    float minWidthPixels,
+    float maxWidthPixels,
     out float3 OutPositionOS)
 {
 #ifdef SHADERGRAPH_PREVIEW
@@ -41,7 +51,13 @@ void OutlineOffsetOS_float(
     // 여기서 필요한 건 크기뿐이고 방향은 월드 공간 법선이 이미 갖고 있다
     float worldPerPixel = 2.0 * positionCS.w / (_ScreenParams.y * abs(UNITY_MATRIX_P._m11));
 
-    float3 offsetWS = normalWS * widthPixels * worldPerPixel;
+    // 화면상 두께(px) = widthPixels * (w / refDistance)^distancePower
+    // distancePower 가 0 이면 항이 1 이 되어 거리와 무관해진다
+    float depthRatio = positionCS.w / max(refDistance, 1e-3);
+    float pixelWidth = widthPixels * pow(max(depthRatio, 1e-4), distancePower);
+    pixelWidth = clamp(pixelWidth, minWidthPixels, max(maxWidthPixels, minWidthPixels));
+
+    float3 offsetWS = normalWS * pixelWidth * worldPerPixel;
     OutPositionOS = TransformWorldToObject(positionWS + offsetWS);
 #endif
 }
@@ -52,10 +68,15 @@ void OutlineOffsetOS_half(
     half3 positionOS,
     half3 normalOS,
     half widthPixels,
+    half refDistance,
+    half distancePower,
+    half minWidthPixels,
+    half maxWidthPixels,
     out half3 OutPositionOS)
 {
     float3 positionOSFloat;
-    OutlineOffsetOS_float(positionOS, normalOS, widthPixels, positionOSFloat);
+    OutlineOffsetOS_float(positionOS, normalOS, widthPixels, refDistance,
+                          distancePower, minWidthPixels, maxWidthPixels, positionOSFloat);
     OutPositionOS = (half3)positionOSFloat;
 }
 
