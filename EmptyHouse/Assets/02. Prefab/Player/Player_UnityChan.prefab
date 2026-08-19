@@ -293,6 +293,7 @@ MonoBehaviour:
   itemUser: {fileID: 910000000000000029}
   aimIndicator: {fileID: 910000000000000031}
   promptCanvas: {fileID: 2440586985477620737}
+  inventoryCanvas: {fileID: 8547202519960089581}
 --- !u!114 &-6210736759775564248
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -10589,3 +10590,8 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 8784b70a5bc0c6c479671b683ba700ad, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::UIInventory
+--- !u!223 &8547202519960089581 stripped
+Canvas:
+  m_CorrespondingSourceObject: {fileID: 423354453236178450, guid: a01b5dafe709b44459151d8afc5a8b52, type: 3}
+  m_PrefabInstance: {fileID: 8322033953895853567}
+  m_PrefabAsset: {fileID: 0}

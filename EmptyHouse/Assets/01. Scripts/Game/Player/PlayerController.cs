@@ -49,6 +49,7 @@ public class PlayerController : NetworkBehaviour
     [SerializeField] private PlayerItemUser itemUser; // 좌·우클릭 아이템 사용 라우팅. InputReader 가 전역 SO 라, 끄지 않으면 남의 캐릭터가 내 클릭에 반응한다
     [SerializeField] private ThrowAimIndicator aimIndicator; // 투척 조준 궤적. 로컬 표시물이므로 비소유자 인스턴스에서는 그릴 이유가 없다
     [SerializeField] private Canvas promptCanvas; // 상호작용 프롬프트 전용 Canvas. 다른 HUD 요소와 분리해 두어, 프롬프트가 매 프레임 갱신돼도 그쪽 Canvas 는 리빌드되지 않는다
+    [SerializeField] private Canvas inventoryCanvas; // 인벤토리 HUD Canvas. 플레이어 프리팹 자식이라 끄지 않으면 남의 인벤까지 내 화면에 겹쳐 그려진다
 
     private Rigidbody body; // Awake 캐시
     private NetworkTransform networkTransform; // Owner 권한 NetworkTransform — 스폰 포즈 강제 적용(Teleport)에 쓴다. Awake 캐시
@@ -116,6 +117,7 @@ public class PlayerController : NetworkBehaviour
     {
         interactor.enabled = IsOwner;
         promptCanvas.enabled = IsOwner;
+        inventoryCanvas.enabled = IsOwner;
         inventory.enabled = IsOwner;
         itemUser.enabled = IsOwner;
         aimIndicator.enabled = IsOwner;
@@ -293,6 +295,7 @@ public class PlayerController : NetworkBehaviour
         interactor.enabled = false;
         inventory.enabled = false;
         promptCanvas.enabled = false;
+        inventoryCanvas.enabled = false;
         itemUser.enabled = false;
         aimIndicator.enabled = false; // OnDisable 에서 궤적선을 스스로 지운다 — 관전 화면에 남지 않는다
         body.linearVelocity = Vector3.zero;

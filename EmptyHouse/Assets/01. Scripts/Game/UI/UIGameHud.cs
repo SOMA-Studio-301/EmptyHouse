@@ -70,8 +70,6 @@ public class UIGameHud : MonoBehaviour
     /// <param name="showGameplay">true 면 게임플레이 HUD, false 면 관전 HUD 를 표시.</param>
     private void ApplyRoots(bool showGameplay)
     {
-        Log.D($"[UIGameHud] HUD 전환 — {(showGameplay ? "Gameplay" : "Spectator")}");
-
         gameplayRoot.SetActive(showGameplay);
         spectatorRoot.SetActive(!showGameplay);
     }
