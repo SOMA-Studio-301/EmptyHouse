@@ -146,8 +146,8 @@ namespace EmptyHouse.MapGen.Runtime
                 doorRoot.ServerConfigure(edge.LockNumber, locked);
                 if (locked)
                 {
-                    // 접근측 = 입구 기준 hop 이 얕은 방 — 자물쇠는 걸어오는 쪽 면에 보여야 한다(동률은 RoomA)
-                    int approachRoom = hops[edge.RoomA] <= hops[edge.RoomB] ? edge.RoomA : edge.RoomB;
+                    // 접근측 면 선택은 검증기(패스6)와 공유하는 단일 규칙 — 여기서 규칙을 따로 쓰면 면 도달성 검증이 무의미해진다
+                    int approachRoom = LockFaceRule.FaceRoom(edge, hops);
                     SpawnLock(doorRoot, edge.LockNumber, RoomCenterWorld(blueprint, templates, approachRoom));
                 }
 

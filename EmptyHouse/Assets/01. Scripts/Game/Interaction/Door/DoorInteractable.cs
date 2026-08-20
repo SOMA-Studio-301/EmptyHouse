@@ -28,13 +28,18 @@ public sealed class DoorInteractable : NetworkBehaviour
 
     /// <summary>
     /// 접근 지점을 향한 면의 자물쇠 앵커를 고른다 — 자물쇠는 입구에서 걸어오는 쪽(접근측)에 보여야 한다.
-    /// 문짝은 로컬 +Z 로 열리는 규약이라, 접근점이 +Z 반공간이면 뒷면 앵커·아니면 앞면 앵커.
+    /// 두 앵커 중점(문짝 평면)을 기준으로 접근점과 같은 반공간에 있는 앵커를 기하로 판정한다 —
+    /// "Front=−Z" 저작 규약이나 루트 피벗 위치를 가정하지 않아, 프리팹 앵커가 어느 방향이든 항상 접근측 면이 나온다
+    /// (기존 규약 가정은 프리팹의 Front/Back 이 반대로 저작돼 전 자물쇠가 반대면에 스폰되는 사고를 냈다 — EH-96 QA).
     /// </summary>
     /// <param name="approachWorldPos">접근측 기준 월드 좌표(접근 방 중심).</param>
     /// <returns>접근측 면의 자물쇠 앵커.</returns>
     public Transform LockPosToward(Vector3 approachWorldPos)
     {
-        return Vector3.Dot(approachWorldPos - transform.position, transform.forward) > 0f ? lockPosBack : lockPosFront;
+        Vector3 leafCenter = (lockPosFront.position + lockPosBack.position) * 0.5f;
+        float approachSide = Vector3.Dot(approachWorldPos - leafCenter, transform.forward);
+        float frontSide = Vector3.Dot(lockPosFront.position - leafCenter, transform.forward);
+        return approachSide * frontSide > 0f ? lockPosFront : lockPosBack;
     }
 
     private static readonly int isOpenAnimHash = Animator.StringToHash("IsOpen"); // 애니메이터 개방 토글 파라미터(스펙 2절)

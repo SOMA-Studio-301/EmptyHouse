@@ -30,6 +30,7 @@ namespace EmptyHouse.MapGen.Core
             report.HardlockPairsHold = CheckHardlockPairs(blueprint, genParams, report);
             report.ShortcutValuesHold = CheckShortcutValues(blueprint, genParams, templates, report);
             report.FloorReachabilityHolds = CheckFloorReachability(blueprint, report);
+            report.LockFacesReachable = CheckLockFaceReachability(blueprint, report);
 
             // 사이클 소속 방 비율 목표 미달은 기하 후보 소진(베스트에포트) — 실패가 아니라 경고만(X6).
             // 목표는 층별 파라미터가 원천(M10-1) — 층 정보가 없으면 전역 스칼라(v1 호출부 호환)
@@ -103,7 +104,8 @@ namespace EmptyHouse.MapGen.Core
             }
 
             report.AllPassed = report.EssentialsReachable && report.KeyInvariantHolds
-                && report.HardlockPairsHold && report.ShortcutValuesHold && report.FloorReachabilityHolds;
+                && report.HardlockPairsHold && report.ShortcutValuesHold && report.FloorReachabilityHolds
+                && report.LockFacesReachable;
             return report;
         }
 
@@ -258,6 +260,39 @@ namespace EmptyHouse.MapGen.Core
                 if (!reachable.Contains(keyRoom))
                 {
                     report.FailReasons.Add($"패스2: 열쇠_{i} 방 {keyRoom} ∉ R_{i}(AC-08)");
+                    passed = false;
+                }
+            }
+
+            return passed;
+        }
+
+        /// <summary>
+        /// 패스 6 — 자물쇠 면 도달성: 자물쇠는 한 면(LockFaceRule 이 고른 접근측)에만 스폰되므로,
+        /// 모든 자물쇠_i 의 면 방이 R_i(자물쇠 i 이상 잠금 기준 도달 집합)에 속해야 번호순 해정이 실제로 성립한다.
+        /// 패스 1·2의 "번호순으로 열 수 있다" 전제를 실제 검사로 바꾼 것(EH-96 QA — 면 미도달이면 열쇠를 들고도 해정 불가).
+        /// </summary>
+        /// <param name="blueprint">대상 블루프린트.</param>
+        /// <param name="report">결과를 기록할 리포트.</param>
+        /// <returns>통과 여부.</returns>
+        private bool CheckLockFaceReachability(MapBlueprint blueprint, ValidationReport report)
+        {
+            Log.D("[BlueprintValidator] CheckLockFaceReachability");
+            int[] hops = DangerGradeCalculator.ComputeHopDistances(blueprint);
+            bool passed = true;
+            for (int e = 0; e < blueprint.Edges.Count; e++)
+            {
+                BlueprintEdge edge = blueprint.Edges[e];
+                if (edge.State != EdgeState.DoorLocked)
+                {
+                    continue;
+                }
+
+                int faceRoom = LockFaceRule.FaceRoom(edge, hops);
+                HashSet<int> reachable = ReachabilityAnalyzer.ComputeReachableRooms(blueprint, edge.LockNumber);
+                if (!reachable.Contains(faceRoom))
+                {
+                    report.FailReasons.Add($"패스6: 자물쇠_{edge.LockNumber} 면 방 {faceRoom} ∉ R_{edge.LockNumber} — 한면 자물쇠 해정 불가");
                     passed = false;
                 }
             }
