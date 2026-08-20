@@ -48,6 +48,10 @@ PrefabInstance:
       propertyPath: m_LocalEulerAnglesHint.z
       value: 0
       objectReference: {fileID: 0}
+    - target: {fileID: 4621615472418461306, guid: 624b8ef91e8eeef49b3bef9a6098f01a, type: 3}
+      propertyPath: m_Mesh
+      value: 
+      objectReference: {fileID: 183230285344311321, guid: 6316b62bb7c04024ca30da3324ce13cf, type: 3}
     - target: {fileID: 6991922343254469061, guid: 624b8ef91e8eeef49b3bef9a6098f01a, type: 3}
       propertyPath: pairId
       value: 4
@@ -56,6 +60,10 @@ PrefabInstance:
       propertyPath: itemData
       value: 
       objectReference: {fileID: 11400000, guid: 5c04314ed0bdc614098edcf6c89e525e, type: 2}
+    - target: {fileID: 7371407550203067109, guid: 624b8ef91e8eeef49b3bef9a6098f01a, type: 3}
+      propertyPath: 'm_Materials.Array.data[0]'
+      value: 
+      objectReference: {fileID: 2100000, guid: 459cef64b4e309d479add9ce845630bc, type: 2}
     - target: {fileID: 7963251595659370824, guid: 624b8ef91e8eeef49b3bef9a6098f01a, type: 3}
       propertyPath: GlobalObjectIdHash
       value: 746413281
@@ -70,7 +78,7 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 8764207917146816838, guid: 624b8ef91e8eeef49b3bef9a6098f01a, type: 3}
       propertyPath: m_Name
-      value: Key_04
+      value: Key_Purple
       objectReference: {fileID: 0}
     m_RemovedComponents: []
     m_RemovedGameObjects: []
