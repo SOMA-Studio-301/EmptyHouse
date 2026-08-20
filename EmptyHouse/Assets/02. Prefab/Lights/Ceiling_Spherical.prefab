@@ -28,9 +28,9 @@ Transform:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 1000012744114838}
   serializedVersion: 2
-  m_LocalRotation: {x: 0.000000021855694, y: -0, z: -0, w: 1}
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
   m_LocalPosition: {x: -0, y: 0, z: 0}
-  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_LocalScale: {x: 2.8385673, y: 1, z: 2.8385706}
   m_ConstrainProportionsScale: 0
   m_Children:
   - {fileID: 5614028141627905657}
@@ -135,8 +135,8 @@ MonoBehaviour:
   onMaterial: {fileID: 2100000, guid: 5e9e8d9c3ddaabb4794c7596020a7e0d, type: 2}
   offMaterial: {fileID: 2100000, guid: 0757b4a2a98238e4f888e158327250e0, type: 2}
   overrideChances: 0
-  offChance: 0.25
-  flickerChance: 0.25
+  offChance: 0.75
+  flickerChance: 0.45
 --- !u!1 &6955819794928403287
 GameObject:
   m_ObjectHideFlags: 0
@@ -181,7 +181,7 @@ Light:
   m_Enabled: 1
   serializedVersion: 12
   m_Type: 2
-  m_Color: {r: 0.3998255, g: 0.54901963, b: 0.3019608, a: 1}
+  m_Color: {r: 0.43529412, g: 0.6784314, b: 0.5568628, a: 1}
   m_Intensity: 1
   m_Range: 10
   m_SpotAngle: 30
@@ -327,6 +327,22 @@ PrefabInstance:
     - target: {fileID: 8046966206161486304, guid: e0784692f37b3714eb3fbf9d3661118e, type: 3}
       propertyPath: m_LocalEulerAnglesHint.z
       value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 8046966206161486305, guid: e0784692f37b3714eb3fbf9d3661118e, type: 3}
+      propertyPath: m_Color.b
+      value: 0.5568628
+      objectReference: {fileID: 0}
+    - target: {fileID: 8046966206161486305, guid: e0784692f37b3714eb3fbf9d3661118e, type: 3}
+      propertyPath: m_Color.g
+      value: 0.6784314
+      objectReference: {fileID: 0}
+    - target: {fileID: 8046966206161486305, guid: e0784692f37b3714eb3fbf9d3661118e, type: 3}
+      propertyPath: m_Color.r
+      value: 0.43529412
+      objectReference: {fileID: 0}
+    - target: {fileID: 8046966206161486305, guid: e0784692f37b3714eb3fbf9d3661118e, type: 3}
+      propertyPath: m_Intensity
+      value: 5
       objectReference: {fileID: 0}
     - target: {fileID: 8046966206161486307, guid: e0784692f37b3714eb3fbf9d3661118e, type: 3}
       propertyPath: m_Name

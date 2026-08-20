@@ -30,7 +30,7 @@ Transform:
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
   m_LocalPosition: {x: -0, y: 0, z: 0}
-  m_LocalScale: {x: 2.1503758, y: 2.1503763, z: 2.1503763}
+  m_LocalScale: {x: 1.2895085, y: 1.2895085, z: 1.2895085}
   m_ConstrainProportionsScale: 0
   m_Children:
   - {fileID: 7030771171900528868}
@@ -133,8 +133,8 @@ MonoBehaviour:
   onMaterial: {fileID: 2100000, guid: 5e9e8d9c3ddaabb4794c7596020a7e0d, type: 2}
   offMaterial: {fileID: 2100000, guid: 0757b4a2a98238e4f888e158327250e0, type: 2}
   overrideChances: 0
-  offChance: 0.25
-  flickerChance: 0.25
+  offChance: 0.75
+  flickerChance: 0.45
 --- !u!1 &470567477175867831
 GameObject:
   m_ObjectHideFlags: 0
@@ -180,7 +180,7 @@ Light:
   m_Enabled: 1
   serializedVersion: 12
   m_Type: 0
-  m_Color: {r: 0.3998255, g: 0.54901963, b: 0.3019608, a: 1}
+  m_Color: {r: 0.5520843, g: 0.6843138, b: 0.37607846, a: 1}
   m_Intensity: 8
   m_Range: 8.17
   m_SpotAngle: 103.81249

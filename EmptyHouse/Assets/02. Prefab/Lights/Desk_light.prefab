@@ -132,6 +132,7 @@ MonoBehaviour:
   flicker: {fileID: 3979286762646322031}
   onMaterial: {fileID: 2100000, guid: 5e9e8d9c3ddaabb4794c7596020a7e0d, type: 2}
   offMaterial: {fileID: 2100000, guid: 0757b4a2a98238e4f888e158327250e0, type: 2}
+  overrideChances: 0
   offChance: 0.25
   flickerChance: 0.25
 --- !u!1 &3033548336072912108
@@ -146,6 +147,7 @@ GameObject:
   - component: {fileID: 9111101138785782808}
   - component: {fileID: 129882821024567212}
   - component: {fileID: 3979286762646322031}
+  - component: {fileID: 6604109345441021436}
   m_Layer: 0
   m_Name: Spot Light
   m_TagString: Untagged
@@ -162,7 +164,7 @@ Transform:
   m_GameObject: {fileID: 3033548336072912108}
   serializedVersion: 2
   m_LocalRotation: {x: -0.8483878, y: 0.000000014901158, z: -0.000000020543666, w: -0.5293754}
-  m_LocalPosition: {x: -0.0000029094517, y: 0.30419827, z: -0.024253804}
+  m_LocalPosition: {x: -0.0000029099574, y: 0.28700233, z: -0.024253804}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
@@ -178,7 +180,7 @@ Light:
   m_Enabled: 1
   serializedVersion: 12
   m_Type: 0
-  m_Color: {r: 0.49455872, g: 0.5471698, b: 0.19099316, a: 1}
+  m_Color: {r: 0.43529412, g: 0.6784314, b: 0.5568628, a: 1}
   m_Intensity: 1
   m_Range: 1.05
   m_SpotAngle: 102.83098
@@ -389,3 +391,18 @@ MonoBehaviour:
     m_PostInfinity: 2
     m_RotationOrder: 4
   randomizePhase: 1
+--- !u!114 &6604109345441021436
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 3033548336072912108}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 9f291954e10f1354f96a4d5cb32a155c, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::EmptyHouse.Environment.LightProfileBinder
+  profile: {fileID: 11400000, guid: 3fecb8432b1bb4f4e9e08b5d04b81086, type: 2}
+  kind: 4
+  themeOverride: -1

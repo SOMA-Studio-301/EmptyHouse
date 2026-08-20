@@ -132,6 +132,7 @@ MonoBehaviour:
   flicker: {fileID: 1429878675215478335}
   onMaterial: {fileID: 2100000, guid: 5e9e8d9c3ddaabb4794c7596020a7e0d, type: 2}
   offMaterial: {fileID: 2100000, guid: 0757b4a2a98238e4f888e158327250e0, type: 2}
+  overrideChances: 0
   offChance: 0.25
   flickerChance: 0.25
 --- !u!1 &3753759103482473346
@@ -179,8 +180,8 @@ Light:
   m_Enabled: 1
   serializedVersion: 12
   m_Type: 2
-  m_Color: {r: 0.47316784, g: 0.6392157, b: 0.29803923, a: 1}
-  m_Intensity: 1
+  m_Color: {r: 0.43529412, g: 0.6784314, b: 0.5568628, a: 1}
+  m_Intensity: 0.4
   m_Range: 10
   m_SpotAngle: 30
   m_InnerSpotAngle: 21.80208

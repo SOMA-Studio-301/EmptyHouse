@@ -14,43 +14,45 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::EmptyHouse.Environment.LightingProfileSO
   fixtures:
   - kind: 0
-    baseColor: {r: 0.3998255, g: 0.54901963, b: 0.3019608, a: 1}
+    baseColor: {r: 0.43529412, g: 0.6784314, b: 0.5568628, a: 1}
   - kind: 1
-    baseColor: {r: 0.592, g: 0.576, b: 0.376, a: 1}
+    baseColor: {r: 0.43529412, g: 0.6784314, b: 0.5568628, a: 1}
   - kind: 2
-    baseColor: {r: 0.41900596, g: 0.54901963, b: 0.3019608, a: 1}
+    baseColor: {r: 0.6761488, g: 0.6784314, b: 0.43529412, a: 1}
   - kind: 3
-    baseColor: {r: 0.5015432, g: 0.70440245, b: 0.07752849, a: 1}
+    baseColor: {r: 0.54341817, g: 0.6784314, b: 0.43529412, a: 1}
   - kind: 4
-    baseColor: {r: 0.592, g: 0.576, b: 0.376, a: 1}
+    baseColor: {r: 0.47798735, g: 0.46644738, b: 0.29911783, a: 1}
   - kind: 5
-    baseColor: {r: 0.47316784, g: 0.6392157, b: 0.29803923, a: 1}
+    baseColor: {r: 0.43529412, g: 0.6784314, b: 0.5568628, a: 1}
   - kind: 6
-    baseColor: {r: 0.255, g: 0.302, b: 0.122, a: 1}
+    baseColor: {r: 0.43529412, g: 0.6784314, b: 0.5568628, a: 1}
+  - kind: 6
+    baseColor: {r: 0.43529412, g: 0.6784314, b: 0.5568628, a: 1}
   themes:
   - theme: 0
     tint: {r: 1, g: 1, b: 1, a: 1}
     blend: 0
   - theme: 1
     tint: {r: 1, g: 0.86, b: 0.62, a: 1}
-    blend: 0.35
+    blend: 0
   - theme: 2
-    tint: {r: 0.54901963, g: 1, b: 0.7184823, a: 1}
-    blend: 0.4
+    tint: {r: 0.43529412, g: 0.6784314, b: 0.5568628, a: 1}
+    blend: 0
   - theme: 3
     tint: {r: 0.55, g: 0.72, b: 1, a: 1}
-    blend: 0.3
+    blend: 0
   - theme: 4
     tint: {r: 0.55, g: 1, b: 0.72, a: 1}
-    blend: 0.5
+    blend: 0
   - theme: 5
     tint: {r: 0.90735483, g: 1, b: 0.54901963, a: 1}
-    blend: 0.3
+    blend: 0
   - theme: 6
     tint: {r: 0.5885071, g: 0.7169812, b: 0.41711164, a: 1}
-    blend: 0.5
+    blend: 0
   globalTint: {r: 1, g: 1, b: 1, a: 1}
-  offChance: 0.7
+  offChance: 0.75
   flickerChance: 0.25
   cullUpdateInterval: 0.4
   cullEnableRadius: 18
