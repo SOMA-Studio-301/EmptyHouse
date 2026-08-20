@@ -20,9 +20,11 @@ public class UIDamageOverlay : MonoBehaviour
     [Range(0f, 1f)] [SerializeField] private float maxSustainAlpha = 0.45f; // 체력 최저(마지막 1대 남음)일 때의 유지 알파. 1 에 가까우면 화면이 안 보인다
     [Range(0f, 1f)] [SerializeField] private float punchAlphaBoost = 0.3f; // 피격 순간 유지 알파 위에 얹는 순간 알파
     [SerializeField, Min(0.01f)] private float punchDecaySeconds = 0.8f; // 펀치 알파가 유지 알파로 가라앉는 데 걸리는 시간
+    [SerializeField, Min(0.01f)] private float healFadeSeconds = 1.5f; // 회복 시 붉은기가 새 유지 알파까지 서서히 빠지는 데 걸리는 시간
 
     private float sustainAlpha; // 현재 체력 비율이 요구하는 유지 알파(수렴 목표)
-    private float currentAlpha; // 이번 프레임에 실제로 칠한 알파(펀치에서 유지로 감쇠 중일 수 있다)
+    private float currentAlpha; // 이번 프레임에 실제로 칠한 알파(펀치·회복 페이드로 감쇠 중일 수 있다)
+    private float fadeRate; // 현재 감쇠 속도(알파/초) — 피격 펀치와 회복 페이드가 각자 설정한다
     private float lastHealth01 = 1f; // 직전에 받은 체력 비율. 감소 판정(펀치 발동)에 쓴다
 
     /// <summary>채널을 구독하고, 이미 발행된 마지막 체력으로 초기 표시를 맞춘다(늦은 구독자 동기화). 재활성화 시 펀치는 재생하지 않는다.</summary>
@@ -47,11 +49,11 @@ public class UIDamageOverlay : MonoBehaviour
     {
         if (Mathf.Approximately(currentAlpha, sustainAlpha)) return;
 
-        currentAlpha = Mathf.MoveTowards(currentAlpha, sustainAlpha, punchAlphaBoost / punchDecaySeconds * Time.deltaTime);
+        currentAlpha = Mathf.MoveTowards(currentAlpha, sustainAlpha, fadeRate * Time.deltaTime);
         ApplyAlpha(currentAlpha);
     }
 
-    /// <summary>체력 비율을 오버레이 알파에 반영한다. 감소면 펀치 알파부터 시작해 유지 알파로 가라앉는다.</summary>
+    /// <summary>체력 비율을 오버레이 알파에 반영한다. 감소면 펀치 알파부터 시작해 유지 알파로 가라앉고, 회복이면 즉시 갱신하지 않고 healFadeSeconds 에 걸쳐 서서히 빠진다.</summary>
     /// <param name="health01">표시할 체력 비율(0~1).</param>
     private void Render(float health01)
     {
@@ -59,8 +61,16 @@ public class UIDamageOverlay : MonoBehaviour
         lastHealth01 = health01;
 
         sustainAlpha = ResolveSustainAlpha(health01);
-        currentAlpha = damaged ? Mathf.Min(1f, sustainAlpha + punchAlphaBoost) : sustainAlpha;
-        ApplyAlpha(currentAlpha);
+        if (damaged)
+        {
+            currentAlpha = Mathf.Min(1f, sustainAlpha + punchAlphaBoost);
+            fadeRate = punchAlphaBoost / punchDecaySeconds;
+            ApplyAlpha(currentAlpha);
+            return;
+        }
+
+        // 회복 — 스냅하지 않는다. Update 가 healFadeSeconds 에 걸쳐 현재 알파를 새 목표까지 옮긴다
+        fadeRate = Mathf.Abs(currentAlpha - sustainAlpha) / healFadeSeconds;
     }
 
     /// <summary>체력 비율을 유지 알파로 번역한다. 만땅이면 0(완전 투명), 잃을수록 maxSustainAlpha 까지 선형으로 붉어진다.</summary>

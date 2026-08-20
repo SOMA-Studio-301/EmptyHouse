@@ -23,7 +23,6 @@ public sealed class PlayerHealth : NetworkBehaviour
 
     [Header("Health")]
     [SerializeField, Min(1)] private int maxHits = 3; // 버틸 수 있는 타격 횟수. 이 횟수째 타격에 사망한다
-    [SerializeField, Min(0f)] private float invincibleSeconds = 1f; // 피격 직후 무적 시간. 좀비 여럿이 같은 순간 때려도 1대로 친다
     [SerializeField, Min(0f)] private float regenDelaySeconds = 10f; // 마지막 피격 후 회복이 시작되기까지의 대기 시간. 좀비 공격 주기(타격 락 5초+접근)보다 길어야 교전 중 회복이 못 따라온다 (EH-117)
     [SerializeField, Min(0.01f)] private float regenIntervalSeconds = 1f; // 회복 시작 후 체력 1씩 차오르는 간격
 
@@ -33,7 +32,6 @@ public sealed class PlayerHealth : NetworkBehaviour
         NetworkVariableReadPermission.Everyone,
         NetworkVariableWritePermission.Server);
 
-    private double lastHitTime = double.NegativeInfinity; // 서버 전용. 마지막으로 데미지가 통과한 시각(무적 판정 기준)
     private double nextRegenTime = double.PositiveInfinity; // 서버 전용. 다음 회복 틱 시각 — 피격 시 regenDelaySeconds 뒤로 밀린다
 
     public int RemainingHits => remainingHits.Value;
@@ -80,11 +78,9 @@ public sealed class PlayerHealth : NetworkBehaviour
         if (payload.PlayerNetworkObjectId != NetworkObjectId) return;
         if (deathHandler.IsDead.Value) return; // 이미 사망 확정이면 무시 — 시체를 더 깎지 않는다
 
-        // 좀비 여럿이 같은 프레임(또는 무적 구간 안)에 동시 타격하면 1대만 통과시킨다.
+        // 무적 시간 없음 — 좀비 여럿이 같은 순간 때리면 그만큼 다 깎인다(의도). 좀비별 연타는 타격 락(5초)이 막는다.
         double now = Time.timeAsDouble;
-        if (now - lastHitTime < invincibleSeconds) return;
-        lastHitTime = now;
-        nextRegenTime = now + regenDelaySeconds; // 피격이 통과할 때마다 회복 시작 시점을 뒤로 민다
+        nextRegenTime = now + regenDelaySeconds; // 피격마다 회복 시작 시점을 뒤로 민다
 
         remainingHits.Value = Mathf.Max(0, remainingHits.Value - 1);
         Log.D($"[PlayerHealth] Player {NetworkObjectId} hit by zombie={payload.ZombieNetworkObjectId}, remaining={remainingHits.Value}/{maxHits}, t={now:F2}");
