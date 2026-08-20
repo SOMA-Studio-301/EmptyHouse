@@ -6,6 +6,7 @@ using UnityEngine;
 /// 플레이어의 체력을 소유하는 서버 권위 컴포넌트 (EH-97 — 좀비 타격 3대째 사망).
 /// 좀비 타격(ZombiePlayerCaughtEventChannelSO)을 서버에서 수신해 남은 체력을 깎고,
 /// 0이 되는 타격에서 <see cref="PlayerDeathHandler.Die"/> 를 호출한다 — 사망 이후 파이프라인(관전·드롭·로스터)은 기존 그대로다.
+/// 마지막 피격 후 regenDelaySeconds 동안 무피격이면 regenIntervalSeconds 간격으로 체력이 1씩 자연 회복된다 (EH-117).
 /// 체력에 전용 UI 는 없고, 소유 클라이언트가 체력 비율을 PlayerHealthChangedEventChannelSO 로 발행하면
 /// 씬 HUD 의 UIDamageOverlay 가 화면 붉어짐으로 표현한다.
 /// </summary>
@@ -23,6 +24,8 @@ public sealed class PlayerHealth : NetworkBehaviour
     [Header("Health")]
     [SerializeField, Min(1)] private int maxHits = 3; // 버틸 수 있는 타격 횟수. 이 횟수째 타격에 사망한다
     [SerializeField, Min(0f)] private float invincibleSeconds = 1f; // 피격 직후 무적 시간. 좀비 여럿이 같은 순간 때려도 1대로 친다
+    [SerializeField, Min(0f)] private float regenDelaySeconds = 10f; // 마지막 피격 후 회복이 시작되기까지의 대기 시간. 좀비 공격 주기(타격 락 5초+접근)보다 길어야 교전 중 회복이 못 따라온다 (EH-117)
+    [SerializeField, Min(0.01f)] private float regenIntervalSeconds = 1f; // 회복 시작 후 체력 1씩 차오르는 간격
 
     // 서버 권위 남은 체력(타격 횟수 단위). 서버가 쓰고 전 클라가 읽는다 — 오너가 HUD 발행에 구독한다.
     private readonly NetworkVariable<int> remainingHits = new NetworkVariable<int>(
@@ -31,6 +34,7 @@ public sealed class PlayerHealth : NetworkBehaviour
         NetworkVariableWritePermission.Server);
 
     private double lastHitTime = double.NegativeInfinity; // 서버 전용. 마지막으로 데미지가 통과한 시각(무적 판정 기준)
+    private double nextRegenTime = double.PositiveInfinity; // 서버 전용. 다음 회복 틱 시각 — 피격 시 regenDelaySeconds 뒤로 밀린다
 
     public int RemainingHits => remainingHits.Value;
     public float Health01 => maxHits <= 0 ? 0f : (float)remainingHits.Value / maxHits;
@@ -80,14 +84,33 @@ public sealed class PlayerHealth : NetworkBehaviour
         double now = Time.timeAsDouble;
         if (now - lastHitTime < invincibleSeconds) return;
         lastHitTime = now;
+        nextRegenTime = now + regenDelaySeconds; // 피격이 통과할 때마다 회복 시작 시점을 뒤로 민다
 
         remainingHits.Value = Mathf.Max(0, remainingHits.Value - 1);
-        Log.D($"[PlayerHealth] Player {NetworkObjectId} hit by zombie={payload.ZombieNetworkObjectId}, remaining={remainingHits.Value}/{maxHits}");
+        Log.D($"[PlayerHealth] Player {NetworkObjectId} hit by zombie={payload.ZombieNetworkObjectId}, remaining={remainingHits.Value}/{maxHits}, t={now:F2}");
 
         if (remainingHits.Value <= 0)
         {
             deathHandler.Die();
         }
+    }
+
+    /// <summary>
+    /// 서버 전용 자연 회복 틱 (EH-117). 마지막 피격 후 regenDelaySeconds 가 지나면
+    /// regenIntervalSeconds 간격으로 체력을 1씩 회복한다. 만땅이거나 사망 확정이면 아무것도 하지 않는다.
+    /// </summary>
+    private void Update()
+    {
+        if (!IsSpawned || !IsServer) return;
+        if (deathHandler.IsDead.Value) return;
+        if (remainingHits.Value >= maxHits) return;
+
+        double now = Time.timeAsDouble;
+        if (now < nextRegenTime) return;
+
+        nextRegenTime = now + regenIntervalSeconds;
+        remainingHits.Value = Mathf.Min(maxHits, remainingHits.Value + 1);
+        Log.D($"[PlayerHealth] Player {NetworkObjectId} regenerated, remaining={remainingHits.Value}/{maxHits}, t={now:F2}");
     }
 
     /// <summary>복제된 체력 변경을 HUD 채널로 중계한다(오너 전용 구독이라 남의 체력은 여기로 오지 않는다).</summary>

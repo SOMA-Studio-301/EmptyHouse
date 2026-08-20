@@ -273,10 +273,12 @@ MonoBehaviour:
   bodyTurnSpeedDeg: 360
   saveLoadSystem: {fileID: 11400000, guid: 60c2f10eb6c3bed4c9bcb10231fb16d6, type: 2}
   changeMouseSensitivityEvent: {fileID: 11400000, guid: f5ccd24f9ed66ad49bc139217bacb9ef, type: 2}
+  onCameraChanged: {fileID: 0}
+  eyeVcam: {fileID: 0}
+  disguiseVcam: {fileID: 0}
   moveSpeed: 5
   crouchSpeedMultiplier: 0.5
   disguiseSpeedMultiplier: 0.6
-  jumpSpeed: 5
   groundMask:
     serializedVersion: 2
     m_Bits: 64
@@ -287,6 +289,7 @@ MonoBehaviour:
   itemUser: {fileID: 0}
   aimIndicator: {fileID: 0}
   promptCanvas: {fileID: 2440586985477620737}
+  inventoryCanvas: {fileID: 0}
 --- !u!114 &-6210736759775564248
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -337,6 +340,8 @@ MonoBehaviour:
   sfxEventChannel: {fileID: 11400000, guid: 0338426556d75b241bee37e3eca8f958, type: 2}
   slotSelectAudioId: 111
   dropper: {fileID: 5582944470091195495}
+  radioSlot: {fileID: 0}
+  radioItemData: {fileID: 0}
   groundMask:
     serializedVersion: 2
     m_Bits: 0
@@ -381,7 +386,7 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 018d64dcfbcd4a458a9a711b834e1b5b, type: 3}
-  m_Name:
+  m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::PlayerHealth
   ShowTopMostFoldoutHeaderGroup: 1
   deathHandler: {fileID: 5679039205233311701}
@@ -389,6 +394,8 @@ MonoBehaviour:
   playerCaught: {fileID: 11400000, guid: 03bcb361216443aaacf8722ae0f347cc, type: 2}
   maxHits: 3
   invincibleSeconds: 1
+  regenDelaySeconds: 10
+  regenIntervalSeconds: 1
 --- !u!114 &8399999556817308483
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -407,11 +414,18 @@ MonoBehaviour:
   saveLoadSystem: {fileID: 11400000, guid: 60c2f10eb6c3bed4c9bcb10231fb16d6, type: 2}
   changeMouseSensitivityEvent: {fileID: 11400000, guid: f5ccd24f9ed66ad49bc139217bacb9ef, type: 2}
   spectator: {fileID: 0}
+  onCameraChanged: {fileID: 0}
+  spectatorVcam: {fileID: 0}
   orbitDistance: 3.5
   orbitHeight: 1.5
   lookSensitivity: 0.1
   pitchClamp: 80
   initialPitch: 10
+  cameraCollisionMask:
+    serializedVersion: 2
+    m_Bits: 4294967295
+  cameraRadius: 0.25
+  minOrbitDistance: 0.6
 --- !u!114 &6982275759459443396
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -426,31 +440,11 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::EmptyHouse.NoiseSystem.PlayerMovementNoiseEmitter
   ShowTopMostFoldoutHeaderGroup: 1
   emittedChannel: {fileID: 11400000, guid: 22360f3f2e054bf0afcd98bc8c6a0121, type: 2}
-  emissionIntervalSeconds: 0.6
   movingSpeedThreshold: 0.05
   walkingDb: 20
+  movementHoldSeconds: 0.1
   meterSampleChannel: {fileID: 11400000, guid: ade8c10254835274582e217562187b55, type: 2}
   meterLevelChanged: {fileID: 11400000, guid: 921d962283ca85149a5299193c133801, type: 2}
-  settings: {fileID: 11400000, guid: f98030f04d614a5aadd0118115f3237c, type: 2}
-  silenceWindowMultiplier: 2
---- !u!114 &910000000000000002
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 2490874660187570032}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 0380258ded124a7391ff96e347fb1fc1, type: 3}
-  m_Name:
-  m_EditorClassIdentifier: Assembly-CSharp::EmptyHouse.NoiseSystem.PlayerVoiceNoise
-  ShowTopMostFoldoutHeaderGroup: 1
-  voiceChannel: {fileID: 11400000, guid: f691692454eb45d4a3788012d1ed6d96, type: 2}
-  emissionIntervalSeconds: 0.1
-  speakingAmplitudeThreshold: 0.05
-  voiceMinDb: 15
-  voiceMaxDb: 40
 --- !u!114 &3727432936774746135
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -533,6 +527,24 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::PlayerBodyVisibility
   ShowTopMostFoldoutHeaderGroup: 1
+--- !u!114 &910000000000000002
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2490874660187570032}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 0380258ded124a7391ff96e347fb1fc1, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::EmptyHouse.NoiseSystem.PlayerVoiceNoise
+  ShowTopMostFoldoutHeaderGroup: 1
+  voiceChannel: {fileID: 11400000, guid: f691692454eb45d4a3788012d1ed6d96, type: 2}
+  emissionIntervalSeconds: 0.1
+  speakingAmplitudeThreshold: 0.05
+  voiceMinDb: 15
+  voiceMaxDb: 40
 --- !u!1 &2490874660187570100
 GameObject:
   m_ObjectHideFlags: 0
@@ -898,6 +910,8 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::UIInteractPrompt
   inputReader: {fileID: 11400000, guid: eaa08e0560934b24b9f7d5f7d9f863dd, type: 2}
+  keyRoot: {fileID: 0}
+  keyText: {fileID: 0}
   promptRoot: {fileID: 3326554278976954926}
   promptText: {fileID: 3753040540738907091}
   promptLabel: {fileID: 4308130961921769242}
@@ -917,7 +931,10 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::UIHoldGauge
   gaugeRoot: {fileID: 4245011486210432608}
-  fillImage: {fileID: 4632966672904374493}
+  topFill: {fileID: 0}
+  rightFill: {fileID: 0}
+  bottomFill: {fileID: 0}
+  leftFill: {fileID: 0}
 --- !u!1 &7120427851015083468
 GameObject:
   m_ObjectHideFlags: 0
