@@ -40,7 +40,8 @@ namespace EmptyHouse.Environment
             new FixtureEntry { kind = LightFixtureKind.FloorLamp, baseColor = new Color(0.592f, 0.576f, 0.376f) },
             new FixtureEntry { kind = LightFixtureKind.DeskLamp, baseColor = new Color(0.592f, 0.576f, 0.376f) },
             new FixtureEntry { kind = LightFixtureKind.Lantern, baseColor = new Color(0.640f, 0.520f, 0.300f) },
-            new FixtureEntry { kind = LightFixtureKind.TV, baseColor = new Color(0.255f, 0.302f, 0.122f) }
+            new FixtureEntry { kind = LightFixtureKind.TV, baseColor = new Color(0.255f, 0.302f, 0.122f) },
+            new FixtureEntry { kind = LightFixtureKind.Hallway, baseColor = new Color(0.549f, 0.522f, 0.302f) }
         };
 
         [Header("Room Theme Tints")]

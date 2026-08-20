@@ -11,7 +11,8 @@ namespace EmptyHouse.Environment
         FloorLamp,
         DeskLamp,
         Lantern,
-        TV
+        TV,
+        Hallway
     }
 
     /// <summary>방 조명 테마 — 프로파일에서 틴트를 찾는 키. Inherit는 바인더 전용(부모 테마를 따른다).</summary>
