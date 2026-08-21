@@ -20,11 +20,31 @@ public sealed class PlayerHeadCameraFollow : NetworkBehaviour
 
     private Vector3 baselineLocal; // 루트 로컬 기준 눈 위치의 저역통과 상태. 로컬이라 본체 이동·회전은 이 필터를 거치지 않는다
     private int sampledFrame = -1; // baselineLocal 을 갱신한 마지막 프레임. IK 패스와 LateUpdate 가 같은 값을 보도록 프레임당 1회로 제한한다
+    private Transform anchorParent; // 눈 앵커의 부모(머리 본). 본 스케일과 무관하게 앵커 위치를 재구성하는 기준
+    private Vector3 anchorOffset; // 머리 본 회전 기준 눈 오프셋(월드 단위). Awake 시점의 본 스케일을 구워 둔다
+
+    /// <summary>붕괴 전 머리 본 스케일로 눈 앵커 오프셋을 구워 둔다(PlayerLocalHeadHider 의 Hide 는 스폰 이후라 여기서는 아직 원본 스케일이다).</summary>
+    private void Awake()
+    {
+        anchorParent = eyeAnchor.parent;
+        anchorOffset = Vector3.Scale(eyeAnchor.localPosition, anchorParent.lossyScale);
+    }
 
     /// <summary>스폰 시점 머리 위치로 추종 상태를 맞춘다. 원격도 손 IK 가 뷰 원점을 읽으므로 컴포넌트를 끄지 않는다.</summary>
     public override void OnNetworkSpawn()
     {
         SnapToTarget();
+    }
+
+    /// <summary>
+    /// 머리 본 스케일과 무관하게 눈 앵커의 월드 위치를 재구성한다.
+    /// 소유자는 PlayerLocalHeadHider 가 머리 본을 붕괴시켜 앵커의 전방 오프셋까지 0 으로 뭉개지는데,
+    /// 그대로 쓰면 카메라가 목 중심에 박혀 하향 시 몸통 안이 보인다(블랙스크린) — 원본 스케일 오프셋으로 되살린다.
+    /// </summary>
+    /// <returns>눈 앵커의 월드 좌표.</returns>
+    private Vector3 GetAnchorPosition()
+    {
+        return anchorParent.position + anchorParent.rotation * anchorOffset;
     }
 
     /// <summary>애니메이션·IK 가 끝난 뒤 추종 상태를 갱신하고, 소유자에 한해 카메라 피벗을 뷰 원점으로 옮긴다.</summary>
@@ -46,7 +66,7 @@ public sealed class PlayerHeadCameraFollow : NetworkBehaviour
     {
         if (sampledFrame == Time.frameCount) return;
 
-        Vector3 local = transform.InverseTransformPoint(eyeAnchor.position);
+        Vector3 local = transform.InverseTransformPoint(GetAnchorPosition());
 
         // 첫 샘플은 보간 없이 즉시 맞춘다. 감쇠 계수는 Exp 형태여야 프레임률과 무관하다 — k * dt 는 프레임률에 따라 감쇠량이 달라진다
         baselineLocal = sampledFrame < 0
@@ -62,7 +82,7 @@ public sealed class PlayerHeadCameraFollow : NetworkBehaviour
     /// <summary>추종 상태를 현재 머리 위치로 즉시 일치시킨다. 텔레포트·벽장 스냅처럼 포즈가 불연속으로 바뀔 때 호출한다.</summary>
     public void SnapToTarget()
     {
-        baselineLocal = transform.InverseTransformPoint(eyeAnchor.position);
+        baselineLocal = transform.InverseTransformPoint(GetAnchorPosition());
         sampledFrame = Time.frameCount;
     }
 
