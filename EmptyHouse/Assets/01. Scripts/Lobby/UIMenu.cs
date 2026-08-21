@@ -2,7 +2,7 @@ using System;
 using UnityEngine;
 
 /// <summary>
-/// 메뉴 패널 뷰. Start/Settings/Exit 버튼을 소유하고 클릭 의도만 이벤트로 올린다.
+/// 메뉴 패널 뷰. Start/Tutorial/Settings/Exit 버튼을 소유하고 클릭 의도만 이벤트로 올린다.
 /// 각 의도가 무슨 일을 하는지는 부모(UIMenuManager)가 구독으로 정한다.
 /// </summary>
 public class UIMenu : MonoBehaviour
@@ -12,10 +12,12 @@ public class UIMenu : MonoBehaviour
 
     [Header("Menu Buttons")]
     [SerializeField] private UIGenericButton startButton;    // 게임 시작(로비로 전환) 버튼
+    [SerializeField] private UIGenericButton tutorialButton; // 튜토리얼 재진입 버튼
     [SerializeField] private UIGenericButton settingsButton; // 설정 버튼
     [SerializeField] private UIGenericButton exitButton;      // 게임 종료 버튼
 
     public event Action StartClicked; // Start 버튼 클릭
+    public event Action TutorialClicked; // Tutorial 버튼 클릭
     public event Action SettingsClicked; // Settings 버튼 클릭
     public event Action ExitClicked; // Exit 버튼 클릭
 
@@ -26,6 +28,7 @@ public class UIMenu : MonoBehaviour
     private void OnEnable()
     {
         startButton.Clicked += RaiseStartClicked;
+        tutorialButton.Clicked += RaiseTutorialClicked;
         settingsButton.Clicked += RaiseSettingsClicked;
         exitButton.Clicked += RaiseExitClicked;
 
@@ -37,6 +40,7 @@ public class UIMenu : MonoBehaviour
     private void OnDisable()
     {
         startButton.Clicked -= RaiseStartClicked;
+        tutorialButton.Clicked -= RaiseTutorialClicked;
         settingsButton.Clicked -= RaiseSettingsClicked;
         exitButton.Clicked -= RaiseExitClicked;
 
@@ -65,6 +69,12 @@ public class UIMenu : MonoBehaviour
     private void RaiseStartClicked()
     {
         StartClicked?.Invoke();
+    }
+
+    /// <summary>튜토리얼 재진입 의도를 올린다.</summary>
+    private void RaiseTutorialClicked()
+    {
+        TutorialClicked?.Invoke();
     }
 
     /// <summary>설정 의도를 올린다.</summary>

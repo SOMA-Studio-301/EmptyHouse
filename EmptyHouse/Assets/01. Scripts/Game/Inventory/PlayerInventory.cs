@@ -48,6 +48,7 @@ public class PlayerInventory : MonoBehaviour
 
     private InventorySlot[] slots;
     private int heldIndex = BareHandIndex;
+    private PlayerDisguise disguise; // 같은 프리팹 루트의 위장 컴포넌트 — 위장 중 손 전환 차단(조작UI 2-2) 게이트 소스
 
     // 손 전환 딜레이의 남은 시간(초). 0 보다 크면 전환 중이다(IsSwapping).
     private float swapTimer;
@@ -79,10 +80,11 @@ public class PlayerInventory : MonoBehaviour
 
     public bool IsSwapping { get; private set; } // 손 전환 딜레이(hand_swap_sec) 진행 중 — E·좌클릭 게이트. 슬롯 입력은 차단하지 않는다(즉시 반영 + 타이머 리셋)
 
-    /// <summary>슬롯 배열을 인스펙터 크기로 생성한다.</summary>
+    /// <summary>슬롯 배열을 인스펙터 크기로 생성하고 같은 루트의 PlayerDisguise 참조를 캐시한다.</summary>
     private void Awake()
     {
         slots = new InventorySlot[inventorySlots];
+        disguise = GetComponent<PlayerDisguise>();
     }
 
     /// <summary>입력 이벤트 구독을 시작한다. 숫자 키 → 슬롯 선택, 휠 → 손 순환, R → 무전기 장착.</summary>
@@ -201,6 +203,10 @@ public class PlayerInventory : MonoBehaviour
     /// <param name="index">손에 들 슬롯 인덱스(0 .. SlotCount-1).</param>
     private void EquipSlot(int index)
     {
+        // 위장 중 손 전환 차단(조작UI 2-2) — 위장은 몸을 좀비처럼 쓰는 상태라 가방을 뒤지는 동작이 성립하지 않는다.
+        // 숫자(여기)·휠(CycleHand)·R(EquipRadio) 세 입력 경로가 같은 게이트를 공유한다.
+        if (disguise.IsDisguised) return;
+
         // 숫자 키는 슬롯 수와 무관하게 1..5 가 들어온다. 없는 칸이면 무시한다(3칸일 때 4·5 키).
         if (index < 0 || index >= SlotCount) return;
 
@@ -218,6 +224,7 @@ public class PlayerInventory : MonoBehaviour
     /// </summary>
     private void EquipRadio()
     {
+        if (disguise.IsDisguised) return; // 위장 중 차단(2-2)
         if (!radioSlot.IsFilled) return;
         if (heldIndex == RadioHandIndex) return; // 이미 든 상태에 셀프 전환 딜레이를 걸지 않는다 (EquipSlot 라인과 같은 규칙)
 
@@ -239,8 +246,9 @@ public class PlayerInventory : MonoBehaviour
     /// <summary>
     /// 손에 든 것을 슬롯에 되돌리고 맨손이 된다 — 집어넣기 (Tab 홀드 후 숫자 없이 뗌).
     /// 아이템은 슬롯에 그대로 남는다(0-2: 집어넣기 ≠ 버리기).
+    /// 위장 진입 자동 집어넣기(조작UI 2-2)도 이 경로다 — PlayerController 가 호출한다.
     /// </summary>
-    private void StowHand()
+    public void StowHand()
     {
         Log.D("[PlayerInventory] StowHand");
 
@@ -264,6 +272,8 @@ public class PlayerInventory : MonoBehaviour
     /// <param name="direction">휠 방향. +1 = 정방향, -1 = 역방향.</param>
     private void CycleHand(int direction)
     {
+        if (disguise.IsDisguised) return; // 위장 중 차단(2-2)
+
         // 순환 위치는 맨손(0) · 슬롯(1..N) · 무전기(N+1, 보유 시에만) 로 명시 매핑한다.
         // 옛 "+1 시프트" 트릭은 -1 전용이라 -2(무전기)를 표현하지 못한다 — 역방향에서 엉뚱한 칸으로 점프했다.
         // heldIndex==-2 인데 미보유인 상태는 제거 경로의 순서 규칙(PointHand 가 Clear 보다 먼저)이 원천 차단한다.

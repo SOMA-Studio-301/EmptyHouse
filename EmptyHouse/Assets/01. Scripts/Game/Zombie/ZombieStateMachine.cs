@@ -16,6 +16,7 @@ public class ZombieStateMachine : NetworkBehaviour
     [SerializeField] private ZombieController controller;
     [SerializeField] private NavMeshAgent agent;
     [SerializeField] private ZombiePlayerCaughtEventChannelSO playerCaughtChannel;
+    [SerializeField] private ZombieStateChangedEventChannelSO stateChangedChannel; // 상태 전이 방송 채널(서버 로컬). 튜토리얼 판정 등 외부 관찰자용
 
     private IZombieState currentState;
     private Vector3 lastRequestedDestination;
@@ -93,9 +94,16 @@ public class ZombieStateMachine : NetworkBehaviour
         if (!IsServer || controller == null || controller.Data == null) return;
         if (!force && currentState != null && currentState.Kind == nextState) return;
 
+        ZombieStateKind previousState = currentState != null ? currentState.Kind : nextState;
         currentState?.Exit(this);
         currentState = CreateState(nextState);
         controller.ServerSetState(nextState);
+        // 발행은 Enter 이전 — Enter 안에서 연쇄 전이가 나면 바깥 전이보다 안쪽 전이가 먼저 방송돼 순서가 뒤집힌다.
+        // 동일 상태 강제 재진입(force)은 전이가 아니라 재동기화라 방송하지 않는다.
+        if (previousState != nextState)
+        {
+            stateChangedChannel.RaiseEvent(new ZombieStateChangedEvent(NetworkObjectId, previousState, nextState));
+        }
         currentState.Enter(this);
     }
 
