@@ -41,7 +41,8 @@ namespace EmptyHouse.Environment
             new FixtureEntry { kind = LightFixtureKind.DeskLamp, baseColor = new Color(0.592f, 0.576f, 0.376f) },
             new FixtureEntry { kind = LightFixtureKind.Lantern, baseColor = new Color(0.640f, 0.520f, 0.300f) },
             new FixtureEntry { kind = LightFixtureKind.TV, baseColor = new Color(0.255f, 0.302f, 0.122f) },
-            new FixtureEntry { kind = LightFixtureKind.Hallway, baseColor = new Color(0.549f, 0.522f, 0.302f) }
+            new FixtureEntry { kind = LightFixtureKind.Hallway, baseColor = new Color(0.549f, 0.522f, 0.302f) },
+            new FixtureEntry { kind = LightFixtureKind.SafeZone, baseColor = new Color(0.549f, 0.522f, 0.302f) }
         };
 
         [Header("Room Theme Tints")]
@@ -54,7 +55,8 @@ namespace EmptyHouse.Environment
             new ThemeEntry { theme = LightThemeKind.Pillar, tint = new Color(0.55f, 0.72f, 1.00f), blend = 0.30f },
             new ThemeEntry { theme = LightThemeKind.Hospital, tint = new Color(0.55f, 1.00f, 0.72f), blend = 0.50f },
             new ThemeEntry { theme = LightThemeKind.Entrance, tint = new Color(0.55f, 0.72f, 1.00f), blend = 0.30f },
-            new ThemeEntry { theme = LightThemeKind.Hallway, tint = new Color(0.42f, 0.58f, 0.95f), blend = 0.45f }
+            new ThemeEntry { theme = LightThemeKind.Hallway, tint = new Color(0.42f, 0.58f, 0.95f), blend = 0.45f },
+            new ThemeEntry { theme = LightThemeKind.SafeZone, tint = new Color(1.00f, 0.90f, 0.70f), blend = 0.45f }
         };
 
         [Header("Global")]

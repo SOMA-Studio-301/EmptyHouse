@@ -29,6 +29,8 @@ MonoBehaviour:
     baseColor: {r: 0.43529412, g: 0.6784314, b: 0.5568628, a: 1}
   - kind: 7
     baseColor: {r: 0.43529412, g: 0.6784314, b: 0.5568628, a: 1}
+  - kind: 8
+    baseColor: {r: 0.43529412, g: 0.6784314, b: 0.5568628, a: 1}
   themes:
   - theme: 0
     tint: {r: 1, g: 1, b: 1, a: 1}
@@ -51,6 +53,9 @@ MonoBehaviour:
   - theme: 6
     tint: {r: 0.5885071, g: 0.7169812, b: 0.41711164, a: 1}
     blend: 0
+  - theme: 7
+    tint: {r: 1, g: 0.9, b: 0.7, a: 1}
+    blend: 0.45
   globalTint: {r: 1, g: 1, b: 1, a: 1}
   offChance: 0.75
   flickerChance: 0.25

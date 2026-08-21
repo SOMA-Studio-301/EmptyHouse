@@ -12,7 +12,8 @@ namespace EmptyHouse.Environment
         DeskLamp,
         Lantern,
         TV,
-        Hallway
+        Hallway,
+        SafeZone
     }
 
     /// <summary>방 조명 테마 — 프로파일에서 틴트를 찾는 키. Inherit는 바인더 전용(부모 테마를 따른다).</summary>
@@ -25,7 +26,8 @@ namespace EmptyHouse.Environment
         Pillar,
         Hospital,
         Entrance,
-        Hallway
+        Hallway,
+        SafeZone
     }
 
     /// <summary>
