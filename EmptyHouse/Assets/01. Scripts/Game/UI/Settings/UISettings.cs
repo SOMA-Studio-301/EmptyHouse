@@ -80,7 +80,7 @@ public class UISettings : MonoBehaviour
         for (int i = 0; i < tabs.Length; i++)
         {
             bool selected = i == index;
-            tabs[i].TabButton.SetSelected(selected);
+            tabs[i].TabButton.Selected = selected;
             tabs[i].Panel.SetActive(selected);
         }
     }
