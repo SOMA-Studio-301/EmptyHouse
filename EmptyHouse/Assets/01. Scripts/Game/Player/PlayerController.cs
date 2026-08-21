@@ -78,6 +78,7 @@ public class PlayerController : NetworkBehaviour
     private float pitch; // 시선 상태 — cameraPivot 의 로컬 X 회전
     private float yaw; // 시선 상태 — 카메라가 향하는 월드 Y 회전. 본체 회전(bodyYaw)과 분리되어 있다
     private float bodyYaw; // 하체(본체)의 Y 회전 — 시선이 상체 한계각을 넘거나 이동 중일 때만 시선을 따라온다
+    private bool isTurningInPlace; // 제자리 회전 진행 중 여부 — 한계각 초과로 시작해 시선 정렬까지 유지한다. 없으면 한계각 바로 아래서 멈춰 하체가 항상 시선보다 60° 덜 돈 채 남는다
 
     private float bodyYawRateDeg; // 이번 프레임 bodyYaw 의 변화량을 초당으로 환산한 값. 제자리 회전 애니메이션이 읽는다
 
@@ -269,6 +270,11 @@ public class PlayerController : NetworkBehaviour
     {
         if (!IsOwner || IsInactive) return;
 
+        // 회전을 물리 몸체에도 기록한다. transform 만 돌리면 Rigidbody 보간이 트랜스폼 회전을 몸체의
+        // 낡은 회전(스폰값)으로 되돌린 시점에 NetworkTransform 이 샘플링할 수 있어, 원격에 회전이
+        // 0 으로 고정 전송된다(인스턴스 프레임 타이밍에 따라 재현이 갈리는 경합).
+        body.MoveRotation(Quaternion.Euler(0f, bodyYaw, 0f));
+
         // 은신 중에는 이동을 차단하고 자리에 고정한다(2-1: WASD 무반응). 시선은 Update 쪽 콘 클램프가 맡는다.
         if (hiding.IsHidden)
         {
@@ -429,6 +435,7 @@ public class PlayerController : NetworkBehaviour
             yaw = hiddenBaseYaw + Mathf.Clamp(yawDelta, -wardrobeLookAngleDeg, wardrobeLookAngleDeg);
             pitch = Mathf.Clamp(pitch, -wardrobeLookAngleDeg, wardrobeLookAngleDeg);
             bodyYaw = hiddenBaseYaw; // 문틈 시야는 상체·카메라만 움직인다 — 하체는 앵커 정면에 고정
+            isTurningInPlace = false; // 은신이 하체를 강제 고정했으니 진행 중이던 제자리 회전은 소멸
         }
         else
         {
@@ -450,23 +457,30 @@ public class PlayerController : NetworkBehaviour
 
     /// <summary>
     /// 하체(bodyYaw)를 시선에 맞춰 따라 돌린다.
-    /// 이동 중에는 시선으로 정렬하고, 정지 중에는 시선-하체 차가 상체 한계각을 넘었을 때만 한계 안으로 끌어온다.
+    /// 이동 중에는 시선으로 정렬하고, 정지 중에는 시선-하체 차가 상체 한계각을 넘는 순간 제자리 회전을
+    /// 시작해 시선에 완전히 정렬될 때까지 계속 돈다 — 한계각까지만 끌어오면 하체가 항상 시선보다
+    /// 한계각만큼 덜 돈 방향에 멈춰, 원격 화면에서 몸이 엉뚱한 곳을 보는 채 고정된다.
     /// 위장 중에는 입력이 없어도 계속 전진하므로 이동 중과 같게 취급한다 — 그러지 않으면 상체 한계각에
     /// 걸려 몸은 옆을 본 채 게걸음으로 나아간다.
     /// </summary>
     private void HandleBodyTurn()
     {
-        float offset = Mathf.DeltaAngle(bodyYaw, yaw);
         float step = bodyTurnSpeedDeg * Time.deltaTime;
 
         if (disguise.IsDisguised || moveInput.sqrMagnitude > 0.0001f)
         {
+            isTurningInPlace = false; // 이동 정렬이 곧바로 시선을 따라가므로 별도 진행 상태가 필요 없다
             bodyYaw = Mathf.MoveTowardsAngle(bodyYaw, yaw, step);
+            return;
         }
-        else if (Mathf.Abs(offset) > upperBodyYawLimitDeg)
-        {
-            bodyYaw = Mathf.MoveTowardsAngle(bodyYaw, yaw - Mathf.Sign(offset) * upperBodyYawLimitDeg, step);
-        }
+
+        if (Mathf.Abs(Mathf.DeltaAngle(bodyYaw, yaw)) > upperBodyYawLimitDeg) isTurningInPlace = true;
+        if (!isTurningInPlace) return;
+
+        bodyYaw = Mathf.MoveTowardsAngle(bodyYaw, yaw, step);
+
+        // 정렬 완료 판정. MoveTowardsAngle 은 목표를 지나치지 않으므로 잔차가 step 미만이면 이번 프레임에 도달한다.
+        if (Mathf.Approximately(Mathf.DeltaAngle(bodyYaw, yaw), 0f)) isTurningInPlace = false;
     }
 
     /// <summary>월드 속도를 본체 로컬 수평 성분으로 바꾼다. 이동 방향이 정면 기준 어느 쪽인지 재는 용도다.</summary>
