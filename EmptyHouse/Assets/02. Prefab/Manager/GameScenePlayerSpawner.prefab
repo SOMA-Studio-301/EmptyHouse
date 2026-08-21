@@ -110,7 +110,11 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 16d553d35e6d3f9418f6fae44750521a, type: 3}
   m_Name: 
   m_EditorClassIdentifier: '::'
-  playerPrefab: {fileID: 8781348085559410535, guid: 8f854307ed78ffd47a335196af334c68, type: 3}
+  playerPrefabs:
+  - {fileID: 5496145406212600824, guid: 7614d4451eb3ef040b2c04aa28ba578d, type: 3}
+  - {fileID: 409055559989664152, guid: 69d0343076ead4b42b0e329213e9de77, type: 3}
+  - {fileID: 3084267579337611376, guid: a5bb586d66d882643af13b3ee5af551a, type: 3}
+  - {fileID: 5865311135164852267, guid: 70970cbb0ddeefa46a0d92969b197f9a, type: 3}
   playerLifecycle: {fileID: 11400000, guid: 99aaaaab4771c6d45bcc0132da11b06f, type: 2}
   onMapAssembledServer: {fileID: 11400000, guid: a66be1575718b7849b4275e3efc01a0a, type: 2}
 --- !u!1 &6877329666460274357

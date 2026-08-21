@@ -15,7 +15,7 @@ using UnityEngine.SceneManagement;
 /// </summary>
 public class GameScenePlayerSpawner : MonoBehaviour
 {
-    [SerializeField] private NetworkObject playerPrefab;
+    [SerializeField] private NetworkObject[] playerPrefabs; // 캐릭터별 플레이어 프리팹 변형. 서버가 접속자마다 중복 없이 랜덤 배정한다
 
     /// <summary>합류/이탈 신호 발화 채널. 로스터 등록·이탈이 이 채널로만 흐른다.</summary>
     [SerializeField] private PlayerLifecycleEventChannelSO playerLifecycle;
@@ -27,6 +27,7 @@ public class GameScenePlayerSpawner : MonoBehaviour
 
     private readonly HashSet<ulong> spawnedClients = new HashSet<ulong>();
     private readonly List<ulong> pendingClients = new List<ulong>(); // 맵 조립 전 도착한 스폰 요청 — 조립 완료 시 도착 순서대로 일괄 스폰
+    private readonly Dictionary<ulong, int> assignedCharacters = new Dictionary<ulong, int>(); // 클라별 배정된 캐릭터 인덱스 — 접속 해제 시 반환해 재사용
 
     private NetworkManager networkManager;
     private string gameSceneName;
@@ -92,7 +93,8 @@ public class GameScenePlayerSpawner : MonoBehaviour
         gameSceneName = gameObject.scene.name;
 
         // 캡슐 피벗이 중심이라, 바닥에 붙은 스폰 포인트 기준 스폰 높이 = 반높이 − center.y + 여유.
-        CapsuleCollider capsule = playerPrefab.GetComponent<CapsuleCollider>();
+        // 캡슐은 공통 베이스 프리팹 소유라 어느 변형에서 읽어도 같다.
+        CapsuleCollider capsule = playerPrefabs[0].GetComponent<CapsuleCollider>();
         spawnHeightOffset = capsule.height * 0.5f - capsule.center.y + GroundClearance;
 
         if (networkManager.IsServer)
@@ -229,14 +231,39 @@ public class GameScenePlayerSpawner : MonoBehaviour
         Transform spawnPoint = transform.GetChild(spawnIndex);
         nextSpawnIndex++;
         Vector3 spawnPosition = spawnPoint.position + Vector3.up * spawnHeightOffset;
-        Log.D($"[GameScenePlayerSpawner] client {clientId}: 스폰 포인트 {spawnIndex}번({spawnPoint.name}) → {spawnPosition}");
-        NetworkObject player = Instantiate(playerPrefab, spawnPosition, spawnPoint.rotation);
+        int characterIndex = AssignCharacterIndex(clientId);
+        Log.D($"[GameScenePlayerSpawner] client {clientId}: 스폰 포인트 {spawnIndex}번({spawnPoint.name}) → {spawnPosition}, 캐릭터 {characterIndex}번");
+        NetworkObject player = Instantiate(playerPrefabs[characterIndex], spawnPosition, spawnPoint.rotation);
         // PlayerObject는 한 판에만 속한다. Lobby 복귀 시 함께 Despawn하고 다음 판에 새로 만든다.
         player.SpawnAsPlayerObject(clientId, true);
         // Owner 권한 NetworkTransform 의 포스트 스폰 덮어쓰기(NGO #2531 계열) 대비 — 소유자에게 스폰 포즈를 재적용시킨다.
         player.GetComponent<PlayerController>().SetSpawnPoseClientRpc(spawnPosition, spawnPoint.rotation);
         spawnedClients.Add(clientId);
         playerLifecycle.RaiseJoined(clientId);
+    }
+
+    /// <summary>
+    /// 접속 중인 누구와도 겹치지 않는 캐릭터 인덱스를 랜덤으로 배정한다.
+    /// 이미 배정받은 클라는 기존 인덱스를 유지하고, 전부 사용 중이면(정원 초과) 전체 랜덤으로 폴백한다.
+    /// </summary>
+    /// <param name="clientId">배정 대상 클라이언트 ID.</param>
+    /// <returns>playerPrefabs 인덱스.</returns>
+    private int AssignCharacterIndex(ulong clientId)
+    {
+        if (assignedCharacters.TryGetValue(clientId, out int existing)) return existing;
+
+        List<int> freeIndices = new List<int>(playerPrefabs.Length);
+        for (int i = 0; i < playerPrefabs.Length; i++)
+        {
+            if (!assignedCharacters.ContainsValue(i)) freeIndices.Add(i);
+        }
+
+        int index = freeIndices.Count > 0
+            ? freeIndices[Random.Range(0, freeIndices.Count)]
+            : Random.Range(0, playerPrefabs.Length);
+        assignedCharacters[clientId] = index;
+
+        return index;
     }
 
     /// <summary>
@@ -248,6 +275,7 @@ public class GameScenePlayerSpawner : MonoBehaviour
     {
         spawnedClients.Remove(clientId);
         pendingClients.Remove(clientId);
+        assignedCharacters.Remove(clientId); // 캐릭터 반환 — 이후 접속자가 재사용할 수 있다
         playerLifecycle.RaiseLeft(clientId);
     }
 
