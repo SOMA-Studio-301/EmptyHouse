@@ -111,9 +111,9 @@ MonoBehaviour:
   normalGlowSprite: {fileID: 21300000, guid: ebfcb405372b3b947b0fdab2095e5e58, type: 3}
   selectedGlowSprite: {fileID: 21300000, guid: 12a535f6e43f4854687bd984dc160ab7, type: 3}
   focusRelays:
-  - {fileID: 4647950558108025994}
-  - {fileID: 8929249504712316625}
-  - {fileID: 3694859419985969129}
+  - {fileID: 0}
+  - {fileID: 0}
+  - {fileID: 0}
 --- !u!225 &9095203534421824993
 CanvasGroup:
   m_ObjectHideFlags: 0
@@ -582,7 +582,9 @@ PrefabInstance:
       propertyPath: m_Name
       value: PasswordSlideField
       objectReference: {fileID: 0}
-    m_RemovedComponents: []
+    m_RemovedComponents:
+    - {fileID: 1390433745918629441, guid: bbca1bbedd1178a459e212bc8b227aba, type: 3}
+    - {fileID: 6621987094405529465, guid: bbca1bbedd1178a459e212bc8b227aba, type: 3}
     m_RemovedGameObjects: []
     m_AddedGameObjects: []
     m_AddedComponents: []
@@ -592,17 +594,6 @@ RectTransform:
   m_CorrespondingSourceObject: {fileID: 176970354420104938, guid: bbca1bbedd1178a459e212bc8b227aba, type: 3}
   m_PrefabInstance: {fileID: 2309527682904680872}
   m_PrefabAsset: {fileID: 0}
---- !u!114 &3694859419985969129 stripped
-MonoBehaviour:
-  m_CorrespondingSourceObject: {fileID: 1390433745918629441, guid: bbca1bbedd1178a459e212bc8b227aba, type: 3}
-  m_PrefabInstance: {fileID: 2309527682904680872}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 0}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 1dfda87a297537b489ad3143546cbe0b, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::UIFocusRelay
 --- !u!114 &6257339166371920098 stripped
 MonoBehaviour:
   m_CorrespondingSourceObject: {fileID: 8564614906581242186, guid: bbca1bbedd1178a459e212bc8b227aba, type: 3}
@@ -614,17 +605,6 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 0cb52d5e0aced4c44b77f7074f09cb66, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::UIPasswordSlideField
---- !u!114 &8929249504712316625 stripped
-MonoBehaviour:
-  m_CorrespondingSourceObject: {fileID: 6621987094405529465, guid: bbca1bbedd1178a459e212bc8b227aba, type: 3}
-  m_PrefabInstance: {fileID: 2309527682904680872}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 0}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 1dfda87a297537b489ad3143546cbe0b, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::UIFocusRelay
 --- !u!1001 &6433329785432069735
 PrefabInstance:
   m_ObjectHideFlags: 0
@@ -635,11 +615,11 @@ PrefabInstance:
     m_Modifications:
     - target: {fileID: 644335628741831587, guid: 4553ab2f96ee21744b0ea7fb347ebc7c, type: 3}
       propertyPath: m_IsActive
-      value: 1
+      value: 0
       objectReference: {fileID: 0}
     - target: {fileID: 914940788961781246, guid: 4553ab2f96ee21744b0ea7fb347ebc7c, type: 3}
       propertyPath: m_Enabled
-      value: 0
+      value: 1
       objectReference: {fileID: 0}
     - target: {fileID: 1612200549603230954, guid: 4553ab2f96ee21744b0ea7fb347ebc7c, type: 3}
       propertyPath: m_TargetGraphic
@@ -680,6 +660,10 @@ PrefabInstance:
     - target: {fileID: 1612200549603230954, guid: 4553ab2f96ee21744b0ea7fb347ebc7c, type: 3}
       propertyPath: m_Colors.m_HighlightedColor.r
       value: 0.9607843
+      objectReference: {fileID: 0}
+    - target: {fileID: 3062793977923131106, guid: 4553ab2f96ee21744b0ea7fb347ebc7c, type: 3}
+      propertyPath: m_AnchoredPosition.x
+      value: 0
       objectReference: {fileID: 0}
     - target: {fileID: 5097983550321031351, guid: 4553ab2f96ee21744b0ea7fb347ebc7c, type: 3}
       propertyPath: key
@@ -861,6 +845,10 @@ PrefabInstance:
       propertyPath: m_fontColor32.rgba
       value: 4293457895
       objectReference: {fileID: 0}
+    - target: {fileID: 8532925794638565962, guid: 4553ab2f96ee21744b0ea7fb347ebc7c, type: 3}
+      propertyPath: m_IsActive
+      value: 1
+      objectReference: {fileID: 0}
     - target: {fileID: 8692540962114388110, guid: 4553ab2f96ee21744b0ea7fb347ebc7c, type: 3}
       propertyPath: m_Name
       value: JoinButton
@@ -881,9 +869,6 @@ PrefabInstance:
     - targetCorrespondingSourceObject: {fileID: 8692540962114388110, guid: 4553ab2f96ee21744b0ea7fb347ebc7c, type: 3}
       insertIndex: 2
       addedObject: {fileID: 2145057902966199804}
-    - targetCorrespondingSourceObject: {fileID: 8692540962114388110, guid: 4553ab2f96ee21744b0ea7fb347ebc7c, type: 3}
-      insertIndex: -1
-      addedObject: {fileID: 4647950558108025994}
     - targetCorrespondingSourceObject: {fileID: 8692540962114388110, guid: 4553ab2f96ee21744b0ea7fb347ebc7c, type: 3}
       insertIndex: -1
       addedObject: {fileID: 2257863717721707809}
@@ -936,18 +921,6 @@ MonoBehaviour:
   m_FillOrigin: 0
   m_UseSpriteMesh: 0
   m_PixelsPerUnitMultiplier: 1
---- !u!114 &4647950558108025994
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 2442600995449083625}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 1dfda87a297537b489ad3143546cbe0b, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::UIFocusRelay
 --- !u!114 &2257863717721707809
 MonoBehaviour:
   m_ObjectHideFlags: 0

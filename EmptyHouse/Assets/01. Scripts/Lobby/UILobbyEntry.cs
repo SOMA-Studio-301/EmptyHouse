@@ -1,4 +1,5 @@
 using System;
+using System.Collections;
 using Border.Localization;
 using TMPro;
 using UnityEngine;
@@ -11,13 +12,15 @@ using Unity.Services.Lobbies.Models;
 /// 입장 위젯은 하나만 뜬다 — 공개방은 입장 버튼, 비밀번호 방은 슬라이드 입력창(자체 토글·Enter 확정)이다.
 /// 출발(게임 진행 중)·만석은 예외로 비밀번호 방이라도 잠긴 버튼을 써서 상태를 알린다. 우선순위는 출발 > 만석 > 탑승.
 /// 입장 가능 여부 판정은 표시 수준에서만 하고, 실제 입장 로직은 상위 몫이다.
-/// 선택 상태는 배경 스프라이트로만 드러낸다 — 내부 위젯이 포커스를 쥐고 있거나 비밀번호 입력창이 열려 있으면 선택이다.
-/// 엔트리 간 배타는 따로 관리하지 않는다. EventSystem 이 포커스를 하나만 유지하고, 입력창 배타는 UIRoomList 가 이미 조율한다.
-/// 행 클릭은 공개방이면 단일 = 선택·더블 = 입장이고, 비밀번호 방이면 단일 클릭으로 입력창을 펼치는 것으로 끝난다.
-/// 공개방의 클릭 판은 행 전체로 늘린 입장 버튼이다 — 단일 클릭은 버튼이 EventSystem 포커스를 받아 선택으로 쓰이고,
-/// 입장 확정만 UIDoubleClickRelay 가 더블 클릭으로 걸러 올린다. 비밀번호 방은 버튼이 꺼져 배경이 클릭을 받는다.
+/// 선택 상태는 배경·글로우 스프라이트로만 드러낸다 — 마우스가 엔트리 위에 있거나 비밀번호 입력창이 열려 있으면 선택이다.
+/// 자식 위 호버는 부모 체인으로 전파되므로 루트에서 받으면 내부 위젯 어디에 올려도 잡힌다. EventSystem 포커스는 보지 않는다 —
+/// 클릭으로 잡힌 포커스는 다른 게 선택될 때까지 남아 선택 표시가 고착되기 때문이다.
+/// 엔트리 간 배타는 따로 관리하지 않는다. 호버는 본래 배타적이고, 입력창 배타는 UIRoomList 가 이미 조율한다.
+/// 행 클릭은 공개방이면 더블 = 입장이고, 비밀번호 방이면 단일 클릭으로 입력창을 펼치는 것으로 끝난다.
+/// 공개방의 클릭 판은 행 전체로 늘린 입장 버튼이다 — 입장 확정은 UIDoubleClickRelay 가 더블 클릭으로 걸러 올린다.
+/// 비밀번호 방은 버튼이 꺼져 배경이 클릭을 받는다.
 /// </summary>
-public class UILobbyEntry : MonoBehaviour, IPointerClickHandler
+public class UILobbyEntry : MonoBehaviour, IPointerClickHandler, IPointerEnterHandler, IPointerExitHandler
 {
     /// <summary>발행: 입장 확정. 표시 중인 로비와 입력된 비밀번호(공개 방이면 빈 문자열)를 싣는다.</summary>
     public event Action<Lobby, string> JoinClicked;
@@ -49,28 +52,23 @@ public class UILobbyEntry : MonoBehaviour, IPointerClickHandler
     [SerializeField] private Image glow;                  // 배경 위에 겹치는 글로우
     [SerializeField] private Sprite normalGlowSprite;     // 비선택 글로우
     [SerializeField] private Sprite selectedGlowSprite;   // 선택 글로우
-    [SerializeField] private UIFocusRelay[] focusRelays;  // 포커스를 감시할 내부 위젯 릴레이. 입장 버튼·자물쇠 토글·입력창
 
     public bool IsPasswordFocused => passwordField.IsFocused; // 비밀번호 입력창이 편집 포커스를 쥐고 있는지
 
     private Lobby lobby;            // 표시 중인 로비
     private bool hasPassword;       // 표시 중인 로비가 비밀번호 방인지
-    private bool isPasswordOpen;    // 비밀번호 입력창이 열려 있는지. 포커스가 밖으로 나가도 선택을 유지시킨다
+    private bool isPasswordOpen;    // 비밀번호 입력창이 열려 있는지. 마우스가 벗어나도 선택을 유지시킨다
+    private bool isHovered;         // 마우스가 엔트리 위에 있는지. 자식 위젯 위도 포함된다
     private bool usePasswordField;  // 입장 위젯으로 입력창을 쓰는지. 행 클릭 동작이 갈린다
     private bool isJoinable;        // 지금 입장할 수 있는 방인지. 출발·만석이면 false
 
-    /// <summary>버튼·입력창·포커스 릴레이 리스너를 등록한다.</summary>
+    /// <summary>버튼·입력창 리스너를 등록한다.</summary>
     private void Awake()
     {
-        joinDoubleClick.DoubleClicked += RaiseJoinClicked; // 버튼의 단일 클릭은 선택으로만 쓴다
+        joinDoubleClick.DoubleClicked += RaiseJoinClicked; // 버튼의 단일 클릭은 흘린다
         passwordField.ToggleChanged += HandlePasswordFieldToggled;
         passwordField.Submitted += RaiseJoinClicked; // Enter 로도 입장이 확정된다
         passwordField.FocusChanged += HandlePasswordFocusChanged;
-
-        foreach (UIFocusRelay relay in focusRelays)
-        {
-            relay.FocusChanged += HandleFocusChanged;
-        }
     }
 
     /// <summary>리스너를 해제한다.</summary>
@@ -80,11 +78,13 @@ public class UILobbyEntry : MonoBehaviour, IPointerClickHandler
         passwordField.ToggleChanged -= HandlePasswordFieldToggled;
         passwordField.Submitted -= RaiseJoinClicked;
         passwordField.FocusChanged -= HandlePasswordFocusChanged;
+    }
 
-        foreach (UIFocusRelay relay in focusRelays)
-        {
-            relay.FocusChanged -= HandleFocusChanged;
-        }
+    /// <summary>비활성화될 때 호버가 켜진 채로 남지 않게 초기화한다. 목록 재활용 대비.</summary>
+    private void OnDisable()
+    {
+        isHovered = false;
+        ApplySelectionSprite();
     }
 
     /// <summary>
@@ -98,6 +98,22 @@ public class UILobbyEntry : MonoBehaviour, IPointerClickHandler
         if (eventData.clickCount != 1) return; // 이미 펼친 뒤의 연타는 흘린다
 
         passwordField.Open();
+    }
+
+    /// <summary>마우스가 엔트리에 들어오면 선택 표시를 켠다. 자식 위 호버도 부모로 전파되어 여기로 온다.</summary>
+    /// <param name="eventData">EventSystem 이 전달하는 포인터 데이터. 쓰지 않는다</param>
+    public void OnPointerEnter(PointerEventData eventData)
+    {
+        isHovered = true;
+        ApplySelectionSprite();
+    }
+
+    /// <summary>마우스가 엔트리를 벗어나면 선택 표시를 끈다. 입력창이 열려 있으면 선택은 유지된다.</summary>
+    /// <param name="eventData">EventSystem 이 전달하는 포인터 데이터. 쓰지 않는다</param>
+    public void OnPointerExit(PointerEventData eventData)
+    {
+        isHovered = false;
+        ApplySelectionSprite();
     }
 
     /// <summary>
@@ -125,7 +141,6 @@ public class UILobbyEntry : MonoBehaviour, IPointerClickHandler
         joinButton.gameObject.SetActive(useButton);
         passwordField.gameObject.SetActive(!useButton);
 
-        // 위젯을 껐다 켜는 사이 릴레이가 포커스 상실을 올리므로, 배경은 그게 끝난 뒤에 칠한다
         isPasswordOpen = false;
         ApplySelectionSprite();
 
@@ -158,41 +173,44 @@ public class UILobbyEntry : MonoBehaviour, IPointerClickHandler
         PasswordFieldToggled?.Invoke(this, isOpen);
     }
 
-    /// <summary>내부 위젯의 포커스 변화를 배경에 반영한다.</summary>
-    /// <param name="_">얻음 여부. 집계는 릴레이 전체를 훑으므로 쓰지 않는다</param>
-    private void HandleFocusChanged(bool _)
-    {
-        ApplySelectionSprite();
-    }
-
-    /// <summary>입력창의 편집 포커스 변화를 자기 자신과 함께 올린다. 상위가 목록 재그리기를 멈출지 정한다.</summary>
+    /// <summary>
+    /// 입력창의 편집 포커스 변화를 자기 자신과 함께 올린다. 상위가 목록 재그리기를 멈출지 정한다.
+    /// 포커스를 잃으면 한 프레임 뒤 새 포커스 위치를 보고 엔트리 밖이면 입력창을 접는다 — 선택 표시가 고아로 남지 않게.
+    /// </summary>
     /// <param name="isFocused">포커스를 얻었는지 여부</param>
     private void HandlePasswordFocusChanged(bool isFocused)
     {
         PasswordFocusChanged?.Invoke(this, isFocused);
+
+        if (!isFocused && isActiveAndEnabled)
+        {
+            StartCoroutine(CloseIfFocusLeftEntry());
+        }
     }
 
     /// <summary>
-    /// 선택 여부에 맞춰 배경과 글로우를 칠한다. 포커스가 엔트리 안에 있거나 입력창이 열려 있으면 선택이다.
-    /// 엔트리 안에서 포커스가 옮겨갈 때 상실·획득이 같은 프레임에 오지만, 화면에 나가는 건 프레임 끝 상태라 깜빡이지 않는다.
+    /// 한 프레임 뒤 EventSystem 의 새 선택 대상을 확인하고, 엔트리 밖이면 입력창을 접는다.
+    /// 지연하는 이유: 포커스 상실 순간엔 EventSystem 이 아직 이전 선택을 가리키고,
+    /// 자기 자물쇠 토글로 닫는 경우 즉시 닫으면 토글 클릭이 도로 여는 레이스가 생긴다.
     /// </summary>
-    private void ApplySelectionSprite()
+    private IEnumerator CloseIfFocusLeftEntry()
     {
-        bool isSelected = isPasswordOpen || IsAnyRelayFocused();
-        background.sprite = isSelected ? selectedSprite : normalSprite;
-        glow.sprite = isSelected ? selectedGlowSprite : normalGlowSprite;
+        yield return null;
+
+        if (!passwordField.IsOn) yield break; // 그 사이 이미 닫혔으면(토글·배타 조율) 할 일이 없다
+
+        GameObject selected = EventSystem.current.currentSelectedGameObject;
+        if (selected != null && selected.transform.IsChildOf(transform)) yield break; // 포커스가 엔트리 안에서 움직인 것뿐이다
+
+        passwordField.Close();
     }
 
-    /// <summary>내부 위젯 중 하나라도 포커스를 쥐고 있는지 확인한다.</summary>
-    /// <returns>하나라도 포커스가 있으면 true</returns>
-    private bool IsAnyRelayFocused()
+    /// <summary>선택 여부에 맞춰 배경과 글로우를 칠한다. 마우스가 엔트리 위에 있거나 입력창이 열려 있으면 선택이다.</summary>
+    private void ApplySelectionSprite()
     {
-        foreach (UIFocusRelay relay in focusRelays)
-        {
-            if (relay.HasFocus) return true;
-        }
-
-        return false;
+        bool isSelected = isPasswordOpen || isHovered;
+        background.sprite = isSelected ? selectedSprite : normalSprite;
+        glow.sprite = isSelected ? selectedGlowSprite : normalGlowSprite;
     }
 
     /// <summary>입장 의도를 올린다. 공개 방이면 비밀번호는 빈 문자열이다.</summary>
