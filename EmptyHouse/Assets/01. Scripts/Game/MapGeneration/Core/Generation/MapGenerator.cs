@@ -11,7 +11,7 @@ namespace EmptyHouse.MapGen.Core
     /// </summary>
     public sealed class MapGenerator
     {
-        public const string GeneratorVersion = "0.14.0"; // 생성기 버전 — MapBlueprintMeta에 스냅샷(1절). 0.14.0: 위장 무대 배치 규칙 — 무리는 HerdArea 마커 전용(ZombieSpawn 마커와 방당 배타) + HerdSpawnBands 등급 게이트. 0.13.0: 계단 샤프트(SSA — 시드 층 강제 삽입·전 층 좌표 복사·수직 간선, M9-5)
+        public const string GeneratorVersion = "0.15.0"; // 생성기 버전 — MapBlueprintMeta에 스냅샷(1절). 0.15.0: 서버 채택 리롤 인덱스 재생 지원(시드만으로 검증 버전 드리프트를 흡수하지 못하던 문제 수정). 0.14.0: 위장 무대 배치 규칙
 
         private readonly DeterministicRng rng = new DeterministicRng(); // 단일 난수 스트림(8절)
         private readonly LayoutGenerator layoutGenerator = new LayoutGenerator(); // 3절
@@ -38,6 +38,35 @@ namespace EmptyHouse.MapGen.Core
         /// <returns>성공 여부·블루프린트·리롤 횟수·실패 사유를 담은 결과.</returns>
         public MapGenResult Generate(MapGenPlan plan)
         {
+            return GenerateInternal(plan, -1);
+        }
+
+        /// <summary>
+        /// 서버가 채택한 정확한 리롤 시도를 재생한다. 앞선 시도의 검증 통과 여부와 무관하게 RNG 스트림을
+        /// <paramref name="requiredAttempt"/>까지 진행하고 해당 후보를 반환한다. 네트워크 클라이언트가 서버와 같은
+        /// 후보를 고르기 위한 경로이며, 레이아웃·배치 단계 자체가 실패하면 입력/생성기 드리프트로 실패한다.
+        /// </summary>
+        /// <param name="plan">생성 계획.</param>
+        /// <param name="requiredAttempt">서버가 채택한 0 기반 리롤 인덱스.</param>
+        /// <returns>지정 시도의 블루프린트 또는 재생 실패 결과.</returns>
+        public MapGenResult GenerateAtAttempt(MapGenPlan plan, int requiredAttempt)
+        {
+            if (requiredAttempt < 0)
+            {
+                var invalid = new MapGenResult();
+                invalid.FailReasons.Add($"지정 리롤 인덱스({requiredAttempt}) < 0");
+                return invalid;
+            }
+
+            return GenerateInternal(plan, requiredAttempt);
+        }
+
+        /// <summary>일반 생성 또는 서버 지정 리롤 재생의 공통 루프.</summary>
+        /// <param name="plan">생성 계획.</param>
+        /// <param name="requiredAttempt">-1이면 첫 검증 성공 채택, 0 이상이면 해당 시도를 서버 권위로 채택.</param>
+        /// <returns>생성 결과.</returns>
+        private MapGenResult GenerateInternal(MapGenPlan plan, int requiredAttempt)
+        {
             MapGenParams genParams = plan.Params;
             var result = new MapGenResult();
             var inputErrors = new List<string>();
@@ -49,7 +78,8 @@ namespace EmptyHouse.MapGen.Core
 
             // 리롤도 리시드 없이 같은 스트림을 이어 쓴다(8절·X3) — 시도 = 레이아웃+열쇠+스폰+검증 한 묶음
             rng.Reseed(genParams.Seed);
-            for (int attempt = 0; attempt <= genParams.RerollMax; attempt++)
+            int lastAttempt = requiredAttempt >= 0 ? requiredAttempt : genParams.RerollMax;
+            for (int attempt = 0; attempt <= lastAttempt; attempt++)
             {
                 result.RerollCount = attempt;
                 var blueprint = new MapBlueprint();
@@ -60,6 +90,11 @@ namespace EmptyHouse.MapGen.Core
                 if (!layoutGenerator.TryGenerate(rng, plan, blueprint))
                 {
                     result.FailReasons.Add($"시도 {attempt + 1}: 레이아웃 생성 실패");
+                    if (attempt == requiredAttempt)
+                    {
+                        result.FailReasons.Add($"서버 지정 리롤 {requiredAttempt} 재생 실패 — 생성기·계획 입력 드리프트");
+                        return result;
+                    }
                     continue;
                 }
 
@@ -72,18 +107,28 @@ namespace EmptyHouse.MapGen.Core
                 if (!lockKeyPlacer.TryPlace(rng, genParams, blueprint, grades, plan.FlatTemplates))
                 {
                     result.FailReasons.Add($"시도 {attempt + 1}: 열쇠·자물쇠 배치 실패");
+                    if (attempt == requiredAttempt)
+                    {
+                        result.FailReasons.Add($"서버 지정 리롤 {requiredAttempt} 재생 실패 — 생성기·계획 입력 드리프트");
+                        return result;
+                    }
                     continue;
                 }
 
                 if (!spawnDistributor.TryDistribute(rng, plan, blueprint, grades))
                 {
                     result.FailReasons.Add($"시도 {attempt + 1}: 스폰 분배 실패");
+                    if (attempt == requiredAttempt)
+                    {
+                        result.FailReasons.Add($"서버 지정 리롤 {requiredAttempt} 재생 실패 — 생성기·계획 입력 드리프트");
+                        return result;
+                    }
                     continue;
                 }
 
                 ValidationReport report = validator.Validate(blueprint, genParams, plan.FlatTemplates, plan.FloorParams);
                 result.LastReport = report;
-                if (report.AllPassed)
+                if ((requiredAttempt < 0 && report.AllPassed) || attempt == requiredAttempt)
                 {
                     result.Success = true;
                     result.Blueprint = blueprint;

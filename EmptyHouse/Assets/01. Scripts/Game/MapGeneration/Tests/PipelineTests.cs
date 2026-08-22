@@ -192,6 +192,36 @@ namespace EmptyHouse.MapGen.Core.Tests
             AssertBlueprintEquals(first.Blueprint, second.Blueprint);
         }
 
+        /// <summary>서버가 채택한 리롤 인덱스를 지정하면 로컬 리롤 상한과 무관하게 같은 후보를 재생한다.</summary>
+        [Test]
+        public void GenerateAtAttempt_서버_채택_리롤을_정확히_재생한다()
+        {
+            for (int seed = 1; seed <= 100; seed++)
+            {
+                MapGenParams serverParams = CreateParams(seed);
+                IReadOnlyList<RoomTemplateDef> templates = BlueprintFixtures.CreateFakeTemplates();
+                MapGenResult server = new MapGenerator().Generate(serverParams, templates);
+                if (!server.Success || server.RerollCount == 0)
+                {
+                    continue;
+                }
+
+                MapGenParams clientParams = CreateParams(seed);
+                clientParams.RerollMax = 0; // 이전 검증/설정이면 서버 채택 시도까지 일반 생성으로 도달하지 못하는 상황을 모사
+                MapGenPlan clientPlan = MapGenPlan.FromLegacy(clientParams, templates);
+                MapGenResult replay = new MapGenerator().GenerateAtAttempt(clientPlan, server.RerollCount);
+
+                Assert.That(replay.Success, Is.True,
+                    $"시드 {seed} 서버 리롤 {server.RerollCount} 재생 실패 — {string.Join(" / ", replay.FailReasons)}");
+                Assert.That(replay.RerollCount, Is.EqualTo(server.RerollCount));
+                Assert.That(BlueprintHash.Compute(replay.Blueprint), Is.EqualTo(BlueprintHash.Compute(server.Blueprint)),
+                    "서버가 채택한 리롤 후보와 재생 후보의 해시가 다르다");
+                return;
+            }
+
+            Assert.Fail("시드 1~100 안에 리롤 1회 이상인 성공 시드가 없어 지정 리롤 재생을 검증하지 못했다");
+        }
+
         /// <summary>
         /// 복도 연쇄는 CorridorChainMax 를 따른다 — Max 1 이면 복도↔복도 간선 0(연쇄 없음 = 구 동작 보존),
         /// 기본(3)에서는 시드 집합 전체에서 연쇄가 실제로 발생해야 한다(공허성 가드).

@@ -9,10 +9,10 @@ namespace EmptyHouse.MapGen.Runtime
 {
     /// <summary>
     /// 시드 복제·맵 준비 시퀀스 드라이버(8절·X7·X8).
-    /// 서버: 시드 확정(X8) → 생성·검증 → mapSeed 복제. 전원(서버 포함): 시드 수신 → 로컬 재생성·조립(MapRuntimeAssembler)
+    /// 서버: 시드 확정(X8) → 생성·검증 → (시드, 채택 리롤) 복제. 전원(서버 포함): 생성 키 수신 → 로컬 재생성·조립(MapRuntimeAssembler)
     /// → 해시 보고. 서버: 전 클라 보고 수집(X7) + 해시 일치 확인(AC-02) → onMapAssembledServer 발화
     /// (→ NavMesh 베이크 → 상태 오브젝트 스폰으로 이어진다).
-    /// 늦은 합류자는 mapSeed 가 이미 확정값이라 OnNetworkSpawn 시점에 같은 경로로 조립한다.
+    /// 늦은 합류자는 생성 키가 이미 확정값이라 OnNetworkSpawn 시점에 같은 경로로 조립한다.
     /// </summary>
     public sealed class MapGenNetworkDriver : NetworkBehaviour
     {
@@ -24,7 +24,9 @@ namespace EmptyHouse.MapGen.Runtime
         [SerializeField] private MapOverviewEventChannelSO onMapOverviewReady; // 클라 로컬 발화(EH-62) — 자기 조립 직후 안내도 모델을 실어 발행. UIMapOverview 가 구독
 
         private readonly NetworkVariable<int> mapSeed = new NetworkVariable<int>(
-            0, NetworkVariableReadPermission.Everyone, NetworkVariableWritePermission.Server); // 확정 시드(0 = 미확정) — 시드만 복제(정적 지오메트리 대역폭 0)
+            0, NetworkVariableReadPermission.Everyone, NetworkVariableWritePermission.Server); // 확정 시드(0 = 미확정) — 블루프린트 대신 작은 생성 키만 복제(정적 지오메트리 대역폭 0)
+        private readonly NetworkVariable<int> mapAttempt = new NetworkVariable<int>(
+            -1, NetworkVariableReadPermission.Everyone, NetworkVariableWritePermission.Server); // 서버가 검증 후 채택한 0 기반 리롤 인덱스 — 시드와 함께 최종 후보를 유일하게 식별
 
         private readonly Dictionary<ulong, uint> reportedHashes = new Dictionary<ulong, uint>(); // 서버 전용 — 클라 Id → 보고 해시(X7 집계)
         private uint localHash; // 로컬 조립 블루프린트 해시 — 서버에서는 보고 대조 기준(AC-02)
@@ -74,7 +76,7 @@ namespace EmptyHouse.MapGen.Runtime
 
         /// <summary>
         /// 서버 전용 진입점 — 게임 씬 진입 시퀀스(세션 관리자)가 호출한다.
-        /// Seed 0 이면 실제 시드를 확정해 로그에 남기고(X8), MapGenerator 로 생성·검증 후 mapSeed 를 복제한다.
+        /// Seed 0 이면 실제 시드를 확정해 로그에 남기고(X8), MapGenerator 로 생성·검증 후 시드와 채택 리롤을 복제한다.
         /// 생성 실패(X2)는 에러 로그 후 중단 — 폴백 맵 없음.
         /// </summary>
         public void ServerStartMapFlow()
@@ -107,18 +109,17 @@ namespace EmptyHouse.MapGen.Runtime
                 return;
             }
 
-            mapSeed.Value = confirmedSeed; // 전원(서버 포함)이 HandleSeedChanged 로 로컬 재생성·조립한다
+            mapAttempt.Value = result.RerollCount; // 시드보다 먼저 기록 — 변화 콜백이 어느 순서로 와도 TryAssembleConfirmedMap 가 둘 다 준비될 때만 진행한다
+            mapSeed.Value = confirmedSeed;
         }
 
-        /// <summary>mapSeed 변화 구독 + 이미 확정된 시드(늦은 합류) 즉시 처리.</summary>
+        /// <summary>생성 키 변화 구독 + 이미 확정된 키(늦은 합류) 즉시 처리.</summary>
         public override void OnNetworkSpawn()
         {
             Log.D("[MapGenNetworkDriver] OnNetworkSpawn");
             mapSeed.OnValueChanged += HandleSeedChanged;
-            if (mapSeed.Value != 0)
-            {
-                HandleSeedChanged(0, mapSeed.Value);
-            }
+            mapAttempt.OnValueChanged += HandleAttemptChanged;
+            TryAssembleConfirmedMap(); // 이미 확정된 시드·리롤을 받은 늦은 합류 처리
 
             if (IsServer)
             {
@@ -126,25 +127,42 @@ namespace EmptyHouse.MapGen.Runtime
             }
         }
 
-        /// <summary>mapSeed 구독 해제.</summary>
+        /// <summary>생성 키 구독 해제.</summary>
         public override void OnNetworkDespawn()
         {
             Log.D("[MapGenNetworkDriver] OnNetworkDespawn");
             mapSeed.OnValueChanged -= HandleSeedChanged;
+            mapAttempt.OnValueChanged -= HandleAttemptChanged;
         }
 
         /// <summary>
-        /// 시드 확정 콜백 — 로컬에서 같은 파라미터·같은 카탈로그로 재생성(결정론)·조립하고,
-        /// BlueprintHash 를 서버에 보고한다. 0 → 확정값 전이만 유효(재실행 없음 — 시드는 세션 중 불변).
+        /// 시드 확정 콜백 — 생성 키가 모두 준비되면 서버가 채택한 정확한 리롤 후보를 재생한다.
         /// </summary>
         /// <param name="previous">이전 시드(0 = 미확정).</param>
         /// <param name="current">확정 시드.</param>
         private void HandleSeedChanged(int previous, int current)
         {
             Log.D($"[MapGenNetworkDriver] HandleSeedChanged {previous}->{current}");
-            if (current == 0 || LocalBlueprint != null)
+            TryAssembleConfirmedMap();
+        }
+
+        /// <summary>서버 채택 리롤 변화 콜백 — 시드와 리롤이 모두 준비된 순간 조립을 시도한다.</summary>
+        /// <param name="previous">이전 리롤 인덱스.</param>
+        /// <param name="current">현재 리롤 인덱스.</param>
+        private void HandleAttemptChanged(int previous, int current)
+        {
+            Log.D($"[MapGenNetworkDriver] HandleAttemptChanged {previous}->{current}");
+            TryAssembleConfirmedMap();
+        }
+
+        /// <summary>확정 시드와 서버 채택 리롤을 원자적 생성 키처럼 소비해 로컬 후보를 재생·조립한다.</summary>
+        private void TryAssembleConfirmedMap()
+        {
+            int current = mapSeed.Value;
+            int requiredAttempt = mapAttempt.Value;
+            if (current == 0 || requiredAttempt < 0 || LocalBlueprint != null)
             {
-                return; // 미확정 전이·중복 호출(스폰 즉시 처리 + OnValueChanged 이중 진입) 무시
+                return; // 생성 키 미완성·중복 콜백 무시
             }
 
             // 템플릿 단일 출처 = 빈 집 정의 SO(M10-1) — 전 클라 같은 에셋 = 같은 계획(AC-02)
@@ -154,11 +172,10 @@ namespace EmptyHouse.MapGen.Runtime
                 return; // 정의 린트 실패 — 조립 거부(R4)
             }
 
-            MapGenResult result = new MapGenerator().Generate(plan);
+            MapGenResult result = new MapGenerator().GenerateAtAttempt(plan, requiredAttempt);
             if (!result.Success)
             {
-                // 서버 선검증을 통과한 시드가 여기서 실패하면 빌드/카탈로그 불일치다 — AC-02 위반으로 표면화
-                Log.E($"[MapGenNetworkDriver] 로컬 재생성 실패 시드={current} — 서버와 빌드·카탈로그가 다르다: {string.Join(" / ", result.FailReasons)}");
+                Log.E($"[MapGenNetworkDriver] 로컬 재생성 실패 시드={current} 리롤={requiredAttempt} — 서버와 생성기·계획 입력이 다르다: {string.Join(" / ", result.FailReasons)}");
                 return;
             }
 
@@ -166,32 +183,40 @@ namespace EmptyHouse.MapGen.Runtime
             LocalTemplates = plan.FlatTemplates;
             LocalMapRoot = MapRuntimeAssembler.Assemble(LocalBlueprint, plan.FlatTemplates, mapDefinition, transform, null, flatAssets);
             localHash = BlueprintHash.Compute(LocalBlueprint);
-            Log.D($"[MapGenNetworkDriver] 로컬 조립 완료 시드={current} 해시={localHash:X8} 리롤={result.RerollCount}");
+            Log.D($"[MapGenNetworkDriver] 로컬 조립 완료 시드={current} 리롤={requiredAttempt} 해시={localHash:X8}");
             // 안내도 모델 발행(EH-62) — 클라 로컬. 서버 X7 집계와 무관하게 자기 맵이 준비되면 즉시
             onMapOverviewReady.RaiseEvent(MapOverviewModel.Build(LocalBlueprint, plan.FlatTemplates, mapDefinition, LocalMapRoot.transform.position));
-            ReportAssembledServerRpc(localHash);
+            ReportAssembledServerRpc(current, requiredAttempt, localHash);
         }
 
         /// <summary>
         /// 클라 조립 완료 보고 수신(X7) — 서버가 접속 클라 전원의 보고와 해시 일치(AC-02)를 집계한다.
         /// 전원 완료 시 onMapAssembledServer 발화. 해시 불일치는 에러 로그(시드·양측 해시 — 버그 재현 키, AC-17).
         /// </summary>
+        /// <param name="assembledSeed">보고자가 실제 재생한 시드.</param>
+        /// <param name="assembledAttempt">보고자가 실제 재생한 서버 채택 리롤.</param>
         /// <param name="blueprintHash">보고자의 로컬 블루프린트 해시.</param>
         /// <param name="rpcParams">송신자 식별용 RPC 파라미터.</param>
         [Rpc(SendTo.Server, InvokePermission = RpcInvokePermission.Everyone)]
-        private void ReportAssembledServerRpc(uint blueprintHash, RpcParams rpcParams = default)
+        private void ReportAssembledServerRpc(int assembledSeed, int assembledAttempt, uint blueprintHash, RpcParams rpcParams = default)
         {
-            Log.D($"[MapGenNetworkDriver] ReportAssembledServerRpc hash={blueprintHash:X8}");
+            Log.D($"[MapGenNetworkDriver] ReportAssembledServerRpc 시드={assembledSeed} 리롤={assembledAttempt} 해시={blueprintHash:X8}");
             if (!IsServer)
             {
                 return;
             }
 
             ulong senderClientId = rpcParams.Receive.SenderClientId;
+            if (assembledSeed != mapSeed.Value || assembledAttempt != mapAttempt.Value)
+            {
+                Log.E($"[MapGenNetworkDriver] 생성 키 불일치 클라={senderClientId} 서버=({mapSeed.Value},{mapAttempt.Value}) 클라측=({assembledSeed},{assembledAttempt})");
+                return;
+            }
+
             reportedHashes[senderClientId] = blueprintHash;
             if (blueprintHash != localHash)
             {
-                Log.E($"[MapGenNetworkDriver] 해시 불일치(AC-02) 시드={mapSeed.Value} 클라={senderClientId} 서버={localHash:X8} 클라측={blueprintHash:X8} — 빌드·카탈로그 드리프트 의심");
+                Log.E($"[MapGenNetworkDriver] 해시 불일치(AC-02) 시드={mapSeed.Value} 리롤={mapAttempt.Value} 클라={senderClientId} 서버={localHash:X8} 클라측={blueprintHash:X8} — 생성 로직·계획 입력 드리프트 의심");
                 return; // 불일치 보고는 완료 집계에 넣지 않는다 — 어긋난 맵 위에서 스폰을 시작하지 않기 위해
             }
 
@@ -211,7 +236,7 @@ namespace EmptyHouse.MapGen.Runtime
             }
 
             assembledEventFired = true;
-            Log.D($"[MapGenNetworkDriver] 전 클라 조립 완료(X7) 시드={mapSeed.Value} 해시={localHash:X8} — onMapAssembledServer 발화");
+            Log.D($"[MapGenNetworkDriver] 전 클라 조립 완료(X7) 시드={mapSeed.Value} 리롤={mapAttempt.Value} 해시={localHash:X8} — onMapAssembledServer 발화");
             onMapAssembledServer.RaiseEvent();
         }
 
