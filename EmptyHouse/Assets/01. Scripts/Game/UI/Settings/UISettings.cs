@@ -13,12 +13,13 @@ using Border.Events;
 /// </summary>
 public class UISettings : MonoBehaviour
 {
-    /// <summary>탭 버튼과 그 버튼이 여는 패널의 짝.</summary>
+    /// <summary>탭 버튼·그 버튼의 선택 프레임·버튼이 여는 패널의 짝.</summary>
     [Serializable]
     private class SettingsTab
     {
-        public UISettingsTabButton TabButton;
-        public GameObject Panel;
+        public UIGenericButton Button;            // 클릭 소스. Clicked 를 구독해 탭을 전환한다
+        public UISelectionFrameHook Frame;        // 활성 탭 표시. ForcedOn 으로 상시 켠다(호버·네비는 FrameHook 이 스스로 처리)
+        public GameObject Panel;                  // 이 탭이 여는 설정 패널
     }
 
     [Header("Tabs")]
@@ -51,7 +52,7 @@ public class UISettings : MonoBehaviour
         {
             int index = i;
             tabClickHandlers[i] = () => SelectTab(index);
-            tabs[i].TabButton.Button.Clicked += tabClickHandlers[i];
+            tabs[i].Button.Clicked += tabClickHandlers[i];
         }
 
         SelectTab(0);
@@ -65,7 +66,7 @@ public class UISettings : MonoBehaviour
 
         for (int i = 0; i < tabs.Length; i++)
         {
-            tabs[i].TabButton.Button.Clicked -= tabClickHandlers[i];
+            tabs[i].Button.Clicked -= tabClickHandlers[i];
         }
 
         saveLoadSystem.SaveProfile();
@@ -80,7 +81,7 @@ public class UISettings : MonoBehaviour
         for (int i = 0; i < tabs.Length; i++)
         {
             bool selected = i == index;
-            tabs[i].TabButton.Selected = selected;
+            tabs[i].Frame.ForcedOn = selected;
             tabs[i].Panel.SetActive(selected);
         }
     }

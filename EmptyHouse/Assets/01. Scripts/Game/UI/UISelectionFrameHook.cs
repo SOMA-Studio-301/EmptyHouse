@@ -37,6 +37,20 @@ public class UISelectionFrameHook : MonoBehaviour,
     private Selectable selectable; // 상호작용 가능 여부 판정용. RequireComponent 로 보장된다
     private bool isNavigationSelected; // 키보드/게임패드 네비게이션으로 선택된 상태
     private bool isHovered; // 마우스 포인터가 위에 올라와 있는 상태
+    private bool isForcedOn; // 호버·네비와 무관하게 프레임을 상시 켜두는 외부 강제 상태
+
+    /// <summary>
+    /// 호버·네비게이션과 무관하게 프레임을 상시 켜둘지 여부. 탭 그룹이 "현재 활성 탭"에 대해 켠다.
+    /// 이 값은 마우스가 패널 안 다른 위젯으로 옮겨가도 유지되므로, 활성 표시가 EventSystem 선택에 휩쓸리지 않는다.
+    /// </summary>
+    public bool ForcedOn
+    {
+        set
+        {
+            isForcedOn = value;
+            ApplyFrame();
+        }
+    }
 
     /// <summary>
     /// Selectable 을 캐싱하고 프레임 초기 상태를 비활성으로 설정한다.
@@ -109,13 +123,13 @@ public class UISelectionFrameHook : MonoBehaviour,
     }
 
     /// <summary>
-    /// 네비게이션 선택 또는 호버 중 하나라도 참이면 프레임을 켠다.
+    /// 네비게이션 선택·호버·강제 ON 중 하나라도 참이면 프레임을 켠다.
     /// </summary>
     private void ApplyFrame()
     {
         if (selectionFrame != null)
         {
-            selectionFrame.SetActive(isNavigationSelected || isHovered);
+            selectionFrame.SetActive(isNavigationSelected || isHovered || isForcedOn);
         }
     }
 
