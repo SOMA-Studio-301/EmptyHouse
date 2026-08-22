@@ -399,6 +399,7 @@ public class PlayerController : NetworkBehaviour
     /// <summary>
     /// 위장 상태 변화에 맞춰 1인칭 eyeVcam 과 숄더뷰 disguiseVcam 사이를 전환한다.
     /// 둘 다 정식 Vcam 이라 CinemachineBrain 의 기본 블렌드로 자연스럽게 전환된다 — 수동 트랜스폼 보정이 필요 없다.
+    /// 진입 시에는 손에 든 것을 자동으로 집어넣어 맨손이 된다(조작UI 2-2).
     /// </summary>
     /// <param name="isDisguised">변경된 위장 상태.</param>
     private void HandleDisguiseChanged(bool isDisguised)
@@ -408,6 +409,9 @@ public class PlayerController : NetworkBehaviour
         // 비활성(사망·귀환) 중에는 화면 주인이 관전 Vcam 이다. 위장한 채로 죽으면 서버가 게이지를 계속 깎다가
         // 0 에서 위장을 해제하는데(PlayerDisguise), 그 알림에 여기서 반응하면 관전 도중 카메라가 시체 눈으로 튄다.
         if (IsInactive) return;
+
+        // 진입 시 자동 집어넣기(맨손) — 조작UI 2-2. 위장 중 좌클릭이 균형 입력으로 재정의되므로 손을 비운다. 아이템은 슬롯에 남는다.
+        if (isDisguised) inventory.StowHand();
 
         onCameraChanged.RaiseEvent(isDisguised ? disguiseVcam : eyeVcam);
     }

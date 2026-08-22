@@ -100,6 +100,24 @@ public class InputReader : ScriptableObject, GameInput.IGameplayActions, GameInp
     }
 
     /// <summary>
+    /// Gameplay 맵의 임의 액션에 바인딩된 키의 표시 문자열을 액션 이름으로 조회한다(예: "Disguise" → "V").
+    /// 튜토리얼 대사처럼 여러 액션의 키 표기가 본문에 섞이는 소비자용 — 액션별 전용 게터를 늘리지 않는다.
+    /// 리바인드·스킴 전환을 따라 바뀐다(조작상호작용UI.md 3-3).
+    /// </summary>
+    /// <param name="actionName">Gameplay 맵의 액션 이름.</param>
+    /// <returns>현재 바인딩된 키의 표시 문자열. 없는 액션이면 빈 문자열.</returns>
+    public string GetBindingDisplayString(string actionName)
+    {
+        Log.D($"[InputReader] GetBindingDisplayString {actionName}");
+
+        InputAction action = gameInput.Gameplay.Get().FindAction(actionName);
+        if (action == null) return string.Empty; // 없는 액션명(원고 오타 등)은 예외 대신 빈 표기로 드러낸다
+
+        // 그룹(=컨트롤 스킴)으로 거르지 않으면 액션에 걸린 모든 바인딩이 "E | Y" 처럼 이어붙어 나온다.
+        return action.GetBindingDisplayString(group: ResolveActiveBindingGroup());
+    }
+
+    /// <summary>
     /// 마지막으로 입력이 들어온 디바이스가 속한 컨트롤 스킴의 바인딩 그룹명을 반환한다.
     /// 아직 아무 입력도 없었거나(첫 프레임) 어느 스킴에도 속하지 않는 디바이스면 키보드, 마우스가 기본
     /// </summary>

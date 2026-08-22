@@ -6,11 +6,17 @@ EditorBuildSettings:
   serializedVersion: 2
   m_Scenes:
   - enabled: 1
+    path: Assets/00. Scenes/Splash.unity
+    guid: 0ad12d250fef4ed45863943cf45e2a35
+  - enabled: 1
     path: Assets/00. Scenes/Lobby.unity
     guid: e0abafc2a2ced0d48adc2b24e5704f71
   - enabled: 1
     path: Assets/00. Scenes/Game.unity
     guid: 183e88dd9dd81164c808065ac298cf0d
+  - enabled: 1
+    path: Assets/00. Scenes/Tutorial.unity
+    guid: fc2f8e95f403afc48a6b0d7328c54e42
   m_configObjects:
     com.unity.dt.app-ui: {fileID: 11400000, guid: 1b1c20d82303e4b5781c3ef50ac1449f, type: 2}
     com.unity.input.settings: {fileID: 11400000, guid: 29e24fb77459a5f429f8fbc24df39665, type: 2}

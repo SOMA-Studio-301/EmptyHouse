@@ -37,6 +37,9 @@ public class UIMenuManager : MonoBehaviour
     [Header("Fade")]
     [SerializeField] private float fadeDuration = 0.3f; // 크로스페이드 시간(초)
 
+    [Header("Tutorial")]
+    [SerializeField] private string tutorialSceneName = "Tutorial"; // 튜토리얼 씬 이름(스펙 1-1 재진입 경로)
+
     private Tween menuFade;  // 캐싱된 메뉴 페이드. PlayForward = 표시, PlayBackward = 숨김
     private Tween lobbyFade; // 캐싱된 로비 페이드. 위와 동일
 
@@ -68,6 +71,7 @@ public class UIMenuManager : MonoBehaviour
 
         // 메뉴 패널 액션 설정
         menuPanel.StartClicked += EnableLobby;
+        menuPanel.TutorialClicked += StartTutorial;
         menuPanel.SettingsClicked += ShowSettings;
         menuPanel.ExitClicked += RequestExitGame;
         // 로비 패널 액션 설정
@@ -104,6 +108,7 @@ public class UIMenuManager : MonoBehaviour
         lobbyPanel.BackButtonClicked -= EnableMenu;
 
         menuPanel.StartClicked -= EnableLobby;
+        menuPanel.TutorialClicked -= StartTutorial;
         menuPanel.SettingsClicked -= ShowSettings;
         menuPanel.ExitClicked -= RequestExitGame;
     }
@@ -194,6 +199,15 @@ public class UIMenuManager : MonoBehaviour
     private void ShowSettings()
     {
         menuPanel.ShowSettings();
+    }
+
+    /// <summary>
+    /// 튜토리얼 씬으로 전환한다. 메뉴 화면에서는 NetworkManager 가 기동 전이라 네트워크 씬 로드가 아닌
+    /// 일반 로컬 로드를 쓴다. 호스트 기동은 씬 안의 TutorialHostBootstrap 이 맡는다.
+    /// </summary>
+    private void StartTutorial()
+    {
+        UnityEngine.SceneManagement.SceneManager.LoadScene(tutorialSceneName);
     }
 
     /// <summary>게임 종료 확인 팝업을 띄운다. 오조작 종료가 손해가 커 확인을 한 겹 둔다.</summary>
